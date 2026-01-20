@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart cut services - E-commerce Premium</title>
+    <meta name="description" content="Boutique en ligne premium pour des produits d'exception">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#1E40AF',
+                        accent: '#F59E0B'
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Anime.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        /* Reduce motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Animations personnalisées */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        .fade-in-left {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        
+        .fade-in-right {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        
+        .scale-in {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        
+        /* Animations pour les cartes produits */
+        .product-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 0.5rem;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Boutons */
+        .btn-primary {
+            background-color: #3B82F6;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1E40AF;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-hero {
+            background-color: #F59E0B;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-hero:hover {
+            background-color: #D97706;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 158, 11, 0.3);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            #hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            #cta .flex {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            #cta .flex a {
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased bg-gray-50">
+    <!-- 🎬 1️⃣ OPENING / LOADER -->
+    <div id="loader" class="fixed inset-0 z-50 flex items-center justify-center  transition-all duration-500">
+        <div class="text-center">
+            <div id="loader-logo" class="text-white text-5xl font-bold mb-4 opacity-0 scale-in"><img src="logo.jpeg" width="300px" height="300px" alt=""></div>
+            <div class="w-16 h-1 bg-white/50 mx-auto rounded-full overflow-hidden">
+                <div id="loader-progress" class="h-full bg-white w-0"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🧭 2️⃣ HEADER / NAVBAR -->
+    <header id="header" class="sticky top-0 z-40 bg-white/90 backdrop-blur-md shadow-sm opacity-0">
+        <nav class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <!-- Logo -->
+                <a href="index.html" > <img src="logo.jpeg" width="50px" height="50px"   alt="" ></a>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="index.html" class=" text-gray-700 hover:text-primary transition-colors duration-300">Accueil</a>
+                    <a href="catalogue.html" class=" text-gray-700 hover:text-primary transition-colors duration-300">Catalogue</a>
+                    <a href="about.html" class=" text-gray-700 hover:text-primary transition-colors duration-300">About</a>
+                    <a href="catalogue.html#panier" id="cart-icon" class="text-gray-700 hover:text-primary transition-colors duration-300 relative">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="cart-count" class="absolute -top-2 -right-2 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    </a>
+                </div>
+                
+                <!-- Mobile Navigation -->
+                <div class="flex md:hidden items-center space-x-4">
+                    <a href="catalogue.html#panier" id="mobile-cart-icon" class="text-gray-700 relative">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="mobile-cart-count" class="absolute -top-2 -right-2 bg-accent text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+                    </a>
+                    <button id="mobile-menu-toggle" class="text-gray-700">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Menu -->
+            <div id="mobile-menu" class="hidden md:hidden mt-4 pb-4 border-t border-gray-100">
+                <div class="flex flex-col space-y-3 mt-3">
+                    <a href="#home" class=" text-gray-700 hover:text-primary py-2">Accueil</a>
+                    <a href="catalogue.html" class=" text-gray-700 hover:text-primary py-2">Catalogue</a>
+                    <a href="about.html" class=" text-gray-700 hover:text-primary py-2">About</a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+
+
+ <main id="main-content" class="opacity-0">
+    <div>
+<!-- =========================================================================
+ =====================
+ =======================
+ =========== -->
+ <!-- Bannière de livraison (marquee) -->
+<!-- Bannière de livraison (marquee) -->
+<!-- Bannière de livraison (marquee) avec animation -->
+<marquee class="custom-marquee bg-blue-600 text-white py-3 " id="marquee-banner" behavior="scroll" direction="left" scrollamount="3">
+  <div class="contenu personnalisé de la bannière inline-block">
+    <span class="text-sm md:text-base">
+     
+      <span id="marquee-text">Chargement du message...</span>
+    </span>
+  </div>
+</marquee>
+
+<!-- Script Firebase pour la bannière marquee (unique) -->
+<!-- Script Firebase spécifique pour la bannière marquee -->
+<script type="module">
+  // Attendre que le DOM soit chargé
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Initialisation de la bannière marquee...');
+    
+    // Vérifier si Firebase est déjà disponible
+    if (typeof firebase === 'undefined') {
+      console.error('Firebase n\'est pas chargé');
+      document.getElementById('marquee-text').textContent = 'Erreur de chargement Firebase';
+      return;
+    }
+    
+    try {
+      // Initialiser Firebase si pas déjà fait
+      if (!firebase.apps.length) {
+      const firebaseConfig = {
+  apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+  authDomain: "smartcutservices.firebaseapp.com",
+  projectId: "smartcutservices",
+  storageBucket: "smartcutservices.firebasestorage.app",
+  messagingSenderId: "589013273323",
+  appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+  measurementId: "G-R8GJXQP7BD"
+};
+
+        firebase.initializeApp(firebaseConfig);
+      }
+      
+      // Référence à Firestore
+      const db = firebase.firestore();
+      
+      // Référence au document marquee
+      const marqueeRef = db.collection('marquee').doc('currentMessage');
+      
+      console.log('Écoute des changements sur le document marquee...');
+      
+      // Écouter les changements en temps réel
+      marqueeRef.onSnapshot({
+        // Inclure les métadonnées pour avoir un snapshot immédiat
+        includeMetadataChanges: true
+      }, (doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          console.log('Données reçues:', data);
+          
+          const marqueeText = document.getElementById('marquee-text');
+          if (marqueeText) {
+            // Si le message contient du HTML (comme des icônes)
+            if (data.message && typeof data.message === 'string') {
+              marqueeText.innerHTML = data.message;
+            } else if (data.message) {
+              marqueeText.textContent = data.message;
+            } else {
+              marqueeText.innerHTML = '<i class="fas fa-truck mr-2"></i>Livraison gratuite disponible !';
+            }
+            
+            console.log('Message mis à jour dans la bannière');
+          }
+        } else {
+          console.log('Document marquee non trouvé, création...');
+          // Créer le document avec un message par défaut
+          marqueeRef.set({
+            message: '<i class="fas fa-truck mr-2"></i>Livraison gratuite sur toutes les commandes !',
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+            created: new Date().toISOString()
+          }).then(() => {
+            console.log('Document marquee créé avec succès');
+          }).catch(error => {
+            console.error('Erreur création document:', error);
+          });
+        }
+      }, (error) => {
+        console.error('Erreur écoute Firestore:', error);
+        const marqueeText = document.getElementById('marquee-text');
+        if (marqueeText) {
+          marqueeText.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Service temporairement indisponible';
+        }
+      });
+      
+    } catch (error) {
+      console.error('Erreur initialisation Firebase:', error);
+      const marqueeText = document.getElementById('marquee-text');
+      if (marqueeText) {
+        marqueeText.textContent = 'Bienvenue dans notre boutique !';
+      }
+    }
+  });
+</script>
+
+<!-- ==============================
+ =======================================================================
+ ============================================================================================
+ ======================================================================================================================================= -->
+ </div>  
+ 
+        <!-- 🟢 3️⃣ HERO - PRODUITS VEDETTES -->
+        <section id="hero" class="relative h-screen overflow-hidden">
+            <div id="hero-slider" class="absolute inset-0">
+                <!-- Les slides seront générés dynamiquement par JavaScript -->
+            </div>
+            
+            <!-- Hero Overlay -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
+            
+            <!-- Hero Content -->
+            <div class="relative h-full flex items-center justify-center text-center text-white">
+                <div class="container mx-auto px-4 z-10">
+                    <div id="hero-content" class="fade-in">
+                        <!-- Contenu dynamique -->
+                    </div>
+                    
+                    <!-- Contrôles slider -->
+                    <div class="mt-8 flex justify-center space-x-4">
+                        <button id="prev-slide" class="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button id="next-slide" class="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Indicateurs -->
+                    <div id="slide-indicators" class="flex justify-center space-x-2 mt-6">
+                        <!-- Généré dynamiquement -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 🟡 4️⃣ SECTION AVANTAGES -->
+        <section id="advantages" class="py-16 bg-gray-50">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-12 fade-in">
+                    Pourquoi nous choisir ?
+                </h2>
+                
+                <div id="advantages-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <!-- Skeleton loader (4 cartes) -->
+                    <div class="text-center p-6 bg-white rounded-xl shadow-sm fade-in">
+                        <div class="skeleton w-16 h-16 rounded-full mx-auto mb-4"></div>
+                        <div class="skeleton h-6 w-3/4 mx-auto mb-3"></div>
+                        <div class="skeleton h-4 w-full mb-2"></div>
+                        <div class="skeleton h-4 w-5/6 mx-auto"></div>
+                    </div>
+                    <div class="text-center p-6 bg-white rounded-xl shadow-sm fade-in">
+                        <div class="skeleton w-16 h-16 rounded-full mx-auto mb-4"></div>
+                        <div class="skeleton h-6 w-3/4 mx-auto mb-3"></div>
+                        <div class="skeleton h-4 w-full mb-2"></div>
+                        <div class="skeleton h-4 w-5/6 mx-auto"></div>
+                    </div>
+                    <div class="text-center p-6 bg-white rounded-xl shadow-sm fade-in">
+                        <div class="skeleton w-16 h-16 rounded-full mx-auto mb-4"></div>
+                        <div class="skeleton h-6 w-3/4 mx-auto mb-3"></div>
+                        <div class="skeleton h-4 w-full mb-2"></div>
+                        <div class="skeleton h-4 w-5/6 mx-auto"></div>
+                    </div>
+                    <div class="text-center p-6 bg-white rounded-xl shadow-sm fade-in">
+                        <div class="skeleton w-16 h-16 rounded-full mx-auto mb-4"></div>
+                        <div class="skeleton h-6 w-3/4 mx-auto mb-3"></div>
+                        <div class="skeleton h-4 w-full mb-2"></div>
+                        <div class="skeleton h-4 w-5/6 mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 🔵 5️⃣ PRODUITS POPULAIRES / NOUVEAUTÉS -->
+        <section id="featured-products" class="py-16 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4 md:mb-0 fade-in">
+                        Produits populaires
+                    </h2>
+                    <a href="catalogue.html" class="btn-primary inline-flex items-center px-6 py-3 rounded-lg font-medium fade-in">
+                        Voir tout le catalogue
+                        <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
+                </div>
+                
+                <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <!-- Skeleton loader (4 cartes) -->
+                    <div class="product-card bg-gray-50 rounded-xl overflow-hidden shadow-sm fade-in">
+                        <div class="skeleton h-64 w-full"></div>
+                        <div class="p-4">
+                            <div class="skeleton h-6 w-3/4 mb-3"></div>
+                            <div class="skeleton h-4 w-1/2 mb-4"></div>
+                            <div class="skeleton h-10 w-full rounded-lg"></div>
+                        </div>
+                    </div>
+                    <div class="product-card bg-gray-50 rounded-xl overflow-hidden shadow-sm fade-in">
+                        <div class="skeleton h-64 w-full"></div>
+                        <div class="p-4">
+                            <div class="skeleton h-6 w-3/4 mb-3"></div>
+                            <div class="skeleton h-4 w-1/2 mb-4"></div>
+                            <div class="skeleton h-10 w-full rounded-lg"></div>
+                        </div>
+                    </div>
+                    <div class="product-card bg-gray-50 rounded-xl overflow-hidden shadow-sm fade-in">
+                        <div class="skeleton h-64 w-full"></div>
+                        <div class="p-4">
+                            <div class="skeleton h-6 w-3/4 mb-3"></div>
+                            <div class="skeleton h-4 w-1/2 mb-4"></div>
+                            <div class="skeleton h-10 w-full rounded-lg"></div>
+                        </div>
+                    </div>
+                    <div class="product-card bg-gray-50 rounded-xl overflow-hidden shadow-sm fade-in">
+                        <div class="skeleton h-64 w-full"></div>
+                        <div class="p-4">
+                            <div class="skeleton h-6 w-3/4 mb-3"></div>
+                            <div class="skeleton h-4 w-1/2 mb-4"></div>
+                            <div class="skeleton h-10 w-full rounded-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 🟣 6️⃣ SECTION PROCESSUS -->
+        <section id="process" class="py-16 bg-gray-50">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-12 fade-in">
+                    Comment ça marche ?
+                </h2>
+                
+                <div id="process-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <!-- Le contenu est chargé dynamiquement si enabled === true -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 🟠 7️⃣ OPTIONS DE LIVRAISON -->
+        <section id="delivery" class="py-16 bg-white">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-12 fade-in">
+                    Options de livraison
+                </h2>
+                
+                <div id="delivery-container" class="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Options de livraison chargées dynamiquement -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 🔴 8️⃣ CTA FINAL -->
+        <section id="cta" class="py-20 bg-gradient-to-r from-primary to-secondary text-white">
+            <div class="container mx-auto px-4 text-center">
+                <div id="cta-container" class="scale-in">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-6">
+                        Prêt à découvrir nos produits ?
+                    </h2>
+                    <p class="text-xl mb-10 max-w-2xl mx-auto">
+                        Rejoignez des milliers de clients satisfaits
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row justify-center gap-4">
+                        <a href="catalogue.html" class="bg-white text-primary px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-300 inline-flex items-center justify-center">
+                            <i class="fas fa-store mr-2"></i>
+                            Accéder au catalogue
+                        </a>
+                        <a href="catalogue.html#panier" id="cta-cart" class="bg-transparent border-2 border-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition-colors duration-300 inline-flex items-center justify-center">
+                            <i class="fas fa-shopping-cart mr-2"></i>
+                            Voir le panier
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div class="bg-slate-900 text-gray-300 font-sans">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+    <!-- Conteneur principal desktop -->
+    <div class="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-10">
+      
+      <!-- Section Identité -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-100">Notre entreprise</h3>
+        <p class="text-sm leading-relaxed text-gray-400">
+          Votre boutique en ligne de confiance. Nous nous engageons à vous offrir la meilleure expérience d'achat.
+        </p>
+      </div>
+
+      <!-- Section Navigation -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-100">Navigation rapide</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="index.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Accueil</a></li>
+          <li><a href="catalogue.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Catalogue</a></li>
+          <li><a href="catalogue.html#panier" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Panier</a></li>
+          <li><a href="about.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">À propos</a></li>
+        </ul>
+      </div>
+
+      <!-- Section Réseaux sociaux -->
+     
+
+      <!-- Section Politiques -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-100">Informations légales</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="confi.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de confidentialité</a></li>
+          <li><a href="livreson.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de livraison</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Version mobile -->
+    <div class="md:hidden space-y-6">
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-gray-100">Notre entreprise</h3>
+        <p class="text-sm leading-relaxed text-gray-400">
+          Votre boutique en ligne de confiance. Nous nous engageons à vous offrir la meilleure expérience d'achat.
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-gray-100">Navigation rapide</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="index.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Accueil</a></li>
+          <li><a href="catalogue.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Catalogue</a></li>
+          <li><a href="catalogue.html#panier" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Panier</a></li>
+          <li><a href="about.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">À propos</a></li>
+        </ul>
+      </div>
+
+      
+
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-gray-100">Informations légales</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="confi.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de confidentialité</a></li>
+          <li><a href="livreson.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de livraison</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Copyright -->
+    <div class="mt-10 pt-6 border-t border-gray-800 text-center text-sm text-gray-500">
+      <p>&copy; 2026 Smart cut services . Tous droits réservés.</p>
+    </div>
+  </div>
+</div>
+         <footer id="footer" class="bg-gray-900 hidden text-white py-12" >
+        <div class="container mx-auto px-4">
+            <div id="footer-content">
+                <!-- Contenu du footer chargé dynamiquement depuis Firestore -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <!-- Sections du footer -->
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; <span id="current-year">2024</span> Smart cut services. Tous droits réservés.</p>
+            </div>
+        </div>
+    </footer>
+    </main>
+
+    <!-- 🧱 1️⃣0️⃣ FOOTER -->
+   
+
+    <!-- Modals et autres éléments UI -->
+    
+    <!-- Modal panier -->
+    <div id="cart-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50" id="cart-modal-backdrop"></div>
+        <div class="absolute right-0 top-0 h-full w-full md:w-96 bg-white shadow-xl transform translate-x-full transition-transform duration-300">
+            <div class="p-6 h-full flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">Votre panier</h3>
+                    <button id="close-cart" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-2xl"></i>
+                    </button>
+                </div>
+                
+                <div id="cart-items" class="flex-grow overflow-y-auto">
+                    <!-- Articles du panier -->
+                    <p class="text-gray-500 text-center py-8">Votre panier est vide</p>
+                </div>
+                
+                <div class="border-t pt-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="font-semibold">Total:</span>
+                        <span id="cart-total" class="text-xl font-bold">0,00 HTG</span>
+                    </div>
+                    <button id="checkout-btn" class="btn-primary w-full py-3 rounded-lg font-semibold">
+                        <i class="fas fa-lock mr-2"></i>
+                        Passer la commande
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-[-100px] transition-transform duration-300">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle mr-2"></i>
+            <span id="notification-message">Produit ajouté au panier !</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // ============================================
+        // CONFIGURATION INITIALE
+        // ============================================
+        
+        // Configuration Firebase
+      const firebaseConfig = {
+  apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+  authDomain: "smartcutservices.firebaseapp.com",
+  projectId: "smartcutservices",
+  storageBucket: "smartcutservices.firebasestorage.app",
+  messagingSenderId: "589013273323",
+  appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+  measurementId: "G-R8GJXQP7BD"
+};
+
+        
+        // Variables globales
+        let db;
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        let currentSlide = 0;
+        let heroSlides = [];
+        let heroInterval;
+        let animationInstances = [];
+        
+        // ============================================
+        // INITIALISATION DE L'APPLICATION
+        // ============================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialiser Firebase
+            initializeFirebase();
+            
+            // Configurer les écouteurs d'événements
+            setupEventListeners();
+            
+            // Gérer l'animation du loader
+            handleLoaderAnimation();
+            
+            // Mettre à jour le compteur du panier
+            updateCartCount();
+            
+            // Initialiser l'intersection observer pour les animations au scroll
+            initScrollAnimations();
+        });
+        
+        // ============================================
+        // FONCTIONS D'INITIALISATION
+        // ============================================
+        
+        function initializeFirebase() {
+            try {
+                // Vérifier si Firebase est disponible
+                if (typeof firebase === 'undefined') {
+                    console.error('Firebase SDK non chargé');
+                    return;
+                }
+                
+                // Initialiser Firebase
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                
+                // Configurer pour le développement local si nécessaire
+                if (window.location.hostname === "localhost") {
+                    db.settings({
+                        host: "localhost:8080",
+                        ssl: false
+                    });
+                }
+                
+                // Charger les données après l'initialisation
+                setTimeout(() => {
+                    loadInitialData();
+                    loadFooterData();
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'initialisation de Firebase:', error);
+            }
+        }
+        
+        function setupEventListeners() {
+            // Navigation mobile
+            document.getElementById('mobile-menu-toggle').addEventListener('click', toggleMobileMenu);
+            document.getElementById('mobile-cart-icon').addEventListener('click', openCartModal);
+            document.getElementById('cart-icon').addEventListener('click', openCartModal);
+            
+            // Panier
+            document.getElementById('close-cart').addEventListener('click', closeCartModal);
+            document.getElementById('cart-modal-backdrop').addEventListener('click', closeCartModal);
+            document.getElementById('checkout-btn').addEventListener('click', proceedToCheckout);
+            document.getElementById('cta-cart').addEventListener('click', openCartModal);
+            
+            // Slider Hero
+            document.getElementById('prev-slide').addEventListener('click', () => navigateSlide(-1));
+            document.getElementById('next-slide').addEventListener('click', () => navigateSlide(1));
+            
+            // Navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', smoothScroll);
+            });
+            
+            // Prévenir les formulaires
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', e => e.preventDefault());
+            });
+        }
+        
+        // ============================================
+        // 🎬 1️⃣ GESTION DU LOADER AVEC ANIME.JS
+        // ============================================
+        
+        function handleLoaderAnimation() {
+            // Animation de la barre de progression
+            const progressAnimation = anime({
+                targets: '#loader-progress',
+                width: '100%',
+                duration: 2500,
+                easing: 'easeInOutQuad',
+                complete: function() {
+                    // Cacher le loader après 3 secondes
+                    setTimeout(() => {
+                        const loaderAnimation = anime({
+                            targets: '#loader',
+                            opacity: 0,
+                            duration: 500,
+                            easing: 'easeOutQuad',
+                            complete: function() {
+                                document.getElementById('loader').style.display = 'none';
+                                
+                                // Afficher le contenu principal
+                                anime({
+                                    targets: ['#header', '#main-content'],
+                                    opacity: [0, 1],
+                                    duration: 800,
+                                    easing: 'easeOutQuad',
+                                    delay: anime.stagger(100)
+                                });
+                            }
+                        });
+                        animationInstances.push(loaderAnimation);
+                    }, 500);
+                }
+            });
+            
+            // Animation du logo
+            const logoAnimation = anime({
+                targets: '#loader-logo',
+                opacity: [0, 1],
+                scale: [0.8, 1],
+                duration: 1500,
+                easing: 'easeOutBack',
+                delay: 500
+            });
+            
+            animationInstances.push(progressAnimation, logoAnimation);
+            
+            // Stocker que le loader a été affiché
+            sessionStorage.setItem('loaderShown', 'true');
+        }
+        
+        // ============================================
+        // ANIMATIONS AU SCROLL AVEC ANIME.JS
+        // ============================================
+        
+        function initScrollAnimations() {
+            // Créer un Intersection Observer pour les animations au scroll
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const element = entry.target;
+                        
+                        // Vérifier la classe pour l'animation appropriée
+                        if (element.classList.contains('fade-in')) {
+                            animateFadeIn(element);
+                        } else if (element.classList.contains('fade-in-left')) {
+                            animateFadeInLeft(element);
+                        } else if (element.classList.contains('fade-in-right')) {
+                            animateFadeInRight(element);
+                        } else if (element.classList.contains('scale-in')) {
+                            animateScaleIn(element);
+                        }
+                        
+                        // Arrêter d'observer après l'animation
+                        observer.unobserve(element);
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            });
+            
+            // Observer tous les éléments avec des classes d'animation
+            document.querySelectorAll('.fade-in, .fade-in-left, .fade-in-right, .scale-in').forEach(el => {
+                observer.observe(el);
+            });
+        }
+        
+        function animateFadeIn(element) {
+            const animation = anime({
+                targets: element,
+                opacity: [0, 1],
+                translateY: [20, 0],
+                duration: 800,
+                easing: 'easeOutQuad',
+                delay: anime.stagger(100, {grid: [4, 4], from: 'center'})
+            });
+            animationInstances.push(animation);
+        }
+        
+        function animateFadeInLeft(element) {
+            const animation = anime({
+                targets: element,
+                opacity: [0, 1],
+                translateX: [-20, 0],
+                duration: 800,
+                easing: 'easeOutQuad'
+            });
+            animationInstances.push(animation);
+        }
+        
+        function animateFadeInRight(element) {
+            const animation = anime({
+                targets: element,
+                opacity: [0, 1],
+                translateX: [20, 0],
+                duration: 800,
+                easing: 'easeOutQuad'
+            });
+            animationInstances.push(animation);
+        }
+        
+        function animateScaleIn(element) {
+            const animation = anime({
+                targets: element,
+                opacity: [0, 1],
+                scale: [0.9, 1],
+                duration: 800,
+                easing: 'easeOutBack'
+            });
+            animationInstances.push(animation);
+        }
+        
+        function animateStaggerElements(elements) {
+            const animation = anime({
+                targets: elements,
+                opacity: [0, 1],
+                translateY: [30, 0],
+                duration: 600,
+                easing: 'easeOutQuad',
+                delay: anime.stagger(100)
+            });
+            animationInstances.push(animation);
+        }
+        
+        // ============================================
+        // 🧭 2️⃣ NAVIGATION
+        // ============================================
+        
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const icon = document.getElementById('mobile-menu-toggle').querySelector('i');
+            
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-times');
+                
+                // Animation d'ouverture
+                anime({
+                    targets: menu,
+                    height: [0, menu.scrollHeight],
+                    duration: 300,
+                    easing: 'easeOutQuad'
+                });
+            } else {
+                anime({
+                    targets: menu,
+                    height: [menu.scrollHeight, 0],
+                    duration: 300,
+                    easing: 'easeOutQuad',
+                    complete: function() {
+                        menu.classList.add('hidden');
+                        icon.classList.remove('fa-times');
+                        icon.classList.add('fa-bars');
+                    }
+                });
+            }
+        }
+        
+        function smoothScroll(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            if (targetId.startsWith('#')) {
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    anime({
+                        targets: document.documentElement,
+                        scrollTop: targetElement.offsetTop - 80,
+                        duration: 800,
+                        easing: 'easeInOutQuad'
+                    });
+                    
+                    // Fermer le menu mobile si ouvert
+                    const menu = document.getElementById('mobile-menu');
+                    if (!menu.classList.contains('hidden')) {
+                        toggleMobileMenu();
+                    }
+                }
+            }
+        }
+        
+        // ============================================
+        // 🟢 3️⃣ HERO SLIDER AVEC ANIME.JS
+        // ============================================
+        
+        function loadHeroProducts() {
+            if (!db) return;
+            
+            db.collection('products')
+                .where('showInHero', '==', true)
+                .limit(5)
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        showEmptyState('hero-content', 'Aucun produit vedette disponible');
+                        return;
+                    }
+                    
+                    heroSlides = [];
+                    querySnapshot.forEach(doc => {
+                        heroSlides.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    renderHeroSlider();
+                    startHeroSlider();
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des produits hero:', error);
+                    showErrorState('hero-content', 'Erreur de chargement');
+                });
+        }
+        
+        function renderHeroSlider() {
+            const slider = document.getElementById('hero-slider');
+            const indicators = document.getElementById('slide-indicators');
+            const heroContent = document.getElementById('hero-content');
+            
+            slider.innerHTML = '';
+            indicators.innerHTML = '';
+            
+            heroSlides.forEach((slide, index) => {
+                // Slide background
+                const slideElement = document.createElement('div');
+                slideElement.className = `absolute inset-0 ${index === 0 ? 'opacity-100' : 'opacity-0'}`;
+                slideElement.style.backgroundImage = `url('${slide.imageName || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1920'}')`;
+                slideElement.style.backgroundSize = 'cover';
+                slideElement.style.backgroundPosition = 'center';
+                slideElement.dataset.index = index;
+                slider.appendChild(slideElement);
+                
+                // Indicator
+                const indicator = document.createElement('button');
+                indicator.className = `w-3 h-3 rounded-full ${index === 0 ? 'bg-white' : 'bg-white/50'}`;
+                indicator.dataset.index = index;
+                indicator.addEventListener('click', () => goToSlide(index));
+                indicators.appendChild(indicator);
+            });
+            
+            // Contenu du premier slide
+            if (heroSlides.length > 0) {
+                updateHeroContent(0);
+            }
+        }
+        
+        function updateHeroContent(slideIndex) {
+            const slide = heroSlides[slideIndex];
+            const heroContent = document.getElementById('hero-content');
+            
+            heroContent.innerHTML = `
+                <h1 class="text-4xl md:text-6xl font-bold mb-4">${slide.name || 'Produit Premium'}</h1>
+                <div class="text-xl md:text-2xl mb-6">
+                    <span class="font-bold">${(slide.price || 0)} G</span>
+                    ${slide.showOldPrice && slide.oldPrice ? 
+                        `<span class="line-through text-gray-300 ml-2">${(slide.oldPrice)} G</span>` : 
+                        ''}
+                </div>
+                <p class="text-lg md:text-xl mb-8 max-w-2xl mx-auto opacity-90">${slide.description || 'Découvrez l\'excellence'}</p>
+                 <a href="catalogue.html" >
+                <button class="btn-hero inline-flex items-center px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300"
+                        data-product-id="${slide.id}">
+                    <i class="fas fa-cart-plus mr-2"></i>
+                  Voir dans le catalogue
+                </button>
+                </a>
+            `;
+            
+            // Ajouter l'écouteur d'événement au bouton
+            const addToCartBtn = heroContent.querySelector('.btn-hero');
+            if (addToCartBtn) {
+                addToCartBtn.addEventListener('click', function() {
+                    addToCart(slide.id, slide.name, slide.price, slide.imageName);
+                });
+            }
+            
+            // Animation du contenu avec Anime.js
+            if (heroContent.children.length > 0) {
+                const animation = anime({
+                    targets: heroContent.children,
+                    opacity: [0, 1],
+                    translateY: [30, 0],
+                    duration: 800,
+                    easing: 'easeOutQuad',
+                    delay: anime.stagger(100)
+                });
+                animationInstances.push(animation);
+            }
+        }
+        
+        function navigateSlide(direction) {
+            if (heroSlides.length === 0) return;
+            
+            const newIndex = (currentSlide + direction + heroSlides.length) % heroSlides.length;
+            goToSlide(newIndex);
+        }
+        
+        function goToSlide(index) {
+            if (index === currentSlide || heroSlides.length === 0) return;
+            
+            const slides = document.querySelectorAll('#hero-slider > div');
+            const indicators = document.querySelectorAll('#slide-indicators button');
+            
+            // Animation de transition avec Anime.js
+            const currentSlideAnim = anime({
+                targets: slides[currentSlide],
+                opacity: 0,
+                duration: 500,
+                easing: 'easeInOutQuad'
+            });
+            
+            const nextSlideAnim = anime({
+                targets: slides[index],
+                opacity: 1,
+                duration: 500,
+                easing: 'easeInOutQuad',
+                delay: 300
+            });
+            
+            // Mettre à jour les indicateurs
+            indicators[currentSlide].classList.remove('bg-white');
+            indicators[currentSlide].classList.add('bg-white/50');
+            indicators[index].classList.remove('bg-white/50');
+            indicators[index].classList.add('bg-white');
+            
+            // Mettre à jour le contenu
+            updateHeroContent(index);
+            
+            currentSlide = index;
+            resetHeroInterval();
+            
+            animationInstances.push(currentSlideAnim, nextSlideAnim);
+        }
+        
+        function startHeroSlider() {
+            if (heroSlides.length > 1) {
+                heroInterval = setInterval(() => {
+                    navigateSlide(1);
+                }, 5000);
+            }
+        }
+        
+        function resetHeroInterval() {
+            clearInterval(heroInterval);
+            startHeroSlider();
+        }
+        
+        // ============================================
+        // 🟡 4️⃣ SECTION AVANTAGES
+        // ============================================
+        
+        function loadAdvantages() {
+            if (!db) return;
+            
+            db.collection('home_content')
+                .doc('advantages')
+                .get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        // Créer le document avec des valeurs par défaut
+                        const defaultAdvantages = {
+                            items: [
+                                {
+                                    icon: 'fas fa-truck',
+                                    title: 'Livraison Rapide',
+                                    description: 'Recevez vos produits en 24-48h'
+                                },
+                                {
+                                    icon: 'fas fa-shield-alt',
+                                    title: 'Garantie Satisfait',
+                                    description: '30 jours pour changer d\'avis'
+                                },
+                                {
+                                    icon: 'fas fa-headset',
+                                    title: 'Support 24/7',
+                                    description: 'Notre équipe vous accompagne'
+                                },
+                                {
+                                    icon: 'fas fa-award',
+                                    title: 'Qualité Premium',
+                                    description: 'Des produits sélectionnés avec soin'
+                                }
+                            ]
+                        };
+                        
+                        return db.collection('home_content').doc('advantages').set(defaultAdvantages)
+                            .then(() => {
+                                return { data: () => defaultAdvantages };
+                            });
+                    }
+                    
+                    return doc;
+                })
+                .then(doc => {
+                    const data = doc.data();
+                    const advantages = data.items || [];
+                    
+                    if (advantages.length === 0) {
+                        showEmptyState('advantages-container', 'Aucun avantage configuré');
+                        return;
+                    }
+                    
+                    renderAdvantages(advantages);
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des avantages:', error);
+                    showErrorState('advantages-container', 'Erreur de chargement');
+                });
+        }
+        
+        function renderAdvantages(advantages) {
+            const container = document.getElementById('advantages-container');
+            
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            // Limiter à 4 avantages maximum
+            const displayAdvantages = advantages.slice(0, 4);
+            
+            displayAdvantages.forEach((advantage, index) => {
+                const card = document.createElement('div');
+                card.className = 'text-center p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1 fade-in';
+                card.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                        <i class="${advantage.icon || 'fas fa-star'} text-primary text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">${advantage.title || 'Avantage'}</h3>
+                    <p class="text-gray-600">${advantage.description || 'Description non disponible'}</p>
+                `;
+                container.appendChild(card);
+            });
+            
+            // Observer les nouvelles cartes pour les animations
+            setTimeout(() => {
+                initScrollAnimations();
+            }, 100);
+        }
+        
+        // ============================================
+        // 🔵 5️⃣ PRODUITS POPULAIRES
+        // ============================================
+        
+        function loadFeaturedProducts() {
+            if (!db) return;
+            
+            // D'abord essayer de charger les produits populaires
+            db.collection('products')
+                .where('isPopular', '==', true)
+                .limit(8)
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        // Essayer avec isNew si aucun produit populaire
+                        return db.collection('products')
+                            .where('isNew', '==', true)
+                            .limit(8)
+                            .get();
+                    }
+                    
+                    return querySnapshot;
+                })
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        // Charger les 8 premiers produits
+                        return db.collection('products')
+                            .limit(8)
+                            .get();
+                    }
+                    
+                    return querySnapshot;
+                })
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        showEmptyState('products-container', 'Aucun produit disponible pour le moment');
+                        return;
+                    }
+                    
+                    const products = [];
+                    querySnapshot.forEach(doc => {
+                        products.push({ id: doc.id, ...doc.data() });
+                    });
+                    
+                    renderFeaturedProducts(products);
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des produits:', error);
+                    showErrorState('products-container', 'Erreur de chargement');
+                });
+        }
+        
+        function renderFeaturedProducts(products) {
+            const container = document.getElementById('products-container');
+            
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            // Limiter à 4 produits maximum pour le design
+            const displayProducts = products.slice(0, 4);
+            
+            displayProducts.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 group fade-in';
+                card.innerHTML = `
+                    <div class="relative overflow-hidden h-64">
+                        <img src="${product.imageName || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'}" 
+                             alt="${product.name || 'Produit'}"
+                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                             loading="lazy"
+                             onerror="this.src='https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop'">
+                        ${product.isNew ? 
+                            '<div class="absolute top-4 right-4 bg-accent text-white px-3 py-1 rounded-full text-sm font-semibold">Nouveau</div>' : ''}
+                        ${product.isPopular ? 
+                            '<div class="absolute top-4 left-4 bg-primary text-white px-3 py-1 rounded-full text-sm font-semibold">Populaire</div>' : ''}
+                    </div>
+                    <div class="p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2 truncate">${product.name || 'Produit'}</h3>
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="text-lg font-bold text-primary">${(product.price || 0)} G</div>
+                            ${product.showOldPrice && product.oldPrice ? 
+                                `<div class="text-gray-400 line-through text-sm">${(product.oldPrice)} G</div>` : ''}
+                        </div>
+                    <a href="catalogue.html"">
+                        <button class="btn-primary w-full py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-[1.02]"
+                            <i class="fas fa-cart-plus mr-2"></i>
+                          Voir dans le catalogue
+                        </button>
+                        </a>
+                    </div>
+                `;
+                container.appendChild(card);
+                
+                // Ajouter l'écouteur d'événement
+                const addToCartBtn = card.querySelector('.add-to-cart-btn');
+                if (addToCartBtn) {
+                    addToCartBtn.addEventListener('click', function() {
+                        const productId = this.dataset.productId;
+                        const productName = this.dataset.productName;
+                        const productPrice = parseFloat(this.dataset.productPrice);
+                        const productImage = this.dataset.productImage;
+                        
+                        addToCart(productId, productName, productPrice, productImage);
+                    });
+                }
+            });
+            
+            // Observer les nouvelles cartes pour les animations
+            setTimeout(() => {
+                initScrollAnimations();
+            }, 100);
+        }
+        
+        // ============================================
+        // 🟣 6️⃣ SECTION PROCESSUS
+        // ============================================
+        
+        function loadProcess() {
+            if (!db) return;
+            
+            const container = document.getElementById('process-container');
+            
+            db.collection('home_content')
+                .doc('process')
+                .get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        container.innerHTML = '';
+                        return;
+                    }
+                    
+                    const data = doc.data();
+                    
+                    if (!data.enabled) {
+                        container.innerHTML = '';
+                        return;
+                    }
+                    
+                    renderProcess();
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement du processus:', error);
+                });
+        }
+        
+        function renderProcess() {
+            const container = document.getElementById('process-container');
+            
+            const steps = [
+                {
+                    icon: 'fas fa-box-open',
+                    title: 'Choisir un produit',
+                    description: 'Parcourez notre catalogue et sélectionnez vos articles préférés'
+                },
+                {
+                    icon: 'fas fa-cart-plus',
+                    title: 'Ajouter au panier',
+                    description: 'Ajoutez les produits à votre panier en un seul clic'
+                },
+                {
+                    icon: 'fas fa-shipping-fast',
+                    title: 'Choisir la livraison',
+                    description: 'Sélectionnez le mode de livraison qui vous convient'
+                },
+                {
+                    icon: 'fas fa-file-pdf',
+                    title: 'Valider & recevoir',
+                    description: 'Validez votre commande et recevez votre code PDF'
+                }
+            ];
+            
+            container.innerHTML = '';
+            
+            steps.forEach((step, index) => {
+                const stepElement = document.createElement('div');
+                stepElement.className = 'text-center p-6 fade-in';
+                stepElement.innerHTML = `
+                    <div class="relative mb-6">
+                        <div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                            <i class="${step.icon} text-primary text-2xl"></i>
+                        </div>
+                        ${index < steps.length - 1 ? 
+                            `<div class="hidden lg:block absolute top-10 left-3/4 w-full h-1 bg-primary/20"></div>` : ''}
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">${step.title}</h3>
+                    <p class="text-gray-600">${step.description}</p>
+                `;
+                container.appendChild(stepElement);
+            });
+            
+            // Observer les nouvelles étapes pour les animations
+            setTimeout(() => {
+                initScrollAnimations();
+            }, 100);
+        }
+        
+        // ============================================
+        // 🟠 7️⃣ OPTIONS DE LIVRAISON
+        // ============================================
+        
+        function loadDeliveryOptions() {
+            if (!db) return;
+            
+            const container = document.getElementById('delivery-container');
+            
+            db.collection('home_content')
+                .doc('delivery_display')
+                .get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        container.innerHTML = '';
+                        document.getElementById('delivery').style.display = 'none';
+                        return;
+                    }
+                    
+                    const data = doc.data();
+                    
+                    if (!data.enabled) {
+                        container.innerHTML = '';
+                        document.getElementById('delivery').style.display = 'none';
+                        return;
+                    }
+                    
+                    renderDeliveryOptions();
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des options de livraison:', error);
+                    document.getElementById('delivery').style.display = 'none';
+                });
+        }
+        
+        function renderDeliveryOptions() {
+            const container = document.getElementById('delivery-container');
+            
+            const options = [
+                {
+                    icon: 'fas fa-home',
+                    title: 'Livraison à domicile',
+                    description: 'Recevez votre commande directement chez vous'
+                },
+                {
+                    icon: 'fas fa-handshake',
+                    title: 'Rencontre',
+                    description: 'Récupérez votre commande en personne'
+                },
+                {
+                    icon: 'fas fa-store',
+                    title: 'Point de vente',
+                    description: 'Retirez votre commande dans nos magasins partenaires'
+                }
+            ];
+            
+            container.innerHTML = '';
+            
+            options.forEach(option => {
+                const optionElement = document.createElement('div');
+                optionElement.className = 'text-center p-6 bg-gray-50 rounded-xl fade-in';
+                optionElement.innerHTML = `
+                    <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                        <i class="${option.icon} text-primary text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">${option.title}</h3>
+                    <p class="text-gray-600">${option.description}</p>
+                `;
+                container.appendChild(optionElement);
+            });
+            
+            // Observer les nouvelles options pour les animations
+            setTimeout(() => {
+                initScrollAnimations();
+            }, 100);
+        }
+        
+        // ============================================
+        // 🔴 8️⃣ CTA FINAL
+        // ============================================
+        
+        function loadCTA() {
+            if (!db) return;
+            
+            const container = document.getElementById('cta-container');
+            
+            db.collection('home_content')
+                .doc('cta')
+                .get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        // Utiliser les valeurs par défaut
+                        return {
+                            title: 'Prêt à découvrir nos produits ?',
+                            subtitle: 'Rejoignez des milliers de clients satisfaits'
+                        };
+                    }
+                    
+                    return doc.data();
+                })
+                .then(data => {
+                    renderCTA(data);
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement du CTA:', error);
+                    // Utiliser les valeurs par défaut en cas d'erreur
+                    renderCTA({
+                        title: 'Prêt à découvrir nos produits ?',
+                        subtitle: 'Rejoignez des milliers de clients satisfaits'
+                    });
+                });
+        }
+        
+        function renderCTA(data) {
+            const container = document.getElementById('cta-container');
+            
+            container.innerHTML = `
+                <h2 class="text-3xl md:text-4xl font-bold mb-6">${data.title}</h2>
+                <p class="text-xl mb-10 max-w-2xl mx-auto">${data.subtitle}</p>
+                
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <a href="catalogue.html" class="bg-white text-primary px-8 py-4 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-[1.02] inline-flex items-center justify-center shadow-lg">
+                        <i class="fas fa-store mr-2"></i>
+                        Accéder au catalogue
+                    </a>
+                    <a href="#" id="cta-cart" class="bg-transparent border-2 border-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition-all duration-300 transform hover:scale-[1.02] inline-flex items-center justify-center">
+                        <i class="fas fa-shopping-cart mr-2"></i>
+                        Voir le panier
+                    </a>
+                </div>
+            `;
+            
+            // Re-attacher l'événement
+            const ctaCartBtn = document.getElementById('cta-cart');
+            if (ctaCartBtn) {
+                ctaCartBtn.addEventListener('click', openCartModal);
+            }
+            
+            // Animation du CTA
+            setTimeout(() => {
+                const animation = anime({
+                    targets: container,
+                    opacity: [0, 1],
+                    scale: [0.9, 1],
+                    duration: 800,
+                    easing: 'easeOutBack'
+                });
+                animationInstances.push(animation);
+            }, 100);
+        }
+        
+        // ============================================
+        // 🧱 1️⃣0️⃣ FOOTER
+        // ============================================
+        
+        function loadFooterData() {
+            if (!db) return;
+            
+            const container = document.getElementById('footer-content');
+            
+            db.collection('footer_content')
+                .doc('data')
+                .get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        renderDefaultFooter();
+                        return;
+                    }
+                    
+                    const data = doc.data();
+                    renderFooter(data);
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement du footer:', error);
+                    renderDefaultFooter();
+                });
+            
+            // Mettre à jour l'année courante
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+        }
+        
+        function renderFooter(data) {
+            const container = document.getElementById('footer-content');
+            
+            let footerHTML = '<div class="grid grid-cols-1 md:grid-cols-4 gap-8">';
+            
+            // Section 1: À propos
+            if (data.about) {
+                footerHTML += `
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">${data.about.title || 'À propos'}</h3>
+                        <p class="text-gray-400 mb-4">${data.about.description || ''}</p>
+                        ${data.about.social ? renderSocialIcons(data.about.social) : ''}
+                    </div>
+                `;
+            }
+            
+            // Section 2: Liens rapides
+            if (data.quickLinks) {
+                footerHTML += `
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">${data.quickLinks.title || 'Liens rapides'}</h3>
+                        <ul class="space-y-2">
+                            ${data.quickLinks.links ? data.quickLinks.links.map(link => 
+                                `<li><a href="${link.url || '#'}" class="text-gray-400 hover:text-white transition-colors">${link.text || 'Lien'}</a></li>`
+                            ).join('') : ''}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            // Section 3: Contact
+            if (data.contact) {
+                footerHTML += `
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">${data.contact.title || 'Contact'}</h3>
+                        <ul class="space-y-3">
+                            ${data.contact.email ? 
+                                `<li class="flex items-center text-gray-400">
+                                    <i class="fas fa-envelope mr-3"></i>
+                                    ${data.contact.email}
+                                </li>` : ''}
+                            ${data.contact.phone ? 
+                                `<li class="flex items-center text-gray-400">
+                                    <i class="fas fa-phone mr-3"></i>
+                                    ${data.contact.phone}
+                                </li>` : ''}
+                            ${data.contact.address ? 
+                                `<li class="flex items-start text-gray-400">
+                                    <i class="fas fa-map-marker-alt mr-3 mt-1"></i>
+                                    <span>${data.contact.address}</span>
+                                </li>` : ''}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            // Section 4: Newsletter
+            if (data.newsletter && data.newsletter.enabled) {
+                footerHTML += `
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">${data.newsletter.title || 'Newsletter'}</h3>
+                        <p class="text-gray-400 mb-4">${data.newsletter.description || ''}</p>
+                        <form id="newsletter-form" class="flex">
+                            <input type="email" 
+                                   placeholder="Votre email" 
+                                   class="flex-grow px-4 py-2 rounded-l-lg bg-gray-800 text-white border-0 focus:ring-2 focus:ring-primary focus:outline-none">
+                            <button type="submit" class="bg-primary text-white px-4 py-2 rounded-r-lg hover:bg-secondary transition-colors">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                `;
+            }
+            
+            footerHTML += '</div>';
+            container.innerHTML = footerHTML;
+            
+            // Ajouter l'écouteur d'événement pour la newsletter
+            const newsletterForm = document.getElementById('newsletter-form');
+            if (newsletterForm) {
+                newsletterForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const email = this.querySelector('input[type="email"]').value;
+                    subscribeToNewsletter(email);
+                });
+            }
+        }
+        
+        function renderDefaultFooter() {
+            const container = document.getElementById('footer-content');
+            
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">Smart cut services</h3>
+                        <p class="text-gray-400 mb-4">Votre boutique en ligne premium pour des produits d'exception.</p>
+                        <div class="flex space-x-4">
+                            <a href="#" class="text-gray-400 hover:text-white transition-colors"><i class="fab fa-facebook-f"></i></a>
+                            <a href="#" class="text-gray-400 hover:text-white transition-colors"><i class="fab fa-twitter"></i></a>
+                            <a href="#" class="text-gray-400 hover:text-white transition-colors"><i class="fab fa-instagram"></i></a>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">Liens rapides</h3>
+                        <ul class="space-y-2">
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Accueil</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Catalogue</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">À propos</a></li>
+                            <li><a href="#" class="text-gray-400 hover:text-white transition-colors">Contact</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">Contact</h3>
+                        <ul class="space-y-3">
+                            <li class="flex items-center text-gray-400">
+                                <i class="fas fa-envelope mr-3"></i>
+                                contact@Smart cut services.com
+                            </li>
+                            <li class="flex items-center text-gray-400">
+                                <i class="fas fa-phone mr-3"></i>
+                                +33 1 23 45 67 89
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-bold mb-4">Newsletter</h3>
+                        <p class="text-gray-400 mb-4">Inscrivez-vous pour recevoir nos offres exclusives.</p>
+                        <form id="newsletter-form" class="flex">
+                            <input type="email" 
+                                   placeholder="Votre email" 
+                                   class="flex-grow px-4 py-2 rounded-l-lg bg-gray-800 text-white border-0 focus:ring-2 focus:ring-primary focus:outline-none">
+                            <button type="submit" class="bg-primary text-white px-4 py-2 rounded-r-lg hover:bg-secondary transition-colors">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            
+            // Ajouter l'écouteur d'événement pour la newsletter
+            const newsletterForm = document.getElementById('newsletter-form');
+            if (newsletterForm) {
+                newsletterForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const email = this.querySelector('input[type="email"]').value;
+                    subscribeToNewsletter(email);
+                });
+            }
+        }
+        
+        function renderSocialIcons(social) {
+            const icons = {
+                facebook: 'fab fa-facebook-f',
+                twitter: 'fab fa-twitter',
+                instagram: 'fab fa-instagram',
+                linkedin: 'fab fa-linkedin-in',
+                youtube: 'fab fa-youtube'
+            };
+            
+            let html = '<div class="flex space-x-4">';
+            
+            for (const [platform, url] of Object.entries(social)) {
+                if (url && icons[platform]) {
+                    html += `<a href="${url}" class="text-gray-400 hover:text-white transition-colors">
+                                <i class="${icons[platform]}"></i>
+                            </a>`;
+                }
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // ============================================
+        // 🛒 GESTION DU PANIER
+        // ============================================
+        
+        function addToCart(productId, productName, productPrice, productImage) {
+            // Vérifier si le produit est déjà dans le panier
+            const existingItem = cart.find(item => item.id === productId);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    id: productId,
+                    name: productName,
+                    price: productPrice,
+                    image: productImage,
+                    quantity: 1
+                });
+            }
+            
+            // Sauvegarder dans localStorage
+            localStorage.setItem('cart', JSON.stringify(cart));
+            
+            // Mettre à jour l'interface
+            updateCartCount();
+            updateCartModal();
+            
+            // Afficher une notification
+            showNotification('Produit ajouté au panier !');
+            
+            // Animation du bouton avec Anime.js
+            const button = event ? event.target.closest('button') : null;
+            if (button) {
+                const animation = anime({
+                    targets: button,
+                    scale: [1, 1.1, 1],
+                    duration: 400,
+                    easing: 'easeInOutQuad'
+                });
+                animationInstances.push(animation);
+            }
+        }
+        
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartCount();
+            updateCartModal();
+            showNotification('Produit retiré du panier');
+        }
+        
+        function updateCartCount() {
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            
+            const cartCountElements = document.querySelectorAll('[id*="cart-count"]');
+            cartCountElements.forEach(element => {
+                if (totalItems > 0) {
+                    element.textContent = totalItems;
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
+                }
+            });
+        }
+        
+        function updateCartModal() {
+            const cartItemsContainer = document.getElementById('cart-items');
+            const cartTotalElement = document.getElementById('cart-total');
+            
+            if (cart.length === 0) {
+                cartItemsContainer.innerHTML = '<p class="text-gray-500 text-center py-8">Votre panier est vide</p>';
+                cartTotalElement.textContent = '0,00 HTG';
+                return;
+            }
+            
+            let itemsHTML = '';
+            let total = 0;
+            
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                itemsHTML += `
+                    <div class="flex items-center py-4 border-b border-gray-100">
+                        <img src="${item.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'}" 
+                             alt="${item.name}"
+                             class="w-16 h-16 object-cover rounded-lg">
+                        <div class="ml-4 flex-grow">
+                            <h4 class="font-semibold">${item.name}</h4>
+                            <p class="text-gray-600">${formatPrice(item.price)} × ${item.quantity}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-semibold">${formatPrice(itemTotal)}</p>
+                            <button class="text-red-500 hover:text-red-700 mt-1 text-sm"
+                                    onclick="removeFromCart('${item.id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            cartItemsContainer.innerHTML = itemsHTML;
+            cartTotalElement.textContent = formatPrice(total);
+        }
+        
+        function openCartModal() {
+            updateCartModal();
+            const modal = document.getElementById('cart-modal');
+            modal.classList.remove('hidden');
+            
+            setTimeout(() => {
+                const cartPanel = modal.querySelector('div:nth-child(2)');
+                const animation = anime({
+                    targets: cartPanel,
+                    translateX: ['100%', '0%'],
+                    duration: 300,
+                    easing: 'easeOutQuad'
+                });
+                animationInstances.push(animation);
+            }, 10);
+        }
+        
+        function closeCartModal() {
+            const modal = document.getElementById('cart-modal');
+            const cartPanel = modal.querySelector('div:nth-child(2)');
+            
+            const animation = anime({
+                targets: cartPanel,
+                translateX: ['0%', '100%'],
+                duration: 300,
+                easing: 'easeInQuad',
+                complete: function() {
+                    modal.classList.add('hidden');
+                }
+            });
+            animationInstances.push(animation);
+        }
+        
+        function proceedToCheckout() {
+            if (cart.length === 0) {
+                showNotification('Votre panier est vide', 'error');
+                return;
+            }
+            
+            showNotification('Redirection vers le paiement...');
+            setTimeout(() => {
+                alert('Fonctionnalité de paiement à implémenter');
+            }, 500);
+        }
+        
+        // ============================================
+        // 📄 FONCTIONS UTILITAIRES
+        // ============================================
+        
+        function loadInitialData() {
+            loadHeroProducts();
+            loadAdvantages();
+            loadFeaturedProducts();
+            loadProcess();
+            loadDeliveryOptions();
+            loadCTA();
+        }
+        
+        function formatPrice(price) {
+            return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency: 'HTG'
+            }).format(price);
+        }
+        
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const messageElement = document.getElementById('notification-message');
+            
+            if (!notification || !messageElement) return;
+            
+            // Mettre à jour le message et le style
+            messageElement.textContent = message;
+            
+            if (type === 'error') {
+                notification.style.backgroundColor = '#EF4444';
+            } else if (type === 'warning') {
+                notification.style.backgroundColor = '#F59E0B';
+            } else {
+                notification.style.backgroundColor = '#10B981';
+            }
+            
+            // Afficher la notification avec Anime.js
+            const showAnim = anime({
+                targets: notification,
+                translateY: [-100, 0],
+                duration: 300,
+                easing: 'easeOutQuad'
+            });
+            
+            // Cacher après 3 secondes
+            setTimeout(() => {
+                const hideAnim = anime({
+                    targets: notification,
+                    translateY: [0, -100],
+                    duration: 300,
+                    easing: 'easeInQuad'
+                });
+                animationInstances.push(hideAnim);
+            }, 3000);
+            
+            animationInstances.push(showAnim);
+        }
+        
+        function showLoadingState(containerId, isSkeleton = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (isSkeleton) {
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                    <p class="mt-4 text-gray-600">Chargement...</p>
+                </div>
+            `;
+        }
+        
+        function showEmptyState(containerId, message) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-600">${message}</p>
+                </div>
+            `;
+        }
+        
+        function showErrorState(containerId, message) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-exclamation-triangle text-5xl text-red-300 mb-4"></i>
+                    <p class="text-gray-600">${message}</p>
+                    <button onclick="loadInitialData()" class="mt-4 text-primary hover:underline">
+                        Réessayer
+                    </button>
+                </div>
+            `;
+        }
+        
+        function subscribeToNewsletter(email) {
+            if (!email || !email.includes('@')) {
+                showNotification('Veuillez entrer un email valide', 'error');
+                return;
+            }
+            
+            console.log('Inscription newsletter:', email);
+            
+            showNotification('Merci pour votre inscription !');
+            
+            const form = document.getElementById('newsletter-form');
+            if (form) {
+                form.reset();
+            }
+        }
+        
+        // ============================================
+        // EXPOSER LES FONCTIONS GLOBALES
+        // ============================================
+        
+        window.removeFromCart = removeFromCart;
+        window.loadInitialData = loadInitialData;
+    </script>
+</body>
+</html>

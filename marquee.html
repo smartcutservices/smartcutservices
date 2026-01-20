@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Bannière Marquee</title>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .card-glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .preview-banner {
+            animation: marquee 20s linear infinite;
+            white-space: nowrap;
+        }
+        
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-4xl">
+        <!-- En-tête -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-white mb-4">
+                <i class="fas fa-broadcast-tower mr-3"></i>
+                Gestion de la Bannière Marquee
+            </h1>
+            <p class="text-white/80 text-lg">Modifiez le message affiché sur votre site</p>
+        </div>
+
+        <!-- Carte principale -->
+        <div class="card-glass rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-8">
+                <!-- Aperçu en temps réel -->
+                <div class="mb-10">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-eye mr-2"></i>Aperçu en Direct
+                    </h2>
+                    <div class="bg-gray-800 rounded-xl p-4 overflow-hidden">
+                        <div class="preview-banner bg-blue-600 text-white py-3 px-4 rounded-lg">
+                            <span id="live-preview">
+                                <i class="fas fa-shipping-fast mr-2"></i>
+                                Chargement du message...
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Éditeur de message -->
+                <div class="mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">
+                        <i class="fas fa-edit mr-2"></i>Éditeur de Message
+                    </h2>
+                    
+                    <div class="mb-6">
+                        <label class="block text-gray-700 font-medium mb-3">
+                            Votre Message <span class="text-red-500">*</span>
+                            <span class="text-sm text-gray-500 font-normal">(Utilisez des icônes Font Awesome avec les classes)</span>
+                        </label>
+                        <textarea 
+                            id="messageInput" 
+                            rows="3" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            placeholder="Exemple: <i class='fas fa-gift mr-2'></i>Offre spéciale : Livraison gratuite ce week-end !"
+                        ></textarea>
+                    </div>
+
+                    <!-- Icônes suggérées -->
+                    <div class="mb-8">
+                        <label class="block text-gray-700 font-medium mb-3">
+                            <i class="fas fa-icons mr-2"></i>Icônes suggérées
+                        </label>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="addIcon('fas fa-shipping-fast')" class="icon-btn">
+                                <i class="fas fa-shipping-fast"></i> Livraison
+                            </button>
+                            <button onclick="addIcon('fas fa-gift')" class="icon-btn">
+                                <i class="fas fa-gift"></i> Cadeau
+                            </button>
+                            <button onclick="addIcon('fas fa-percentage')" class="icon-btn">
+                                <i class="fas fa-percentage"></i> Promotion
+                            </button>
+                            <button onclick="addIcon('fas fa-fire')" class="icon-btn">
+                                <i class="fas fa-fire"></i> Hot
+                            </button>
+                            <button onclick="addIcon('fas fa-bullhorn')" class="icon-btn">
+                                <i class="fas fa-bullhorn"></i> Annonce
+                            </button>
+                            <button onclick="addIcon('fas fa-clock')" class="icon-btn">
+                                <i class="fas fa-clock"></i> Temps limité
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Boutons d'action -->
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button 
+                            onclick="saveMessage()" 
+                            id="saveBtn"
+                            class="btn-primary text-white font-semibold py-3 px-8 rounded-xl flex-1 flex items-center justify-center"
+                        >
+                            <i class="fas fa-save mr-2"></i>
+                            <span>Sauvegarder le Message</span>
+                            <span id="saveLoader" class="hidden ml-2">
+                                <i class="fas fa-spinner fa-spin"></i>
+                            </span>
+                        </button>
+                        
+                        <button 
+                            onclick="resetMessage()" 
+                            class="bg-gray-200 text-gray-800 font-semibold py-3 px-8 rounded-xl hover:bg-gray-300 transition flex-1 flex items-center justify-center"
+                        >
+                            <i class="fas fa-undo mr-2"></i>
+                            Message par défaut
+                        </button>
+                        
+                        <button 
+                            onclick="window.location.href = '/'" 
+                            class="border-2 border-blue-600 text-blue-600 font-semibold py-3 px-8 rounded-xl hover:bg-blue-50 transition flex-1 flex items-center justify-center"
+                        >
+                            <i class="fas fa-home mr-2"></i>
+                            Retour au Site
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Historique/Statut -->
+                <div class="bg-blue-50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-history mr-2"></i>Statut
+                    </h3>
+                    <div id="statusMessage" class="text-gray-600">
+                        Prêt à modifier votre message...
+                    </div>
+                    <div id="lastUpdate" class="text-sm text-gray-500 mt-2">
+                        Dernière mise à jour: --
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-white/60">
+            <p><i class="fas fa-code mr-2"></i>Gestionnaire Marquee v1.0 • Izipret Store</p>
+        </div>
+    </div>
+
+    <script>
+        // Initialisation Firebase
+    const firebaseConfig = {
+  apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+  authDomain: "smartcutservices.firebaseapp.com",
+  projectId: "smartcutservices",
+  storageBucket: "smartcutservices.firebasestorage.app",
+  messagingSenderId: "589013273323",
+  appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+  measurementId: "G-R8GJXQP7BD"
+};
+
+
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Éléments DOM
+        const messageInput = document.getElementById('messageInput');
+        const livePreview = document.getElementById('live-preview');
+        const statusMessage = document.getElementById('statusMessage');
+        const lastUpdate = document.getElementById('lastUpdate');
+        const saveBtn = document.getElementById('saveBtn');
+        const saveLoader = document.getElementById('saveLoader');
+
+        // Styles pour les boutons d'icônes
+        const style = document.createElement('style');
+        style.textContent = `
+            .icon-btn {
+                padding: 8px 16px;
+                background: white;
+                border: 2px solid #e5e7eb;
+                border-radius: 10px;
+                color: #4b5563;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .icon-btn:hover {
+                border-color: #667eea;
+                color: #667eea;
+                transform: translateY(-2px);
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Charger le message actuel
+        function loadCurrentMessage() {
+            const docRef = db.collection('marquee').doc('currentMessage');
+            
+            docRef.get().then((doc) => {
+                if (doc.exists) {
+                    const data = doc.data();
+                    messageInput.value = data.message;
+                    updatePreview(data.message);
+                    
+                    if (data.lastUpdated) {
+                        const date = data.lastUpdated.toDate();
+                        lastUpdate.textContent = `Dernière mise à jour: ${date.toLocaleDateString('fr-FR')} à ${date.toLocaleTimeString('fr-FR')}`;
+                    }
+                    
+                    statusMessage.innerHTML = `<span class="text-green-600"><i class="fas fa-check-circle mr-2"></i>Message chargé avec succès</span>`;
+                } else {
+                    createDefaultMessage();
+                }
+            }).catch((error) => {
+                console.error("Erreur:", error);
+                statusMessage.innerHTML = `<span class="text-red-600"><i class="fas fa-exclamation-triangle mr-2"></i>Erreur de chargement</span>`;
+            });
+        }
+
+        // Créer un message par défaut
+        async function createDefaultMessage() {
+            try {
+                await db.collection('marquee').doc('currentMessage').set({
+                    message: '<i class="fas fa-shipping-fast mr-2"></i>Livraison gratuite sur toutes les commandes !',
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedBy: 'admin'
+                });
+                loadCurrentMessage();
+            } catch (error) {
+                console.error("Erreur:", error);
+            }
+        }
+
+        // Sauvegarder le message
+        async function saveMessage() {
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                showStatus('Veuillez entrer un message', 'error');
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveLoader.classList.remove('hidden');
+
+            try {
+                await db.collection('marquee').doc('currentMessage').set({
+                    message: message,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedBy: 'admin'
+                });
+
+                showStatus('Message sauvegardé avec succès !', 'success');
+                updatePreview(message);
+                
+                const date = new Date();
+                lastUpdate.textContent = `Dernière mise à jour: ${date.toLocaleDateString('fr-FR')} à ${date.toLocaleTimeString('fr-FR')}`;
+                
+            } catch (error) {
+                console.error("Erreur:", error);
+                showStatus('Erreur lors de la sauvegarde', 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveLoader.classList.add('hidden');
+            }
+        }
+
+        // Réinitialiser au message par défaut
+        function resetMessage() {
+            const defaultMessage = "<i class='fas fa-shipping-fast mr-2'></i>Livraison gratuite sur toutes les commandes !";
+            messageInput.value = defaultMessage;
+            updatePreview(defaultMessage);
+            showStatus('Message réinitialisé', 'info');
+        }
+
+        // Ajouter une icône
+        function addIcon(iconClass) {
+            const textarea = messageInput;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const iconCode = `<i class="${iconClass}"></i> `;
+            
+            textarea.value = textarea.value.substring(0, start) + 
+                            iconCode + 
+                            textarea.value.substring(end);
+            
+            // Mettre le curseur après l'icône
+            textarea.selectionStart = textarea.selectionEnd = start + iconCode.length;
+            textarea.focus();
+            
+            updatePreview(textarea.value);
+        }
+
+        // Mettre à jour l'aperçu
+        function updatePreview(message) {
+            livePreview.innerHTML = message || '<i class="fas fa-shipping-fast mr-2"></i>Message par défaut';
+        }
+
+        // Afficher le statut
+        function showStatus(text, type) {
+            let icon = 'info-circle';
+            let color = 'blue';
+            
+            switch(type) {
+                case 'success':
+                    icon = 'check-circle';
+                    color = 'green';
+                    break;
+                case 'error':
+                    icon = 'exclamation-triangle';
+                    color = 'red';
+                    break;
+                case 'warning':
+                    icon = 'exclamation-circle';
+                    color = 'yellow';
+                    break;
+            }
+            
+            statusMessage.innerHTML = `
+                <span class="text-${color}-600">
+                    <i class="fas fa-${icon} mr-2"></i>${text}
+                </span>
+            `;
+            
+            // Effacer après 5 secondes
+            setTimeout(() => {
+                statusMessage.innerHTML = `<span class="text-gray-600"><i class="fas fa-info-circle mr-2"></i>Prêt à modifier</span>`;
+            }, 5000);
+        }
+
+        // Écouter les changements en temps réel
+        messageInput.addEventListener('input', function() {
+            updatePreview(this.value);
+        });
+
+        // Charger au démarrage
+        document.addEventListener('DOMContentLoaded', loadCurrentMessage);
+    </script>
+</body>
+</html>

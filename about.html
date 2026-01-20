@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>À Propos - Smart cut services E-commerce</title>
+    <meta name="description" content="Découvrez l'histoire, les valeurs et l'équipe derrière Smart cut services">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        dark: '#1F2937',
+                        light: '#F9FAFB'
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                        'display': ['Montserrat', 'Inter', 'sans-serif']
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.5s ease-out'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- GSAP + ScrollTrigger -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+      const firebaseConfig = {
+  apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+  authDomain: "smartcutservices.firebaseapp.com",
+  projectId: "smartcutservices",
+  storageBucket: "smartcutservices.firebasestorage.app",
+  messagingSenderId: "589013273323",
+  appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+  measurementId: "G-R8GJXQP7BD"
+};
+
+        
+        // Initialiser Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // Exposer Firebase à l'application
+        window.firebaseApp = {
+            db,
+            doc,
+            getDoc,
+            collection,
+            getDocs
+        };
+    </script>
+    
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --secondary: #10B981;
+        }
+        
+        /* Animation de préchargement */
+        .loading-pulse {
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        /* Styles pour le menu mobile */
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .mobile-menu.active {
+            transform: translateX(0);
+        }
+        
+        /* Overlay pour menu mobile */
+        .menu-overlay {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        .menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Optimisation des performances pour mobile */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans bg-white text-gray-800">
+    
+    <!-- Navigation -->
+    <header class="sticky top-0 z-50 bg-white shadow-sm">
+        <nav class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <!-- Logo -->
+                   <a href="index.html" > <img src="logo.jpeg" width="50px" height="50px"   alt="" ></a>
+                <!-- Menu Desktop -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="index.html" class="font-medium hover:text-primary transition-colors">Accueil</a>
+                    <a href="catalogue.html" class="font-medium hover:text-primary transition-colors">Catalogue</a>
+                    <a href="/about.html" class="font-medium text-primary">About</a>
+                    <a href="catalogue.html#panier" class="relative">
+                        <i class="fas fa-shopping-cart text-xl hover:text-primary transition-colors"></i>
+                        <span id="cart-count" class="absolute -top-2 -right-2 bg-secondary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                    </a>
+                </div>
+                
+                <!-- Menu Mobile -->
+                <div class="flex md:hidden items-center space-x-4">
+                    <a href="catalogue.html#panier" class="relative">
+                        <i class="fas fa-shopping-cart text-xl hover:text-primary transition-colors"></i>
+                        <span id="cart-count-mobile" class="absolute -top-2 -right-2 bg-secondary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                    </a>
+                    <button id="menu-toggle" class="text-dark p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Menu Mobile Overlay -->
+            <div id="menu-overlay" class="menu-overlay fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+            
+            <!-- Menu Mobile Content -->
+            <div id="mobile-menu" class="mobile-menu fixed top-0 right-0 h-full w-64 bg-white shadow-lg z-50 p-6">
+                <div class="flex justify-between items-center mb-8">
+                    <span class="font-display font-bold text-xl text-dark">Menu</span>
+                    <button id="menu-close" class="text-dark p-2">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="flex flex-col space-y-6">
+                    <a href="index.html" class="font-medium text-lg hover:text-primary transition-colors">Accueil</a>
+                    <a href="catalogue.html" class="font-medium text-lg hover:text-primary transition-colors">Catalogue</a>
+                    <a href="/about.html" class="font-medium text-lg text-primary">About</a>
+                    <a href="catalogue.html#panier" class="font-medium text-lg hover:text-primary transition-colors">Panier</a>
+                </div>
+                
+                <div class="mt-12 pt-8 border-t border-gray-200">
+                    <p class="text-gray-600 text-sm">© 2026 Smart cut services. Tous droits réservés.</p>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="bg-gradient-to-r from-primary to-secondary text-white py-16 md:py-24">
+            <div class="container mx-auto px-4">
+                <div class="max-w-3xl mx-auto text-center">
+                    <h1 class="font-display font-bold text-4xl md:text-5xl mb-6">Notre Histoire</h1>
+                    <p class="text-xl opacity-90">Découvrez les valeurs, la vision et l'équipe derrière Smart cut services</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="container mx-auto px-4 py-16">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center">
+                    <div class="inline-block w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+                    <h2 class="text-2xl font-display font-semibold mb-4">Chargement du contenu...</h2>
+                    <p class="text-gray-600">Nous récupérons les informations depuis notre base de données.</p>
+                </div>
+                
+                <!-- Skeleton Loaders -->
+                <div class="mt-12 space-y-12">
+                    <div class="bg-gray-100 rounded-xl p-8">
+                        <div class="h-8 bg-gray-300 rounded-lg w-64 mb-6 loading-pulse"></div>
+                        <div class="space-y-4">
+                            <div class="h-4 bg-gray-300 rounded w-full loading-pulse"></div>
+                            <div class="h-4 bg-gray-300 rounded w-5/6 loading-pulse"></div>
+                            <div class="h-4 bg-gray-300 rounded w-4/6 loading-pulse"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div class="bg-gray-100 rounded-xl p-8">
+                            <div class="h-8 bg-gray-300 rounded-lg w-56 mb-6 loading-pulse"></div>
+                            <div class="space-y-4">
+                                <div class="h-4 bg-gray-300 rounded w-full loading-pulse"></div>
+                                <div class="h-4 bg-gray-300 rounded w-full loading-pulse"></div>
+                                <div class="h-4 bg-gray-300 rounded w-3/4 loading-pulse"></div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-100 rounded-xl p-8">
+                            <div class="h-64 bg-gray-300 rounded-xl mb-6 loading-pulse"></div>
+                            <div class="h-6 bg-gray-300 rounded w-48 mb-4 loading-pulse"></div>
+                            <div class="h-4 bg-gray-300 rounded w-32 loading-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" class="hidden container mx-auto px-4 py-16">
+            <div class="max-w-2xl mx-auto bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+                <i class="fas fa-exclamation-circle text-red-500 text-5xl mb-6"></i>
+                <h2 class="text-2xl font-display font-semibold text-red-800 mb-4">Erreur de chargement</h2>
+                <p class="text-red-700 mb-6">Nous n'avons pas pu charger les informations de la page. Veuillez vérifier votre connexion internet ou réessayer plus tard.</p>
+                <button id="retry-button" class="bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                    <i class="fas fa-redo mr-2"></i> Réessayer
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Container (rempli dynamiquement) -->
+        <div id="content-container" class="hidden">
+            <!-- Section 1: Présentation Générale -->
+            <section id="presentation-section" class="container mx-auto px-4 py-12 md:py-20">
+                <div class="max-w-4xl mx-auto">
+                    <div class="text-center mb-12">
+                        <h2 class="font-display font-bold text-3xl md:text-4xl text-dark mb-4">Notre Mission</h2>
+                        <div class="w-24 h-1 bg-primary mx-auto"></div>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-8 md:p-12">
+                        <div id="presentation-content" class="prose prose-lg max-w-none">
+                            <!-- Contenu chargé dynamiquement depuis Firebase -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: Histoire -->
+            <section id="history-section" class="bg-light py-12 md:py-20">
+                <div class="container mx-auto px-4">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="text-center mb-12">
+                            <h2 class="font-display font-bold text-3xl md:text-4xl text-dark mb-4">Notre Histoire</h2>
+                            <div class="w-24 h-1 bg-secondary mx-auto"></div>
+                        </div>
+                        
+                        <div class="bg-white rounded-2xl shadow-lg p-8 md:p-12">
+                            <div id="history-content" class="prose prose-lg max-w-none">
+                                <!-- Contenu chargé dynamiquement depuis Firebase -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: PDG/Fondateur -->
+            <section id="ceo-section" class="container mx-auto px-4 py-12 md:py-20">
+                <div class="max-w-6xl mx-auto">
+                    <div class="text-center mb-12">
+                        <h2 class="font-display font-bold text-3xl md:text-4xl text-dark mb-4">Notre Fondateur</h2>
+                        <div class="w-24 h-1 bg-primary mx-auto"></div>
+                    </div>
+                    
+                    <div id="ceo-content" class="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
+                        <!-- Image du PDG -->
+                        <div class="order-2 md:order-1">
+                            <div class="relative">
+                                <div class="aspect-square rounded-2xl overflow-hidden shadow-xl">
+                                    <img id="ceo-image" alt="Portrait du fondateur" class="w-full h-full object-cover lazy-load">
+                                </div>
+                                <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-secondary rounded-full flex items-center justify-center">
+                                    <i class="fas fa-quote-left text-white text-3xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Informations PDG -->
+                        <div class="order-1 md:order-2">
+                            <div class="space-y-6">
+                                <div>
+                                    <h3 id="ceo-name" class="font-display font-bold text-2xl md:text-3xl text-dark mb-2"></h3>
+                                    <p id="ceo-role" class="text-lg text-primary font-medium"></p>
+                                </div>
+                                
+                                <div id="ceo-description" class="prose prose-lg max-w-none">
+                                    <!-- Description chargée dynamiquement -->
+                                </div>
+                                
+                                <div class="pt-4 border-t border-gray-200">
+                                    <div class="flex space-x-4">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-full flex items-center justify-center">
+                                                <i class="fas fa-award text-primary text-lg"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-dark">Expertise</p>
+                                                <p class="text-sm text-gray-600">15+ ans d'expérience</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-12 h-12 bg-secondary bg-opacity-10 rounded-full flex items-center justify-center">
+                                                <i class="fas fa-users text-secondary text-lg"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-dark">Leadership</p>
+                                                <p class="text-sm text-gray-600">Équipe de 50+ personnes</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Équipe -->
+            <section id="team-section" class="bg-light py-12 md:py-20">
+                <div class="container mx-auto px-4">
+                    <div class="max-w-6xl mx-auto">
+                        <div class="text-center mb-12">
+                            <h2 class="font-display font-bold text-3xl md:text-4xl text-dark mb-4">Notre Équipe</h2>
+                            <p class="text-xl text-gray-600 max-w-2xl mx-auto">Des professionnels passionnés qui travaillent ensemble pour offrir la meilleure expérience.</p>
+                            <div class="w-24 h-1 bg-primary mx-auto mt-6"></div>
+                        </div>
+                        
+                        <!-- Équipe -->
+                        <div id="team-content" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                            <!-- Les membres d'équipe seront insérés ici dynamiquement -->
+                        </div>
+                        
+                        <!-- État vide de l'équipe -->
+                        <div id="empty-team" class="hidden text-center py-12">
+                            <div class="inline-block w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                                <i class="fas fa-users text-gray-400 text-3xl"></i>
+                            </div>
+                            <h3 class="text-xl font-medium text-gray-700 mb-2">Aucun membre d'équipe disponible</h3>
+                            <p class="text-gray-600">Les informations sur notre équipe seront bientôt disponibles.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+<div class="bg-slate-900 text-gray-300 font-sans">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+    <!-- Conteneur principal desktop -->
+    <div class="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-10">
+      
+      <!-- Section Identité -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-100">Notre entreprise</h3>
+        <p class="text-sm leading-relaxed text-gray-400">
+          Votre boutique en ligne de confiance. Nous nous engageons à vous offrir la meilleure expérience d'achat.
+        </p>
+      </div>
+
+      <!-- Section Navigation -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-100">Navigation rapide</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="/" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Accueil</a></li>
+          <li><a href="/catalogue" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Catalogue</a></li>
+          <li><a href="/panier" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Panier</a></li>
+          <li><a href="/about" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">À propos</a></li>
+        </ul>
+      </div>
+
+      <!-- Section Réseaux sociaux -->
+     
+
+      <!-- Section Politiques -->
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-gray-100">Informations légales</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="confi.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de confidentialité</a></li>
+          <li><a href="livreson.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de livraison</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Version mobile -->
+    <div class="md:hidden space-y-6">
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-gray-100">Notre entreprise</h3>
+        <p class="text-sm leading-relaxed text-gray-400">
+          Votre boutique en ligne de confiance. Nous nous engageons à vous offrir la meilleure expérience d'achat.
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-gray-100">Navigation rapide</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="index.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Accueil</a></li>
+          <li><a href="catalogue.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Catalogue</a></li>
+          <li><a href="catalogue.html#panier" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Panier</a></li>
+          <li><a href="about.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">À propos</a></li>
+        </ul>
+      </div>
+
+      
+
+      <div class="space-y-4">
+        <h3 class="text-base font-semibold text-gray-100">Informations légales</h3>
+        <ul class="space-y-2 text-sm">
+          <li><a href="confi.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de confidentialité</a></li>
+          <li><a href="livreson.html" class="text-blue-400 hover:text-blue-300 transition-colors duration-200">Politique de livraison</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Copyright -->
+    <div class="mt-10 pt-6 border-t border-gray-800 text-center text-sm text-gray-500">
+      <p>&copy; 2026 Smart cut services . Tous droits réservés.</p>
+    </div>
+  </div>
+</div>
+    <!-- Footer (chargé dynamiquement) -->
+    <footer id="footer" class="bg-dark hidden text-white">
+        <!-- Contenu du footer chargé dynamiquement -->
+    </footer>
+  
+
+    <!-- Script principal -->
+    <script>
+        // Configuration et variables globales
+        const appConfig = {
+            firebaseConfig: {
+                apiKey: "AIzaSyBZEl66YW2x4csBHfU3BlSDBYxigVQ1U8U",
+                authDomain: "izipret-c669d.firebaseapp.com",
+                projectId: "izipret-c669d",
+                storageBucket: "izipret-c669d.firebasestorage.app",
+                messagingSenderId: "483506445126",
+                appId: "1:483506445126:web:5dcc2efef0fabb8f0b2347",
+                measurementId: "G-0SKSRSFHZ4"
+            },
+            collections: {
+                about: 'about_page',
+                footer: 'footer_content'
+            },
+            performance: {
+                prefersReducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            }
+        };
+
+        // Éléments DOM
+        const domElements = {
+            loading: document.getElementById('loading-state'),
+            error: document.getElementById('error-state'),
+            content: document.getElementById('content-container'),
+            retryButton: document.getElementById('retry-button'),
+            menuToggle: document.getElementById('menu-toggle'),
+            menuClose: document.getElementById('menu-close'),
+            mobileMenu: document.getElementById('mobile-menu'),
+            menuOverlay: document.getElementById('menu-overlay'),
+            presentation: document.getElementById('presentation-content'),
+            history: document.getElementById('history-content'),
+            ceo: {
+                name: document.getElementById('ceo-name'),
+                role: document.getElementById('ceo-role'),
+                description: document.getElementById('ceo-description'),
+                image: document.getElementById('ceo-image')
+            },
+            team: document.getElementById('team-content'),
+            emptyTeam: document.getElementById('empty-team'),
+            footer: document.getElementById('footer'),
+            cartCount: document.getElementById('cart-count'),
+            cartCountMobile: document.getElementById('cart-count-mobile')
+        };
+
+        // Données de l'application
+        let appData = {
+            about: null,
+            team: [],
+            footer: null
+        };
+
+        // Initialisation de l'application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Charger le contenu
+            loadAllContent();
+            
+            // Initialiser le menu mobile
+            initMobileMenu();
+            
+            // Initialiser le compteur de panier (exemple)
+            initCartCounter();
+            
+            // Initialiser le lazy loading des images
+            initLazyLoading();
+        });
+
+        // Charger tout le contenu
+        async function loadAllContent() {
+            try {
+                // Afficher l'état de chargement
+                showLoadingState();
+                
+                // Charger les données de la page About
+                await loadAboutContent();
+                
+                // Charger les données de l'équipe
+                await loadTeamMembers();
+                
+                // Charger le footer
+                await loadFooter();
+                
+                // Cacher l'état de chargement et afficher le contenu
+                hideLoadingState();
+                
+                // Initialiser les animations
+                initAnimations();
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement du contenu:', error);
+                showErrorState();
+            }
+        }
+
+        // Charger le contenu principal de la page About
+        async function loadAboutContent() {
+            try {
+                const { db, doc, getDoc } = window.firebaseApp;
+                const aboutDocRef = doc(db, appConfig.collections.about, 'content');
+                const aboutDocSnap = await getDoc(aboutDocRef);
+                
+                if (aboutDocSnap.exists()) {
+                    appData.about = aboutDocSnap.data();
+                    renderAboutContent();
+                } else {
+                    console.warn('Aucun document trouvé dans la collection about_page/content');
+                    renderAboutContent(); // Rendre avec du contenu par défaut
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement du contenu About:', error);
+                throw error;
+            }
+        }
+
+        // Afficher le contenu About
+        function renderAboutContent() {
+            // Présentation
+            if (appData.about && appData.about.presentation) {
+                domElements.presentation.innerHTML = `
+                    <p class="text-gray-700 mb-6 text-lg leading-relaxed">${appData.about.presentation}</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+                        <div class="bg-primary bg-opacity-5 p-6 rounded-xl border-l-4 border-primary">
+                            <h3 class="font-display font-bold text-xl mb-3 text-primary">Notre Vision</h3>
+                            <p class="text-gray-700">Devenir la référence e-commerce dans notre secteur en alliant innovation et qualité.</p>
+                        </div>
+                        
+                        <div class="bg-secondary bg-opacity-5 p-6 rounded-xl border-l-4 border-secondary">
+                            <h3 class="font-display font-bold text-xl mb-3 text-secondary">Nos Valeurs</h3>
+                            <p class="text-gray-700">Transparence, excellence et engagement client sont au cœur de notre démarche.</p>
+                        </div>
+                        
+                        <div class="bg-dark bg-opacity-5 p-6 rounded-xl border-l-4 border-dark">
+                            <h3 class="font-display font-bold text-xl mb-3 text-dark">Notre Engagement</h3>
+                            <p class="text-gray-700">Nous nous engageons à offrir la meilleure expérience d'achat en ligne à nos clients.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                domElements.presentation.innerHTML = `
+                    <p class="text-gray-700 mb-4">Smart cut services est une entreprise e-commerce innovante née de la passion pour le commerce en ligne et le service client d'excellence.</p>
+                    <p class="text-gray-700 mb-4">Notre mission est de révolutionner l'expérience d'achat en ligne en offrant des produits de qualité, un service personnalisé et une livraison rapide.</p>
+                    <p class="text-gray-700">Nous croyons en un commerce responsable et durable, où chaque achat a du sens et chaque client est traité avec le plus grand respect.</p>
+                `;
+            }
+            
+            // Histoire
+            if (appData.about && appData.about.history) {
+                domElements.history.innerHTML = `
+                    <p class="text-gray-700 mb-6 text-lg leading-relaxed">${appData.about.history}</p>
+                    
+                    <div class="relative mt-10">
+                        <!-- Timeline -->
+                        <div class="border-l-2 border-primary pl-8 ml-4 py-2 space-y-10">
+                            <div class="relative">
+                                <div class="absolute -left-12 top-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                                    <div class="w-3 h-3 bg-white rounded-full"></div>
+                                </div>
+                                <h4 class="font-display font-bold text-lg mb-2">2018</h4>
+                                <p class="text-gray-700">Création d'Smart cut services avec une petite équipe de passionnés</p>
+                            </div>
+                            
+                            <div class="relative">
+                                <div class="absolute -left-12 top-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                                    <div class="w-3 h-3 bg-white rounded-full"></div>
+                                </div>
+                                <h4 class="font-display font-bold text-lg mb-2">2020</h4>
+                                <p class="text-gray-700">Lancement de notre marketplace </p>
+                            </div>
+                            
+                            <div class="relative">
+                                <div class="absolute -left-12 top-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                                    <div class="w-3 h-3 bg-white rounded-full"></div>
+                                </div>
+                                <h4 class="font-display font-bold text-lg mb-2">2023</h4>
+                                <p class="text-gray-700">Ouverture de notre nouveau siège social et agrandissement de l'équipe</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                domElements.history.innerHTML = `
+                    <p class="text-gray-700 mb-4">Fondée en 2018, Smart cut services est partie d'une simple idée : rendre le commerce en ligne plus humain, plus accessible et plus fiable.</p>
+                    <p class="text-gray-700 mb-4">En seulement quelques années, nous avons grandi pour devenir une référence dans notre secteur, grâce à notre engagement sans faille envers la satisfaction client.</p>
+                    <p class="text-gray-700 mb-4">Notre parcours a été marqué par des défis transformés en opportunités, des collaborations enrichissantes et une communauté de clients fidèles qui nous inspire au quotidien.</p>
+                    <p class="text-gray-700">Aujourd'hui, nous continuons d'innover et d'évoluer, toujours guidés par notre mission première : offrir la meilleure expérience d'achat en ligne.</p>
+                `;
+            }
+            
+            // PDG
+            if (appData.about && appData.about.ceo) {
+                const ceo = appData.about.ceo;
+                
+                domElements.ceo.name.textContent = ceo.name || 'Alexandre Martin';
+                domElements.ceo.role.textContent = ceo.role || 'Fondateur & PDG';
+                
+                if (ceo.description) {
+                    domElements.ceo.description.innerHTML = `
+                        <p class="text-gray-700 mb-4 text-lg leading-relaxed">${ceo.description}</p>
+                        <blockquote class="border-l-4 border-primary pl-6 my-6 italic text-gray-600">
+                            "L'excellence n'est pas un acte, mais une habitude."
+                        </blockquote>
+                    `;
+                } else {
+                    domElements.ceo.description.innerHTML = `
+                        <p class="text-gray-700 mb-4 text-lg leading-relaxed">Passionné par l'innovation et le commerce, notre fondateur a créé Smart cut services avec une vision claire : révolutionner l'expérience d'achat en ligne.</p>
+                        <p class="text-gray-700 mb-4 text-lg leading-relaxed">Avec plus de 15 ans d'expérience dans le e-commerce, il guide notre entreprise avec une approche centrée sur l'humain et l'innovation.</p>
+                        <p class="text-gray-700 text-lg leading-relaxed">Son leadership et sa vision stratégique ont permis à Smart cut services de se positionner comme un acteur majeur dans notre secteur.</p>
+                    `;
+                }
+                
+                if (ceo.imageName) {
+                    domElements.ceo.image.src = ceo.imageName;
+                    domElements.ceo.image.alt = `Portrait de ${ceo.name}`;
+                } else {
+                    domElements.ceo.image.src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80';
+                    domElements.ceo.image.alt = 'Portrait du fondateur';
+                }
+            } else {
+                // Valeurs par défaut pour le PDG
+                domElements.ceo.name.textContent = 'Alexandre Martin';
+                domElements.ceo.role.textContent = 'Fondateur & PDG';
+                domElements.ceo.description.innerHTML = `
+                    <p class="text-gray-700 mb-4 text-lg leading-relaxed">Passionné par l'innovation et le commerce, notre fondateur a créé Smart cut services avec une vision claire : révolutionner l'expérience d'achat en ligne.</p>
+                    <p class="text-gray-700 mb-4 text-lg leading-relaxed">Avec plus de 15 ans d'expérience dans le e-commerce, il guide notre entreprise avec une approche centrée sur l'humain et l'innovation.</p>
+                    <p class="text-gray-700 text-lg leading-relaxed">Son leadership et sa vision stratégique ont permis à Smart cut services de se positionner comme un acteur majeur dans notre secteur.</p>
+                `;
+                domElements.ceo.image.src = 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80';
+                domElements.ceo.image.alt = 'Portrait du fondateur';
+            }
+        }
+
+        // Charger les membres de l'équipe
+        async function loadTeamMembers() {
+            try {
+                const { db, collection, getDocs } = window.firebaseApp;
+                const teamCollectionRef = collection(db, appConfig.collections.about, 'content', 'team');
+                const teamSnapshot = await getDocs(teamCollectionRef);
+                
+                appData.team = [];
+                
+                if (!teamSnapshot.empty) {
+                    teamSnapshot.forEach(doc => {
+                        appData.team.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    renderTeamMembers();
+                } else {
+                    console.warn('Aucun membre d\'équipe trouvé dans la sous-collection team');
+                    renderTeamMembers(); // Rendre avec des données d'exemple
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement des membres de l\'équipe:', error);
+                // Rendre avec des données d'exemple en cas d'erreur
+                renderTeamMembers();
+            }
+        }
+
+        // Afficher les membres de l'équipe
+        function renderTeamMembers() {
+            // Si aucune donnée d'équipe n'est disponible, afficher des données d'exemple
+            if (appData.team.length === 0) {
+                appData.team = [
+                    {
+                        id: '1',
+                        name: 'Sophie Lambert',
+                        role: 'Directrice Marketing',
+                        description: 'Expert en stratégie digitale avec 10 ans d\'expérience',
+                        imageName: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=761&q=80'
+                    },
+                    {
+                        id: '2',
+                        name: 'Thomas Dubois',
+                        role: 'Responsable Technique',
+                        description: 'Développeur full-stack passionné par l\'innovation',
+                        imageName: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80'
+                    },
+                    {
+                        id: '3',
+                        name: 'Laura Petit',
+                        role: 'Chef de Produit',
+                        description: 'Spécialiste UX/UI et conception centrée utilisateur',
+                        imageName: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=688&q=80'
+                    },
+                    {
+                        id: '4',
+                        name: 'Julien Moreau',
+                        role: 'Responsable Logistique',
+                        description: 'Expert en supply chain et optimisation des processus',
+                        imageName: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80'
+                    },
+                    {
+                        id: '5',
+                        name: 'Émilie Rousseau',
+                        role: 'Responsable Clientèle',
+                        description: 'Passionnée par la relation client et la satisfaction',
+                        imageName: 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1167&q=80'
+                    },
+                    {
+                        id: '6',
+                        name: 'Marc Lefèvre',
+                        role: 'Expert Financier',
+                        description: 'Comptable agréé avec une expertise en e-commerce',
+                        imageName: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80'
+                    }
+                ];
+            }
+            
+            // Vider le conteneur d'équipe
+            domElements.team.innerHTML = '';
+            
+            // Générer les cartes de membres d'équipe
+            appData.team.forEach(member => {
+                const memberCard = document.createElement('div');
+                memberCard.className = 'team-member bg-white rounded-xl shadow-lg overflow-hidden transition-transform duration-300 hover:-translate-y-2';
+                memberCard.setAttribute('data-member-id', member.id);
+                
+                memberCard.innerHTML = `
+                    <div class="aspect-square overflow-hidden">
+                        <img src="${member.imageName || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=764&q=80'}" 
+                             alt="Portrait de ${member.name}" 
+                             class="w-full h-full object-cover lazy-load transition-transform duration-500 hover:scale-105">
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-display font-bold text-xl mb-1">${member.name}</h3>
+                        <p class="text-primary font-medium mb-4">${member.role}</p>
+                        <p class="text-gray-600">${member.description || 'Membre passionné de notre équipe dévouée à offrir la meilleure expérience client.'}</p>
+                        
+                        <div class="flex space-x-4 mt-6">
+                            <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+                                <i class="fab fa-linkedin-in"></i>
+                            </a>
+                            <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+                                <i class="fab fa-twitter"></i>
+                            </a>
+                            <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+                                <i class="fas fa-envelope"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                domElements.team.appendChild(memberCard);
+            });
+            
+            // Afficher ou masquer l'état vide
+            if (appData.team.length === 0) {
+                domElements.emptyTeam.classList.remove('hidden');
+            } else {
+                domElements.emptyTeam.classList.add('hidden');
+            }
+        }
+
+        // Charger le footer
+        async function loadFooter() {
+            try {
+                const { db, doc, getDoc } = window.firebaseApp;
+                const footerDocRef = doc(db, appConfig.collections.footer, 'data');
+                const footerDocSnap = await getDoc(footerDocRef);
+                
+                if (footerDocSnap.exists()) {
+                    appData.footer = footerDocSnap.data();
+                    renderFooter();
+                } else {
+                    console.warn('Aucun document trouvé dans la collection footer_content/data');
+                    renderDefaultFooter();
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement du footer:', error);
+                renderDefaultFooter();
+            }
+        }
+
+        // Afficher le footer
+        function renderFooter() {
+            if (!appData.footer) {
+                renderDefaultFooter();
+                return;
+            }
+            
+            const footerContent = appData.footer;
+            
+            domElements.footer.innerHTML = `
+                <div class="container mx-auto px-4 py-12">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <!-- Colonne 1: Logo & Description -->
+                        <div>
+                            <div class="flex items-center space-x-2 mb-6">
+                                <span class="font-display font-bold text-xl text-white">Smart cut services</span>
+                            </div>
+                            <p class="text-gray-300 mb-6">${footerContent.description || 'Smart cut services est votre partenaire e-commerce de confiance pour des produits de qualité et un service exceptionnel.'}</p>
+                            
+                            <div class="flex space-x-4">
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-facebook-f"></i>
+                                </a>
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-instagram"></i>
+                                </a>
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-twitter"></i>
+                                </a>
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-linkedin-in"></i>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Colonne 2: Liens rapides -->
+                        <div>
+                            <h3 class="font-display font-bold text-xl mb-6">Liens Rapides</h3>
+                            <ul class="space-y-3">
+                                <li><a href="index.html" class="text-gray-300 hover:text-white transition-colors">Accueil</a></li>
+                                <li><a href="catalogue.html" class="text-gray-300 hover:text-white transition-colors">Catalogue</a></li>
+                                <li><a href="/about.html" class="text-gray-300 hover:text-white transition-colors">À Propos</a></li>
+                                <li><a href="/contact.html" class="text-gray-300 hover:text-white transition-colors">Contact</a></li>
+                                <li><a href="/mentions-legales.html" class="text-gray-300 hover:text-white transition-colors">Mentions Légales</a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Colonne 3: Contact -->
+                        <div>
+                            <h3 class="font-display font-bold text-xl mb-6">Contact</h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start space-x-3">
+                                    <i class="fas fa-map-marker-alt text-primary mt-1"></i>
+                                    <span class="text-gray-300">${footerContent.address || '123 Avenue du Commerce, 75001 Paris, France'}</span>
+                                </li>
+                                <li class="flex items-center space-x-3">
+                                    <i class="fas fa-phone text-primary"></i>
+                                    <span class="text-gray-300">${footerContent.phone || '+33 1 23 45 67 89'}</span>
+                                </li>
+                                <li class="flex items-center space-x-3">
+                                    <i class="fas fa-envelope text-primary"></i>
+                                    <span class="text-gray-300">${footerContent.email || 'contact@Smart cut services.com'}</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Colonne 4: Newsletter -->
+                        <div>
+                            <h3 class="font-display font-bold text-xl mb-6">Newsletter</h3>
+                            <p class="text-gray-300 mb-4">Inscrivez-vous pour recevoir nos offres exclusives et actualités.</p>
+                            <form id="newsletter-form" class="space-y-3">
+                                <input type="email" placeholder="Votre email" class="w-full px-4 py-3 rounded-lg bg-white bg-opacity-10 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary">
+                                <button type="submit" class="w-full bg-primary hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">S'inscrire</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-800 mt-12 pt-8 text-center">
+                        <p class="text-gray-400">© ${new Date().getFullYear()} Smart cut services. ${footerContent.copyright || 'Tous droits réservés.'}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Ajouter un écouteur d'événement pour le formulaire de newsletter
+            const newsletterForm = document.getElementById('newsletter-form');
+            if (newsletterForm) {
+                newsletterForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const emailInput = this.querySelector('input[type="email"]');
+                    if (emailInput && emailInput.value) {
+                        alert(`Merci pour votre inscription avec l'email: ${emailInput.value}`);
+                        emailInput.value = '';
+                    }
+                });
+            }
+        }
+
+        // Footer par défaut
+        function renderDefaultFooter() {
+            domElements.footer.innerHTML = `
+                <div class="container mx-auto px-4 py-12">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <!-- Colonne 1: Logo & Description -->
+                        <div>
+                            <div class="flex items-center space-x-2 mb-6">
+                                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                                    <span class="text-dark font-display font-bold text-xl">I</span>
+                                </div>
+                                <span class="font-display font-bold text-xl text-white">Smart cut services</span>
+                            </div>
+                            <p class="text-gray-300 mb-6">Votre partenaire e-commerce de confiance pour des produits de qualité et un service exceptionnel.</p>
+                            
+                            <div class="flex space-x-4">
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-facebook-f"></i>
+                                </a>
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-instagram"></i>
+                                </a>
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-twitter"></i>
+                                </a>
+                                <a href="#" class="w-10 h-10 bg-white bg-opacity-10 rounded-full flex items-center justify-center hover:bg-primary transition-colors">
+                                    <i class="fab fa-linkedin-in"></i>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Colonne 2: Liens rapides -->
+                        <div>
+                            <h3 class="font-display font-bold text-xl mb-6">Liens Rapides</h3>
+                            <ul class="space-y-3">
+                                <li><a href="index.html" class="text-gray-300 hover:text-white transition-colors">Accueil</a></li>
+                                <li><a href="catalogue.html" class="text-gray-300 hover:text-white transition-colors">Catalogue</a></li>
+                                <li><a href="/about.html" class="text-gray-300 hover:text-white transition-colors">À Propos</a></li>
+                                <li><a href="/contact.html" class="text-gray-300 hover:text-white transition-colors">Contact</a></li>
+                                <li><a href="/mentions-legales.html" class="text-gray-300 hover:text-white transition-colors">Mentions Légales</a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Colonne 3: Contact -->
+                        <div>
+                            <h3 class="font-display font-bold text-xl mb-6">Contact</h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start space-x-3">
+                                    <i class="fas fa-map-marker-alt text-primary mt-1"></i>
+                                    <span class="text-gray-300">123 Avenue du Commerce, 75001 Paris, France</span>
+                                </li>
+                                <li class="flex items-center space-x-3">
+                                    <i class="fas fa-phone text-primary"></i>
+                                    <span class="text-gray-300">+33 1 23 45 67 89</span>
+                                </li>
+                                <li class="flex items-center space-x-3">
+                                    <i class="fas fa-envelope text-primary"></i>
+                                    <span class="text-gray-300">contact@Smart cut services.com</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Colonne 4: Newsletter -->
+                        <div>
+                            <h3 class="font-display font-bold text-xl mb-6">Newsletter</h3>
+                            <p class="text-gray-300 mb-4">Inscrivez-vous pour recevoir nos offres exclusives et actualités.</p>
+                            <form id="newsletter-form" class="space-y-3">
+                                <input type="email" placeholder="Votre email" class="w-full px-4 py-3 rounded-lg bg-white bg-opacity-10 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-primary">
+                                <button type="submit" class="w-full bg-primary hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-lg transition-colors">S'inscrire</button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-800 mt-12 pt-8 text-center">
+                        <p class="text-gray-400">© ${new Date().getFullYear()} Smart cut services. Tous droits réservés.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialiser les animations GSAP
+        function initAnimations() {
+            // Désactiver les animations si l'utilisateur préfère les réduire
+            if (appConfig.performance.prefersReducedMotion) {
+                console.log('Animations réduites pour améliorer les performances');
+                return;
+            }
+            
+            // Initialiser GSAP avec ScrollTrigger
+            gsap.registerPlugin(ScrollTrigger);
+            
+            // Animation pour la section Présentation
+            gsap.from('#presentation-section .prose', {
+                scrollTrigger: {
+                    trigger: '#presentation-section',
+                    start: 'top 80%',
+                    end: 'bottom 20%',
+                    toggleActions: 'play none none reverse'
+                },
+                y: 30,
+                opacity: 0,
+                duration: 1,
+                ease: 'power2.out'
+            });
+            
+            // Animation pour la section Histoire
+            gsap.from('#history-section .prose', {
+                scrollTrigger: {
+                    trigger: '#history-section',
+                    start: 'top 80%',
+                    end: 'bottom 20%',
+                    toggleActions: 'play none none reverse'
+                },
+                y: 30,
+                opacity: 0,
+                duration: 1,
+                ease: 'power2.out',
+                delay: 0.2
+            });
+            
+            // Animation pour la section PDG
+            gsap.from('#ceo-section .aspect-square', {
+                scrollTrigger: {
+                    trigger: '#ceo-section',
+                    start: 'top 80%',
+                    end: 'bottom 20%',
+                    toggleActions: 'play none none reverse'
+                },
+                x: -50,
+                opacity: 0,
+                duration: 1,
+                ease: 'power2.out'
+            });
+            
+            gsap.from('#ceo-section > div > div:last-child', {
+                scrollTrigger: {
+                    trigger: '#ceo-section',
+                    start: 'top 80%',
+                    end: 'bottom 20%',
+                    toggleActions: 'play none none reverse'
+                },
+                x: 50,
+                opacity: 0,
+                duration: 1,
+                ease: 'power2.out',
+                delay: 0.2
+            });
+            
+            // Animation pour les membres de l'équipe
+            const teamMembers = document.querySelectorAll('.team-member');
+            if (teamMembers.length > 0) {
+                gsap.from(teamMembers, {
+                    scrollTrigger: {
+                        trigger: '#team-section',
+                        start: 'top 80%',
+                        end: 'bottom 20%',
+                        toggleActions: 'play none none reverse'
+                    },
+                    y: 50,
+                    opacity: 0,
+                    duration: 0.8,
+                    stagger: 0.1,
+                    ease: 'power2.out'
+                });
+            }
+            
+            // Animation pour les titres des sections
+            const sectionTitles = document.querySelectorAll('section > div > .text-center');
+            sectionTitles.forEach(title => {
+                gsap.from(title, {
+                    scrollTrigger: {
+                        trigger: title,
+                        start: 'top 90%',
+                        toggleActions: 'play none none reverse'
+                    },
+                    y: 20,
+                    opacity: 0,
+                    duration: 0.8,
+                    ease: 'power2.out'
+                });
+            });
+        }
+
+        // Gérer les états d'affichage
+        function showLoadingState() {
+            domElements.loading.classList.remove('hidden');
+            domElements.error.classList.add('hidden');
+            domElements.content.classList.add('hidden');
+        }
+
+        function hideLoadingState() {
+            domElements.loading.classList.add('hidden');
+            domElements.content.classList.remove('hidden');
+        }
+
+        function showErrorState() {
+            domElements.loading.classList.add('hidden');
+            domElements.error.classList.remove('hidden');
+            domElements.content.classList.add('hidden');
+        }
+
+        // Initialiser le menu mobile
+        function initMobileMenu() {
+            if (!domElements.menuToggle || !domElements.menuClose || !domElements.mobileMenu || !domElements.menuOverlay) return;
+            
+            // Ouvrir le menu
+            domElements.menuToggle.addEventListener('click', function() {
+                domElements.mobileMenu.classList.add('active');
+                domElements.menuOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+            
+            // Fermer le menu
+            function closeMobileMenu() {
+                domElements.mobileMenu.classList.remove('active');
+                domElements.menuOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            domElements.menuClose.addEventListener('click', closeMobileMenu);
+            domElements.menuOverlay.addEventListener('click', closeMobileMenu);
+            
+            // Fermer le menu en cliquant sur un lien
+            const menuLinks = domElements.mobileMenu.querySelectorAll('a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', closeMobileMenu);
+            });
+        }
+
+        // Initialiser le compteur de panier (exemple)
+        function initCartCounter() {
+            // Simuler un nombre d'articles dans le panier
+            const cartCount = localStorage.getItem('cartCount') || 0;
+            
+            if (domElements.cartCount) {
+                domElements.cartCount.textContent = cartCount;
+            }
+            
+            if (domElements.cartCountMobile) {
+                domElements.cartCountMobile.textContent = cartCount;
+            }
+        }
+
+        // Initialiser le lazy loading des images
+        function initLazyLoading() {
+            const lazyImages = document.querySelectorAll('img.lazy-load');
+            
+            if ('IntersectionObserver' in window) {
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            if (img.dataset.src) {
+                                img.src = img.dataset.src;
+                            }
+                            img.classList.remove('lazy-load');
+                            observer.unobserve(img);
+                        }
+                    });
+                });
+                
+                lazyImages.forEach(img => imageObserver.observe(img));
+            } else {
+                // Fallback pour les navigateurs sans IntersectionObserver
+                lazyImages.forEach(img => {
+                    if (img.dataset.src) {
+                        img.src = img.dataset.src;
+                    }
+                    img.classList.remove('lazy-load');
+                });
+            }
+        }
+
+        // Écouteur pour le bouton de réessai
+        if (domElements.retryButton) {
+            domElements.retryButton.addEventListener('click', loadAllContent);
+        }
+
+        // Exposer certaines fonctions pour le débogage
+        window.app = {
+            reload: loadAllContent,
+            data: appData,
+            config: appConfig
+        };
+    </script>
+</body>
+</html>

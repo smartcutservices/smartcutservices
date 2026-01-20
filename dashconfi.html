@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Politique de Confidentialité</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* Skeleton loading */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        /* Transition pour les boutons */
+        .btn-transition {
+            transition: all 0.2s ease;
+        }
+        
+        /* Style pour les champs en édition */
+        .editing {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header Admin -->
+    <header class="bg-white shadow-md border-b border-gray-200">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between">
+               
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Indicateur de connexion Firebase -->
+                    <div id="firebaseStatus" class="flex items-center">
+                        <span class="h-3 w-3 rounded-full bg-gray-300 mr-2" id="statusIndicator"></span>
+                        <span class="text-sm text-gray-600" id="statusText">Connexion...</span>
+                    </div>
+                    
+                    <!-- Bouton de rafraîchissement -->
+                    <button id="refreshBtn" class="btn-transition bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center">
+                        <i class="fas fa-redo-alt mr-2"></i>
+                        <span class="hidden md:inline">Rafraîchir</span>
+                    </button>
+                    
+                    <!-- Bouton de déconnexion (simulé) -->
+                    <button id="logoutBtn" class="btn-transition bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg flex items-center">
+                        <i class="fas fa-sign-out-alt mr-2"></i>
+                        <span class="hidden md:inline">Déconnexion</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Contenu principal -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Barre d'état -->
+        <div id="statusBar" class="mb-8">
+            <!-- Les messages de statut seront injectés ici -->
+        </div>
+        
+        <!-- Conteneur principal -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Colonne de gauche : Sections A et B -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- SECTION A : Introduction -->
+                <section id="sectionA" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                    <div class="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                                    Introduction - Protection des données
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    Texte d'introduction expliquant votre engagement
+                                </p>
+                            </div>
+                            <div class="flex items-center">
+                                <span id="introStatus" class="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 hidden">
+                                    <i class="fas fa-check mr-1"></i>Sauvegardé
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- État de chargement -->
+                        <div id="introLoading" class="skeleton h-32 rounded-lg mb-4"></div>
+                        
+                        <!-- État de contenu -->
+                        <div id="introContent" class="hidden">
+                            <div class="mb-4">
+                                <label for="introduction" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Texte d'introduction <span class="text-red-500">*</span>
+                                </label>
+                                <textarea 
+                                    id="introduction" 
+                                    rows="6" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-y custom-scrollbar"
+                                    placeholder="Rédigez ici le texte d'introduction de votre politique de confidentialité..."
+                                ></textarea>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Ce texte apparaît en haut de votre politique de confidentialité.
+                                </p>
+                            </div>
+                            
+                            <div class="flex justify-end">
+                                <button id="saveIntroBtn" class="btn-transition bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Enregistrer
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- État d'erreur -->
+                        <div id="introError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-red-500 mr-3 text-xl"></i>
+                                <div>
+                                    <h4 class="font-medium text-red-800">Impossible de charger l'introduction</h4>
+                                    <p class="text-red-600 text-sm mt-1">Veuillez réessayer ou vérifier votre connexion.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- SECTION B : Données collectées -->
+                <section id="sectionB" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                    <div class="bg-gradient-to-r from-amber-50 to-amber-100 px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-database text-amber-600 mr-2"></i>
+                                    Données collectées
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    Liste des données personnelles que vous collectez
+                                </p>
+                            </div>
+                            <div class="flex items-center">
+                                <span id="dataStatus" class="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 hidden">
+                                    <i class="fas fa-check mr-1"></i>Sauvegardé
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- État de chargement -->
+                        <div id="dataLoading" class="space-y-3">
+                            <div class="skeleton h-10 rounded-lg"></div>
+                            <div class="skeleton h-10 rounded-lg"></div>
+                            <div class="skeleton h-10 rounded-lg"></div>
+                        </div>
+                        
+                        <!-- État de contenu -->
+                        <div id="dataContent" class="hidden">
+                            <div class="mb-6">
+                                <h3 class="text-lg font-medium text-gray-800 mb-3">Éléments de données collectées</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Ajoutez, modifiez ou supprimez les types de données que vous collectez. 
+                                    Chaque élément apparaîtra sous forme de puce dans la politique.
+                                </p>
+                                
+                                <!-- Liste des données -->
+                                <div id="dataList" class="space-y-3 mb-6 max-h-80 overflow-y-auto custom-scrollbar p-2">
+                                    <!-- Les éléments seront ajoutés dynamiquement ici -->
+                                </div>
+                                
+                                <!-- Formulaire d'ajout -->
+                                <div class="border-t border-gray-200 pt-6">
+                                    <h4 class="text-md font-medium text-gray-800 mb-3">Ajouter un nouvel élément</h4>
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <input 
+                                            type="text" 
+                                            id="newDataInput" 
+                                            class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+                                            placeholder="Ex: Adresse email, nom complet, adresse postale..."
+                                        />
+                                        <button id="addDataBtn" class="btn-transition bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-lg flex items-center justify-center whitespace-nowrap">
+                                            <i class="fas fa-plus mr-2"></i>
+                                            Ajouter
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">
+                                        Appuyez sur Entrée ou cliquez sur Ajouter pour insérer cet élément.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- État d'erreur -->
+                        <div id="dataError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-red-500 mr-3 text-xl"></i>
+                                <div>
+                                    <h4 class="font-medium text-red-800">Impossible de charger les données collectées</h4>
+                                    <p class="text-red-600 text-sm mt-1">Veuillez réessayer ou vérifier votre connexion.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- SECTION C : Utilisation des données -->
+                <section id="sectionC" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                    <div class="bg-gradient-to-r from-indigo-50 to-indigo-100 px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-chart-line text-indigo-600 mr-2"></i>
+                                    Utilisation des données
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    Comment les données collectées sont utilisées
+                                </p>
+                            </div>
+                            <div class="flex items-center">
+                                <span id="usageStatus" class="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 hidden">
+                                    <i class="fas fa-check mr-1"></i>Sauvegardé
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- État de chargement -->
+                        <div id="usageLoading" class="space-y-3">
+                            <div class="skeleton h-10 rounded-lg"></div>
+                            <div class="skeleton h-10 rounded-lg"></div>
+                            <div class="skeleton h-10 rounded-lg"></div>
+                        </div>
+                        
+                        <!-- État de contenu -->
+                        <div id="usageContent" class="hidden">
+                            <div class="mb-6">
+                                <h3 class="text-lg font-medium text-gray-800 mb-3">Utilisations des données</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Décrivez chaque utilisation des données collectées.
+                                </p>
+                                
+                                <!-- Liste des utilisations -->
+                                <div id="usageList" class="space-y-3 mb-6 max-h-80 overflow-y-auto custom-scrollbar p-2">
+                                    <!-- Les éléments seront ajoutés dynamiquement ici -->
+                                </div>
+                                
+                                <!-- Formulaire d'ajout -->
+                                <div class="border-t border-gray-200 pt-6">
+                                    <h4 class="text-md font-medium text-gray-800 mb-3">Ajouter une nouvelle utilisation</h4>
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <input 
+                                            type="text" 
+                                            id="newUsageInput" 
+                                            class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                                            placeholder="Ex: Traitement des commandes, service client, envoi de newsletters..."
+                                        />
+                                        <button id="addUsageBtn" class="btn-transition bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg flex items-center justify-center whitespace-nowrap">
+                                            <i class="fas fa-plus mr-2"></i>
+                                            Ajouter
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- État d'erreur -->
+                        <div id="usageError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-red-500 mr-3 text-xl"></i>
+                                <div>
+                                    <h4 class="font-medium text-red-800">Impossible de charger les utilisations</h4>
+                                    <p class="text-red-600 text-sm mt-1">Veuillez réessayer ou vérifier votre connexion.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- Colonne de droite : Sections D et E -->
+            <div class="space-y-8">
+                <!-- SECTION D : Sécurité des données -->
+                <section id="sectionD" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                    <div class="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-lock text-purple-600 mr-2"></i>
+                                    Sécurité des données
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    Message de sécurité pour rassurer les utilisateurs
+                                </p>
+                            </div>
+                            <div class="flex items-center">
+                                <span id="securityStatus" class="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 hidden">
+                                    <i class="fas fa-check mr-1"></i>Sauvegardé
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- État de chargement -->
+                        <div id="securityLoading" class="skeleton h-32 rounded-lg mb-4"></div>
+                        
+                        <!-- État de contenu -->
+                        <div id="securityContent" class="hidden">
+                            <div class="mb-4">
+                                <label for="security" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Texte sur la sécurité <span class="text-red-500">*</span>
+                                </label>
+                                <textarea 
+                                    id="security" 
+                                    rows="6" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-y custom-scrollbar"
+                                    placeholder="Décrivez les mesures de sécurité que vous mettez en place..."
+                                ></textarea>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Ce texte doit rassurer les utilisateurs sans entrer dans des détails techniques sensibles.
+                                </p>
+                            </div>
+                            
+                            <div class="flex justify-end">
+                                <button id="saveSecurityBtn" class="btn-transition bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg flex items-center">
+                                    <i class="fas fa-save mr-2"></i>
+                                    Enregistrer
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- État d'erreur -->
+                        <div id="securityError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-red-500 mr-3 text-xl"></i>
+                                <div>
+                                    <h4 class="font-medium text-red-800">Impossible de charger les informations de sécurité</h4>
+                                    <p class="text-red-600 text-sm mt-1">Veuillez réessayer ou vérifier votre connexion.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- SECTION E : Droits de l'utilisateur -->
+                <section id="sectionE" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden fade-in">
+                    <div class="bg-gradient-to-r from-pink-50 to-pink-100 px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-user-shield text-pink-600 mr-2"></i>
+                                    Droits de l'utilisateur
+                                </h2>
+                                <p class="text-gray-600 text-sm mt-1">
+                                    Droits RGPD et autres droits légaux
+                                </p>
+                            </div>
+                            <div class="flex items-center">
+                                <span id="rightsStatus" class="text-xs px-3 py-1 rounded-full bg-green-100 text-green-800 hidden">
+                                    <i class="fas fa-check mr-1"></i>Sauvegardé
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- État de chargement -->
+                        <div id="rightsLoading" class="space-y-3">
+                            <div class="skeleton h-10 rounded-lg"></div>
+                            <div class="skeleton h-10 rounded-lg"></div>
+                            <div class="skeleton h-10 rounded-lg"></div>
+                        </div>
+                        
+                        <!-- État de contenu -->
+                        <div id="rightsContent" class="hidden">
+                            <div class="mb-6">
+                                <h3 class="text-lg font-medium text-gray-800 mb-3">Droits des utilisateurs</h3>
+                                <p class="text-gray-600 text-sm mb-4">
+                                    Liste des droits dont disposent les utilisateurs concernant leurs données.
+                                </p>
+                                
+                                <!-- Liste des droits -->
+                                <div id="rightsList" class="space-y-3 mb-6 max-h-80 overflow-y-auto custom-scrollbar p-2">
+                                    <!-- Les éléments seront ajoutés dynamiquement ici -->
+                                </div>
+                                
+                                <!-- Formulaire d'ajout -->
+                                <div class="border-t border-gray-200 pt-6">
+                                    <h4 class="text-md font-medium text-gray-800 mb-3">Ajouter un nouveau droit</h4>
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <input 
+                                            type="text" 
+                                            id="newRightInput" 
+                                            class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all"
+                                            placeholder="Ex: Droit d'accès, droit de rectification, droit à l'oubli..."
+                                        />
+                                        <button id="addRightBtn" class="btn-transition bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-lg flex items-center justify-center whitespace-nowrap">
+                                            <i class="fas fa-plus mr-2"></i>
+                                            Ajouter
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- État d'erreur -->
+                        <div id="rightsError" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-red-500 mr-3 text-xl"></i>
+                                <div>
+                                    <h4 class="font-medium text-red-800">Impossible de charger les droits utilisateurs</h4>
+                                    <p class="text-red-600 text-sm mt-1">Veuillez réessayer ou vérifier votre connexion.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Panneau d'information -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                    <h3 class="font-bold text-blue-800 mb-3">
+                        <i class="fas fa-lightbulb mr-2"></i>
+                        Bonnes pratiques
+                    </h3>
+                    <ul class="space-y-2 text-sm text-blue-700">
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-blue-500 mt-0.5 mr-2"></i>
+                            <span>Sauvegarde automatique après chaque modification</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-blue-500 mt-0.5 mr-2"></i>
+                            <span>Utilisez un langage clair et simple</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-blue-500 mt-0.5 mr-2"></i>
+                            <span>Vérifiez l'orthographe avant de publier</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-check-circle text-blue-500 mt-0.5 mr-2"></i>
+                            <span>Les modifications sont visibles immédiatement sur le site</span>
+                        </li>
+                    </ul>
+                    
+                    <div class="mt-5 pt-4 border-t border-blue-200">
+                        <p class="text-xs text-blue-600">
+                            <i class="fas fa-history mr-1"></i>
+                            Dernière sauvegarde: <span id="lastSaveTime">--:--</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-300">
+                        <i class="fas fa-cog mr-2"></i>
+                        Administration - Politique de Confidentialité
+                    </p>
+                    <p class="text-gray-400 text-sm mt-1">
+                        Modifications enregistrées directement dans Firebase
+                    </p>
+                </div>
+                
+                <div class="text-sm text-gray-400">
+                    <p>© 2025 - Tous droits réservés</p>
+                    <p class="mt-1 text-xs">Cette interface est réservée aux administrateurs autorisés</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Modale de confirmation -->
+    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 transform transition-all fade-in">
+            <div class="p-6">
+                <div class="flex items-center mb-4">
+                    <div class="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mr-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800" id="modalTitle">Confirmer la suppression</h3>
+                </div>
+                
+                <p class="text-gray-600 mb-6" id="modalMessage">
+                    Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.
+                </p>
+                
+                <div class="flex justify-end space-x-3">
+                    <button id="modalCancel" class="btn-transition bg-gray-100 hover:bg-gray-200 text-gray-800 px-5 py-2.5 rounded-lg">
+                        Annuler
+                    </button>
+                    <button id="modalConfirm" class="btn-transition bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg">
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <!-- ------------------------------------------------------------------------------------------------------------
+     ==========================================================================================================
+     ==========================================
+      --><!-- Bulle de navigation unique -->
+<!-- Bulle de navigation unique -->
+<div id="navBubbleUniq" class="fixed bottom-4 right-4 z-50 transition-all duration-300">
+  <!-- Bouton principal de la bulle -->
+  <button id="navBubbleBtnUniq" 
+          class="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center group active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/30">
+    <i class="fas fa-rocket text-white text-xl md:text-2xl group-hover:rotate-90 transition-transform duration-300"></i>
+    <span class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">7</span>
+  </button>
+
+  <!-- Menu déroulant -->
+  <div id="navBubbleMenuUniq" 
+       class="absolute bottom-20 right-0 w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl opacity-0 scale-95 pointer-events-none transition-all duration-300 transform origin-bottom-right border border-gray-100 dark:border-gray-700">
+    
+    <!-- En-tête du menu -->
+    <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+          <i class="fas fa-space-shuttle text-indigo-500"></i>
+          Navigation Dashboard
+        </h3>
+        <span class="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-full">7 liens</span>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Accès rapide aux sections principales</p>
+    </div>
+
+    <!-- Liste des liens -->
+    <div class="p-2 space-y-1 max-h-96 overflow-y-auto custom-scrollbar-uniq">
+      <!-- Lien Dashboard Accueil -->
+      <a href="dashacceuil.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-indigo-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-home text-indigo-600 dark:text-indigo-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Dashboard Accueil</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Tableau de bord principal</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-indigo-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Confidentialité -->
+      <a href="dashconfi.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-blue-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shield-alt text-blue-600 dark:text-blue-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Confidentialité</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Gestion des données privées</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Livraison -->
+      <a href="livraisondash.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-green-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-green-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shipping-fast text-green-600 dark:text-green-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Dashboard Livraison</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Suivi des commandes</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-green-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Catalogue -->
+      <a href="catalogue-admin.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-purple-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-boxes text-purple-600 dark:text-purple-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Catalogue Admin</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Gestion des produits</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Commandes -->
+      <a href="panier.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-amber-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-amber-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shopping-cart text-amber-600 dark:text-amber-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Commandes & Panier</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Paiements et transactions</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-amber-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien About -->
+      <a href="dashabout.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-cyan-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-info-circle text-cyan-600 dark:text-cyan-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">À propos</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Informations sur l'application</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-cyan-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Transfert -->
+      <a href="marquee.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-pink-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-pink-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-exchange-alt text-pink-600 dark:text-pink-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Transfert</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Transferts et transactions</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-pink-500 transition-colors flex-shrink-0"></i>
+      </a>
+    </div>
+
+    <!-- Footer du menu -->
+    <div class="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 rounded-b-2xl">
+      <div class="flex items-center justify-between">
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          <span class="font-medium">v1.2.0</span>
+          <span class="mx-1">•</span>
+          <span>Navigation avancée</span>
+        </div>
+        <button id="navBubbleCloseUniq" 
+                class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+          <i class="fas fa-times text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Variables globales uniques pour la bulle
+let navBubbleDragStateUniq = {
+  isDragging: false,
+  startX: 0,
+  startY: 0,
+  startLeft: 0,
+  startTop: 0
+};
+
+let navBubbleMenuStateUniq = {
+  isOpen: false,
+  isAnimating: false
+};
+
+let navBubbleTouchTimerUniq = null;
+
+// Références aux éléments DOM
+const navBubbleContainerUniq = document.getElementById('navBubbleUniq');
+const navBubbleToggleUniq = document.getElementById('navBubbleBtnUniq');
+const navBubbleDropdownUniq = document.getElementById('navBubbleMenuUniq');
+const navBubbleCloseTriggerUniq = document.getElementById('navBubbleCloseUniq');
+const navBubbleMenuLinksUniq = document.querySelectorAll('.navBubbleLinkUniq');
+
+// Initialisation de la bulle
+function setupNavBubbleUniq() {
+  loadNavBubblePositionUniq();
+  attachNavBubbleEventsUniq();
+  setupNavBubbleAccessibilityUniq();
+  animateNavBubbleIntroUniq();
+}
+
+// Charger la position sauvegardée
+function loadNavBubblePositionUniq() {
+  const savedPos = localStorage.getItem('navBubblePositionV2');
+  if (savedPos) {
+    try {
+      const { x, y } = JSON.parse(savedPos);
+      const safeX = Math.max(10, Math.min(x, window.innerWidth - 70));
+      const safeY = Math.max(10, Math.min(y, window.innerHeight - 70));
+      
+      navBubbleContainerUniq.style.left = `${safeX}px`;
+      navBubbleContainerUniq.style.top = `${safeY}px`;
+      navBubbleContainerUniq.style.right = 'auto';
+      navBubbleContainerUniq.style.bottom = 'auto';
+    } catch (e) {
+      console.warn('Position de bulle invalide, utilisation par défaut');
+    }
+  }
+}
+
+// Sauvegarder la position
+function saveNavBubblePositionUniq() {
+  const rect = navBubbleContainerUniq.getBoundingClientRect();
+  localStorage.setItem('navBubblePositionV2', JSON.stringify({
+    x: rect.left,
+    y: rect.top
+  }));
+}
+
+// Attacher les événements
+function attachNavBubbleEventsUniq() {
+  // Événements desktop
+  navBubbleToggleUniq.addEventListener('mousedown', startNavBubbleDragDesktopUniq);
+  navBubbleToggleUniq.addEventListener('click', handleNavBubbleToggleClickUniq);
+  navBubbleCloseTriggerUniq.addEventListener('click', closeNavBubbleMenuUniq);
+  
+  // Événements mobile touch
+  navBubbleToggleUniq.addEventListener('touchstart', startNavBubbleTouchUniq, { passive: false });
+  navBubbleToggleUniq.addEventListener('touchmove', handleNavBubbleTouchMoveUniq, { passive: false });
+  navBubbleToggleUniq.addEventListener('touchend', endNavBubbleTouchUniq);
+  
+  // Événements globaux
+  document.addEventListener('mousemove', handleNavBubbleDragDesktopUniq);
+  document.addEventListener('mouseup', stopNavBubbleDragDesktopUniq);
+  document.addEventListener('click', handleDocumentClickNavBubbleUniq);
+  document.addEventListener('keydown', handleNavBubbleKeyboardUniq);
+  window.addEventListener('resize', handleNavBubbleResizeUniq);
+  
+  // Prévenir le drag des images dans les liens
+  navBubbleMenuLinksUniq.forEach(link => {
+    link.addEventListener('dragstart', (e) => e.preventDefault());
+  });
+}
+
+// Gestion du clic sur le bouton toggle
+function handleNavBubbleToggleClickUniq(e) {
+  if (navBubbleDragStateUniq.isDragging) {
+    navBubbleDragStateUniq.isDragging = false;
+    saveNavBubblePositionUniq();
+    return;
+  }
+  
+  e.stopPropagation();
+  toggleNavBubbleMenuUniq();
+}
+
+// Ouvrir/fermer le menu
+function toggleNavBubbleMenuUniq() {
+  if (navBubbleMenuStateUniq.isAnimating) return;
+  
+  navBubbleMenuStateUniq.isAnimating = true;
+  
+  if (navBubbleMenuStateUniq.isOpen) {
+    closeNavBubbleMenuUniq();
+  } else {
+    openNavBubbleMenuUniq();
+  }
+  
+  setTimeout(() => {
+    navBubbleMenuStateUniq.isAnimating = false;
+  }, 300);
+}
+
+// Ouvrir le menu
+function openNavBubbleMenuUniq() {
+  navBubbleMenuStateUniq.isOpen = true;
+  navBubbleDropdownUniq.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+  navBubbleDropdownUniq.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
+  navBubbleToggleUniq.classList.add('from-purple-600', 'to-pink-600', 'ring-4', 'ring-purple-500/30');
+  
+  // Feedback haptique sur mobile
+  if ('vibrate' in navigator) {
+    navigator.vibrate(30);
+  }
+}
+
+// Fermer le menu
+function closeNavBubbleMenuUniq() {
+  navBubbleMenuStateUniq.isOpen = false;
+  navBubbleDropdownUniq.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
+  navBubbleDropdownUniq.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+  navBubbleToggleUniq.classList.remove('from-purple-600', 'to-pink-600', 'ring-4', 'ring-purple-500/30');
+}
+
+// Drag desktop
+function startNavBubbleDragDesktopUniq(e) {
+  if (e.button !== 0) return; // Seulement clic gauche
+  
+  navBubbleDragStateUniq.isDragging = true;
+  const rect = navBubbleContainerUniq.getBoundingClientRect();
+  
+  navBubbleDragStateUniq.startX = e.clientX;
+  navBubbleDragStateUniq.startY = e.clientY;
+  navBubbleDragStateUniq.startLeft = rect.left;
+  navBubbleDragStateUniq.startTop = rect.top;
+  
+  navBubbleContainerUniq.style.transition = 'none';
+  navBubbleContainerUniq.style.cursor = 'grabbing';
+  closeNavBubbleMenuUniq();
+}
+
+function handleNavBubbleDragDesktopUniq(e) {
+  if (!navBubbleDragStateUniq.isDragging) return;
+  
+  const deltaX = e.clientX - navBubbleDragStateUniq.startX;
+  const deltaY = e.clientY - navBubbleDragStateUniq.startY;
+  
+  let newLeft = navBubbleDragStateUniq.startLeft + deltaX;
+  let newTop = navBubbleDragStateUniq.startTop + deltaY;
+  
+  // Garder dans les limites
+  const maxX = window.innerWidth - navBubbleContainerUniq.offsetWidth - 10;
+  const maxY = window.innerHeight - navBubbleContainerUniq.offsetHeight - 10;
+  
+  newLeft = Math.max(10, Math.min(newLeft, maxX));
+  newTop = Math.max(10, Math.min(newTop, maxY));
+  
+  navBubbleContainerUniq.style.left = `${newLeft}px`;
+  navBubbleContainerUniq.style.top = `${newTop}px`;
+  navBubbleContainerUniq.style.right = 'auto';
+  navBubbleContainerUniq.style.bottom = 'auto';
+}
+
+function stopNavBubbleDragDesktopUniq() {
+  if (!navBubbleDragStateUniq.isDragging) return;
+  
+  navBubbleDragStateUniq.isDragging = false;
+  navBubbleContainerUniq.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+  navBubbleContainerUniq.style.cursor = '';
+  saveNavBubblePositionUniq();
+}
+
+// Touch mobile
+function startNavBubbleTouchUniq(e) {
+  if (e.touches.length !== 1) return;
+  
+  const touch = e.touches[0];
+  
+  navBubbleTouchTimerUniq = setTimeout(() => {
+    // Long press pour drag
+    navBubbleDragStateUniq.isDragging = true;
+    const rect = navBubbleContainerUniq.getBoundingClientRect();
+    
+    navBubbleDragStateUniq.startX = touch.clientX;
+    navBubbleDragStateUniq.startY = touch.clientY;
+    navBubbleDragStateUniq.startLeft = rect.left;
+    navBubbleDragStateUniq.startTop = rect.top;
+    
+    navBubbleContainerUniq.style.transition = 'none';
+    closeNavBubbleMenuUniq();
+    
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  }, 500); // 500ms pour long press
+}
+
+function handleNavBubbleTouchMoveUniq(e) {
+  if (!navBubbleDragStateUniq.isDragging || e.touches.length !== 1) return;
+  
+  e.preventDefault();
+  const touch = e.touches[0];
+  
+  const deltaX = touch.clientX - navBubbleDragStateUniq.startX;
+  const deltaY = touch.clientY - navBubbleDragStateUniq.startY;
+  
+  let newLeft = navBubbleDragStateUniq.startLeft + deltaX;
+  let newTop = navBubbleDragStateUniq.startTop + deltaY;
+  
+  const maxX = window.innerWidth - navBubbleContainerUniq.offsetWidth - 10;
+  const maxY = window.innerHeight - navBubbleContainerUniq.offsetHeight - 10;
+  
+  newLeft = Math.max(10, Math.min(newLeft, maxX));
+  newTop = Math.max(10, Math.min(newTop, maxY));
+  
+  navBubbleContainerUniq.style.left = `${newLeft}px`;
+  navBubbleContainerUniq.style.top = `${newTop}px`;
+}
+
+function endNavBubbleTouchUniq() {
+  clearTimeout(navBubbleTouchTimerUniq);
+  
+  if (navBubbleDragStateUniq.isDragging) {
+    navBubbleDragStateUniq.isDragging = false;
+    navBubbleContainerUniq.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    saveNavBubblePositionUniq();
+  }
+}
+
+// Gestion des clics en dehors
+function handleDocumentClickNavBubbleUniq(e) {
+  if (!navBubbleMenuStateUniq.isOpen) return;
+  
+  const isClickInside = navBubbleContainerUniq.contains(e.target);
+  
+  if (!isClickInside) {
+    closeNavBubbleMenuUniq();
+  }
+}
+
+// Gestion du clavier
+function handleNavBubbleKeyboardUniq(e) {
+  if (e.key === 'Escape' && navBubbleMenuStateUniq.isOpen) {
+    closeNavBubbleMenuUniq();
+  }
+  
+  // Navigation au clavier dans le menu
+  if (e.key === 'Tab' && navBubbleMenuStateUniq.isOpen) {
+    e.preventDefault();
+    const currentIndex = Array.from(navBubbleMenuLinksUniq).indexOf(document.activeElement);
+    let nextIndex;
+    
+    if (e.shiftKey) {
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : navBubbleMenuLinksUniq.length - 1;
+    } else {
+      nextIndex = currentIndex < navBubbleMenuLinksUniq.length - 1 ? currentIndex + 1 : 0;
+    }
+    
+    if (navBubbleMenuLinksUniq[nextIndex]) {
+      navBubbleMenuLinksUniq[nextIndex].focus();
+    }
+  }
+}
+
+// Redimensionnement
+function handleNavBubbleResizeUniq() {
+  const rect = navBubbleContainerUniq.getBoundingClientRect();
+  const maxX = window.innerWidth - navBubbleContainerUniq.offsetWidth - 10;
+  const maxY = window.innerHeight - navBubbleContainerUniq.offsetHeight - 10;
+  
+  if (rect.left > maxX || rect.top > maxY) {
+    // Réinitialiser si hors écran
+    navBubbleContainerUniq.style.left = 'auto';
+    navBubbleContainerUniq.style.top = 'auto';
+    navBubbleContainerUniq.style.right = '1rem';
+    navBubbleContainerUniq.style.bottom = '1rem';
+    localStorage.removeItem('navBubblePositionV2');
+  }
+}
+
+// Accessibilité
+function setupNavBubbleAccessibilityUniq() {
+  navBubbleToggleUniq.setAttribute('aria-label', 'Ouvrir le menu de navigation');
+  navBubbleToggleUniq.setAttribute('aria-expanded', 'false');
+  navBubbleToggleUniq.setAttribute('role', 'button');
+  
+  navBubbleDropdownUniq.setAttribute('aria-hidden', 'true');
+  navBubbleDropdownUniq.setAttribute('role', 'menu');
+  
+  navBubbleMenuLinksUniq.forEach((link, index) => {
+    link.setAttribute('role', 'menuitem');
+    link.setAttribute('tabindex', '-1');
+  });
+  
+  // Mettre à jour les attributs ARIA quand le menu s'ouvre/ferme
+  const observerNavBubbleUniq = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === 'class') {
+        const isOpen = navBubbleDropdownUniq.classList.contains('opacity-100');
+        navBubbleToggleUniq.setAttribute('aria-expanded', isOpen.toString());
+        navBubbleDropdownUniq.setAttribute('aria-hidden', (!isOpen).toString());
+        
+        navBubbleMenuLinksUniq.forEach(link => {
+          link.setAttribute('tabindex', isOpen ? '0' : '-1');
+        });
+      }
+    });
+  });
+  
+  observerNavBubbleUniq.observe(navBubbleDropdownUniq, {
+    attributes: true,
+    attributeFilter: ['class']
+  });
+}
+
+// Animation d'introduction
+function animateNavBubbleIntroUniq() {
+  navBubbleContainerUniq.classList.add('animate-bounce');
+  setTimeout(() => {
+    navBubbleContainerUniq.classList.remove('animate-bounce');
+  }, 1500);
+}
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    setupNavBubbleUniq();
+  }, 100);
+});
+</script>
+
+<style>
+/* Styles additionnels pour la bulle de navigation */
+.custom-scrollbar-uniq::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar-uniq::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-uniq::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-uniq::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.dark .custom-scrollbar-uniq::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark .custom-scrollbar-uniq::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark .custom-scrollbar-uniq::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Animation de pulse améliorée */
+@keyframes navBubblePulseUniq {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 15px 35px rgba(99, 102, 241, 0.5);
+  }
+}
+
+.animate-pulse {
+  animation: navBubblePulseUniq 2s ease-in-out infinite;
+}
+
+/* Animation de rebond pour l'introduction */
+@keyframes navBubbleBounceUniq {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-bounce {
+  animation: navBubbleBounceUniq 0.5s ease-in-out 3;
+}
+
+/* Support du dark mode avancé */
+@media (prefers-color-scheme: dark) {
+  #navBubbleBtnUniq {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  }
+  
+  #navBubbleBtnUniq:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Responsive amélioré */
+@media (max-width: 640px) {
+  #navBubbleMenuUniq {
+    width: calc(100vw - 2rem);
+    max-width: 320px;
+    right: 50%;
+    transform: translateX(50%) scale(0.95);
+    transform-origin: bottom center;
+  }
+  
+  #navBubbleMenuUniq.opacity-100 {
+    transform: translateX(50%) scale(1);
+  }
+  
+  #navBubbleUniq {
+    bottom: 1rem;
+    right: 1rem;
+  }
+}
+
+/* Transition fluide pour le menu */
+#navBubbleMenuUniq {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus styles pour accessibilité */
+.navBubbleLinkUniq:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: -2px;
+}
+
+#navBubbleBtnUniq:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+</style>
+
+<!-- =================================================================================================================================================
+ ====================================================================================================================================
+ ============================================================================================
+  -->
+
+
+
+    <script>
+        // Configuration Firebase (identique au client)
+   const firebaseConfig = {
+  apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+  authDomain: "smartcutservices.firebaseapp.com",
+  projectId: "smartcutservices",
+  storageBucket: "smartcutservices.firebasestorage.app",
+  messagingSenderId: "589013273323",
+  appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+  measurementId: "G-R8GJXQP7BD"
+};
+
+
+        // Variables globales
+        let db;
+        let privacyPolicyData = null;
+        let isSaving = false;
+        let pendingActions = [];
+        
+        // Éléments à supprimer (pour la modale de confirmation)
+        let itemToDelete = {
+            type: null, // 'data', 'usage', 'rights'
+            index: null,
+            value: null
+        };
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFirebase();
+            setupEventListeners();
+            loadPrivacyPolicy();
+            updateLastSaveTime();
+        });
+
+        // Initialiser Firebase
+        function initializeFirebase() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                console.log("Firebase initialisé avec succès");
+                
+                // Mettre à jour l'indicateur de statut
+                updateFirebaseStatus(true);
+                
+                // Configurer le mode hors ligne (pour une meilleure UX)
+                db.enablePersistence()
+                    .catch((err) => {
+                        console.warn("Impossible d'activer la persistance Firebase:", err);
+                    });
+                    
+            } catch (error) {
+                console.error("Erreur d'initialisation Firebase:", error);
+                updateFirebaseStatus(false);
+                showStatusMessage("Impossible de se connecter à Firebase. Vérifiez votre connexion internet.", "error");
+            }
+        }
+
+        // Mettre à jour l'indicateur de statut Firebase
+        function updateFirebaseStatus(connected) {
+            const indicator = document.getElementById('statusIndicator');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                indicator.className = 'h-3 w-3 rounded-full bg-green-500 mr-2 animate-pulse';
+                text.textContent = 'Connecté à Firebase';
+                text.className = 'text-sm text-green-600';
+            } else {
+                indicator.className = 'h-3 w-3 rounded-full bg-red-500 mr-2';
+                text.textContent = 'Déconnecté';
+                text.className = 'text-sm text-red-600';
+            }
+        }
+
+        // Configurer les écouteurs d'événements
+        function setupEventListeners() {
+            // Bouton de rafraîchissement
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                loadPrivacyPolicy();
+                showStatusMessage("Rafraîchissement en cours...", "info");
+            });
+            
+            // Bouton de déconnexion (simulé)
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                if (confirm("Voulez-vous vraiment vous déconnecter ?")) {
+                    showStatusMessage("Déconnexion simulée. En production, intégrez Firebase Auth.", "info");
+                }
+            });
+            
+            // SECTION A: Introduction
+            document.getElementById('saveIntroBtn').addEventListener('click', updateIntroduction);
+            document.getElementById('introduction').addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    updateIntroduction();
+                }
+            });
+            
+            // SECTION B: Données collectées
+            document.getElementById('addDataBtn').addEventListener('click', addDataItem);
+            document.getElementById('newDataInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addDataItem();
+                }
+            });
+            
+            // SECTION C: Utilisation des données
+            document.getElementById('addUsageBtn').addEventListener('click', addUsageItem);
+            document.getElementById('newUsageInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addUsageItem();
+                }
+            });
+            
+            // SECTION D: Sécurité
+            document.getElementById('saveSecurityBtn').addEventListener('click', updateSecurity);
+            document.getElementById('security').addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    updateSecurity();
+                }
+            });
+            
+            // SECTION E: Droits
+            document.getElementById('addRightBtn').addEventListener('click', addRightItem);
+            document.getElementById('newRightInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addRightItem();
+                }
+            });
+            
+            // Modale de confirmation
+            document.getElementById('modalCancel').addEventListener('click', hideModal);
+            document.getElementById('modalConfirm').addEventListener('click', confirmDelete);
+            
+            // Fermer la modale en cliquant à l'extérieur
+            document.getElementById('confirmModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hideModal();
+                }
+            });
+        }
+
+        // Charger la politique de confidentialité depuis Firestore
+        async function loadPrivacyPolicy() {
+            try {
+                showAllLoadingStates();
+                
+                const docRef = db.collection("legal_pages").doc("privacy_policy");
+                const doc = await docRef.get();
+                
+                if (doc.exists) {
+                    privacyPolicyData = doc.data();
+                    console.log("Données chargées:", privacyPolicyData);
+                    
+                    // Remplir les champs de formulaire
+                    populateFormFields(privacyPolicyData);
+                    
+                    // Afficher le contenu
+                    showAllContentStates();
+                    
+                    showStatusMessage("Politique de confidentialité chargée avec succès", "success");
+                    updateFirebaseStatus(true);
+                } else {
+                    // Document n'existe pas encore, créer avec des valeurs par défaut
+                    privacyPolicyData = getDefaultPrivacyPolicy();
+                    await docRef.set(privacyPolicyData);
+                    
+                    populateFormFields(privacyPolicyData);
+                    showAllContentStates();
+                    
+                    showStatusMessage("Document créé avec des valeurs par défaut", "info");
+                }
+                
+            } catch (error) {
+                console.error("Erreur lors du chargement:", error);
+                showAllErrorStates();
+                showStatusMessage("Erreur lors du chargement des données", "error");
+                updateFirebaseStatus(false);
+            }
+        }
+
+        // Obtenir des valeurs par défaut pour la politique
+        function getDefaultPrivacyPolicy() {
+            return {
+                introduction: "Nous accordons une grande importance à la protection de vos données personnelles. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations lorsque vous utilisez notre site.",
+                collectedData: [
+                    "Adresse email",
+                    "Nom et prénom",
+                    "Adresse postale",
+                    "Numéro de téléphone"
+                ],
+                usage: [
+                    "Traiter vos commandes et livraisons",
+                    "Répondre à vos demandes client",
+                    "Vous envoyer des informations sur nos produits (avec votre consentement)",
+                    "Améliorer notre site et nos services"
+                ],
+                security: "Nous mettons en œuvre des mesures de sécurité techniques et organisationnelles appropriées pour protéger vos données personnelles contre tout accès non autorisé, modification, divulgation ou destruction.",
+                rights: [
+                    "Droit d'accès à vos données personnelles",
+                    "Droit de rectification des données inexactes",
+                    "Droit à l'effacement de vos données",
+                    "Droit de limiter le traitement de vos données",
+                    "Droit à la portabilité de vos données"
+                ]
+            };
+        }
+
+        // Remplir les champs de formulaire avec les données
+        function populateFormFields(data) {
+            // SECTION A: Introduction
+            document.getElementById('introduction').value = data.introduction || '';
+            
+            // SECTION B: Données collectées
+            renderList('dataList', data.collectedData || [], 'data', 'amber');
+            
+            // SECTION C: Utilisation des données
+            renderList('usageList', data.usage || [], 'usage', 'indigo');
+            
+            // SECTION D: Sécurité
+            document.getElementById('security').value = data.security || '';
+            
+            // SECTION E: Droits
+            renderList('rightsList', data.rights || [], 'rights', 'pink');
+        }
+
+        // Afficher un élément de liste éditable
+        function renderList(containerId, items, type, color) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-inbox text-3xl mb-3 opacity-50"></i>
+                        <p>Aucun élément ajouté</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            items.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = `flex items-center justify-between bg-${color}-50 border border-${color}-200 rounded-lg p-4`;
+                itemElement.dataset.index = index;
+                
+                itemElement.innerHTML = `
+                    <div class="flex-grow">
+                        <div class="flex items-start">
+                            <span class="h-6 w-6 rounded-full bg-${color}-100 text-${color}-800 flex items-center justify-center text-xs font-bold mr-3 mt-0.5">${index + 1}</span>
+                            <div>
+                                <span class="text-gray-800" id="${type}Text${index}">${item}</span>
+                                <div class="mt-1 flex space-x-2">
+                                    <button class="edit-btn text-xs text-${color}-600 hover:text-${color}-800" data-type="${type}" data-index="${index}">
+                                        <i class="fas fa-edit mr-1"></i>Modifier
+                                    </button>
+                                    <button class="delete-btn text-xs text-red-600 hover:text-red-800" data-type="${type}" data-index="${index}">
+                                        <i class="fas fa-trash-alt mr-1"></i>Supprimer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 ml-4">
+                        ${index > 0 ? `<button class="move-up-btn text-gray-500 hover:text-gray-700" data-type="${type}" data-index="${index}">
+                            <i class="fas fa-arrow-up"></i>
+                        </button>` : ''}
+                        ${index < items.length - 1 ? `<button class="move-down-btn text-gray-500 hover:text-gray-700" data-type="${type}" data-index="${index}">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>` : ''}
+                    </div>
+                `;
+                
+                container.appendChild(itemElement);
+            });
+            
+            // Ajouter les écouteurs d'événements pour les boutons dynamiques
+            attachListEventListeners(type, color);
+        }
+
+        // Attacher les écouteurs d'événements aux éléments de liste
+        function attachListEventListeners(type, color) {
+            // Boutons Modifier
+            document.querySelectorAll(`.edit-btn[data-type="${type}"]`).forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    editListItem(type, index, color);
+                });
+            });
+            
+            // Boutons Supprimer
+            document.querySelectorAll(`.delete-btn[data-type="${type}"]`).forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    const items = getItemsByType(type);
+                    showDeleteModal(type, index, items[index]);
+                });
+            });
+            
+            // Boutons Monter
+            document.querySelectorAll(`.move-up-btn[data-type="${type}"]`).forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    moveListItem(type, index, 'up');
+                });
+            });
+            
+            // Boutons Descendre
+            document.querySelectorAll(`.move-down-btn[data-type="${type}"]`).forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    moveListItem(type, index, 'down');
+                });
+            });
+        }
+
+        // Obtenir les éléments par type
+        function getItemsByType(type) {
+            switch(type) {
+                case 'data': return privacyPolicyData.collectedData || [];
+                case 'usage': return privacyPolicyData.usage || [];
+                case 'rights': return privacyPolicyData.rights || [];
+                default: return [];
+            }
+        }
+
+        // Éditer un élément de liste
+        function editListItem(type, index, color) {
+            const items = getItemsByType(type);
+            const currentValue = items[index];
+            
+            // Remplacer le texte par un champ d'édition
+            const textElement = document.getElementById(`${type}Text${index}`);
+            const parentDiv = textElement.parentElement;
+            
+            const editInput = document.createElement('input');
+            editInput.type = 'text';
+            editInput.value = currentValue;
+            editInput.className = `w-full px-3 py-2 border border-${color}-300 rounded focus:ring-2 focus:ring-${color}-500 focus:border-${color}-500 editing`;
+            
+            const saveButton = document.createElement('button');
+            saveButton.className = `ml-2 btn-transition bg-${color}-600 hover:bg-${color}-700 text-white px-3 py-2 rounded text-sm`;
+            saveButton.innerHTML = '<i class="fas fa-check mr-1"></i>OK';
+            
+            const cancelButton = document.createElement('button');
+            cancelButton.className = 'ml-1 btn-transition bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-2 rounded text-sm';
+            cancelButton.innerHTML = '<i class="fas fa-times mr-1"></i>Annuler';
+            
+            // Remplacer le texte par le champ d'édition
+            textElement.replaceWith(editInput);
+            parentDiv.appendChild(saveButton);
+            parentDiv.appendChild(cancelButton);
+            
+            // Focus sur le champ d'édition
+            editInput.focus();
+            editInput.select();
+            
+            // Sauvegarder lors de la pression sur Entrée
+            editInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    saveEdit(type, index, editInput.value, color);
+                }
+            });
+            
+            // Sauvegarder lors du clic
+            saveButton.addEventListener('click', function() {
+                saveEdit(type, index, editInput.value, color);
+            });
+            
+            // Annuler lors du clic
+            cancelButton.addEventListener('click', function() {
+                renderList(getListContainerId(type), items, type, color);
+            });
+        }
+
+        // Sauvegarder l'édition d'un élément de liste
+        function saveEdit(type, index, newValue, color) {
+            if (!newValue.trim()) {
+                alert("Le texte ne peut pas être vide");
+                return;
+            }
+            
+            // Mettre à jour les données locales
+            const items = getItemsByType(type);
+            items[index] = newValue.trim();
+            
+            // Mettre à jour Firebase
+            updateListInFirestore(type, items);
+            
+            // Re-render la liste
+            renderList(getListContainerId(type), items, type, color);
+        }
+
+        // Obtenir l'ID du conteneur de liste par type
+        function getListContainerId(type) {
+            switch(type) {
+                case 'data': return 'dataList';
+                case 'usage': return 'usageList';
+                case 'rights': return 'rightsList';
+                default: return '';
+            }
+        }
+
+        // Déplacer un élément de liste
+        function moveListItem(type, index, direction) {
+            const items = getItemsByType(type);
+            
+            if (direction === 'up' && index > 0) {
+                // Monter l'élément
+                [items[index], items[index - 1]] = [items[index - 1], items[index]];
+            } else if (direction === 'down' && index < items.length - 1) {
+                // Descendre l'élément
+                [items[index], items[index + 1]] = [items[index + 1], items[index]];
+            } else {
+                return;
+            }
+            
+            // Mettre à jour Firebase
+            updateListInFirestore(type, items);
+            
+            // Re-render la liste
+            const color = getColorByType(type);
+            renderList(getListContainerId(type), items, type, color);
+        }
+
+        // Obtenir la couleur par type
+        function getColorByType(type) {
+            switch(type) {
+                case 'data': return 'amber';
+                case 'usage': return 'indigo';
+                case 'rights': return 'pink';
+                default: return 'blue';
+            }
+        }
+
+        // Afficher la modale de confirmation de suppression
+        function showDeleteModal(type, index, value) {
+            itemToDelete = { type, index, value };
+            
+            document.getElementById('modalTitle').textContent = "Confirmer la suppression";
+            document.getElementById('modalMessage').textContent = 
+                `Êtes-vous sûr de vouloir supprimer "${value}" ? Cette action est irréversible.`;
+            
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        // Masquer la modale
+        function hideModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        // Confirmer la suppression
+        function confirmDelete() {
+            const { type, index } = itemToDelete;
+            const items = getItemsByType(type);
+            
+            // Supprimer l'élément
+            items.splice(index, 1);
+            
+            // Mettre à jour Firebase
+            updateListInFirestore(type, items);
+            
+            // Re-render la liste
+            const color = getColorByType(type);
+            renderList(getListContainerId(type), items, type, color);
+            
+            // Masquer la modale
+            hideModal();
+            
+            // Réinitialiser
+            itemToDelete = { type: null, index: null, value: null };
+            
+            showStatusMessage("Élément supprimé avec succès", "success");
+        }
+
+        // Mettre à jour une liste dans Firestore
+        async function updateListInFirestore(type, items) {
+            if (isSaving) {
+                pendingActions.push({ type, items });
+                return;
+            }
+            
+            isSaving = true;
+            showSavingStatus(type);
+            
+            try {
+                const fieldName = getFieldNameByType(type);
+                await db.collection("legal_pages").doc("privacy_policy").update({
+                    [fieldName]: items
+                });
+                
+                // Mettre à jour les données locales
+                privacyPolicyData[fieldName] = items;
+                
+                showSuccessStatus(type);
+                updateLastSaveTime();
+                showStatusMessage("Liste mise à jour avec succès", "success");
+                
+            } catch (error) {
+                console.error(`Erreur lors de la mise à jour de ${type}:`, error);
+                showStatusMessage("Erreur lors de la sauvegarde", "error");
+            } finally {
+                isSaving = false;
+                
+                // Traiter les actions en attente
+                if (pendingActions.length > 0) {
+                    const nextAction = pendingActions.shift();
+                    setTimeout(() => updateListInFirestore(nextAction.type, nextAction.items), 500);
+                }
+            }
+        }
+
+        // Obtenir le nom du champ par type
+        function getFieldNameByType(type) {
+            switch(type) {
+                case 'data': return 'collectedData';
+                case 'usage': return 'usage';
+                case 'rights': return 'rights';
+                default: return '';
+            }
+        }
+
+        // SECTION A: Mettre à jour l'introduction
+        async function updateIntroduction() {
+            const newIntro = document.getElementById('introduction').value.trim();
+            
+            if (!newIntro) {
+                alert("Le texte d'introduction ne peut pas être vide");
+                return;
+            }
+            
+            if (isSaving) {
+                showStatusMessage("Une sauvegarde est déjà en cours", "warning");
+                return;
+            }
+            
+            isSaving = true;
+            showSavingStatus('intro');
+            
+            try {
+                await db.collection("legal_pages").doc("privacy_policy").update({
+                    introduction: newIntro
+                });
+                
+                privacyPolicyData.introduction = newIntro;
+                
+                showSuccessStatus('intro');
+                updateLastSaveTime();
+                showStatusMessage("Introduction mise à jour avec succès", "success");
+                
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de l'introduction:", error);
+                showStatusMessage("Erreur lors de la sauvegarde", "error");
+            } finally {
+                isSaving = false;
+            }
+        }
+
+        // SECTION B: Ajouter un élément de données
+        function addDataItem() {
+            const input = document.getElementById('newDataInput');
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert("Veuillez saisir un texte");
+                input.focus();
+                return;
+            }
+            
+            const items = getItemsByType('data');
+            items.push(value);
+            
+            updateListInFirestore('data', items);
+            
+            // Réinitialiser le champ
+            input.value = '';
+            input.focus();
+        }
+
+        // SECTION C: Ajouter un élément d'utilisation
+        function addUsageItem() {
+            const input = document.getElementById('newUsageInput');
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert("Veuillez saisir un texte");
+                input.focus();
+                return;
+            }
+            
+            const items = getItemsByType('usage');
+            items.push(value);
+            
+            updateListInFirestore('usage', items);
+            
+            // Réinitialiser le champ
+            input.value = '';
+            input.focus();
+        }
+
+        // SECTION D: Mettre à jour la sécurité
+        async function updateSecurity() {
+            const newSecurity = document.getElementById('security').value.trim();
+            
+            if (!newSecurity) {
+                alert("Le texte de sécurité ne peut pas être vide");
+                return;
+            }
+            
+            if (isSaving) {
+                showStatusMessage("Une sauvegarde est déjà en cours", "warning");
+                return;
+            }
+            
+            isSaving = true;
+            showSavingStatus('security');
+            
+            try {
+                await db.collection("legal_pages").doc("privacy_policy").update({
+                    security: newSecurity
+                });
+                
+                privacyPolicyData.security = newSecurity;
+                
+                showSuccessStatus('security');
+                updateLastSaveTime();
+                showStatusMessage("Texte de sécurité mis à jour avec succès", "success");
+                
+            } catch (error) {
+                console.error("Erreur lors de la mise à jour de la sécurité:", error);
+                showStatusMessage("Erreur lors de la sauvegarde", "error");
+            } finally {
+                isSaving = false;
+            }
+        }
+
+        // SECTION E: Ajouter un droit
+        function addRightItem() {
+            const input = document.getElementById('newRightInput');
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert("Veuillez saisir un texte");
+                input.focus();
+                return;
+            }
+            
+            const items = getItemsByType('rights');
+            items.push(value);
+            
+            updateListInFirestore('rights', items);
+            
+            // Réinitialiser le champ
+            input.value = '';
+            input.focus();
+        }
+
+        // Afficher l'état de chargement pour toutes les sections
+        function showAllLoadingStates() {
+            document.querySelectorAll('[id$="Loading"]').forEach(el => {
+                el.classList.remove('hidden');
+            });
+            document.querySelectorAll('[id$="Content"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.querySelectorAll('[id$="Error"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+        }
+
+        // Afficher le contenu pour toutes les sections
+        function showAllContentStates() {
+            document.querySelectorAll('[id$="Loading"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.querySelectorAll('[id$="Content"]').forEach(el => {
+                el.classList.remove('hidden');
+            });
+            document.querySelectorAll('[id$="Error"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+        }
+
+        // Afficher l'état d'erreur pour toutes les sections
+        function showAllErrorStates() {
+            document.querySelectorAll('[id$="Loading"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.querySelectorAll('[id$="Content"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.querySelectorAll('[id$="Error"]').forEach(el => {
+                el.classList.remove('hidden');
+            });
+        }
+
+        // Afficher l'état de sauvegarde
+        function showSavingStatus(type) {
+            const statusElement = document.getElementById(`${type}Status`);
+            if (statusElement) {
+                statusElement.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sauvegarde...';
+                statusElement.className = 'text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-800';
+                statusElement.classList.remove('hidden');
+            }
+        }
+
+        // Afficher l'état de succès
+        function showSuccessStatus(type) {
+            const statusElement = document.getElementById(`${type}Status`);
+            if (statusElement) {
+                statusElement.innerHTML = '<i class="fas fa-check mr-1"></i>Sauvegardé';
+                statusElement.className = 'text-xs px-3 py-1 rounded-full bg-green-100 text-green-800';
+                statusElement.classList.remove('hidden');
+                
+                // Masquer après 3 secondes
+                setTimeout(() => {
+                    statusElement.classList.add('hidden');
+                }, 3000);
+            }
+        }
+
+        // Afficher un message de statut
+        function showStatusMessage(message, type) {
+            const statusBar = document.getElementById('statusBar');
+            
+            // Couleurs selon le type
+            const colors = {
+                success: 'bg-green-50 border-green-200 text-green-800',
+                error: 'bg-red-50 border-red-200 text-red-800',
+                warning: 'bg-amber-50 border-amber-200 text-amber-800',
+                info: 'bg-blue-50 border-blue-200 text-blue-800'
+            };
+            
+            const icon = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-triangle',
+                warning: 'fa-exclamation-circle',
+                info: 'fa-info-circle'
+            };
+            
+            const statusMessage = document.createElement('div');
+            statusMessage.className = `${colors[type]} border rounded-lg p-4 flex items-center fade-in`;
+            statusMessage.innerHTML = `
+                <i class="fas ${icon[type]} mr-3 text-xl"></i>
+                <div>
+                    <p class="font-medium">${message}</p>
+                </div>
+                <button class="ml-auto text-gray-500 hover:text-gray-700 close-status">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            // Ajouter à la barre de statut
+            statusBar.innerHTML = '';
+            statusBar.appendChild(statusMessage);
+            
+            // Bouton de fermeture
+            statusMessage.querySelector('.close-status').addEventListener('click', function() {
+                statusMessage.remove();
+            });
+            
+            // Auto-suppression après 5 secondes pour les messages de succès/info
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    if (statusMessage.parentElement) {
+                        statusMessage.remove();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Mettre à jour l'heure de la dernière sauvegarde
+        function updateLastSaveTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('lastSaveTime').textContent = timeString;
+        }
+
+        // Gestion des raccourcis clavier
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S pour sauvegarder la section active
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                
+                // Déterminer quelle section a le focus
+                const activeElement = document.activeElement;
+                
+                if (activeElement.id === 'introduction') {
+                    updateIntroduction();
+                } else if (activeElement.id === 'security') {
+                    updateSecurity();
+                }
+            }
+            
+            // Échap pour fermer la modale
+            if (e.key === 'Escape') {
+                hideModal();
+            }
+        });
+    </script>
+</body>
+</html>

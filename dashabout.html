@@ -1,0 +1,2635 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gestion Page About | Izipret</title>
+    <meta name="description" content="Interface d'administration pour gérer le contenu de la page About">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                        dark: '#1F2937',
+                        light: '#F9FAFB',
+                        admin: {
+                            bg: '#F8FAFC',
+                            card: '#FFFFFF',
+                            border: '#E2E8F0',
+                            text: '#475569'
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                        'mono': ['SFMono-Regular', 'Menlo', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc,
+            updateDoc, 
+            collection, 
+            addDoc, 
+            deleteDoc, 
+            onSnapshot,
+            query,
+            orderBy 
+        } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
+ const firebaseConfig = {
+  apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+  authDomain: "smartcutservices.firebaseapp.com",
+  projectId: "smartcutservices",
+  storageBucket: "smartcutservices.firebasestorage.app",
+  messagingSenderId: "589013273323",
+  appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+  measurementId: "G-R8GJXQP7BD"
+};
+
+        
+        // Initialiser Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // Exposer Firebase à l'application
+        window.firebaseApp = {
+            db,
+            doc,
+            getDoc,
+            setDoc,
+            updateDoc,
+            collection,
+            addDoc,
+            deleteDoc,
+            onSnapshot,
+            query,
+            orderBy
+        };
+        
+        console.log('Firebase initialisé avec succès');
+    </script>
+    
+    <style>
+        :root {
+            --primary: #3B82F6;
+            --secondary: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+        }
+        
+        /* Animation de sauvegarde */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .saving-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        /* Scrollbar personnalisée */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        /* Transitions */
+        .transition-all {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Card hover effect */
+        .admin-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .admin-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        /* Status badges */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="font-sans bg-admin-bg text-admin-text min-h-screen">
+    
+    <!-- Navigation Admin -->
+    <header class="sticky top-0 z-50 bg-white shadow-md border-b border-admin-border">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <!-- Logo et titre -->
+                <div class="flex items-center space-x-4">
+                    
+                    <div class="hidden md:block border-l border-gray-200 pl-4">
+                        <nav class="flex space-x-6">
+                            <a href="/admin/dashboard.html" class="text-gray-600 hover:text-primary font-medium">
+                                <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                            </a>
+                            <a href="/admin/products.html" class="text-gray-600 hover:text-primary font-medium">
+                                <i class="fas fa-box mr-2"></i>Produits
+                            </a>
+                            <a href="/admin/about.html" class="text-primary font-medium border-b-2 border-primary pb-1">
+                                <i class="fas fa-info-circle mr-2"></i> About
+                            </a>
+                            <a href="/admin/orders.html" class="text-gray-600 hover:text-primary font-medium">
+                                <i class="fas fa-shopping-cart mr-2"></i>Commandes
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+                
+                <!-- User info -->
+                <div class="flex items-center space-x-4">
+                    <div class="hidden md:block text-right">
+                        <p class="font-medium text-dark">Administrateur</p>
+                        <p class="text-sm text-gray-500">Dernière connexion: Aujourd'hui</p>
+                    </div>
+                    <div class="relative">
+                        <button id="user-menu" class="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white">
+                            <i class="fas fa-user"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation mobile -->
+            <div class="md:hidden mt-4 pt-4 border-t border-gray-200">
+                <nav class="flex justify-around">
+                    <a href="/admin/dashboard.html" class="flex flex-col items-center text-gray-600">
+                        <i class="fas fa-tachometer-alt text-lg"></i>
+                        <span class="text-xs mt-1">Dashboard</span>
+                    </a>
+                    <a href="/admin/products.html" class="flex flex-col items-center text-gray-600">
+                        <i class="fas fa-box text-lg"></i>
+                        <span class="text-xs mt-1">Produits</span>
+                    </a>
+                    <a href="/admin/about.html" class="flex flex-col items-center text-primary">
+                        <i class="fas fa-info-circle text-lg"></i>
+                        <span class="text-xs mt-1">About</span>
+                    </a>
+                    <a href="/admin/orders.html" class="flex flex-col items-center text-gray-600">
+                        <i class="fas fa-shopping-cart text-lg"></i>
+                        <span class="text-xs mt-1">Commandes</span>
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- En-tête avec instructions -->
+        <div class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-dark mb-2">Gestion de la Page About</h1>
+                    <p class="text-gray-600">Modifiez le contenu qui apparaît sur la page "À propos" du site public.</p>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div id="connection-status" class="flex items-center space-x-2">
+                        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <span class="text-sm font-medium text-green-600">Connecté à Firebase</span>
+                    </div>
+                    
+                    <a href="/about.html" target="_blank" class="inline-flex items-center space-x-2 bg-primary hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-external-link-alt"></i>
+                        <span>About</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Alertes globales -->
+            <div id="global-alert" class="hidden mt-4 p-4 rounded-lg border"></div>
+        </div>
+        
+        <!-- Loading State -->
+        <div id="loading-state" class="text-center py-12">
+            <div class="inline-block w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+            <h2 class="text-2xl font-bold text-dark mb-4">Chargement du contenu...</h2>
+            <p class="text-gray-600">Récupération des données depuis Firebase Firestore</p>
+        </div>
+        
+        <!-- Error State -->
+        <div id="error-state" class="hidden text-center py-12">
+            <div class="inline-block w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
+                <i class="fas fa-exclamation-triangle text-red-500 text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-red-800 mb-4">Erreur de connexion</h2>
+            <p class="text-red-600 mb-6">Impossible de charger les données. Vérifiez votre connexion internet ou les permissions Firebase.</p>
+            <button id="retry-button" class="bg-primary hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors">
+                <i class="fas fa-redo mr-2"></i> Réessayer
+            </button>
+        </div>
+        
+        <!-- Contenu Admin (chargé dynamiquement) -->
+        <div id="admin-content" class="hidden">
+            <!-- SECTION A: Présentation Générale -->
+            <section class="admin-card bg-white rounded-xl shadow-sm border border-admin-border p-6 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-building text-green-600 text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-dark">Présentation Générale</h2>
+                            <p class="text-sm text-gray-500">Texte principal de présentation de l'entreprise</p>
+                        </div>
+                    </div>
+                    <span class="status-badge bg-green-100 text-green-800">
+                        <i class="fas fa-circle text-xs mr-1"></i>
+                        <span id="presentation-status">save</span>
+                    </span>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="presentation" class="block text-sm font-medium text-gray-700 mb-2">
+                        Texte de présentation <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <textarea 
+                            id="presentation" 
+                            rows="8" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all custom-scrollbar"
+                            placeholder="Rédigez ici le texte de présentation de votre entreprise. Ce texte apparaîtra en première section sur la page About."
+                        ></textarea>
+                        <div id="presentation-char-count" class="absolute bottom-3 right-3 text-xs text-gray-500 bg-white px-2 py-1 rounded">0 caractères</div>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Support des paragraphes, retours à la ligne conservés</p>
+                </div>
+                
+                <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                    <div id="presentation-save-info" class="text-sm text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        <span>Les modifications sont savees automatiquement</span>
+                    </div>
+                    <div id="presentation-save-indicator" class="hidden">
+                        <div class="flex items-center space-x-2 text-primary">
+                            <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-sm font-medium">Sauvegarde en cours...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SECTION B: Histoire de l'entreprise -->
+            <section class="admin-card bg-white rounded-xl shadow-sm border border-admin-border p-6 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-history text-blue-600 text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-dark">Histoire de l'Entreprise</h2>
+                            <p class="text-sm text-gray-500">Récit historique et évolution de votre entreprise</p>
+                        </div>
+                    </div>
+                    <span class="status-badge bg-blue-100 text-blue-800">
+                        <i class="fas fa-circle text-xs mr-1"></i>
+                        <span id="history-status">save</span>
+                    </span>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="history" class="block text-sm font-medium text-gray-700 mb-2">
+                        Texte historique <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <textarea 
+                            id="history" 
+                            rows="10" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all custom-scrollbar"
+                            placeholder="Racontez l'histoire de votre entreprise : création, évolution, moments clés, valeurs fondatrices..."
+                        ></textarea>
+                        <div id="history-char-count" class="absolute bottom-3 right-3 text-xs text-gray-500 bg-white px-2 py-1 rounded">0 caractères</div>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">Texte long accepté, formatage préservé</p>
+                </div>
+                
+                <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                    <div id="history-save-info" class="text-sm text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        <span>Sauvegarde automatique après 2 secondes d'inactivité</span>
+                    </div>
+                    <div id="history-save-indicator" class="hidden">
+                        <div class="flex items-center space-x-2 text-primary">
+                            <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <span class="text-sm font-medium">Sauvegarde en cours...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SECTION C: PDG / Fondateur -->
+            <section class="admin-card bg-white rounded-xl shadow-sm border border-admin-border p-6 mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-user-tie text-purple-600 text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-dark">PDG / Fondateur</h2>
+                            <p class="text-sm text-gray-500">Informations du dirigeant affichées sur la page About</p>
+                        </div>
+                    </div>
+                    <span class="status-badge bg-purple-100 text-purple-800">
+                        <i class="fas fa-circle text-xs mr-1"></i>
+                        <span id="ceo-status">save</span>
+                    </span>
+                </div>
+                
+                <form id="ceo-form" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Nom -->
+                        <div>
+                            <label for="ceo-name" class="block text-sm font-medium text-gray-700 mb-2">
+                                Nom complet <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="ceo-name" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                placeholder="Ex: Jean Dupont"
+                                required
+                            >
+                        </div>
+                        
+                        <!-- Rôle -->
+                        <div>
+                            <label for="ceo-role" class="block text-sm font-medium text-gray-700 mb-2">
+                                Fonction <span class="text-red-500">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="ceo-role" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                placeholder="Ex: Fondateur & PDG"
+                                required
+                            >
+                        </div>
+                    </div>
+                    
+                    <!-- Description -->
+                    <div>
+                        <label for="ceo-description" class="block text-sm font-medium text-gray-700 mb-2">
+                            Description <span class="text-red-500">*</span>
+                        </label>
+                        <textarea 
+                            id="ceo-description" 
+                            rows="4" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all custom-scrollbar"
+                            placeholder="Présentez le parcours, les valeurs et la vision de votre dirigeant..."
+                            required
+                        ></textarea>
+                    </div>
+                    
+                    <!-- Image -->
+                    <div>
+                        <label for="ceo-image" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nom de l'image <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="flex-1">
+                                <input 
+                                    type="text" 
+                                    id="ceo-image" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                    placeholder="Ex: ceo-portrait.jpg"
+                                    required
+                                >
+                                <p class="mt-2 text-sm text-gray-500">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Saisissez uniquement le nom du fichier image (ex: "portrait-ceo.jpg"). L'image doit déjà être hébergée.
+                                </p>
+                            </div>
+                            <div class="md:w-64">
+                                <div class="aspect-square bg-gray-100 rounded-lg border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                    <div id="ceo-image-preview" class="text-center p-4">
+                                        <i class="fas fa-user text-gray-400 text-4xl mb-2"></i>
+                                        <p class="text-sm text-gray-500">Aperçu de l'image</p>
+                                        <p class="text-xs text-gray-400 mt-1" id="ceo-image-name">Aucune image</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Boutons -->
+                    <div class="flex justify-end pt-4 border-t border-gray-100">
+                        <div id="ceo-save-indicator" class="hidden mr-4">
+                            <div class="flex items-center space-x-2 text-primary">
+                                <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                <span class="text-sm font-medium">Mise à jour...</span>
+                            </div>
+                        </div>
+                        <button 
+                            type="submit" 
+                            id="save-ceo-btn"
+                            class="bg-primary hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <i class="fas fa-save"></i>
+                            <span>Sauvegarder les modifications</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+            
+            <!-- SECTION D: Équipe -->
+            <section class="admin-card bg-white rounded-xl shadow-sm border border-admin-border p-6 mb-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-users text-orange-600 text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-dark">Équipe</h2>
+                            <p class="text-sm text-gray-500">Gestion des membres de l'équipe affichés sur la page About</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <span id="team-count" class="status-badge bg-gray-100 text-gray-800">
+                            <i class="fas fa-users text-xs mr-1"></i>
+                            <span>0 membres</span>
+                        </span>
+                        
+                        <button 
+                            id="add-team-member-btn"
+                            class="bg-secondary hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center space-x-2"
+                        >
+                            <i class="fas fa-plus"></i>
+                            <span>Ajouter</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Formulaire d'ajout/modification (caché par défaut) -->
+                <div id="team-form-container" class="hidden mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 id="team-form-title" class="text-lg font-bold text-dark">Ajouter un membre d'équipe</h3>
+                        <button id="close-team-form" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <form id="team-form" class="space-y-6">
+                        <input type="hidden" id="team-member-id" value="">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Nom -->
+                            <div>
+                                <label for="team-name" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Nom <span class="text-red-500">*</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="team-name" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                    placeholder="Ex: Sophie Martin"
+                                    required
+                                >
+                            </div>
+                            
+                            <!-- Rôle -->
+                            <div>
+                                <label for="team-role" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Fonction <span class="text-red-500">*</span>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="team-role" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                    placeholder="Ex: Directrice Marketing"
+                                    required
+                                >
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div>
+                            <label for="team-description" class="block text-sm font-medium text-gray-700 mb-2">
+                                Description
+                            </label>
+                            <textarea 
+                                id="team-description" 
+                                rows="3" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all custom-scrollbar"
+                                placeholder="Présentez brièvement ce membre de l'équipe..."
+                            ></textarea>
+                        </div>
+                        
+                        <!-- Image -->
+                        <div>
+                            <label for="team-image" class="block text-sm font-medium text-gray-700 mb-2">
+                                Nom de l'image <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex flex-col md:flex-row gap-4">
+                                <div class="flex-1">
+                                    <input 
+                                        type="text" 
+                                        id="team-image" 
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                                        placeholder="Ex: sophie-marketing.jpg"
+                                        required
+                                    >
+                                    <p class="mt-2 text-sm text-gray-500">
+                                        <i class="fas fa-info-circle mr-1"></i>
+                                        Nom du fichier image (ex: "photo-equipe.jpg")
+                                    </p>
+                                </div>
+                                <div class="md:w-64">
+                                    <div class="aspect-square bg-gray-100 rounded-lg border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                        <div id="team-image-preview" class="text-center p-4">
+                                            <i class="fas fa-user text-gray-400 text-4xl mb-2"></i>
+                                            <p class="text-sm text-gray-500">Aperçu de l'image</p>
+                                            <p class="text-xs text-gray-400 mt-1" id="team-image-name">Aucune image</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Boutons formulaire -->
+                        <div class="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                            <button 
+                                type="button" 
+                                id="cancel-team-form"
+                                class="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Annuler
+                            </button>
+                            
+                            <div id="team-save-indicator" class="hidden mr-4">
+                                <div class="flex items-center space-x-2 text-primary">
+                                    <div class="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <span class="text-sm font-medium">Sauvegarde...</span>
+                                </div>
+                            </div>
+                            
+                            <button 
+                                type="submit" 
+                                id="save-team-btn"
+                                class="bg-primary hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center space-x-2"
+                            >
+                                <i class="fas fa-save"></i>
+                                <span id="team-save-text">Ajouter le membre</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Liste des membres d'équipe -->
+                <div id="team-list-container">
+                    <!-- État vide -->
+                    <div id="empty-team-state" class="text-center py-12">
+                        <div class="inline-block w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                            <i class="fas fa-users text-gray-400 text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-700 mb-2">Aucun membre d'équipe</h3>
+                        <p class="text-gray-500 mb-6">Commencez par ajouter des membres à votre équipe.</p>
+                        <button id="add-first-member-btn" class="bg-primary hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-plus mr-2"></i> Ajouter le premier membre
+                        </button>
+                    </div>
+                    
+                    <!-- Grille des membres -->
+                    <div id="team-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Les cartes de membres seront générées ici dynamiquement -->
+                    </div>
+                    
+                    <!-- État de chargement de l'équipe -->
+                    <div id="team-loading" class="hidden text-center py-8">
+                        <div class="inline-block w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p class="text-gray-600">Chargement des membres de l'équipe...</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SECTION E: Aperçu et actions -->
+            <section class="bg-gray-50 rounded-xl border border-gray-200 p-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-dark mb-2">Actions rapides</h3>
+                        <p class="text-gray-600">Toutes les modifications sont automatiquement synchronisées avec la page About publique.</p>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button 
+                            id="refresh-content-btn"
+                            class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-6 rounded-lg border border-gray-300 transition-colors flex items-center justify-center space-x-2"
+                        >
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Rafraîchir les données</span>
+                        </button>
+                        
+                        <a 
+                            href="about.html" 
+                            target="_blank"
+                            class="bg-primary hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                        >
+                            <i class="fas fa-external-link-alt"></i>
+                            <span>page About</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-lg border border-gray-200">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-dark">Statut Firebase</p>
+                                    <p id="firebase-status-text" class="text-sm text-green-600">Connecté et synchronisé</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-4 rounded-lg border border-gray-200">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-dark">Dernière mise à jour</p>
+                                    <p id="last-update-time" class="text-sm text-gray-600">--:--:--</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-4 rounded-lg border border-gray-200">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-database text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-dark">Données chargées</p>
+                                    <p id="data-loaded-count" class="text-sm text-gray-600">0 éléments</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Modal de confirmation de suppression -->
+    <div id="delete-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Overlay -->
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" aria-hidden="true"></div>
+            
+            <!-- Modal -->
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <i class="fas fa-exclamation-triangle text-red-600"></i>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="delete-modal-title">
+                                Confirmer la suppression
+                            </h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500">
+                                    Êtes-vous sûr de vouloir supprimer ce membre de l'équipe ? Cette action est irréversible.
+                                </p>
+                                <p class="text-sm text-gray-500 mt-2" id="delete-member-info">
+                                    <!-- Informations du membre à supprimer -->
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button 
+                        type="button" 
+                        id="confirm-delete-btn"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
+                    >
+                        Supprimer
+                    </button>
+                    <button 
+                        type="button" 
+                        id="cancel-delete-btn"
+                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
+                    >
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ------------------------------------------------------------------------------------------------------------
+     ==========================================================================================================
+     ==========================================
+      --><!-- Bulle de navigation unique -->  <!-- ------------------------------------------------------------------------------------------------------------
+     ==========================================================================================================
+     ==========================================
+      --><!-- Bulle de navigation unique -->
+<!-- Bulle de navigation unique -->
+<div id="navBubbleUniq" class="fixed bottom-4 right-4 z-50 transition-all duration-300">
+  <!-- Bouton principal de la bulle -->
+  <button id="navBubbleBtnUniq" 
+          class="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center group active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-500/30">
+    <i class="fas fa-rocket text-white text-xl md:text-2xl group-hover:rotate-90 transition-transform duration-300"></i>
+    <span class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">7</span>
+  </button>
+
+  <!-- Menu déroulant -->
+  <div id="navBubbleMenuUniq" 
+       class="absolute bottom-20 right-0 w-72 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl opacity-0 scale-95 pointer-events-none transition-all duration-300 transform origin-bottom-right border border-gray-100 dark:border-gray-700">
+    
+    <!-- En-tête du menu -->
+    <div class="p-4 border-b border-gray-100 dark:border-gray-700">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+          <i class="fas fa-space-shuttle text-indigo-500"></i>
+          Navigation Dashboard
+        </h3>
+        <span class="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 rounded-full">7 liens</span>
+      </div>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Accès rapide aux sections principales</p>
+    </div>
+
+    <!-- Liste des liens -->
+    <div class="p-2 space-y-1 max-h-96 overflow-y-auto custom-scrollbar-uniq">
+      <!-- Lien Dashboard Accueil -->
+      <a href="dashacceuil.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-indigo-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-indigo-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-home text-indigo-600 dark:text-indigo-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Dashboard Accueil</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Tableau de bord principal</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-indigo-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Confidentialité -->
+      <a href="dashconfi.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-blue-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shield-alt text-blue-600 dark:text-blue-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Confidentialité</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Gestion des données privées</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Livraison -->
+      <a href="livraisondash.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-green-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-green-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shipping-fast text-green-600 dark:text-green-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Dashboard Livraison</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Suivi des commandes</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-green-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Catalogue -->
+      <a href="catalogue-admin.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-purple-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-boxes text-purple-600 dark:text-purple-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Catalogue Admin</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Gestion des produits</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Commandes -->
+      <a href="panier.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-amber-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-amber-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shopping-cart text-amber-600 dark:text-amber-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Commandes & Panier</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Paiements et transactions</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-amber-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      
+      <!-- Lien About -->
+      <a href="dashabout.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-cyan-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-info-circle text-cyan-600 dark:text-cyan-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">À propos</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Informations sur l'application</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-cyan-500 transition-colors flex-shrink-0"></i>
+      </a>
+
+      <!-- Lien Transfert -->
+      <a href="marquee.html" 
+         class="navBubbleLinkUniq flex items-center gap-3 p-3 rounded-xl hover:bg-pink-50 dark:hover:bg-gray-700 transition-colors duration-200 group focus:outline-none focus:bg-pink-50 dark:focus:bg-gray-700">
+        <div class="w-10 h-10 bg-pink-100 dark:bg-pink-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-exchange-alt text-pink-600 dark:text-pink-400"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-gray-800 dark:text-white truncate">Transfert</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 truncate">Transferts et transactions</p>
+        </div>
+        <i class="fas fa-chevron-right text-gray-400 group-hover:text-pink-500 transition-colors flex-shrink-0"></i>
+      </a>
+    </div>
+
+    <!-- Footer du menu -->
+    <div class="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 rounded-b-2xl">
+      <div class="flex items-center justify-between">
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          <span class="font-medium">v1.2.0</span>
+          <span class="mx-1">•</span>
+          <span>Navigation avancée</span>
+        </div>
+        <button id="navBubbleCloseUniq" 
+                class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50">
+          <i class="fas fa-times text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Variables globales uniques pour la bulle
+let navBubbleDragStateUniq = {
+  isDragging: false,
+  startX: 0,
+  startY: 0,
+  startLeft: 0,
+  startTop: 0
+};
+
+let navBubbleMenuStateUniq = {
+  isOpen: false,
+  isAnimating: false
+};
+
+let navBubbleTouchTimerUniq = null;
+
+// Références aux éléments DOM
+const navBubbleContainerUniq = document.getElementById('navBubbleUniq');
+const navBubbleToggleUniq = document.getElementById('navBubbleBtnUniq');
+const navBubbleDropdownUniq = document.getElementById('navBubbleMenuUniq');
+const navBubbleCloseTriggerUniq = document.getElementById('navBubbleCloseUniq');
+const navBubbleMenuLinksUniq = document.querySelectorAll('.navBubbleLinkUniq');
+
+// Initialisation de la bulle
+function setupNavBubbleUniq() {
+  loadNavBubblePositionUniq();
+  attachNavBubbleEventsUniq();
+  setupNavBubbleAccessibilityUniq();
+  animateNavBubbleIntroUniq();
+}
+
+// Charger la position sauvegardée
+function loadNavBubblePositionUniq() {
+  const savedPos = localStorage.getItem('navBubblePositionV2');
+  if (savedPos) {
+    try {
+      const { x, y } = JSON.parse(savedPos);
+      const safeX = Math.max(10, Math.min(x, window.innerWidth - 70));
+      const safeY = Math.max(10, Math.min(y, window.innerHeight - 70));
+      
+      navBubbleContainerUniq.style.left = `${safeX}px`;
+      navBubbleContainerUniq.style.top = `${safeY}px`;
+      navBubbleContainerUniq.style.right = 'auto';
+      navBubbleContainerUniq.style.bottom = 'auto';
+    } catch (e) {
+      console.warn('Position de bulle invalide, utilisation par défaut');
+    }
+  }
+}
+
+// Sauvegarder la position
+function saveNavBubblePositionUniq() {
+  const rect = navBubbleContainerUniq.getBoundingClientRect();
+  localStorage.setItem('navBubblePositionV2', JSON.stringify({
+    x: rect.left,
+    y: rect.top
+  }));
+}
+
+// Attacher les événements
+function attachNavBubbleEventsUniq() {
+  // Événements desktop
+  navBubbleToggleUniq.addEventListener('mousedown', startNavBubbleDragDesktopUniq);
+  navBubbleToggleUniq.addEventListener('click', handleNavBubbleToggleClickUniq);
+  navBubbleCloseTriggerUniq.addEventListener('click', closeNavBubbleMenuUniq);
+  
+  // Événements mobile touch
+  navBubbleToggleUniq.addEventListener('touchstart', startNavBubbleTouchUniq, { passive: false });
+  navBubbleToggleUniq.addEventListener('touchmove', handleNavBubbleTouchMoveUniq, { passive: false });
+  navBubbleToggleUniq.addEventListener('touchend', endNavBubbleTouchUniq);
+  
+  // Événements globaux
+  document.addEventListener('mousemove', handleNavBubbleDragDesktopUniq);
+  document.addEventListener('mouseup', stopNavBubbleDragDesktopUniq);
+  document.addEventListener('click', handleDocumentClickNavBubbleUniq);
+  document.addEventListener('keydown', handleNavBubbleKeyboardUniq);
+  window.addEventListener('resize', handleNavBubbleResizeUniq);
+  
+  // Prévenir le drag des images dans les liens
+  navBubbleMenuLinksUniq.forEach(link => {
+    link.addEventListener('dragstart', (e) => e.preventDefault());
+  });
+}
+
+// Gestion du clic sur le bouton toggle
+function handleNavBubbleToggleClickUniq(e) {
+  if (navBubbleDragStateUniq.isDragging) {
+    navBubbleDragStateUniq.isDragging = false;
+    saveNavBubblePositionUniq();
+    return;
+  }
+  
+  e.stopPropagation();
+  toggleNavBubbleMenuUniq();
+}
+
+// Ouvrir/fermer le menu
+function toggleNavBubbleMenuUniq() {
+  if (navBubbleMenuStateUniq.isAnimating) return;
+  
+  navBubbleMenuStateUniq.isAnimating = true;
+  
+  if (navBubbleMenuStateUniq.isOpen) {
+    closeNavBubbleMenuUniq();
+  } else {
+    openNavBubbleMenuUniq();
+  }
+  
+  setTimeout(() => {
+    navBubbleMenuStateUniq.isAnimating = false;
+  }, 300);
+}
+
+// Ouvrir le menu
+function openNavBubbleMenuUniq() {
+  navBubbleMenuStateUniq.isOpen = true;
+  navBubbleDropdownUniq.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+  navBubbleDropdownUniq.classList.add('opacity-100', 'scale-100', 'pointer-events-auto');
+  navBubbleToggleUniq.classList.add('from-purple-600', 'to-pink-600', 'ring-4', 'ring-purple-500/30');
+  
+  // Feedback haptique sur mobile
+  if ('vibrate' in navigator) {
+    navigator.vibrate(30);
+  }
+}
+
+// Fermer le menu
+function closeNavBubbleMenuUniq() {
+  navBubbleMenuStateUniq.isOpen = false;
+  navBubbleDropdownUniq.classList.remove('opacity-100', 'scale-100', 'pointer-events-auto');
+  navBubbleDropdownUniq.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+  navBubbleToggleUniq.classList.remove('from-purple-600', 'to-pink-600', 'ring-4', 'ring-purple-500/30');
+}
+
+// Drag desktop
+function startNavBubbleDragDesktopUniq(e) {
+  if (e.button !== 0) return; // Seulement clic gauche
+  
+  navBubbleDragStateUniq.isDragging = true;
+  const rect = navBubbleContainerUniq.getBoundingClientRect();
+  
+  navBubbleDragStateUniq.startX = e.clientX;
+  navBubbleDragStateUniq.startY = e.clientY;
+  navBubbleDragStateUniq.startLeft = rect.left;
+  navBubbleDragStateUniq.startTop = rect.top;
+  
+  navBubbleContainerUniq.style.transition = 'none';
+  navBubbleContainerUniq.style.cursor = 'grabbing';
+  closeNavBubbleMenuUniq();
+}
+
+function handleNavBubbleDragDesktopUniq(e) {
+  if (!navBubbleDragStateUniq.isDragging) return;
+  
+  const deltaX = e.clientX - navBubbleDragStateUniq.startX;
+  const deltaY = e.clientY - navBubbleDragStateUniq.startY;
+  
+  let newLeft = navBubbleDragStateUniq.startLeft + deltaX;
+  let newTop = navBubbleDragStateUniq.startTop + deltaY;
+  
+  // Garder dans les limites
+  const maxX = window.innerWidth - navBubbleContainerUniq.offsetWidth - 10;
+  const maxY = window.innerHeight - navBubbleContainerUniq.offsetHeight - 10;
+  
+  newLeft = Math.max(10, Math.min(newLeft, maxX));
+  newTop = Math.max(10, Math.min(newTop, maxY));
+  
+  navBubbleContainerUniq.style.left = `${newLeft}px`;
+  navBubbleContainerUniq.style.top = `${newTop}px`;
+  navBubbleContainerUniq.style.right = 'auto';
+  navBubbleContainerUniq.style.bottom = 'auto';
+}
+
+function stopNavBubbleDragDesktopUniq() {
+  if (!navBubbleDragStateUniq.isDragging) return;
+  
+  navBubbleDragStateUniq.isDragging = false;
+  navBubbleContainerUniq.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+  navBubbleContainerUniq.style.cursor = '';
+  saveNavBubblePositionUniq();
+}
+
+// Touch mobile
+function startNavBubbleTouchUniq(e) {
+  if (e.touches.length !== 1) return;
+  
+  const touch = e.touches[0];
+  
+  navBubbleTouchTimerUniq = setTimeout(() => {
+    // Long press pour drag
+    navBubbleDragStateUniq.isDragging = true;
+    const rect = navBubbleContainerUniq.getBoundingClientRect();
+    
+    navBubbleDragStateUniq.startX = touch.clientX;
+    navBubbleDragStateUniq.startY = touch.clientY;
+    navBubbleDragStateUniq.startLeft = rect.left;
+    navBubbleDragStateUniq.startTop = rect.top;
+    
+    navBubbleContainerUniq.style.transition = 'none';
+    closeNavBubbleMenuUniq();
+    
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  }, 500); // 500ms pour long press
+}
+
+function handleNavBubbleTouchMoveUniq(e) {
+  if (!navBubbleDragStateUniq.isDragging || e.touches.length !== 1) return;
+  
+  e.preventDefault();
+  const touch = e.touches[0];
+  
+  const deltaX = touch.clientX - navBubbleDragStateUniq.startX;
+  const deltaY = touch.clientY - navBubbleDragStateUniq.startY;
+  
+  let newLeft = navBubbleDragStateUniq.startLeft + deltaX;
+  let newTop = navBubbleDragStateUniq.startTop + deltaY;
+  
+  const maxX = window.innerWidth - navBubbleContainerUniq.offsetWidth - 10;
+  const maxY = window.innerHeight - navBubbleContainerUniq.offsetHeight - 10;
+  
+  newLeft = Math.max(10, Math.min(newLeft, maxX));
+  newTop = Math.max(10, Math.min(newTop, maxY));
+  
+  navBubbleContainerUniq.style.left = `${newLeft}px`;
+  navBubbleContainerUniq.style.top = `${newTop}px`;
+}
+
+function endNavBubbleTouchUniq() {
+  clearTimeout(navBubbleTouchTimerUniq);
+  
+  if (navBubbleDragStateUniq.isDragging) {
+    navBubbleDragStateUniq.isDragging = false;
+    navBubbleContainerUniq.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    saveNavBubblePositionUniq();
+  }
+}
+
+// Gestion des clics en dehors
+function handleDocumentClickNavBubbleUniq(e) {
+  if (!navBubbleMenuStateUniq.isOpen) return;
+  
+  const isClickInside = navBubbleContainerUniq.contains(e.target);
+  
+  if (!isClickInside) {
+    closeNavBubbleMenuUniq();
+  }
+}
+
+// Gestion du clavier
+function handleNavBubbleKeyboardUniq(e) {
+  if (e.key === 'Escape' && navBubbleMenuStateUniq.isOpen) {
+    closeNavBubbleMenuUniq();
+  }
+  
+  // Navigation au clavier dans le menu
+  if (e.key === 'Tab' && navBubbleMenuStateUniq.isOpen) {
+    e.preventDefault();
+    const currentIndex = Array.from(navBubbleMenuLinksUniq).indexOf(document.activeElement);
+    let nextIndex;
+    
+    if (e.shiftKey) {
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : navBubbleMenuLinksUniq.length - 1;
+    } else {
+      nextIndex = currentIndex < navBubbleMenuLinksUniq.length - 1 ? currentIndex + 1 : 0;
+    }
+    
+    if (navBubbleMenuLinksUniq[nextIndex]) {
+      navBubbleMenuLinksUniq[nextIndex].focus();
+    }
+  }
+}
+
+// Redimensionnement
+function handleNavBubbleResizeUniq() {
+  const rect = navBubbleContainerUniq.getBoundingClientRect();
+  const maxX = window.innerWidth - navBubbleContainerUniq.offsetWidth - 10;
+  const maxY = window.innerHeight - navBubbleContainerUniq.offsetHeight - 10;
+  
+  if (rect.left > maxX || rect.top > maxY) {
+    // Réinitialiser si hors écran
+    navBubbleContainerUniq.style.left = 'auto';
+    navBubbleContainerUniq.style.top = 'auto';
+    navBubbleContainerUniq.style.right = '1rem';
+    navBubbleContainerUniq.style.bottom = '1rem';
+    localStorage.removeItem('navBubblePositionV2');
+  }
+}
+
+// Accessibilité
+function setupNavBubbleAccessibilityUniq() {
+  navBubbleToggleUniq.setAttribute('aria-label', 'Ouvrir le menu de navigation');
+  navBubbleToggleUniq.setAttribute('aria-expanded', 'false');
+  navBubbleToggleUniq.setAttribute('role', 'button');
+  
+  navBubbleDropdownUniq.setAttribute('aria-hidden', 'true');
+  navBubbleDropdownUniq.setAttribute('role', 'menu');
+  
+  navBubbleMenuLinksUniq.forEach((link, index) => {
+    link.setAttribute('role', 'menuitem');
+    link.setAttribute('tabindex', '-1');
+  });
+  
+  // Mettre à jour les attributs ARIA quand le menu s'ouvre/ferme
+  const observerNavBubbleUniq = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === 'class') {
+        const isOpen = navBubbleDropdownUniq.classList.contains('opacity-100');
+        navBubbleToggleUniq.setAttribute('aria-expanded', isOpen.toString());
+        navBubbleDropdownUniq.setAttribute('aria-hidden', (!isOpen).toString());
+        
+        navBubbleMenuLinksUniq.forEach(link => {
+          link.setAttribute('tabindex', isOpen ? '0' : '-1');
+        });
+      }
+    });
+  });
+  
+  observerNavBubbleUniq.observe(navBubbleDropdownUniq, {
+    attributes: true,
+    attributeFilter: ['class']
+  });
+}
+
+// Animation d'introduction
+function animateNavBubbleIntroUniq() {
+  navBubbleContainerUniq.classList.add('animate-bounce');
+  setTimeout(() => {
+    navBubbleContainerUniq.classList.remove('animate-bounce');
+  }, 1500);
+}
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    setupNavBubbleUniq();
+  }, 100);
+});
+</script>
+
+<style>
+/* Styles additionnels pour la bulle de navigation */
+.custom-scrollbar-uniq::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar-uniq::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-uniq::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-uniq::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.dark .custom-scrollbar-uniq::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark .custom-scrollbar-uniq::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark .custom-scrollbar-uniq::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Animation de pulse améliorée */
+@keyframes navBubblePulseUniq {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 15px 35px rgba(99, 102, 241, 0.5);
+  }
+}
+
+.animate-pulse {
+  animation: navBubblePulseUniq 2s ease-in-out infinite;
+}
+
+/* Animation de rebond pour l'introduction */
+@keyframes navBubbleBounceUniq {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-bounce {
+  animation: navBubbleBounceUniq 0.5s ease-in-out 3;
+}
+
+/* Support du dark mode avancé */
+@media (prefers-color-scheme: dark) {
+  #navBubbleBtnUniq {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  }
+  
+  #navBubbleBtnUniq:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Responsive amélioré */
+@media (max-width: 640px) {
+  #navBubbleMenuUniq {
+    width: calc(100vw - 2rem);
+    max-width: 320px;
+    right: 50%;
+    transform: translateX(50%) scale(0.95);
+    transform-origin: bottom center;
+  }
+  
+  #navBubbleMenuUniq.opacity-100 {
+    transform: translateX(50%) scale(1);
+  }
+  
+  #navBubbleUniq {
+    bottom: 1rem;
+    right: 1rem;
+  }
+}
+
+/* Transition fluide pour le menu */
+#navBubbleMenuUniq {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus styles pour accessibilité */
+.navBubbleLinkUniq:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: -2px;
+}
+
+#navBubbleBtnUniq:focus-visible {
+  outline: 2px solid #4f46e5;
+  outline-offset: 2px;
+}
+</style>
+<!-- =================================================================================================================================================
+ ====================================================================================================================================
+ ============================================================================================
+  -->
+
+
+<!-- =================================================================================================================================================
+ ====================================================================================================================================
+ ============================================================================================
+  -->
+
+
+
+    <!-- Script principal -->
+    <script>
+        // ============================================
+        // CONFIGURATION ET INITIALISATION
+        // ============================================
+        
+        const config = {
+            firebase: {
+                collections: {
+                    about: 'about_page',
+                    team: 'team'
+                }
+            },
+            debounceTime: 2000, // Délai pour la sauvegarde automatique
+            maxImageNameLength: 100
+        };
+        
+        // Éléments DOM
+        const elements = {
+            // États
+            loading: document.getElementById('loading-state'),
+            error: document.getElementById('error-state'),
+            content: document.getElementById('admin-content'),
+            retryButton: document.getElementById('retry-button'),
+            
+            // Section Présentation
+            presentation: document.getElementById('presentation'),
+            presentationCharCount: document.getElementById('presentation-char-count'),
+            presentationStatus: document.getElementById('presentation-status'),
+            presentationSaveIndicator: document.getElementById('presentation-save-indicator'),
+            
+            // Section Histoire
+            history: document.getElementById('history'),
+            historyCharCount: document.getElementById('history-char-count'),
+            historyStatus: document.getElementById('history-status'),
+            historySaveIndicator: document.getElementById('history-save-indicator'),
+            
+            // Section PDG
+            ceoForm: document.getElementById('ceo-form'),
+            ceoName: document.getElementById('ceo-name'),
+            ceoRole: document.getElementById('ceo-role'),
+            ceoDescription: document.getElementById('ceo-description'),
+            ceoImage: document.getElementById('ceo-image'),
+            ceoImagePreview: document.getElementById('ceo-image-preview'),
+            ceoImageName: document.getElementById('ceo-image-name'),
+            ceoStatus: document.getElementById('ceo-status'),
+            ceoSaveIndicator: document.getElementById('ceo-save-indicator'),
+            saveCeoBtn: document.getElementById('save-ceo-btn'),
+            
+            // Section Équipe
+            teamFormContainer: document.getElementById('team-form-container'),
+            teamForm: document.getElementById('team-form'),
+            teamFormTitle: document.getElementById('team-form-title'),
+            teamMemberId: document.getElementById('team-member-id'),
+            teamName: document.getElementById('team-name'),
+            teamRole: document.getElementById('team-role'),
+            teamDescription: document.getElementById('team-description'),
+            teamImage: document.getElementById('team-image'),
+            teamImagePreview: document.getElementById('team-image-preview'),
+            teamImageName: document.getElementById('team-image-name'),
+            teamSaveText: document.getElementById('team-save-text'),
+            teamSaveIndicator: document.getElementById('team-save-indicator'),
+            saveTeamBtn: document.getElementById('save-team-btn'),
+            cancelTeamForm: document.getElementById('cancel-team-form'),
+            closeTeamForm: document.getElementById('close-team-form'),
+            addTeamMemberBtn: document.getElementById('add-team-member-btn'),
+            addFirstMemberBtn: document.getElementById('add-first-member-btn'),
+            teamGrid: document.getElementById('team-grid'),
+            emptyTeamState: document.getElementById('empty-team-state'),
+            teamLoading: document.getElementById('team-loading'),
+            teamCount: document.getElementById('team-count'),
+            
+            // Modal suppression
+            deleteModal: document.getElementById('delete-modal'),
+            deleteModalTitle: document.getElementById('delete-modal-title'),
+            deleteMemberInfo: document.getElementById('delete-member-info'),
+            confirmDeleteBtn: document.getElementById('confirm-delete-btn'),
+            cancelDeleteBtn: document.getElementById('cancel-delete-btn'),
+            
+            // Actions globales
+            refreshContentBtn: document.getElementById('refresh-content-btn'),
+            lastUpdateTime: document.getElementById('last-update-time'),
+            dataLoadedCount: document.getElementById('data-loaded-count'),
+            firebaseStatusText: document.getElementById('firebase-status-text'),
+            globalAlert: document.getElementById('global-alert')
+        };
+        
+        // Données de l'application
+        let appData = {
+            about: null,
+            team: [],
+            teamListener: null,
+            aboutListener: null,
+            lastSaveTime: null,
+            isSaving: false,
+            isInitialized: false
+        };
+        
+        // Timers pour la sauvegarde automatique
+        let presentationSaveTimer = null;
+        let historySaveTimer = null;
+        
+        // Membre à supprimer
+        let memberToDelete = null;
+        
+        // ============================================
+        // INITIALISATION DE L'APPLICATION
+        // ============================================
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Admin panel initialisé');
+            
+            // Vérifier si Firebase est chargé
+            if (!window.firebaseApp) {
+                console.error('Firebase n\'est pas chargé');
+                showErrorMessage('Erreur Firebase', 'La connexion à Firebase a échoué.');
+                return;
+            }
+            
+            // Charger les données initiales
+            loadInitialData();
+            
+            // Initialiser les écouteurs d'événements
+            initEventListeners();
+            
+            // Initialiser les compteurs de caractères
+            initCharCounters();
+            
+            // Initialiser l'aperçu des images
+            initImagePreviews();
+            
+            // Mettre à jour l'heure
+            updateLastUpdateTime();
+        });
+        
+        // ============================================
+        // FONCTIONS PRINCIPALES FIREBASE
+        // ============================================
+        
+        /**
+         * Charge toutes les données initiales depuis Firebase
+         */
+        async function loadInitialData() {
+            try {
+                showLoadingState();
+                
+                // Initialiser le document s'il n'existe pas
+                await initializeFirestoreDocument();
+                
+                // Charger le contenu About
+                await loadAboutContent();
+                
+                // Écouter les changements en temps réel pour About
+                setupAboutRealtimeListener();
+                
+                // Charger les membres d'équipe
+                await loadTeamMembers();
+                
+                // Écouter les changements en temps réel pour l'équipe
+                setupTeamRealtimeListener();
+                
+                hideLoadingState();
+                showSuccessMessage('Données chargées avec succès', 'Connexion Firebase établie et données synchronisées.');
+                
+                appData.isInitialized = true;
+                
+                // Mettre à jour les compteurs
+                updateDataCounters();
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement initial:', error);
+                showErrorState();
+                showErrorMessage('Erreur de connexion', 'Impossible de se connecter à Firebase. Vérifiez votre connexion internet.');
+            }
+        }
+        
+        /**
+         * Initialise le document Firestore s'il n'existe pas
+         */
+        async function initializeFirestoreDocument() {
+            try {
+                const { db, doc, getDoc, setDoc } = window.firebaseApp;
+                const aboutDocRef = doc(db, config.firebase.collections.about, 'content');
+                const aboutDocSnap = await getDoc(aboutDocRef);
+                
+                if (!aboutDocSnap.exists()) {
+                    console.log('Document non trouvé, création du document initial...');
+                    
+                    const defaultContent = getDefaultAboutContent();
+                    
+                    await setDoc(aboutDocRef, defaultContent);
+                    
+                    console.log('Document initial créé avec succès');
+                    showSuccessMessage('Document initialisé', 'La structure Firestore a été créée avec succès.');
+                }
+            } catch (error) {
+                console.error('Erreur lors de l\'initialisation du document:', error);
+                throw error;
+            }
+        }
+        
+        /**
+         * Charge le contenu About depuis Firebase
+         */
+        async function loadAboutContent() {
+            try {
+                const { db, doc, getDoc } = window.firebaseApp;
+                const aboutDocRef = doc(db, config.firebase.collections.about, 'content');
+                const aboutDocSnap = await getDoc(aboutDocRef);
+                
+                if (aboutDocSnap.exists()) {
+                    appData.about = aboutDocSnap.data();
+                    populateAboutForm();
+                    console.log('Contenu About chargé:', appData.about);
+                } else {
+                    console.warn('Aucun document trouvé dans about_page/content');
+                    appData.about = getDefaultAboutContent();
+                    populateAboutForm();
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement du contenu About:', error);
+                throw error;
+            }
+        }
+        
+        /**
+         * Configure l'écouteur en temps réel pour le contenu About
+         */
+        function setupAboutRealtimeListener() {
+            try {
+                const { db, doc, onSnapshot } = window.firebaseApp;
+                const aboutDocRef = doc(db, config.firebase.collections.about, 'content');
+                
+                appData.aboutListener = onSnapshot(aboutDocRef, (doc) => {
+                    if (doc.exists()) {
+                        appData.about = doc.data();
+                        populateAboutForm();
+                        console.log('Contenu About mis à jour en temps réel');
+                        
+                        // Mettre à jour l'heure de dernière mise à jour
+                        updateLastUpdateTime();
+                    }
+                }, (error) => {
+                    console.error('Erreur dans l\'écouteur About:', error);
+                });
+            } catch (error) {
+                console.error('Erreur lors de la configuration de l\'écouteur About:', error);
+            }
+        }
+        
+        /**
+         * Charge les membres d'équipe depuis Firebase
+         */
+        async function loadTeamMembers() {
+            try {
+                showTeamLoading();
+                
+                const { db, collection, getDocs } = window.firebaseApp;
+                const teamCollectionRef = collection(db, config.firebase.collections.about, 'content', 'team');
+                const teamSnapshot = await getDocs(teamCollectionRef);
+                
+                appData.team = [];
+                
+                if (!teamSnapshot.empty) {
+                    teamSnapshot.forEach(doc => {
+                        appData.team.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    renderTeamMembers();
+                } else {
+                    console.log('Aucun membre d\'équipe trouvé');
+                    renderTeamMembers();
+                }
+                
+                hideTeamLoading();
+                updateTeamCount();
+                
+            } catch (error) {
+                console.error('Erreur lors du chargement des membres d\'équipe:', error);
+                hideTeamLoading();
+                showErrorMessage('Erreur d\'équipe', 'Impossible de charger les membres de l\'équipe.');
+            }
+        }
+        
+        /**
+         * Configure l'écouteur en temps réel pour les membres d'équipe
+         */
+        function setupTeamRealtimeListener() {
+            try {
+                const { db, collection, onSnapshot } = window.firebaseApp;
+                const teamCollectionRef = collection(db, config.firebase.collections.about, 'content', 'team');
+                
+                appData.teamListener = onSnapshot(teamCollectionRef, (snapshot) => {
+                    appData.team = [];
+                    
+                    if (!snapshot.empty) {
+                        snapshot.forEach(doc => {
+                            appData.team.push({
+                                id: doc.id,
+                                ...doc.data()
+                            });
+                        });
+                    }
+                    
+                    renderTeamMembers();
+                    updateTeamCount();
+                    updateLastUpdateTime();
+                    
+                    console.log('Équipe mise à jour en temps réel:', appData.team.length, 'membres');
+                    
+                }, (error) => {
+                    console.error('Erreur dans l\'écouteur d\'équipe:', error);
+                });
+            } catch (error) {
+                console.error('Erreur lors de la configuration de l\'écouteur d\'équipe:', error);
+            }
+        }
+        
+        /**
+         * Met à jour la présentation dans Firebase
+         */
+        async function updatePresentation(content) {
+            try {
+                if (appData.isSaving) return;
+                
+                appData.isSaving = true;
+                showSavingIndicator('presentation');
+                
+                const { db, doc, updateDoc, setDoc, getDoc } = window.firebaseApp;
+                const aboutDocRef = doc(db, config.firebase.collections.about, 'content');
+                
+                // Vérifier si le document existe
+                const docSnap = await getDoc(aboutDocRef);
+                
+                if (docSnap.exists()) {
+                    // Mettre à jour le document existant
+                    await updateDoc(aboutDocRef, {
+                        presentation: content
+                    });
+                } else {
+                    // Créer le document s'il n'existe pas
+                    await setDoc(aboutDocRef, {
+                        presentation: content,
+                        history: '',
+                        ceo: {
+                            name: '',
+                            role: '',
+                            description: '',
+                            imageName: ''
+                        }
+                    });
+                }
+                
+                appData.lastSaveTime = new Date();
+                updateLastUpdateTime();
+                showSaveSuccess('presentation');
+                
+                console.log('Présentation mise à jour avec succès');
+                
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour de la présentation:', error);
+                showSaveError('presentation', 'Erreur lors de la sauvegarde');
+                throw error;
+            } finally {
+                appData.isSaving = false;
+                hideSavingIndicator('presentation');
+            }
+        }
+        
+        /**
+         * Met à jour l'histoire dans Firebase
+         */
+        async function updateHistory(content) {
+            try {
+                if (appData.isSaving) return;
+                
+                appData.isSaving = true;
+                showSavingIndicator('history');
+                
+                const { db, doc, updateDoc, setDoc, getDoc } = window.firebaseApp;
+                const aboutDocRef = doc(db, config.firebase.collections.about, 'content');
+                
+                // Vérifier si le document existe
+                const docSnap = await getDoc(aboutDocRef);
+                
+                if (docSnap.exists()) {
+                    // Mettre à jour le document existant
+                    await updateDoc(aboutDocRef, {
+                        history: content
+                    });
+                } else {
+                    // Créer le document s'il n'existe pas
+                    await setDoc(aboutDocRef, {
+                        presentation: '',
+                        history: content,
+                        ceo: {
+                            name: '',
+                            role: '',
+                            description: '',
+                            imageName: ''
+                        }
+                    });
+                }
+                
+                appData.lastSaveTime = new Date();
+                updateLastUpdateTime();
+                showSaveSuccess('history');
+                
+                console.log('Histoire mise à jour avec succès');
+                
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour de l\'histoire:', error);
+                showSaveError('history', 'Erreur lors de la sauvegarde');
+                throw error;
+            } finally {
+                appData.isSaving = false;
+                hideSavingIndicator('history');
+            }
+        }
+        
+        /**
+         * Met à jour les informations du PDG dans Firebase
+         */
+        async function updateCEO(ceoData) {
+            try {
+                if (appData.isSaving) return;
+                
+                appData.isSaving = true;
+                showSavingIndicator('ceo');
+                
+                const { db, doc, updateDoc, setDoc, getDoc } = window.firebaseApp;
+                const aboutDocRef = doc(db, config.firebase.collections.about, 'content');
+                
+                // Vérifier si le document existe
+                const docSnap = await getDoc(aboutDocRef);
+                
+                if (docSnap.exists()) {
+                    // Mettre à jour le document existant
+                    await updateDoc(aboutDocRef, {
+                        ceo: ceoData
+                    });
+                } else {
+                    // Créer le document s'il n'existe pas
+                    await setDoc(aboutDocRef, {
+                        presentation: '',
+                        history: '',
+                        ceo: ceoData
+                    });
+                }
+                
+                appData.lastSaveTime = new Date();
+                updateLastUpdateTime();
+                showSaveSuccess('ceo');
+                
+                console.log('PDG mis à jour avec succès:', ceoData);
+                
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du PDG:', error);
+                showSaveError('ceo', 'Erreur lors de la sauvegarde');
+                throw error;
+            } finally {
+                appData.isSaving = false;
+                hideSavingIndicator('ceo');
+            }
+        }
+        
+        /**
+         * Ajoute un nouveau membre d'équipe dans Firebase
+         */
+        async function addTeamMember(memberData) {
+            try {
+                showSavingIndicator('team');
+                
+                const { db, collection, addDoc } = window.firebaseApp;
+                const teamCollectionRef = collection(db, config.firebase.collections.about, 'content', 'team');
+                
+                const docRef = await addDoc(teamCollectionRef, memberData);
+                
+                console.log('Membre d\'équipe ajouté avec ID:', docRef.id);
+                showSuccessMessage('Membre ajouté', 'Le membre a été ajouté avec succès à l\'équipe.');
+                
+                return docRef.id;
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout du membre d\'équipe:', error);
+                showErrorMessage('Erreur d\'ajout', 'Impossible d\'ajouter le membre d\'équipe.');
+                throw error;
+            } finally {
+                hideSavingIndicator('team');
+            }
+        }
+        
+        /**
+         * Met à jour un membre d'équipe existant dans Firebase
+         */
+        async function updateTeamMember(memberId, memberData) {
+            try {
+                showSavingIndicator('team');
+                
+                const { db, doc, updateDoc } = window.firebaseApp;
+                const memberDocRef = doc(db, config.firebase.collections.about, 'content', 'team', memberId);
+                
+                await updateDoc(memberDocRef, memberData);
+                
+                console.log('Membre d\'équipe mis à jour:', memberId);
+                showSuccessMessage('Membre mis à jour', 'Les informations du membre ont été modifiées avec succès.');
+                
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du membre d\'équipe:', error);
+                showErrorMessage('Erreur de mise à jour', 'Impossible de mettre à jour le membre d\'équipe.');
+                throw error;
+            } finally {
+                hideSavingIndicator('team');
+            }
+        }
+        
+        /**
+         * Supprime un membre d'équipe de Firebase
+         */
+        async function deleteTeamMember(memberId) {
+            try {
+                const { db, doc, deleteDoc } = window.firebaseApp;
+                const memberDocRef = doc(db, config.firebase.collections.about, 'content', 'team', memberId);
+                
+                await deleteDoc(memberDocRef);
+                
+                console.log('Membre d\'équipe supprimé:', memberId);
+                showSuccessMessage('Membre supprimé', 'Le membre a été supprimé de l\'équipe.');
+                
+            } catch (error) {
+                console.error('Erreur lors de la suppression du membre d\'équipe:', error);
+                showErrorMessage('Erreur de suppression', 'Impossible de supprimer le membre d\'équipe.');
+                throw error;
+            }
+        }
+        
+        // ============================================
+        // FONCTIONS D'AFFICHAGE ET RENDU
+        // ============================================
+        
+        /**
+         * Remplit le formulaire avec les données About
+         */
+        function populateAboutForm() {
+            if (!appData.about) return;
+            
+            // Présentation
+            if (elements.presentation && appData.about.presentation) {
+                elements.presentation.value = appData.about.presentation;
+                updateCharCounter('presentation', appData.about.presentation.length);
+            }
+            
+            // Histoire
+            if (elements.history && appData.about.history) {
+                elements.history.value = appData.about.history;
+                updateCharCounter('history', appData.about.history.length);
+            }
+            
+            // PDG
+            if (appData.about.ceo) {
+                const ceo = appData.about.ceo;
+                
+                if (elements.ceoName) elements.ceoName.value = ceo.name || '';
+                if (elements.ceoRole) elements.ceoRole.value = ceo.role || '';
+                if (elements.ceoDescription) elements.ceoDescription.value = ceo.description || '';
+                if (elements.ceoImage) {
+                    elements.ceoImage.value = ceo.imageName || '';
+                    updateImagePreview('ceo', ceo.imageName);
+                }
+            }
+        }
+        
+        /**
+         * Affiche les membres d'équipe
+         */
+        function renderTeamMembers() {
+            if (!elements.teamGrid || !elements.emptyTeamState) return;
+            
+            // Vider la grille
+            elements.teamGrid.innerHTML = '';
+            
+            if (appData.team.length === 0) {
+                elements.teamGrid.classList.add('hidden');
+                elements.emptyTeamState.classList.remove('hidden');
+                return;
+            }
+            
+            // Afficher la grille et cacher l'état vide
+            elements.teamGrid.classList.remove('hidden');
+            elements.emptyTeamState.classList.add('hidden');
+            
+            // Générer les cartes de membres
+            appData.team.forEach(member => {
+                const memberCard = createTeamMemberCard(member);
+                elements.teamGrid.appendChild(memberCard);
+            });
+        }
+        
+        /**
+         * Crée une carte de membre d'équipe
+         */
+        function createTeamMemberCard(member) {
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow';
+            card.setAttribute('data-member-id', member.id);
+            
+            // Image (simulée avec une couleur de fond)
+            const imageName = member.imageName || 'image-par-defaut.jpg';
+            const initials = getInitials(member.name);
+            const bgColor = getRandomColor(initials);
+            
+            card.innerHTML = `
+                <div class="relative">
+                    <div class="h-48 ${bgColor} flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-white opacity-80">${initials}</div>
+                            <p class="text-white text-sm mt-2 opacity-90">${imageName}</p>
+                        </div>
+                    </div>
+                    <div class="absolute top-3 right-3">
+                        <span class="text-xs font-medium px-2 py-1 rounded-full bg-white bg-opacity-90 text-gray-700">
+                            ${member.role ? member.role.substring(0, 20) + (member.role.length > 20 ? '...' : '') : 'Non défini'}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="p-4">
+                    <h4 class="font-bold text-lg text-dark mb-1">${member.name || 'Nom non défini'}</h4>
+                    <p class="text-gray-600 text-sm mb-3">${member.role || 'Fonction non définie'}</p>
+                    
+                    <p class="text-gray-500 text-sm line-clamp-2 mb-4">
+                        ${member.description || 'Aucune description fournie.'}
+                    </p>
+                    
+                    <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                        <div class="text-xs text-gray-500">
+                            <i class="fas fa-image mr-1"></i>
+                            <span class="truncate max-w-[100px] inline-block align-bottom">${imageName}</span>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button 
+                                class="edit-member-btn text-primary hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"
+                                data-member-id="${member.id}"
+                                title="Modifier"
+                            >
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button 
+                                class="delete-member-btn text-danger hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors"
+                                data-member-id="${member.id}"
+                                title="Supprimer"
+                            >
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        /**
+         * Ouvre le formulaire pour ajouter/modifier un membre
+         */
+        function openTeamForm(member = null) {
+            elements.teamFormContainer.classList.remove('hidden');
+            
+            if (member) {
+                // Mode édition
+                elements.teamFormTitle.textContent = 'Modifier un membre';
+                elements.teamSaveText.textContent = 'Mettre à jour';
+                elements.teamMemberId.value = member.id;
+                elements.teamName.value = member.name || '';
+                elements.teamRole.value = member.role || '';
+                elements.teamDescription.value = member.description || '';
+                elements.teamImage.value = member.imageName || '';
+                updateImagePreview('team', member.imageName);
+            } else {
+                // Mode ajout
+                elements.teamFormTitle.textContent = 'Ajouter un membre d\'équipe';
+                elements.teamSaveText.textContent = 'Ajouter le membre';
+                elements.teamMemberId.value = '';
+                elements.teamForm.reset();
+                updateImagePreview('team', '');
+            }
+            
+            // Scroll vers le formulaire
+            elements.teamFormContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        /**
+         * Ferme le formulaire d'équipe
+         */
+        function closeTeamForm() {
+            elements.teamFormContainer.classList.add('hidden');
+            elements.teamForm.reset();
+            elements.teamMemberId.value = '';
+            updateImagePreview('team', '');
+        }
+        
+        /**
+         * Ouvre la modal de confirmation de suppression
+         */
+        function openDeleteModal(member) {
+            memberToDelete = member;
+            
+            elements.deleteMemberInfo.textContent = `Supprimer "${member.name}" (${member.role}) de l'équipe ?`;
+            elements.deleteModal.classList.remove('hidden');
+        }
+        
+        /**
+         * Ferme la modal de suppression
+         */
+        function closeDeleteModal() {
+            elements.deleteModal.classList.add('hidden');
+            memberToDelete = null;
+        }
+        
+        // ============================================
+        // FONCTIONS UTILITAIRES
+        // ============================================
+        
+        /**
+         * Retourne le contenu About par défaut
+         */
+        function getDefaultAboutContent() {
+            return {
+                presentation: 'Smart Cut Services est une entreprise e-commerce innovante née de la passion pour le commerce en ligne et le service client d\'excellence. Notre mission est de révolutionner l\'expérience d\'achat en ligne en offrant des produits de qualité, un service personnalisé et une livraison rapide.',
+                history: 'Fondée en 2018, Smart cut services est partie d\'une simple idée : rendre le commerce en ligne plus humain, plus accessible et plus fiable. En seulement quelques années, nous avons grandi pour devenir une référence dans notre secteur, grâce à notre engagement sans faille envers la satisfaction client.',
+                ceo: {
+                    name: 'Alexandre Martin',
+                    role: 'Fondateur & PDG',
+                    description: 'Passionné par l\'innovation et le commerce, notre fondateur a créé Smart Cut Services avec une vision claire : révolutionner l\'expérience d\'achat en ligne. Avec plus de 15 ans d\'expérience dans le e-commerce, il guide notre entreprise avec une approche centrée sur l\'humain et l\'innovation.',
+                    imageName: 'ceo-portrait.jpg'
+                }
+            };
+        }
+        
+        /**
+         * Met à jour le compteur de caractères
+         */
+        function updateCharCounter(field, count) {
+            const element = field === 'presentation' ? elements.presentationCharCount : elements.historyCharCount;
+            if (element) {
+                element.textContent = `${count} caractères`;
+                
+                // Changer la couleur selon la longueur
+                if (count > 2000) {
+                    element.classList.add('text-red-500');
+                } else if (count > 1000) {
+                    element.classList.add('text-warning');
+                } else {
+                    element.classList.remove('text-red-500', 'text-warning');
+                }
+            }
+        }
+        
+        /**
+         * Met à jour l'aperçu d'image
+         */
+        function updateImagePreview(type, imageName) {
+            const preview = type === 'ceo' ? elements.ceoImagePreview : elements.teamImagePreview;
+            const nameElement = type === 'ceo' ? elements.ceoImageName : elements.teamImageName;
+            
+            if (!imageName) {
+                preview.innerHTML = `
+                    <i class="fas fa-user text-gray-400 text-4xl mb-2"></i>
+                    <p class="text-sm text-gray-500">Aperçu de l'image</p>
+                    <p class="text-xs text-gray-400 mt-1">Aucune image</p>
+                `;
+                if (nameElement) nameElement.textContent = 'Aucune image';
+                return;
+            }
+            
+            // Simuler un aperçu (dans une vraie app, on chargerait l'image)
+            const initials = type === 'ceo' ? 'PDG' : getInitialsFromImageName(imageName);
+            const bgColor = getRandomColor(initials);
+            
+            preview.innerHTML = `
+                <div class="w-full h-full ${bgColor} flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-white opacity-90">${initials}</div>
+                        <p class="text-white text-xs mt-2 opacity-80">${imageName.length > 20 ? imageName.substring(0, 20) + '...' : imageName}</p>
+                    </div>
+                </div>
+            `;
+            
+            if (nameElement) nameElement.textContent = imageName;
+        }
+        
+        /**
+         * Obtient les initiales d'un nom
+         */
+        function getInitials(name) {
+            if (!name) return '??';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        }
+        
+        /**
+         * Obtient des initiales à partir d'un nom de fichier
+         */
+        function getInitialsFromImageName(imageName) {
+            if (!imageName) return 'IMG';
+            const nameWithoutExt = imageName.split('.')[0];
+            return nameWithoutExt.substring(0, 2).toUpperCase();
+        }
+        
+        /**
+         * Génère une couleur aléatoire basée sur une chaîne
+         */
+        function getRandomColor(str) {
+            const colors = [
+                'bg-gradient-to-br from-blue-500 to-blue-600',
+                'bg-gradient-to-br from-green-500 to-green-600',
+                'bg-gradient-to-br from-purple-500 to-purple-600',
+                'bg-gradient-to-br from-pink-500 to-pink-600',
+                'bg-gradient-to-br from-orange-500 to-orange-600',
+                'bg-gradient-to-br from-teal-500 to-teal-600'
+            ];
+            
+            // Générer un index basé sur la chaîne
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            
+            const index = Math.abs(hash) % colors.length;
+            return colors[index];
+        }
+        
+        /**
+         * Met à jour l'heure de dernière mise à jour
+         */
+        function updateLastUpdateTime() {
+            if (elements.lastUpdateTime) {
+                const now = new Date();
+                elements.lastUpdateTime.textContent = now.toLocaleTimeString('fr-FR');
+            }
+        }
+        
+        /**
+         * Met à jour les compteurs de données
+         */
+        function updateDataCounters() {
+            if (elements.dataLoadedCount) {
+                const totalItems = 1 + appData.team.length; // About + membres équipe
+                elements.dataLoadedCount.textContent = `${totalItems} élément${totalItems > 1 ? 's' : ''}`;
+            }
+        }
+        
+        /**
+         * Met à jour le compteur d'équipe
+         */
+        function updateTeamCount() {
+            if (elements.teamCount) {
+                elements.teamCount.innerHTML = `
+                    <i class="fas fa-users text-xs mr-1"></i>
+                    <span>${appData.team.length} membre${appData.team.length > 1 ? 's' : ''}</span>
+                `;
+            }
+        }
+        
+        // ============================================
+        // GESTION DES ÉTATS D'AFFICHAGE
+        // ============================================
+        
+        function showLoadingState() {
+            if (elements.loading) elements.loading.classList.remove('hidden');
+            if (elements.error) elements.error.classList.add('hidden');
+            if (elements.content) elements.content.classList.add('hidden');
+        }
+        
+        function hideLoadingState() {
+            if (elements.loading) elements.loading.classList.add('hidden');
+            if (elements.content) elements.content.classList.remove('hidden');
+        }
+        
+        function showErrorState() {
+            if (elements.loading) elements.loading.classList.add('hidden');
+            if (elements.error) elements.error.classList.remove('hidden');
+            if (elements.content) elements.content.classList.add('hidden');
+        }
+        
+        function showTeamLoading() {
+            if (elements.teamLoading) elements.teamLoading.classList.remove('hidden');
+        }
+        
+        function hideTeamLoading() {
+            if (elements.teamLoading) elements.teamLoading.classList.add('hidden');
+        }
+        
+        function showSavingIndicator(section) {
+            const indicator = section === 'presentation' ? elements.presentationSaveIndicator :
+                            section === 'history' ? elements.historySaveIndicator :
+                            section === 'ceo' ? elements.ceoSaveIndicator :
+                            elements.teamSaveIndicator;
+            
+            if (indicator) indicator.classList.remove('hidden');
+            
+            // Désactiver le bouton de sauvegarde si c'est le PDG
+            if (section === 'ceo' && elements.saveCeoBtn) {
+                elements.saveCeoBtn.disabled = true;
+            }
+        }
+        
+        function hideSavingIndicator(section) {
+            const indicator = section === 'presentation' ? elements.presentationSaveIndicator :
+                            section === 'history' ? elements.historySaveIndicator :
+                            section === 'ceo' ? elements.ceoSaveIndicator :
+                            elements.teamSaveIndicator;
+            
+            if (indicator) indicator.classList.add('hidden');
+            
+            // Réactiver le bouton de sauvegarde si c'est le PDG
+            if (section === 'ceo' && elements.saveCeoBtn) {
+                elements.saveCeoBtn.disabled = false;
+            }
+        }
+        
+        function showSaveSuccess(section) {
+            const status = section === 'presentation' ? elements.presentationStatus :
+                         section === 'history' ? elements.historyStatus :
+                         elements.ceoStatus;
+            
+            if (status) {
+                status.textContent = 'Smart cut services';
+                
+                // Animer brièvement
+                status.parentElement.classList.remove('bg-gray-100', 'text-gray-800');
+                status.parentElement.classList.add('bg-green-100', 'text-green-800');
+                
+                setTimeout(() => {
+                    status.parentElement.classList.remove('bg-green-100', 'text-green-800');
+                    status.parentElement.classList.add('bg-gray-100', 'text-gray-800');
+                }, 2000);
+            }
+        }
+        
+        function showSaveError(section, message) {
+            const status = section === 'presentation' ? elements.presentationStatus :
+                         section === 'history' ? elements.historyStatus :
+                         elements.ceoStatus;
+            
+            if (status) {
+                const originalText = status.textContent;
+                status.textContent = message;
+                
+                status.parentElement.classList.remove('bg-gray-100', 'text-gray-800');
+                status.parentElement.classList.add('bg-red-100', 'text-red-800');
+                
+                setTimeout(() => {
+                    status.textContent = originalText;
+                    status.parentElement.classList.remove('bg-red-100', 'text-red-800');
+                    status.parentElement.classList.add('bg-gray-100', 'text-gray-800');
+                }, 3000);
+            }
+        }
+        
+        function showSuccessMessage(title, message) {
+            showAlert('success', title, message);
+        }
+        
+        function showErrorMessage(title, message) {
+            showAlert('error', title, message);
+        }
+        
+        function showAlert(type, title, message) {
+            if (!elements.globalAlert) return;
+            
+            const bgColor = type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+                          type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+                          'bg-blue-50 border-blue-200 text-blue-800';
+            
+            const icon = type === 'success' ? 'fa-check-circle' :
+                        type === 'error' ? 'fa-exclamation-circle' :
+                        'fa-info-circle';
+            
+            elements.globalAlert.className = `${bgColor} border rounded-lg p-4`;
+            elements.globalAlert.innerHTML = `
+                <div class="flex items-start">
+                    <i class="fas ${icon} text-lg mt-0.5 mr-3"></i>
+                    <div class="flex-1">
+                        <h4 class="font-bold">${title}</h4>
+                        <p class="text-sm mt-1">${message}</p>
+                    </div>
+                    <button class="close-alert-btn text-gray-500 hover:text-gray-700 ml-4">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            elements.globalAlert.classList.remove('hidden');
+            
+            // Ajouter l'écouteur pour fermer l'alerte
+            const closeBtn = elements.globalAlert.querySelector('.close-alert-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    elements.globalAlert.classList.add('hidden');
+                });
+            }
+            
+            // Fermer automatiquement après 5 secondes
+            setTimeout(() => {
+                if (!elements.globalAlert.classList.contains('hidden')) {
+                    elements.globalAlert.classList.add('hidden');
+                }
+            }, 5000);
+        }
+        
+        // ============================================
+        // INITIALISATION DES ÉCOUTEURS D'ÉVÉNEMENTS
+        // ============================================
+        
+        function initEventListeners() {
+            // Bouton de réessai
+            if (elements.retryButton) {
+                elements.retryButton.addEventListener('click', loadInitialData);
+            }
+            
+            // Sauvegarde automatique de la présentation
+            if (elements.presentation) {
+                elements.presentation.addEventListener('input', function() {
+                    updateCharCounter('presentation', this.value.length);
+                    
+                    // Annuler le timer précédent
+                    if (presentationSaveTimer) {
+                        clearTimeout(presentationSaveTimer);
+                    }
+                    
+                    // Déclencher la sauvegarde après 2 secondes d'inactivité
+                    presentationSaveTimer = setTimeout(() => {
+                        if (this.value.trim() !== (appData.about?.presentation || '')) {
+                            updatePresentation(this.value);
+                        }
+                    }, config.debounceTime);
+                });
+            }
+            
+            // Sauvegarde automatique de l'histoire
+            if (elements.history) {
+                elements.history.addEventListener('input', function() {
+                    updateCharCounter('history', this.value.length);
+                    
+                    // Annuler le timer précédent
+                    if (historySaveTimer) {
+                        clearTimeout(historySaveTimer);
+                    }
+                    
+                    // Déclencher la sauvegarde après 2 secondes d'inactivité
+                    historySaveTimer = setTimeout(() => {
+                        if (this.value.trim() !== (appData.about?.history || '')) {
+                            updateHistory(this.value);
+                        }
+                    }, config.debounceTime);
+                });
+            }
+            
+            // Formulaire PDG
+            if (elements.ceoForm) {
+                elements.ceoForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const ceoData = {
+                        name: elements.ceoName.value.trim(),
+                        role: elements.ceoRole.value.trim(),
+                        description: elements.ceoDescription.value.trim(),
+                        imageName: elements.ceoImage.value.trim()
+                    };
+                    
+                    // Validation basique
+                    if (!ceoData.name || !ceoData.role || !ceoData.description || !ceoData.imageName) {
+                        showErrorMessage('Champs requis', 'Tous les champs doivent être remplis.');
+                        return;
+                    }
+                    
+                    try {
+                        await updateCEO(ceoData);
+                    } catch (error) {
+                        console.error('Erreur lors de la sauvegarde du PDG:', error);
+                    }
+                });
+            }
+            
+            // Aperçu de l'image PDG
+            if (elements.ceoImage) {
+                elements.ceoImage.addEventListener('input', function() {
+                    updateImagePreview('ceo', this.value);
+                });
+            }
+            
+            // Gestion de l'équipe
+            if (elements.addTeamMemberBtn) {
+                elements.addTeamMemberBtn.addEventListener('click', () => openTeamForm());
+            }
+            
+            if (elements.addFirstMemberBtn) {
+                elements.addFirstMemberBtn.addEventListener('click', () => openTeamForm());
+            }
+            
+            if (elements.closeTeamForm) {
+                elements.closeTeamForm.addEventListener('click', closeTeamForm);
+            }
+            
+            if (elements.cancelTeamForm) {
+                elements.cancelTeamForm.addEventListener('click', closeTeamForm);
+            }
+            
+            // Formulaire d'équipe
+            if (elements.teamForm) {
+                elements.teamForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const memberData = {
+                        name: elements.teamName.value.trim(),
+                        role: elements.teamRole.value.trim(),
+                        description: elements.teamDescription.value.trim(),
+                        imageName: elements.teamImage.value.trim()
+                    };
+                    
+                    // Validation basique
+                    if (!memberData.name || !memberData.role || !memberData.imageName) {
+                        showErrorMessage('Champs requis', 'Le nom, la fonction et le nom de l\'image sont obligatoires.');
+                        return;
+                    }
+                    
+                    const memberId = elements.teamMemberId.value;
+                    
+                    try {
+                        if (memberId) {
+                            // Mise à jour
+                            await updateTeamMember(memberId, memberData);
+                        } else {
+                            // Ajout
+                            await addTeamMember(memberData);
+                        }
+                        
+                        closeTeamForm();
+                    } catch (error) {
+                        console.error('Erreur lors de la sauvegarde du membre:', error);
+                    }
+                });
+            }
+            
+            // Aperçu de l'image équipe
+            if (elements.teamImage) {
+                elements.teamImage.addEventListener('input', function() {
+                    updateImagePreview('team', this.value);
+                });
+            }
+            
+            // Modal de suppression
+            if (elements.confirmDeleteBtn) {
+                elements.confirmDeleteBtn.addEventListener('click', async function() {
+                    if (!memberToDelete) return;
+                    
+                    try {
+                        await deleteTeamMember(memberToDelete.id);
+                        closeDeleteModal();
+                    } catch (error) {
+                        console.error('Erreur lors de la suppression:', error);
+                    }
+                });
+            }
+            
+            if (elements.cancelDeleteBtn) {
+                elements.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+            }
+            
+            // Fermer la modal en cliquant sur l'overlay
+            elements.deleteModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeDeleteModal();
+                }
+            });
+            
+            // Rafraîchir le contenu
+            if (elements.refreshContentBtn) {
+                elements.refreshContentBtn.addEventListener('click', loadInitialData);
+            }
+        }
+        
+        function initCharCounters() {
+            if (elements.presentation) {
+                updateCharCounter('presentation', elements.presentation.value.length);
+            }
+            
+            if (elements.history) {
+                updateCharCounter('history', elements.history.value.length);
+            }
+        }
+        
+        function initImagePreviews() {
+            if (elements.ceoImage) {
+                updateImagePreview('ceo', elements.ceoImage.value);
+            }
+            
+            if (elements.teamImage) {
+                updateImagePreview('team', elements.teamImage.value);
+            }
+        }
+        
+        // ============================================
+        // GESTION DYNAMIQUE DES ÉVÉNEMENTS DE L'ÉQUIPE
+        // ============================================
+        
+        /**
+         * Délégation d'événements pour les membres d'équipe dynamiques
+         */
+        document.addEventListener('click', function(e) {
+            // Bouton modifier
+            if (e.target.closest('.edit-member-btn')) {
+                const button = e.target.closest('.edit-member-btn');
+                const memberId = button.getAttribute('data-member-id');
+                const member = appData.team.find(m => m.id === memberId);
+                
+                if (member) {
+                    openTeamForm(member);
+                }
+            }
+            
+            // Bouton supprimer
+            if (e.target.closest('.delete-member-btn')) {
+                const button = e.target.closest('.delete-member-btn');
+                const memberId = button.getAttribute('data-member-id');
+                const member = appData.team.find(m => m.id === memberId);
+                
+                if (member) {
+                    openDeleteModal(member);
+                }
+            }
+        });
+        
+        // ============================================
+        // EXPOSITION POUR LE DÉBOGAGE
+        // ============================================
+        
+        window.adminApp = {
+            reload: loadInitialData,
+            data: appData,
+            config: config,
+            firebase: window.firebaseApp
+        };
+        
+        console.log('Application admin initialisée avec succès');
+    </script>
+</body>
+</html>
