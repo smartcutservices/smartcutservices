@@ -1,4 +1,4 @@
-const CORRECT_PASSWORD = "1111";
+const CORRECT_PASSWORD = "301187";
 
 function initSecurityOverlay() {
   anime({
