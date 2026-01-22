@@ -1550,7 +1550,24 @@ document.addEventListener('DOMContentLoaded', () => {
  ====================================================================================================================================
  ============================================================================================
   -->
+  <!-- =====================================================================
+     ===================================================================== -->
+<div id="overlay-container"></div>
+<script>
+  fetch('overlay.html')
+    .then(res => res.text())
+    .then(html => {
+      document.getElementById('overlay-container').innerHTML = html;
+      initSecurityOverlay();
+    });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
 
+
+<script src="overlay.js"></script>
+<!-- ===================================================
+ ==============
+ ====================================================== -->
 
 
     <!-- JavaScript Application -->
