@@ -1372,16 +1372,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // CONFIGURATION ET INITIALISATION
     // ============================================
     
-    // Configuration Firebase
-const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
   authDomain: "smartcutservices.firebaseapp.com",
   projectId: "smartcutservices",
   storageBucket: "smartcutservices.firebasestorage.app",
   messagingSenderId: "589013273323",
   appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
-  measurementId: "G-R8GJXQP7BD"
-};
+  measurementId: "G-R8GJXQP7BD"}
+
 
     // Mode débogage
     const DEBUG_MODE = true;
@@ -2848,57 +2847,73 @@ const firebaseConfig = {
         /**
          * Sauvegarder un point de rencontre
          */
-        const saveMeetingPoint = async (pointData, pointId = null) => {
-            try {
-                debugLog('Sauvegarde point de rencontre:', { pointId, pointData });
-                const db = FirebaseAdminModule.getFirestore();
-                
-                // Validation
-                if (!pointData.name || !pointData.name.trim()) {
-                    throw new Error('Le nom est obligatoire');
-                }
-                
-                if (!pointData.address || !pointData.address.trim()) {
-                    throw new Error('L\'adresse est obligatoire');
-                }
-                
-                // Préparer les données
-                const point = {
-                    name: pointData.name.trim(),
-                    address: pointData.address.trim(),
-                    description: pointData.description || '',
-                    isActive: pointData.isActive !== false,
-                    coordinates: pointData.coordinates || null,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                debugLog('Point préparé:', point);
-                
-                if (pointId) {
-                    // Mettre à jour un point existant
-                    await db.collection('meeting_points').doc(pointId).update(point);
-                    showToast('✅ Point de rencontre mis à jour', 'success');
-                    debugLog('Point mis à jour:', pointId);
-                } else {
-                    // Créer un nouveau point
-                    point.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    const docRef = await db.collection('meeting_points').add(point);
-                    showToast('✅ Point de rencontre créé', 'success');
-                    debugLog('Point créé:', docRef.id);
-                }
-                
-                // Recharger les points
-                await loadMeetingPoints();
-                
-                return true;
-                
-            } catch (error) {
-                console.error('❌ Erreur de sauvegarde du point:', error);
-                showToast(`Erreur: ${error.message}`, 'error');
-                return false;
-            }
+     const saveMeetingPoint = async (pointData, pointId = null) => {
+    try {
+        debugLog('Sauvegarde point de rencontre:', { pointId, pointData });
+        const db = FirebaseAdminModule.getFirestore();
+
+        // ===============================
+        // VALIDATIONS
+        // ===============================
+        if (!pointData.name || !pointData.name.trim()) {
+            throw new Error('Le nom du point de rencontre est obligatoire');
+        }
+
+        if (!pointData.address || !pointData.address.trim()) {
+            throw new Error('L\'adresse du point de rencontre est obligatoire');
+        }
+
+      const deliveryFee = Number(pointData.deliveryFee ?? 0);
+
+        if (isNaN(deliveryFee) || deliveryFee < 0) {
+            throw new Error('Les frais de livraison doivent être un nombre positif');
+        }
+
+        // ===============================
+        // PRÉPARATION DES DONNÉES
+        // ===============================
+        const point = {
+            name: pointData.name.trim(),
+            address: pointData.address.trim(),
+            description: pointData.description?.trim() || '',
+            deliveryFee: Number(pointData.deliveryFee || 0), // ✅ ICI
+            isActive: pointData.isActive !== false,
+            coordinates: pointData.coordinates || null,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        
+
+        debugLog('Point préparé:', point);
+
+        // ===============================
+        // FIRESTORE WRITE
+        // ===============================
+        if (pointId) {
+            // Mise à jour
+            await db.collection('meeting_points').doc(pointId).update(point);
+            showToast('✅ Point de rencontre mis à jour', 'success');
+            debugLog('Point mis à jour:', pointId);
+        } else {
+            // Création
+            point.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            const docRef = await db.collection('meeting_points').add(point);
+            showToast('✅ Point de rencontre créé', 'success');
+            debugLog('Point créé:', docRef.id);
+        }
+
+        // ===============================
+        // RELOAD UI
+        // ===============================
+        await loadMeetingPoints();
+
+        return true;
+
+    } catch (error) {
+        console.error('❌ Erreur de sauvegarde du point:', error);
+        showToast(`Erreur: ${error.message}`, 'error');
+        return false;
+    }
+};
+
         /**
          * Sauvegarder un magasin
          */
@@ -3564,6 +3579,7 @@ const firebaseConfig = {
                     <!-- Modal Content -->
                     <div class="overflow-y-auto max-h-[70vh] p-8">
                         <form id="meeting-point-form" class="space-y-6">
+
                             <!-- Nom -->
                             <div>
                                 <label for="point-name" class="block text-sm font-medium text-gray-700 mb-2">
@@ -3592,7 +3608,23 @@ const firebaseConfig = {
                                     placeholder="Adresse complète du point de rencontre..."
                                 >${point ? point.address : ''}</textarea>
                             </div>
-                            
+                            <!-- Frais de livraison -->
+                                <div>
+                                <label for="point-fee" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Frais de livraison (HTG) *
+                                </label>
+                                <input 
+                                    type="number"
+                                    id="point-fee"
+                                    min="0"
+                                    step="1"
+                                    required
+                                    value="${point ? (point.deliveryFee || 0) : 0}"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    placeholder="Ex: 300"
+                                >
+                                </div>
+
                             <!-- Description -->
                             <div>
                                 <label for="point-description" class="block text-sm font-medium text-gray-700 mb-2">
@@ -4264,7 +4296,8 @@ const firebaseConfig = {
     window.saveMeetingPoint = async () => {
         try {
             debugLog('Début sauvegarde point');
-            
+            const deliveryFee = document.getElementById('point-fee')?.value;
+
             const pointId = document.getElementById('point-id')?.value || null;
             const name = document.getElementById('point-name')?.value;
             const address = document.getElementById('point-address')?.value;
@@ -4285,7 +4318,8 @@ const firebaseConfig = {
                 address: address,
                 description: description,
                 coordinates: coordinates,
-                isActive: isActive
+                isActive: isActive,
+                deliveryFee: deliveryFee
             };
             
             const success = await LocationsManager.saveMeetingPoint(pointData, pointId);

@@ -442,6 +442,19 @@
                                 Informations de base
                             </h4>
                             <div class="grid md:grid-cols-2 gap-6">
+                                                            <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                SKU du produit *
+                            </label>
+                            <input
+                                type="text"
+                                id="product-sku"
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                                placeholder="SKU-001"
+                            />
+                            </div>
+
                                 <!-- Name -->
                                 <div>
                                     <label for="product-name" class="block text-sm font-medium text-gray-700 mb-2">
@@ -496,6 +509,22 @@
                                         class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300"
                                         placeholder="https://example.com/image.jpg"
                                     >
+                                    <!-- Images supplémentaires -->
+<div class="mt-4">
+  <label class="block text-sm font-medium text-gray-700 mb-2">
+    Images supplémentaires (optionnel)
+  </label>
+  <textarea
+    id="product-images"
+    rows="3"
+    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+    placeholder="https://img1.jpg, https://img2.jpg, https://img3.jpg"
+  ></textarea>
+  <p class="text-xs text-gray-500 mt-1">
+    Sépare les URLs par des virgules. La première image reste l’image principale.
+  </p>
+</div>
+
                                     <p class="text-sm text-gray-500 mt-2">
                                         Assurez-vous que l'URL est accessible publiquement
                                     </p>
@@ -648,7 +677,7 @@
                                 <!-- Weight -->
                                 <div>
                                     <label for="product-weight" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Poids (kg) *
+                                        Poids (Gramme) *
                                     </label>
                                     <input 
                                         type="number" 
@@ -1577,15 +1606,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     
     // Configuration Firebase
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
   authDomain: "smartcutservices.firebaseapp.com",
   projectId: "smartcutservices",
   storageBucket: "smartcutservices.firebasestorage.app",
   messagingSenderId: "589013273323",
   appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
-  measurementId: "G-R8GJXQP7BD"
-};
+  measurementId: "G-R8GJXQP7BD"}
+
 
     
     // État global de l'application admin
@@ -1938,215 +1967,240 @@ document.addEventListener('DOMContentLoaded', () => {
         /**
          * Rendre une ligne de produit pour le tableau
          */
-        const renderProductRow = (product) => {
-            const statusClass = product.isAvailable ? 
-                (product.stockQuantity > 0 ? 'status-available' : 'status-unavailable') : 
-                'status-unavailable';
-            
-            const statusText = product.isAvailable ? 
-                (product.stockQuantity > 0 ? 'Disponible' : 'Stock épuisé') : 
-                'Indisponible';
-            
-            const optionsCount = countProductOptions(product);
-            
-            // Utiliser une image de secours en base64 (SVG)
-            const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YzZjRmNiIvPjxwYXRoIGQ9Ik0zMCw0MCBMNzAsNDAgTDgwLDYwIEwyMCw2MCBaIiBmaWxsPSIjZDFkNTVkYiIgc3Ryb2tlPSIjOWNhM2FmIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSI4IiBmaWxsPSIjNmI3MjgwIi8+PHRleHQgeD0iNTAiIHk9Ijg1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPkltYWdlPC90ZXh0Pjwvc3ZnPg==';
-            const imageUrl = product.imageName && product.imageName.startsWith('http') 
-                ? product.imageName 
-                : placeholderImage;
-            
-            return `
-                <tr class="product-row hover:bg-gray-50 transition-colors duration-200">
-                    <!-- Product Info -->
-                    <td class="px-6 py-4">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 mr-4">
-                                <img 
-                                    src="${imageUrl}" 
-                                    alt="${product.name}"
-                                    class="w-full h-full object-cover"
-                                    onerror="this.src='${placeholderImage}'"
-                                >
-                            </div>
-                            <div>
-                                <div class="font-medium text-gray-900">${product.name}</div>
-                                <div class="text-sm text-gray-500 truncate max-w-xs">
-                                    ${(product.description || 'Pas de description').substring(0, 60)}...
-                                </div>
-                                <div class="flex flex-wrap gap-1 mt-1">
-                                    ${product.isNew ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Nouveau</span>' : ''}
-                                    ${product.isPopular ? '<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Populaire</span>' : ''}
-                                    ${product.showInHero ? '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Hero</span>' : ''}
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                    
-                    <!-- Category -->
-                    <td class="px-6 py-4">
-                        <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                            ${product.category || 'Non catégorisé'}
-                        </span>
-                    </td>
-                    
-                    <!-- Price -->
-                    <td class="px-6 py-4">
-                        <div class="font-medium text-gray-900">
-                            ${FirebaseAdminModule.formatPrice(product.price || 0)}
-                        </div>
-                        ${product.showOldPrice && product.oldPrice ? `
-                            <div class="text-sm text-gray-500 line-through">
-                                ${FirebaseAdminModule.formatPrice(product.oldPrice)}
-                            </div>
-                        ` : ''}
-                    </td>
-                    
-                    <!-- Stock -->
-                    <td class="px-6 py-4">
-                        <div class="flex items-center">
-                            <span class="font-medium ${(product.stockQuantity || 0) < 10 ? 'text-yellow-600' : 'text-gray-900'}">
-                                ${product.stockQuantity || 0}
-                            </span>
-                            ${(product.stockQuantity || 0) < 10 ? `
-                                <i class="fas fa-exclamation-triangle text-yellow-500 ml-2"></i>
-                            ` : ''}
-                        </div>
-                    </td>
-                    
-                    <!-- Status -->
-                    <td class="px-6 py-4">
-                        <span class="status-badge ${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                    
-                    <!-- Options -->
-                    <td class="px-6 py-4">
-                        <div class="text-sm text-gray-600">
-                            ${optionsCount} option(s)
-                        </div>
-                    </td>
-                    
-                    <!-- Actions -->
-                    <td class="px-6 py-4">
-                        <div class="flex space-x-2">
-                            <button 
-                                onclick="editProduct('${product.id}')"
-                                class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
-                                title="Modifier"
-                            >
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button 
-                                onclick="toggleAvailability('${product.id}', ${!product.isAvailable})"
-                                class="p-2 ${product.isAvailable ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'} rounded-lg transition-colors duration-200"
-                                title="${product.isAvailable ? 'Désactiver' : 'Activer'}"
-                            >
-                                <i class="fas ${product.isAvailable ? 'fa-eye-slash' : 'fa-eye'}"></i>
-                            </button>
-                            <button 
-                                onclick="confirmDeleteProduct('${product.id}', '${product.name.replace(/'/g, "\\'")}')"
-                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                                title="Supprimer"
-                            >
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        };
-        
-        /**
-         * Rendre une carte produit pour mobile
-         */
-        const renderProductCard = (product) => {
-            const statusClass = product.isAvailable ? 
-                (product.stockQuantity > 0 ? 'status-available' : 'status-unavailable') : 
-                'status-unavailable';
-            
-            const statusText = product.isAvailable ? 
-                (product.stockQuantity > 0 ? 'Disponible' : 'Stock épuisé') : 
-                'Indisponible';
-            
-            // Utiliser une image de secours en base64 (SVG)
-            const placeholderImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YzZjRmNiIvPjxwYXRoIGQ9Ik0zMCw0MCBMNzAsNDAgTDgwLDYwIEwyMCw2MCBaIiBmaWxsPSIjZDFkNTVkYiIgc3Ryb2tlPSIjOWNhM2FmIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSI4IiBmaWxsPSIjNmI3MjgwIi8+PHRleHQgeD0iNTAiIHk9Ijg1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPkltYWdlPC90ZXh0Pjwvc3ZnPg==';
-            const imageUrl = product.imageName && product.imageName.startsWith('http') 
-                ? product.imageName 
-                : placeholderImage;
-            
-            return `
-                <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-                    <!-- Product Image -->
-                    <div class="h-48 bg-gray-100 overflow-hidden">
+   const renderProductRow = (product) => {
+    const statusClass = product.isAvailable
+        ? (product.stockQuantity > 0 ? 'status-available' : 'status-unavailable')
+        : 'status-unavailable';
+
+    const statusText = product.isAvailable
+        ? (product.stockQuantity > 0 ? 'Disponible' : 'Stock épuisé')
+        : 'Indisponible';
+
+    const optionsCount = countProductOptions(product);
+
+    // Image de secours (SVG base64)
+    const placeholderImage =
+        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YzZjRmNiIvPjxwYXRoIGQ9Ik0zMCw0MCBMNzAsNDAgTDgwLDYwIEwyMCw2MCBaIiBmaWxsPSIjZDFkNTVkYiIgc3Ryb2tlPSIjOWNhM2FmIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSI4IiBmaWxsPSIjNmI3MjgwIi8+PHRleHQgeD0iNTAiIHk9Ijg1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPkltYWdlPC90ZXh0Pjwvc3ZnPg==';
+
+    // 🔑 LOGIQUE MULTI-IMAGES (SAFE)
+    const imageUrl =
+        Array.isArray(product.images) && product.images.length > 0
+            ? product.images[0] // image principale
+            : (product.imageName && product.imageName.startsWith('http')
+                ? product.imageName
+                : placeholderImage);
+
+    return `
+        <tr class="product-row hover:bg-gray-50 transition-colors duration-200">
+            <!-- Product Info -->
+            <td class="px-6 py-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 mr-4">
                         <img 
-                            src="${imageUrl}" 
+                            src="${imageUrl}"
                             alt="${product.name}"
                             class="w-full h-full object-cover"
                             onerror="this.src='${placeholderImage}'"
                         >
                     </div>
-                    
-                    <!-- Product Info -->
-                    <div class="p-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-gray-900 truncate">${product.name}</h4>
-                            <div class="flex space-x-1">
-                                ${product.isNew ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">N</span>' : ''}
-                                ${product.isPopular ? '<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">P</span>' : ''}
-                            </div>
+                    <div>
+                        <div class="font-medium text-gray-900">${product.name}</div>
+                        <div class="text-sm text-gray-500 truncate max-w-xs">
+                            ${(product.description || 'Pas de description').substring(0, 60)}...
                         </div>
-                        
-                        <p class="text-sm text-gray-600 mb-3 line-clamp-2">
-                            ${product.description || 'Pas de description'}
-                        </p>
-                        
-                        <div class="flex justify-between items-center mb-3">
-                            <div>
-                                <div class="font-bold text-gray-900">
-                                    ${FirebaseAdminModule.formatPrice(product.price || 0)}
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    ${product.category || 'Non catégorisé'}
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="font-medium ${(product.stockQuantity || 0) < 10 ? 'text-yellow-600' : 'text-gray-900'}">
-                                    Stock: ${product.stockQuantity || 0}
-                                </div>
-                                <span class="status-badge ${statusClass} text-xs">
-                                    ${statusText}
-                                </span>
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="flex justify-between pt-3 border-t border-gray-100">
-                            <button 
-                                onclick="editProduct('${product.id}')"
-                                class="px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium transition-colors duration-200"
-                            >
-                                <i class="fas fa-edit mr-1"></i> Modifier
-                            </button>
-                            <button 
-                                onclick="toggleAvailability('${product.id}', ${!product.isAvailable})"
-                                class="px-3 py-2 ${product.isAvailable ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'} rounded-lg text-sm font-medium transition-colors duration-200"
-                            >
-                                <i class="fas ${product.isAvailable ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>
-                                ${product.isAvailable ? 'Désactiver' : 'Activer'}
-                            </button>
-                            <button 
-                                onclick="confirmDeleteProduct('${product.id}', '${product.name.replace(/'/g, "\\'")}')"
-                                class="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors duration-200"
-                            >
-                                <i class="fas fa-trash mr-1"></i> Supprimer
-                            </button>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            ${product.isNew ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Nouveau</span>' : ''}
+                            ${product.isPopular ? '<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">Populaire</span>' : ''}
+                            ${product.showInHero ? '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Hero</span>' : ''}
+                            ${
+                                Array.isArray(product.images) && product.images.length > 1
+                                    ? `<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                                        +${product.images.length - 1} image(s)
+                                       </span>`
+                                    : ''
+                            }
                         </div>
                     </div>
                 </div>
-            `;
-        };
-        
+            </td>
+
+            <!-- Category -->
+            <td class="px-6 py-4">
+                <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
+                    ${product.category || 'Non catégorisé'}
+                </span>
+            </td>
+
+            <!-- Price -->
+            <td class="px-6 py-4">
+                <div class="font-medium text-gray-900">
+                    ${FirebaseAdminModule.formatPrice(product.price || 0)}
+                </div>
+                ${product.showOldPrice && product.oldPrice ? `
+                    <div class="text-sm text-gray-500 line-through">
+                        ${FirebaseAdminModule.formatPrice(product.oldPrice)}
+                    </div>
+                ` : ''}
+            </td>
+
+            <!-- Stock -->
+            <td class="px-6 py-4">
+                <div class="flex items-center">
+                    <span class="font-medium ${(product.stockQuantity || 0) < 10 ? 'text-yellow-600' : 'text-gray-900'}">
+                        ${product.stockQuantity || 0}
+                    </span>
+                    ${(product.stockQuantity || 0) < 10 ? `
+                        <i class="fas fa-exclamation-triangle text-yellow-500 ml-2"></i>
+                    ` : ''}
+                </div>
+            </td>
+
+            <!-- Status -->
+            <td class="px-6 py-4">
+                <span class="status-badge ${statusClass}">
+                    ${statusText}
+                </span>
+            </td>
+
+            <!-- Options -->
+            <td class="px-6 py-4">
+                <div class="text-sm text-gray-600">
+                    ${optionsCount} option(s)
+                </div>
+            </td>
+
+            <!-- Actions -->
+            <td class="px-6 py-4">
+                <div class="flex space-x-2">
+                    <button 
+                        onclick="editProduct('${product.id}')"
+                        class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
+                        title="Modifier"
+                    >
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button 
+                        onclick="toggleAvailability('${product.id}', ${!product.isAvailable})"
+                        class="p-2 ${product.isAvailable ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'} rounded-lg transition-colors duration-200"
+                        title="${product.isAvailable ? 'Désactiver' : 'Activer'}"
+                    >
+                        <i class="fas ${product.isAvailable ? 'fa-eye-slash' : 'fa-eye'}"></i>
+                    </button>
+                    <button 
+                        onclick="confirmDeleteProduct('${product.id}', '${product.name.replace(/'/g, "\\'")}')"
+                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                        title="Supprimer"
+                    >
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+};
+
+        /**
+         * Rendre une carte produit pour mobile
+         */
+       const renderProductCard = (product) => {
+    const statusClass = product.isAvailable
+        ? (product.stockQuantity > 0 ? 'status-available' : 'status-unavailable')
+        : 'status-unavailable';
+
+    const statusText = product.isAvailable
+        ? (product.stockQuantity > 0 ? 'Disponible' : 'Stock épuisé')
+        : 'Indisponible';
+
+    // Image de secours (SVG base64)
+    const placeholderImage =
+        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YzZjRmNiIvPjxwYXRoIGQ9Ik0zMCw0MCBMNzAsNDAgTDgwLDYwIEwyMCw2MCBaIiBmaWxsPSIjZDFkNTVkYiIgc3Ryb2tlPSIjOWNhM2FmIiBzdHJva2Utd2lkdGg9IjIiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSI4IiBmaWxsPSIjNmI3MjgwIi8+PHRleHQgeD0iNTAiIHk9Ijg1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiPkltYWdlPC90ZXh0Pjwvc3ZnPg==';
+
+    // 🔑 LOGIQUE MULTI-IMAGES (fallback total)
+    const images = Array.isArray(product.images) && product.images.length
+        ? product.images
+        : product.imageName
+            ? [product.imageName]
+            : [placeholderImage];
+
+    const mainImage = images[0];
+
+    return `
+        <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            
+            <!-- Product Image -->
+            <div class="h-48 bg-gray-100 overflow-hidden">
+                <img 
+                    src="${mainImage}"
+                    alt="${product.name || 'Produit'}"
+                    class="w-full h-full object-cover"
+                    onerror="this.src='${placeholderImage}'"
+                >
+            </div>
+
+            <!-- Product Info -->
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-bold text-gray-900 truncate">
+                        ${product.name || 'Produit'}
+                    </h4>
+                    <div class="flex space-x-1">
+                        ${product.isNew ? '<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">N</span>' : ''}
+                        ${product.isPopular ? '<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">P</span>' : ''}
+                    </div>
+                </div>
+
+                <p class="text-sm text-gray-600 mb-3 line-clamp-2">
+                    ${product.description || 'Pas de description'}
+                </p>
+
+                <div class="flex justify-between items-center mb-3">
+                    <div>
+                        <div class="font-bold text-gray-900">
+                            ${FirebaseAdminModule.formatPrice(product.price || 0)}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ${product.category || 'Non catégorisé'}
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-medium ${(product.stockQuantity || 0) < 10 ? 'text-yellow-600' : 'text-gray-900'}">
+                            Stock: ${product.stockQuantity || 0}
+                        </div>
+                        <span class="status-badge ${statusClass} text-xs">
+                            ${statusText}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-between pt-3 border-t border-gray-100">
+                    <button 
+                        onclick="editProduct('${product.id}')"
+                        class="px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg text-sm font-medium transition-colors duration-200"
+                    >
+                        <i class="fas fa-edit mr-1"></i> Modifier
+                    </button>
+
+                    <button 
+                        onclick="toggleAvailability('${product.id}', ${!product.isAvailable})"
+                        class="px-3 py-2 ${product.isAvailable ? 'text-yellow-600 hover:bg-yellow-50' : 'text-green-600 hover:bg-green-50'} rounded-lg text-sm font-medium transition-colors duration-200"
+                    >
+                        <i class="fas ${product.isAvailable ? 'fa-eye-slash' : 'fa-eye'} mr-1"></i>
+                        ${product.isAvailable ? 'Désactiver' : 'Activer'}
+                    </button>
+
+                    <button 
+                        onclick="confirmDeleteProduct('${product.id}', '${(product.name || '').replace(/'/g, "\\'")}')"
+                        class="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium transition-colors duration-200"
+                    >
+                        <i class="fas fa-trash mr-1"></i> Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
         /**
          * Afficher les produits dans l'interface
          */
@@ -2257,11 +2311,16 @@ document.addEventListener('DOMContentLoaded', () => {
          */
         const fillProductForm = (product) => {
             // Informations de base
+            document.getElementById('product-sku').value = product.sku || '';
             document.getElementById('product-name').value = product.name || '';
             document.getElementById('product-category').value = product.category || '';
             document.getElementById('product-description').value = product.description || '';
             document.getElementById('product-image').value = product.imageName || '';
-            
+            if (Array.isArray(product.images) && product.images.length > 1) {
+  document.getElementById('product-images').value =
+    product.images.slice(1).join(', ');
+}
+
             // Tarification
             document.getElementById('product-price').value = product.price || 0;
             if (product.showOldPrice && product.oldPrice) {
@@ -2462,245 +2521,361 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     // MODULE 5: GESTION DU FORMULAIRE
     // ============================================
-    const FormManager = (() => {
-        /**
-         * Valider et soumettre le formulaire
-         */
-        const handleFormSubmit = async (event) => {
-            event.preventDefault();
-            
-            // Récupérer les données du formulaire
-            const formData = getFormData();
-            
-            // Valider les données
-            if (!validateFormData(formData)) {
-                return;
-            }
-            
-            // Désactiver le bouton de sauvegarde
-            const saveBtn = document.getElementById('save-product-btn');
-            const originalText = saveBtn.innerHTML;
-            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Enregistrement...';
-            saveBtn.disabled = true;
-            
-            try {
-                if (adminState.currentProductId) {
-                    // Mise à jour d'un produit existant
-                    await ProductManager.updateProduct(adminState.currentProductId, formData);
-                } else {
-                    // Création d'un nouveau produit
-                    await ProductManager.createProduct(formData);
-                }
-                
-                // Fermer le modal
-                UIManager.closeModal();
-                
-            } finally {
-                // Réactiver le bouton
-                saveBtn.innerHTML = originalText;
-                saveBtn.disabled = false;
-            }
-        };
-        
-        /**
-         * Récupérer les données du formulaire
-         */
-        const getFormData = () => {
-            const formData = {
-                // Informations de base
-                name: document.getElementById('product-name').value.trim(),
-                category: document.getElementById('product-category').value.trim(),
-                description: document.getElementById('product-description').value.trim(),
-                imageName: document.getElementById('product-image').value.trim(),
-                
-                // Tarification
-                price: parseFloat(document.getElementById('product-price').value) || 0,
-                showOldPrice: document.getElementById('show-old-price').checked,
-                oldPrice: document.getElementById('show-old-price').checked ? 
-                    parseFloat(document.getElementById('product-old-price').value) || 0 : null,
-                
-                // Stock
-                stockQuantity: parseInt(document.getElementById('product-stock').value) || 0,
-                isAvailable: document.querySelector('input[name="availability"]:checked').value === 'true',
-                
-                // Drapeaux produit
-                isNew: document.getElementById('product-new').checked,
-                isPopular: document.getElementById('product-popular').checked,
-                showInHero: document.getElementById('product-hero').checked,
-                
-                // Logistique
-                weight: parseFloat(document.getElementById('product-weight').value) || 0,
-                fragile: document.getElementById('product-fragile').checked,
-                extraDeliveryCost: document.getElementById('product-extra-delivery').checked ? 
-                    parseFloat(document.getElementById('product-extra-delivery-cost').value || 0) : 0,
-                
-                // Options de livraison
-                deliveryLogic: {
-                    domicile: document.getElementById('delivery-domicile').checked,
-                    rencontre: document.getElementById('delivery-rencontre').checked,
-                    pointVente: document.getElementById('delivery-point-vente').checked
-                },
-                
-                // Options dynamiques
-                hasSize: document.getElementById('has-size').checked,
-                hasColor: document.getElementById('has-color').checked,
-                hasPersonalizationText: document.getElementById('has-personalization').checked,
-                hasMaterial: document.getElementById('has-material').checked,
-                hasOz: document.getElementById('has-oz').checked
-            };
-            
-            // Traiter les options de taille
-            if (formData.hasSize) {
-                const sizes = document.getElementById('size-options').value
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(s => s.length > 0);
-                formData.sizes = sizes;
-            }
-            
-            // Traiter les options de couleur
-            if (formData.hasColor) {
-                const colors = document.getElementById('color-options').value
-                    .split(',')
-                    .map(c => c.trim())
-                    .filter(c => c.length > 0);
-                formData.colors = colors;
-            }
-            
-            // Traiter la personnalisation
-            if (formData.hasPersonalizationText) {
-                formData.personalizationLabel = document.getElementById('personalization-label').value.trim();
-                formData.maxCharacters = parseInt(document.getElementById('personalization-max-chars').value) || 50;
-            }
-            
-            // Traiter les options de matériau
-            if (formData.hasMaterial) {
-                const materials = document.getElementById('material-options').value
-                    .split(',')
-                    .map(m => m.trim())
-                    .filter(m => m.length > 0);
-                formData.materials = materials;
-            }
-            
-            // Traiter les options de poids
-            if (formData.hasOz) {
-                const ozOptions = document.getElementById('oz-options').value
-                    .split(',')
-                    .map(o => o.trim())
-                    .filter(o => o.length > 0);
-                formData.ozOptions = ozOptions;
-            }
-            
-            return formData;
-        };
-        
-        /**
-         * Valider les données du formulaire
-         */
-        const validateFormData = (data) => {
-            // Validation du nom
-            if (!data.name || data.name.length < 2) {
-                UIManager.showToast('Le nom du produit doit contenir au moins 2 caractères', 'error');
-                return false;
-            }
-            
-            // Validation de la catégorie
-            if (!data.category) {
-                UIManager.showToast('La catégorie est obligatoire', 'error');
-                return false;
-            }
-            
-            // Validation de la description
-            if (!data.description || data.description.length < 10) {
-                UIManager.showToast('La description doit contenir au moins 10 caractères', 'error');
-                return false;
-            }
-            
-            // Validation de l'image
-            if (!data.imageName) {
-                UIManager.showToast('L\'URL de l\'image est obligatoire', 'error');
-                return false;
-            }
-            
-            // Validation du prix
-            if (isNaN(data.price) || data.price <= 0) {
-                UIManager.showToast('Le prix doit être un nombre positif', 'error');
-                return false;
-            }
-            
-            // Validation de l'ancien prix
-            if (data.showOldPrice && (isNaN(data.oldPrice) || data.oldPrice <= 0)) {
-                UIManager.showToast('L\'ancien prix doit être un nombre positif', 'error');
-                return false;
-            }
-            
-            // Validation du stock
-            if (isNaN(data.stockQuantity) || data.stockQuantity < 0) {
-                UIManager.showToast('La quantité en stock doit être un nombre positif ou nul', 'error');
-                return false;
-            }
-            
-            // Validation du poids
-            if (isNaN(data.weight) || data.weight <= 0) {
-                UIManager.showToast('Le poids doit être un nombre positif', 'error');
-                return false;
-            }
-            
-            return true;
-        };
-        
-        /**
-         * Basculer l'affichage de l'ancien prix
-         */
-        const toggleOldPrice = () => {
-            const showOldPrice = document.getElementById('show-old-price').checked;
-            const oldPriceInput = document.getElementById('product-old-price');
-            
-            oldPriceInput.disabled = !showOldPrice;
-            oldPriceInput.required = showOldPrice;
-            if (!showOldPrice) {
-                oldPriceInput.value = '';
-            }
-        };
-        
-        /**
-         * Basculer l'affichage des frais de livraison supplémentaires
-         */
-        const toggleExtraDeliveryCost = () => {
-            const showExtraDelivery = document.getElementById('product-extra-delivery').checked;
-            const container = document.getElementById('extra-delivery-cost-container');
-            
-            if (showExtraDelivery) {
-                container.classList.remove('hidden');
+   const FormManager = (() => {
+
+    /**
+     * Vérifie si une valeur correspond à une image valide
+     * (URL complète OU chemin local)
+     */
+    function isValidImagePath(path) {
+        if (!path || typeof path !== 'string') return false;
+
+        // Supprimer paramètres éventuels (?v=1)
+        const cleanPath = path.split('?')[0];
+
+        // Extensions autorisées
+        const imagePattern = /\.(jpg|jpeg|png|webp|gif|svg)$/i;
+        return imagePattern.test(cleanPath);
+    }
+
+    /**
+     * Soumission du formulaire
+     */
+    const handleFormSubmit = async (event) => {
+        event.preventDefault();
+
+        const formData = getFormData();
+
+        if (!validateFormData(formData)) return;
+
+        const saveBtn = document.getElementById('save-product-btn');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML =
+            '<i class="fas fa-spinner fa-spin mr-2"></i> Enregistrement...';
+        saveBtn.disabled = true;
+
+        try {
+            if (adminState.currentProductId) {
+                await ProductManager.updateProduct(
+                    adminState.currentProductId,
+                    formData
+                );
             } else {
-                container.classList.add('hidden');
-                document.getElementById('product-extra-delivery-cost').value = '';
+                await ProductManager.createProduct(formData);
             }
-        };
-        
-        /**
-         * Basculer l'affichage d'une section d'options
-         */
-        const toggleOptionSection = (optionType) => {
-            const checkbox = document.getElementById(`has-${optionType}`);
-            const container = document.getElementById(`${optionType}-options-container`);
-            
-            if (checkbox.checked) {
-                container.classList.remove('hidden');
-            } else {
-                container.classList.add('hidden');
-                document.getElementById(`${optionType}-options`).value = '';
-            }
-        };
-        
-        return {
-            handleFormSubmit,
-            toggleOldPrice,
-            toggleExtraDeliveryCost,
-            toggleOptionSection
-        };
-    })();
-    
+
+            UIManager.closeModal();
+        } finally {
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        }
+    };
+
+    /**
+     * Récupération des données du formulaire
+     */
+const getFormData = () => {
+    // =====================
+    // Images
+    // =====================
+    const mainImage =
+        document.getElementById('product-image').value.trim();
+
+    const extraImagesRaw =
+        document.getElementById('product-images')?.value || '';
+
+    const extraImages = extraImagesRaw
+        .split(',')
+        .map(img => img.trim())
+        .filter(img => img.length > 0 && img !== mainImage);
+
+    // =====================
+    // Données principales
+    // =====================
+    const formData = {
+        // =====================
+        // Informations de base
+        // =====================
+        name: document.getElementById('product-name').value.trim(),
+        sku: document.getElementById('product-sku').value.trim(), // ✅ SKU AJOUTÉ
+        category: document.getElementById('product-category').value.trim(),
+        description: document.getElementById('product-description').value.trim(),
+
+        // =====================
+        // Images
+        // =====================
+        imageName: mainImage,
+        ...(extraImages.length > 0 && {
+            images: [mainImage, ...extraImages]
+        }),
+
+        // =====================
+        // Tarification
+        // =====================
+        price: parseFloat(document.getElementById('product-price').value) || 0,
+        showOldPrice: document.getElementById('show-old-price').checked,
+        oldPrice: document.getElementById('show-old-price').checked
+            ? parseFloat(document.getElementById('product-old-price').value) || 0
+            : null,
+
+        // =====================
+        // Stock
+        // =====================
+        stockQuantity:
+            parseInt(document.getElementById('product-stock').value, 10) || 0,
+        isAvailable:
+            document.querySelector('input[name="availability"]:checked').value === 'true',
+
+        // =====================
+        // Drapeaux produit
+        // =====================
+        isNew: document.getElementById('product-new').checked,
+        isPopular: document.getElementById('product-popular').checked,
+        showInHero: document.getElementById('product-hero').checked,
+
+        // =====================
+        // Logistique
+        // =====================
+        weight:
+            parseFloat(document.getElementById('product-weight').value) || 0,
+        fragile: document.getElementById('product-fragile').checked,
+        extraDeliveryCost: document.getElementById('product-extra-delivery').checked
+            ? parseFloat(
+                  document.getElementById('product-extra-delivery-cost').value
+              ) || 0
+            : 0,
+
+        // =====================
+        // Livraison
+        // =====================
+        deliveryLogic: {
+            domicile: document.getElementById('delivery-domicile').checked,
+            rencontre: document.getElementById('delivery-rencontre').checked,
+            pointVente: document.getElementById('delivery-point-vente').checked
+        },
+
+        // =====================
+        // Options dynamiques
+        // =====================
+        hasSize: document.getElementById('has-size').checked,
+        hasColor: document.getElementById('has-color').checked,
+        hasPersonalizationText:
+            document.getElementById('has-personalization').checked,
+        hasMaterial: document.getElementById('has-material').checked,
+        hasOz: document.getElementById('has-oz').checked
+    };
+
+    // =====================
+    // Options conditionnelles
+    // =====================
+    if (formData.hasSize) {
+        formData.sizes = document
+            .getElementById('size-options')
+            .value.split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+
+    if (formData.hasColor) {
+        formData.colors = document
+            .getElementById('color-options')
+            .value.split(',')
+            .map(c => c.trim())
+            .filter(Boolean);
+    }
+
+    if (formData.hasPersonalizationText) {
+        formData.personalizationLabel = document
+            .getElementById('personalization-label')
+            .value.trim();
+        formData.maxCharacters =
+            parseInt(
+                document.getElementById('personalization-max-chars').value,
+                10
+            ) || 50;
+    }
+
+    if (formData.hasMaterial) {
+        formData.materials = document
+            .getElementById('material-options')
+            .value.split(',')
+            .map(m => m.trim())
+            .filter(Boolean);
+    }
+
+    if (formData.hasOz) {
+        formData.ozOptions = document
+            .getElementById('oz-options')
+            .value.split(',')
+            .map(o => o.trim())
+            .filter(Boolean);
+    }
+
+    return formData;
+};
+  /**
+     * Validation des données
+     */
+/**
+ * Validation des données du formulaire produit
+ */
+const validateFormData = (data) => {
+    // =====================
+    // SKU (NOUVEAU)
+    // =====================
+    if (!data.sku || data.sku.trim().length < 3) {
+        UIManager.showToast(
+            'Le SKU est obligatoire et doit contenir au moins 3 caractères',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Nom du produit
+    // =====================
+    if (!data.name || data.name.trim().length < 2) {
+        UIManager.showToast(
+            'Le nom du produit doit contenir au moins 2 caractères',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Catégorie
+    // =====================
+    if (!data.category || !data.category.trim()) {
+        UIManager.showToast(
+            'La catégorie est obligatoire',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Description
+    // =====================
+    if (!data.description || data.description.trim().length < 10) {
+        UIManager.showToast(
+            'La description doit contenir au moins 10 caractères',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Image principale
+    // =====================
+    if (!data.imageName || !isValidImagePath(data.imageName)) {
+        UIManager.showToast(
+            "L’image principale doit être un fichier image valide (jpg, png, webp, svg, gif)",
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Images supplémentaires
+    // =====================
+    if (Array.isArray(data.images)) {
+        const invalidImages = data.images.filter(img => !isValidImagePath(img));
+        if (invalidImages.length > 0) {
+            UIManager.showToast(
+                'Une ou plusieurs images supplémentaires sont invalides',
+                'error'
+            );
+            return false;
+        }
+    }
+
+    // =====================
+    // Prix
+    // =====================
+    if (isNaN(data.price) || data.price <= 0) {
+        UIManager.showToast(
+            'Le prix doit être strictement positif',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Ancien prix
+    // =====================
+    if (data.showOldPrice) {
+        if (isNaN(data.oldPrice) || data.oldPrice <= data.price) {
+            UIManager.showToast(
+                "L'ancien prix doit être supérieur au prix actuel",
+                'error'
+            );
+            return false;
+        }
+    }
+
+    // =====================
+    // Stock
+    // =====================
+    if (isNaN(data.stockQuantity) || data.stockQuantity < 0) {
+        UIManager.showToast(
+            'La quantité en stock doit être positive ou nulle',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Poids
+    // =====================
+    if (isNaN(data.weight) || data.weight <= 0) {
+        UIManager.showToast(
+            'Le poids doit être strictement positif',
+            'error'
+        );
+        return false;
+    }
+
+    // =====================
+    // Tout est OK
+    // =====================
+    return true;
+};
+  /**
+     * UI helpers
+     */
+    const toggleOldPrice = () => {
+        const input = document.getElementById('product-old-price');
+        input.disabled = !document.getElementById('show-old-price').checked;
+        if (input.disabled) input.value = '';
+    };
+
+    const toggleExtraDeliveryCost = () => {
+        const container = document.getElementById(
+            'extra-delivery-cost-container'
+        );
+        const checked = document.getElementById(
+            'product-extra-delivery'
+        ).checked;
+
+        container.classList.toggle('hidden', !checked);
+        if (!checked)
+            document.getElementById('product-extra-delivery-cost').value = '';
+    };
+
+    const toggleOptionSection = (type) => {
+        const checkbox = document.getElementById(`has-${type}`);
+        const container = document.getElementById(`${type}-options-container`);
+        container.classList.toggle('hidden', !checkbox.checked);
+    };
+
+    return {
+        handleFormSubmit,
+        toggleOldPrice,
+        toggleExtraDeliveryCost,
+        toggleOptionSection
+    };
+})();
+
     // ============================================
     // FONCTIONS GLOBALES (exposées à window)
     // ============================================
