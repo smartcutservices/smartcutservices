@@ -1,6 +1,11 @@
 // ============= COMPOSANT COMMENTAIRES - AVEC ANIMATIONS CRÉATIVES =============
 import theme from './theme-root.js';
-import anime from 'https://cdn.skypack.dev/animejs@3.2.1';
+const anime = typeof window !== 'undefined' && typeof window.anime === 'function'
+  ? window.anime
+  : Object.assign(() => null, {
+      timeline: () => ({ add() { return this; } }),
+      stagger: () => 0
+    });
 
 class CommentaireComponent {
   constructor(containerId, options = {}) {

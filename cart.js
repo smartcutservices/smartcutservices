@@ -897,6 +897,12 @@ class CartManager {
     const signature = this.getOptionsSignature(item?.selectedOptions);
     return `${productId}::${signature}`;
   }
+
+  getItemStockLimit(item) {
+    const parsed = Number(item?.stockLimit);
+    if (!Number.isFinite(parsed) || parsed < 0) return Infinity;
+    return Math.max(0, Math.floor(parsed));
+  }
   
   addItem(item) {
     if (!item || !item.productId) {
@@ -906,17 +912,46 @@ class CartManager {
     
     const itemKey = this.getCartItemKey(item);
     const existingIndex = this.cart.findIndex(cartItem => this.getCartItemKey(cartItem) === itemKey);
+    const incomingQty = Math.max(0, Number(item.quantity) || 1);
+    const stockLimit = this.getItemStockLimit(item);
     
     if (existingIndex >= 0) {
-      this.cart[existingIndex].quantity += item.quantity || 1;
-      this.showNotification(`📦 Quantité mise à jour: ${this.cart[existingIndex].name}`);
+      const currentQty = Math.max(0, Number(this.cart[existingIndex].quantity) || 0);
+      const nextQty = Number.isFinite(stockLimit)
+        ? Math.min(stockLimit, currentQty + incomingQty)
+        : currentQty + incomingQty;
+
+      if (nextQty <= currentQty) {
+        this.showNotification(`⚠️ Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
+        return;
+      }
+
+      this.cart[existingIndex].quantity = nextQty;
+      this.cart[existingIndex].stockLimit = Number.isFinite(stockLimit) ? stockLimit : this.cart[existingIndex].stockLimit;
+      if (item.weightGrams && !this.cart[existingIndex].weightGrams) {
+        this.cart[existingIndex].weightGrams = item.weightGrams;
+      }
+      this.showNotification(
+        nextQty < currentQty + incomingQty
+          ? `⚠️ Stock limité à ${nextQty} pour ${this.cart[existingIndex].name}`
+          : `📦 Quantité mise à jour: ${this.cart[existingIndex].name}`
+      );
     } else {
+      const initialQty = Number.isFinite(stockLimit) ? Math.min(stockLimit, incomingQty) : incomingQty;
+      if (initialQty <= 0) {
+        this.showNotification(`⚠️ Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
+        return;
+      }
       this.cart.push({
         ...item,
-        quantity: item.quantity || 1,
+        quantity: initialQty,
         addedAt: Date.now()
       });
-      this.showNotification(`✅ ${item.name || 'Produit'} ajouté au panier`);
+      this.showNotification(
+        initialQty < incomingQty
+          ? `⚠️ ${item.name || 'Produit'} limité à ${initialQty} unité(s)`
+          : `✅ ${item.name || 'Produit'} ajouté au panier`
+      );
     }
     
     this.saveCart();
@@ -939,7 +974,14 @@ class CartManager {
       if (quantity <= 0) {
         this.removeItem(index);
       } else {
-        this.cart[index].quantity = quantity;
+        const stockLimit = this.getItemStockLimit(this.cart[index]);
+        const safeQuantity = Number.isFinite(stockLimit)
+          ? Math.min(stockLimit, quantity)
+          : quantity;
+        if (safeQuantity < quantity) {
+          this.showNotification(`⚠️ Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
+        }
+        this.cart[index].quantity = safeQuantity;
         this.saveCart();
         if (this.modal) {
           this.renderCartModal();
