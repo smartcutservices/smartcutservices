@@ -27,6 +27,30 @@ class ProductModal {
     this.onLikesUpdated = () => this.syncLikeButton();
     this.isFullscreen = false;
     this.uniqueId = 'modal_' + Math.random().toString(36).substr(2, 9);
+    this.historyStateId = `product_modal_${this.uniqueId}`;
+    this.modalHistoryActive = false;
+    this.fullscreenHistoryActive = false;
+    this.isClosing = false;
+    this.handlePopState = () => {
+      if (!this.modalElement) return;
+
+      if (this.isFullscreen && this.fullscreenHistoryActive) {
+        this.fullscreenHistoryActive = false;
+        this.closeFullscreen(false);
+        return;
+      }
+
+      this.modalHistoryActive = false;
+      this.performClose();
+    };
+    this.handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (this.isFullscreen) {
+        this.closeFullscreen();
+        return;
+      }
+      this.close();
+    };
     
     this.init();
   }
@@ -43,6 +67,7 @@ class ProductModal {
     this.attachEvents();
     this.loadFromLocalStorage();
     this.animateIn();
+    this.setupHistoryState();
     
     // Bloquer le scroll du body
     document.body.style.overflow = 'hidden';
@@ -183,6 +208,99 @@ class ProductModal {
     }
     return parts.join(' • ') || variation?.sku || 'Variation';
   }
+
+  toStockLimit(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return Infinity;
+    return Math.max(0, Math.floor(parsed));
+  }
+
+  getCartItems() {
+    try {
+      const cart = JSON.parse(localStorage.getItem('veltrixa_cart') || '[]');
+      return Array.isArray(cart) ? cart : [];
+    } catch (error) {
+      console.warn('⚠️ Impossible de lire le panier local:', error);
+      return [];
+    }
+  }
+
+  getSelectedSizeValue() {
+    const selectedSize = this.selectedOptions.get('size');
+    return selectedSize?.value || null;
+  }
+
+  getSelectedSizeStockLimit() {
+    const sizeValue = this.getSelectedSizeValue();
+    if (!sizeValue || !Array.isArray(this.product?.sizes)) return Infinity;
+    const sizeData = this.product.sizes.find((size) => String(size?.size || '') === String(sizeValue));
+    if (!sizeData) return Infinity;
+    return this.toStockLimit(sizeData?.quantity);
+  }
+
+  getVariationStockLimit(variationIndex) {
+    const variation = this.product?.variations?.[variationIndex];
+    return this.toStockLimit(variation?.stock);
+  }
+
+  getBaseStockLimit() {
+    const sizeLimit = this.getSelectedSizeStockLimit();
+    const productLimit = this.toStockLimit(this.product?.stock);
+    return Math.min(sizeLimit, productLimit);
+  }
+
+  getCartQuantityForVariation(variationIndex) {
+    return this.getCartItems().reduce((total, item) => {
+      if (item?.productId !== this.product?.id) return total;
+      const options = Array.isArray(item?.selectedOptions) ? item.selectedOptions : [];
+      const hasVariation = options.some((opt) => Number(opt?.variationIndex) === Number(variationIndex));
+      if (!hasVariation) return total;
+      return total + (Number(item?.quantity) || 0);
+    }, 0);
+  }
+
+  getCartQuantityForBaseSelection() {
+    const selectedSize = this.getSelectedSizeValue();
+    return this.getCartItems().reduce((total, item) => {
+      if (item?.productId !== this.product?.id) return total;
+      const options = Array.isArray(item?.selectedOptions) ? item.selectedOptions : [];
+      const hasVariation = options.some((opt) => {
+        const value = opt?.variationIndex;
+        if (value === '' || value === null || value === undefined) return false;
+        return Number.isInteger(Number(value));
+      });
+      if (hasVariation) return total;
+      if (selectedSize) {
+        const sameSize = options.some((opt) => opt?.type === 'size' && String(opt?.value || '') === String(selectedSize));
+        if (!sameSize) return total;
+      }
+      return total + (Number(item?.quantity) || 0);
+    }, 0);
+  }
+
+  getAvailableVariationQuantity(variationIndex) {
+    const limit = this.getVariationStockLimit(variationIndex);
+    if (!Number.isFinite(limit)) return Infinity;
+    return Math.max(0, limit - this.getCartQuantityForVariation(variationIndex));
+  }
+
+  getAvailableBaseQuantity() {
+    const limit = this.getBaseStockLimit();
+    if (!Number.isFinite(limit)) return Infinity;
+    return Math.max(0, limit - this.getCartQuantityForBaseSelection());
+  }
+
+  getCurrentSelectionWeight(variationData = null) {
+    const variationWeight = Number(variationData?.weightGrams ?? variationData?.weight);
+    if (Number.isFinite(variationWeight) && variationWeight > 0) {
+      return variationWeight;
+    }
+    const productWeight = Number(this.product?.weightGrams ?? this.product?.weight);
+    if (Number.isFinite(productWeight) && productWeight > 0) {
+      return productWeight;
+    }
+    return 0;
+  }
   
   render() {
     if (!this.product) {
@@ -227,9 +345,13 @@ class ProductModal {
         ">
           
           <!-- Header mobile -->
-          <div class="md:hidden flex justify-between items-center p-4 border-b border-secondary/20" style="flex-shrink: 0;">
-            <h2 class="font-primary text-lg truncate" style="font-family: 'Cormorant Garamond', serif;">${this.product.name || 'Produit'}</h2>
-            <button class="close-modal-btn" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(31, 30, 28, 0.1); display: flex; align-items: center; justify-content: center; border: none; cursor: pointer;">
+          <div class="md:hidden flex justify-between items-center gap-3 p-4 border-b border-secondary/20" style="flex-shrink: 0;">
+            <button class="back-modal-btn" type="button" style="display: inline-flex; align-items: center; gap: 0.4rem; border: none; background: transparent; color: #1F1E1C; cursor: pointer; font-weight: 600;">
+              <i class="fas fa-arrow-left"></i>
+              <span>Retour</span>
+            </button>
+            <h2 class="font-primary text-lg truncate" style="font-family: 'Cormorant Garamond', serif; flex: 1; text-align: center;">${this.product.name || 'Produit'}</h2>
+            <button class="close-modal-btn" type="button" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(31, 30, 28, 0.1); display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; flex-shrink: 0;">
               <i class="fas fa-times" style="font-size: 1.25rem;"></i>
             </button>
           </div>
@@ -273,17 +395,37 @@ class ProductModal {
             
             <!-- Version Mobile (flex column) -->
             <div class="md:hidden">
-              <!-- Images en haut (85vh) -->
-              <div style="height: 85vh; position: relative;">
-                <div class="product-images-mobile-root">
-                  ${this.renderMobileImages()}
+              <!-- Images en haut -->
+              <div style="padding: 0.85rem 0.85rem 0;">
+                <div style="
+                  height: min(48vh, 400px);
+                  min-height: 240px;
+                  position: relative;
+                  border-radius: 1.25rem;
+                  overflow: hidden;
+                  background: #FFFFFF;
+                  box-shadow: 0 12px 26px rgba(31, 30, 28, 0.08);
+                  border: 1px solid rgba(198, 167, 94, 0.14);
+                ">
+                  <div class="product-images-mobile-root">
+                    ${this.renderMobileImages()}
+                  </div>
                 </div>
               </div>
               
               <!-- Infos en bas -->
-              <div style="padding: 1rem;">
-                ${this.renderProductInfo()}
-                ${this.renderRelatedProducts()}
+              <div style="padding: 0 0.85rem 1.4rem;">
+                <div style="
+                  margin-top: 0.8rem;
+                  padding: 1.15rem 1rem 1.5rem;
+                  background: rgba(255, 255, 255, 0.94);
+                  border-radius: 1.25rem;
+                  box-shadow: 0 14px 30px rgba(31, 30, 28, 0.08);
+                  border: 1px solid rgba(198, 167, 94, 0.16);
+                ">
+                  ${this.renderProductInfo()}
+                  ${this.renderRelatedProducts()}
+                </div>
               </div>
             </div>
           </div>
@@ -653,6 +795,130 @@ class ProductModal {
     this.bindImageInteractionEvents();
     this.bindMobileNavigationEvents();
   }
+
+  setupHistoryState() {
+    if (typeof window === 'undefined' || !window.history?.pushState) return;
+    window.history.pushState(
+      {
+        ...(window.history.state || {}),
+        productModalOpen: true,
+        productModalId: this.historyStateId
+      },
+      '',
+      window.location.href
+    );
+    this.modalHistoryActive = true;
+    window.addEventListener('popstate', this.handlePopState);
+  }
+
+  refreshAddToCartButtons() {
+    const remainingBase = this.getAvailableBaseQuantity();
+    const hasStockInVariations = Array.isArray(this.product?.variations) && this.product.variations.some((_, index) => {
+      const available = this.getAvailableVariationQuantity(index);
+      return !Number.isFinite(available) || available > 0;
+    });
+    const shouldDisable = Array.isArray(this.product?.variations) && this.product.variations.length > 0
+      ? !hasStockInVariations
+      : Number.isFinite(remainingBase) && remainingBase <= 0;
+
+    this.modalElement?.querySelectorAll('.add-to-cart-btn').forEach((btn) => {
+      btn.disabled = shouldDisable;
+      btn.style.opacity = shouldDisable ? '0.6' : '1';
+      btn.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
+    });
+  }
+
+  updateVariationQuantityUI(variationIndex) {
+    if (!this.modalElement) return;
+
+    const maxAllowed = this.getAvailableVariationQuantity(variationIndex);
+    let qty = this.variationQuantities.get(variationIndex) || 0;
+    if (Number.isFinite(maxAllowed) && qty > maxAllowed) {
+      qty = maxAllowed;
+      if (qty <= 0) this.variationQuantities.delete(variationIndex);
+      else this.variationQuantities.set(variationIndex, qty);
+    }
+
+    const safeQty = this.variationQuantities.get(variationIndex) || 0;
+    const canIncrease = !Number.isFinite(maxAllowed) || safeQty < maxAllowed;
+    const variation = this.product?.variations?.[variationIndex];
+    const stockLabel = Number.isFinite(this.getVariationStockLimit(variationIndex))
+      ? `${variation?.stock ?? 0} en stock`
+      : 'Stock disponible';
+    const availabilityLabel = Number.isFinite(maxAllowed)
+      ? (maxAllowed > 0 ? ` • ${maxAllowed} restant(s) avant blocage` : ' • Stock atteint')
+      : '';
+
+    this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${variationIndex}"]`).forEach((el) => {
+      el.textContent = String(safeQty);
+    });
+    this.modalElement.querySelectorAll(`.variation-item[data-variation-index="${variationIndex}"]`).forEach((el) => {
+      el.style.borderColor = safeQty > 0 ? '#C6A75E' : 'transparent';
+      el.style.opacity = Number.isFinite(maxAllowed) && maxAllowed <= 0 && safeQty <= 0 ? '0.72' : '1';
+    });
+    this.modalElement.querySelectorAll(`.variation-stock-meta[data-variation-index="${variationIndex}"]`).forEach((el) => {
+      el.textContent = `${this.formatPrice(this.getVariationEffectivePrice(variation, this.product))} • ${stockLabel}${availabilityLabel}`;
+    });
+    this.modalElement.querySelectorAll(`.variation-qty-inc[data-variation-index="${variationIndex}"]`).forEach((btn) => {
+      btn.disabled = !canIncrease;
+      btn.style.opacity = canIncrease ? '1' : '0.45';
+      btn.style.cursor = canIncrease ? 'pointer' : 'not-allowed';
+    });
+    this.modalElement.querySelectorAll(`.variation-qty-dec[data-variation-index="${variationIndex}"]`).forEach((btn) => {
+      const canDecrease = safeQty > 0;
+      btn.disabled = !canDecrease;
+      btn.style.opacity = canDecrease ? '1' : '0.45';
+      btn.style.cursor = canDecrease ? 'pointer' : 'not-allowed';
+    });
+  }
+
+  updateStandardQuantityUI() {
+    if (!this.modalElement) return;
+
+    const available = this.getAvailableBaseQuantity();
+    if (Number.isFinite(available) && this.selectedQuantity > available) {
+      this.selectedQuantity = available;
+    }
+
+    const maxValue = Number.isFinite(available) ? available : 999;
+    const canIncrease = !Number.isFinite(available) || this.selectedQuantity < available;
+
+    this.modalElement.querySelectorAll('.qty-input').forEach((input) => {
+      input.value = String(this.selectedQuantity);
+      input.max = String(maxValue);
+    });
+    this.modalElement.querySelectorAll('.qty-increase-btn').forEach((btn) => {
+      btn.disabled = !canIncrease;
+      btn.style.opacity = canIncrease ? '1' : '0.45';
+      btn.style.cursor = canIncrease ? 'pointer' : 'not-allowed';
+    });
+    this.modalElement.querySelectorAll('.qty-decrease-btn').forEach((btn) => {
+      const canDecrease = this.selectedQuantity > 0;
+      btn.disabled = !canDecrease;
+      btn.style.opacity = canDecrease ? '1' : '0.45';
+      btn.style.cursor = canDecrease ? 'pointer' : 'not-allowed';
+    });
+    this.modalElement.querySelectorAll('.qty-stock-note').forEach((el) => {
+      if (!Number.isFinite(this.getBaseStockLimit())) {
+        el.textContent = '';
+        return;
+      }
+      el.textContent = available > 0
+        ? `${available} unité(s) encore disponible(s) avant blocage`
+        : 'Stock déjà atteint dans le panier';
+    });
+  }
+
+  normalizeSelectedQuantities() {
+    if (Array.isArray(this.product?.variations) && this.product.variations.length > 0) {
+      this.product.variations.forEach((_, variationIndex) => {
+        this.updateVariationQuantityUI(Number(variationIndex));
+      });
+    } else {
+      this.updateStandardQuantityUI();
+    }
+    this.refreshAddToCartButtons();
+  }
   
   bindImageInteractionEvents() {
     this.modalElement?.querySelectorAll('.desktop-image-item').forEach(item => {
@@ -771,6 +1037,7 @@ class ProductModal {
               "><i class="fas fa-plus"></i></button>
             </div>
           </div>
+          <div class="qty-stock-note" style="font-size: 0.8rem; color: #8B7E6B; margin-top: -0.65rem;"></div>
         `}
 
         <button class="toggle-like-btn" style="
@@ -855,7 +1122,7 @@ class ProductModal {
                     </div>
                   ` : ''}
                   <span style="font-size: 0.8rem; font-weight: 600; color: #1F1E1C;">${label}</span>
-                  <span style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` • Stock: ${variation.stock}` : ''}</span>
+                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` • Stock: ${variation.stock}` : ''}</span>
                   <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.25rem;">
                     <button type="button" class="variation-qty-dec" data-variation-index="${index}" style="width:26px; height:26px; border:1px solid rgba(198,167,94,0.4); background:#F5F1E8; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-minus" style="font-size:0.7rem;"></i>
@@ -1067,6 +1334,17 @@ class ProductModal {
     closeButtons.forEach(btn => {
       btn.addEventListener('click', () => this.close());
     });
+
+    const backButtons = this.modalElement.querySelectorAll('.back-modal-btn');
+    backButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (this.isFullscreen) {
+          this.closeFullscreen();
+          return;
+        }
+        this.close();
+      });
+    });
     
     // Clic sur l'overlay pour fermer
     this.modalElement.addEventListener('click', (e) => {
@@ -1113,6 +1391,7 @@ class ProductModal {
           this.selectedOptions.set(type, value);
         }
         
+        this.normalizeSelectedQuantities();
         this.saveToLocalStorage();
       });
     });
@@ -1129,35 +1408,26 @@ class ProductModal {
           priceEl.textContent = this.formatPrice(this.getVariationEffectivePrice(variation, this.product));
         }
         this.refreshDisplayedImages();
-        this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${idx}"]`).forEach((el) => {
-          el.textContent = String(this.variationQuantities.get(idx) || 0);
-        });
-        this.modalElement.querySelectorAll(`.variation-item[data-variation-index="${idx}"]`).forEach((el) => {
-          el.style.borderColor = (this.variationQuantities.get(idx) || 0) > 0 ? '#C6A75E' : 'transparent';
-        });
+        this.updateVariationQuantityUI(idx);
+        this.refreshAddToCartButtons();
         this.saveToLocalStorage();
       });
     });
-
-    const updateVariationQtyUI = (idx) => {
-      const qty = this.variationQuantities.get(idx) || 0;
-      this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${idx}"]`).forEach((el) => {
-        el.textContent = String(qty);
-      });
-      this.modalElement.querySelectorAll(`.variation-item[data-variation-index="${idx}"]`).forEach((el) => {
-        el.style.borderColor = qty > 0 ? '#C6A75E' : 'transparent';
-      });
-    };
 
     this.modalElement.querySelectorAll('.variation-qty-inc').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idx = parseInt(btn.dataset.variationIndex, 10);
         if (!Number.isInteger(idx)) return;
-        const next = Math.min(999, (this.variationQuantities.get(idx) || 0) + 1);
-        this.variationQuantities.set(idx, next);
+        const maxAllowed = this.getAvailableVariationQuantity(idx);
+        const next = Number.isFinite(maxAllowed)
+          ? Math.min(maxAllowed, (this.variationQuantities.get(idx) || 0) + 1)
+          : Math.min(999, (this.variationQuantities.get(idx) || 0) + 1);
+        if (next <= 0) this.variationQuantities.delete(idx);
+        else this.variationQuantities.set(idx, next);
         this.currentVariationIndex = idx;
-        updateVariationQtyUI(idx);
+        this.updateVariationQuantityUI(idx);
+        this.refreshAddToCartButtons();
         this.saveToLocalStorage();
       });
     });
@@ -1170,7 +1440,8 @@ class ProductModal {
         const next = Math.max(0, (this.variationQuantities.get(idx) || 0) - 1);
         if (next === 0) this.variationQuantities.delete(idx);
         else this.variationQuantities.set(idx, next);
-        updateVariationQtyUI(idx);
+        this.updateVariationQuantityUI(idx);
+        this.refreshAddToCartButtons();
         this.saveToLocalStorage();
       });
     });
@@ -1241,34 +1512,38 @@ class ProductModal {
     const qtyInputs = this.modalElement.querySelectorAll('.qty-input');
     const qtyDecreaseBtns = this.modalElement.querySelectorAll('.qty-decrease-btn');
     const qtyIncreaseBtns = this.modalElement.querySelectorAll('.qty-increase-btn');
-    const syncQtyInputs = () => {
-      qtyInputs.forEach((input) => {
-        input.value = String(this.selectedQuantity);
-      });
-    };
 
     qtyDecreaseBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         this.selectedQuantity = Math.max(0, Number(this.selectedQuantity || 0) - 1);
-        syncQtyInputs();
+        this.updateStandardQuantityUI();
+        this.refreshAddToCartButtons();
         this.saveToLocalStorage();
       });
     });
     qtyIncreaseBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
-        this.selectedQuantity = Math.min(999, Number(this.selectedQuantity || 0) + 1);
-        syncQtyInputs();
+        const available = this.getAvailableBaseQuantity();
+        const next = Number(this.selectedQuantity || 0) + 1;
+        this.selectedQuantity = Number.isFinite(available) ? Math.min(available, next) : Math.min(999, next);
+        this.updateStandardQuantityUI();
+        this.refreshAddToCartButtons();
         this.saveToLocalStorage();
       });
     });
     qtyInputs.forEach((input) => {
       input.addEventListener('input', () => {
         const parsed = parseInt(input.value, 10);
-        this.selectedQuantity = Number.isFinite(parsed) ? Math.min(999, Math.max(0, parsed)) : 0;
-        syncQtyInputs();
+        const available = this.getAvailableBaseQuantity();
+        const normalized = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+        this.selectedQuantity = Number.isFinite(available) ? Math.min(available, normalized) : Math.min(999, normalized);
+        this.updateStandardQuantityUI();
+        this.refreshAddToCartButtons();
         this.saveToLocalStorage();
       });
-      input.addEventListener('blur', syncQtyInputs);
+      input.addEventListener('blur', () => {
+        this.updateStandardQuantityUI();
+      });
     });
     
     // Produits liés
@@ -1277,23 +1552,18 @@ class ProductModal {
         const productId = card.dataset.productId;
         if (productId) {
           this.close();
-          // Émettre un événement personnalisé pour ouvrir le nouveau produit
-          const event = new CustomEvent('openProductModal', { detail: { productId } });
-          document.dispatchEvent(event);
+          // Laisse le temps au modal actuel de se retirer avant d'ouvrir le suivant.
+          window.setTimeout(() => {
+            const event = new CustomEvent('openProductModal', { detail: { productId } });
+            document.dispatchEvent(event);
+          }, 260);
         }
       });
     });
     
     // Touche Echap pour fermer
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (this.isFullscreen) {
-          this.closeFullscreen();
-        } else {
-          this.close();
-        }
-      }
-    });
+    document.addEventListener('keydown', this.handleKeyDown);
+    this.normalizeSelectedQuantities();
   }
   
   openFullscreen(index) {
@@ -1308,13 +1578,32 @@ class ProductModal {
     counter.textContent = `${index + 1}/${images.length}`;
     
     this.fullscreenViewer.style.display = 'flex';
+
+    if (!this.fullscreenHistoryActive && typeof window !== 'undefined' && window.history?.pushState) {
+      window.history.pushState(
+        {
+          ...(window.history.state || {}),
+          productModalOpen: true,
+          productModalId: this.historyStateId,
+          productModalFullscreen: true
+        },
+        '',
+        window.location.href
+      );
+      this.fullscreenHistoryActive = true;
+    }
     
     // Désactiver le scroll du body (déjà fait mais on renforce)
     document.body.style.overflow = 'hidden';
   }
   
-  closeFullscreen() {
+  closeFullscreen(syncHistory = true) {
+    if (syncHistory && this.fullscreenHistoryActive && typeof window !== 'undefined' && window.history) {
+      window.history.back();
+      return;
+    }
     this.isFullscreen = false;
+    this.fullscreenHistoryActive = false;
     this.fullscreenViewer.style.display = 'none';
   }
   
@@ -1350,9 +1639,9 @@ class ProductModal {
     if (!this.product?.id) return;
     const key = `veltrixa_modal_selection_${this.product.id}`;
     const saved = JSON.parse(localStorage.getItem(key) || 'null');
-    if (!saved || !Array.isArray(saved.selectedOptions)) return;
+    if (!saved) return;
 
-    saved.selectedOptions.forEach(([k, v]) => {
+    (Array.isArray(saved.selectedOptions) ? saved.selectedOptions : []).forEach(([k, v]) => {
       this.selectedOptions.set(k, v);
     });
     this.selectedQuantity = Math.max(0, Number(saved.selectedQuantity) || 0);
@@ -1363,7 +1652,7 @@ class ProductModal {
     );
 
     setTimeout(() => {
-      saved.selectedOptions.forEach(([keyName, value]) => {
+      (Array.isArray(saved.selectedOptions) ? saved.selectedOptions : []).forEach(([keyName, value]) => {
         const selector = `[data-type="${keyName.split('_')[0]}"][data-value="${value?.value}"]`;
         const option = this.modalElement.querySelector(selector);
         if (option) {
@@ -1384,18 +1673,8 @@ class ProductModal {
         this.refreshDisplayedImages();
       }
 
-      this.variationQuantities.forEach((qty, idx) => {
-        this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${idx}"]`).forEach((el) => {
-          el.textContent = String(Math.max(0, Number(qty) || 0));
-        });
-        this.modalElement.querySelectorAll(`.variation-item[data-variation-index="${idx}"]`).forEach((el) => {
-          el.style.borderColor = (Number(qty) || 0) > 0 ? '#C6A75E' : 'transparent';
-        });
-      });
-
-      this.modalElement.querySelectorAll('.qty-input').forEach((input) => {
-        input.value = String(this.selectedQuantity);
-      });
+      this.normalizeSelectedQuantities();
+      this.saveToLocalStorage();
     }, 100);
   }
   
@@ -1437,10 +1716,16 @@ class ProductModal {
       entries.forEach(([variationIndex, quantity]) => {
         const variationData = this.product?.variations?.[variationIndex];
         if (!variationData) return;
+        const available = this.getAvailableVariationQuantity(variationIndex);
+        const safeQuantity = Number.isFinite(available) ? Math.min(available, quantity) : quantity;
+        if (safeQuantity <= 0) {
+          return;
+        }
         const finalPrice = this.getVariationEffectivePrice(variationData, this.product);
         const finalImage = variationData?.images?.[0] || this.getProductPrimaryImage(this.product);
         const finalSku = variationData?.sku || this.product.sku || '';
         const variationLabel = this.getVariationLabel(variationData);
+        const stockLimit = this.getVariationStockLimit(variationIndex);
 
         const item = {
           productId: this.product.id,
@@ -1448,6 +1733,8 @@ class ProductModal {
           name: this.product.name,
           price: finalPrice,
           image: finalImage,
+          stockLimit: Number.isFinite(stockLimit) ? stockLimit : null,
+          weightGrams: this.getCurrentSelectionWeight(variationData),
           selectedOptions: [
             ...selectedOptionsWithImages,
             {
@@ -1457,7 +1744,7 @@ class ProductModal {
               variationIndex
             }
           ],
-          quantity,
+          quantity: safeQuantity,
           timestamp: Date.now()
         };
 
@@ -1474,18 +1761,23 @@ class ProductModal {
       const finalPrice = this.getVariationEffectivePrice(variationData, this.product);
       const finalImage = variationData?.images?.[0] || this.getProductPrimaryImage(this.product);
       const finalSku = variationData?.sku || this.product.sku || '';
+      const available = this.getAvailableBaseQuantity();
       const quantity = Math.max(0, Number(this.selectedQuantity) || 0);
-      if (quantity <= 0) {
+      const safeQuantity = Number.isFinite(available) ? Math.min(available, quantity) : quantity;
+      if (safeQuantity <= 0) {
         return;
       }
+      const stockLimit = this.getBaseStockLimit();
       const item = {
         productId: this.product.id,
         sku: finalSku,
         name: this.product.name,
         price: finalPrice,
         image: finalImage,
+        stockLimit: Number.isFinite(stockLimit) ? stockLimit : null,
+        weightGrams: this.getCurrentSelectionWeight(variationData),
         selectedOptions: selectedOptionsWithImages,
-        quantity,
+        quantity: safeQuantity,
         timestamp: Date.now()
       };
       if (cart && typeof cart.addItem === 'function') {
@@ -1498,6 +1790,11 @@ class ProductModal {
     }
 
     if (!hasAddedItem) return;
+
+    this.selectedQuantity = 0;
+    this.variationQuantities.clear();
+    this.normalizeSelectedQuantities();
+    this.saveToLocalStorage();
     
     // Animation de confirmation
     const btns = this.modalElement.querySelectorAll('.add-to-cart-btn');
@@ -1564,16 +1861,35 @@ class ProductModal {
     });
   }
   
-  async close() {
+  async performClose() {
+    if (this.isClosing) return;
+    this.isClosing = true;
+
     await this.animateOut();
     document.removeEventListener('likesUpdated', this.onLikesUpdated);
+    document.removeEventListener('keydown', this.handleKeyDown);
+    window.removeEventListener('popstate', this.handlePopState);
     this.modalElement?.remove();
+    this.fullscreenViewer?.remove();
     document.body.classList.remove('modal-open');
     document.body.style.overflow = '';
     
     if (this.options.onClose) {
       this.options.onClose();
     }
+  }
+
+  async close() {
+    if (this.isClosing) return;
+    if (this.isFullscreen) {
+      this.closeFullscreen();
+      return;
+    }
+    if (this.modalHistoryActive && typeof window !== 'undefined' && window.history) {
+      window.history.back();
+      return;
+    }
+    await this.performClose();
   }
 }
 
