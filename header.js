@@ -86,6 +86,14 @@ class SierraHeaderNebula {
         gap: 1rem;
       }
 
+      .header-home-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 1rem;
+        color: inherit;
+        text-decoration: none;
+      }
+
       .desktop-logo {
         height: 54px;
         width: auto;
@@ -460,8 +468,10 @@ class SierraHeaderNebula {
         <div class="desktop-header-inner">
           <div class="desktop-left">
             <div class="desktop-logo-area">
-              <img id="desktopLogoImg" class="desktop-logo" src="" alt="logo" style="display: none;">
-              <span id="desktopCompanyName" class="desktop-company-name">Vitch Studio</span>
+              <a class="header-home-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
+                <img id="desktopLogoImg" class="desktop-logo" src="" alt="logo" style="display: none;">
+                <span id="desktopCompanyName" class="desktop-company-name">Vitch Studio</span>
+              </a>
             </div>
             <div id="desktopCategoriesContainer" class="desktop-categories"></div>
           </div>
@@ -476,7 +486,9 @@ class SierraHeaderNebula {
             <i id="mobileHamburgerBtn" class="mobile-hamburger fas fa-bars"></i>
           </div>
           <div class="mobile-logo-center">
-            <img id="mobileLogoImg" class="mobile-logo" src="" alt="logo" style="display: none;">
+            <a class="header-home-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
+              <img id="mobileLogoImg" class="mobile-logo" src="" alt="logo" style="display: none;">
+            </a>
           </div>
           <div class="mobile-right-group">
             <i id="mobileSearchIcon" class="fas fa-search mobile-icon search-trigger"></i>
@@ -573,7 +585,7 @@ class SierraHeaderNebula {
       const infoSnap = await getDocs(infoQuery);
       const infos = infoSnap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
-        .filter((row) => row.active !== false && row.title && row.link);
+        .filter((row) => row.active !== false && row.title && (row.link || row.pageId));
 
       if (!infos.length) {
         linksContainer.innerHTML = '';
@@ -581,8 +593,8 @@ class SierraHeaderNebula {
       }
 
       linksContainer.innerHTML = infos.map((item) => {
-        const href = item.link || '#';
-        const isExternal = /^https?:\/\//i.test(href);
+        const href = this.resolveFooterLink(item);
+        const isExternal = this.isExternalLink(href);
         return `
           <a class="mobile-footer-link" href="${href}" ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ''}>
             ${item.title}
@@ -593,6 +605,21 @@ class SierraHeaderNebula {
       console.error('❌ Erreur chargement liens footer mobile:', error);
       linksContainer.innerHTML = '';
     }
+  }
+
+  getHomepageUrl() {
+    return './index.html';
+  }
+
+  resolveFooterLink(item) {
+    if (item?.pageId) {
+      return `./page.html?id=${encodeURIComponent(item.pageId)}`;
+    }
+    return item?.link || '#';
+  }
+
+  isExternalLink(href) {
+    return /^https?:\/\//i.test(String(href || ''));
   }
 
   async applyHeaderConfig() {

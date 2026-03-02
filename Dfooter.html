@@ -342,6 +342,10 @@
         <p class="text-xs uppercase tracking-wider text-ivory/70">Dashboard footer</p>
       </div>
       <div class="flex items-center gap-4">
+        <a href="./Dpages.html" class="btn-secondary text-sm">
+          <i class="fas fa-file-lines"></i>
+          Pages internes
+        </a>
         <span class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-sm hidden md:inline">Firebase connecté</span>
@@ -724,10 +728,24 @@
 
       <form id="infoForm" class="space-y-4">
         <input type="hidden" id="infoId">
+        <input type="hidden" id="infoPageId">
         
         <div>
           <label class="block text-sm font-medium text-accent mb-1">Titre du lien *</label>
           <input type="text" id="infoTitle" class="form-input" required placeholder="Politique de livraison">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-accent mb-1">Associer une page interne</label>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <select id="infoPageSelect" class="form-input flex-1">
+              <option value="">Aucune page sélectionnée</option>
+            </select>
+            <button type="button" id="selectInfoPageBtn" class="btn-secondary">
+              Sélectionner
+            </button>
+          </div>
+          <p class="text-xs text-accent mt-1">Les pages internes se gerent dans <strong>Dpages.html</strong>. En cliquant sur "Selectionner", le lien public est rempli automatiquement.</p>
         </div>
         
         <div>
@@ -854,6 +872,7 @@
     const FOOTER_SOCIAL = "footerSocial";
     const FOOTER_INFOS = "footerInfos";
     const FOOTER_PAYMENT = "footerPayment";
+    const FOOTER_PAGES = "footerPages";
 
     // ========== ÉTAT GLOBAL ==========
     let footerConfig = {
@@ -874,6 +893,7 @@
     let socialNetworks = [];
     let infoLinks = [];
     let paymentMethods = [];
+    let customPages = [];
     
     let currentSocialId = null;
     let currentInfoId = null;
@@ -958,7 +978,10 @@
       infoModal: document.getElementById('infoModal'),
       infoModalTitle: document.getElementById('infoModalTitle'),
       infoId: document.getElementById('infoId'),
+      infoPageId: document.getElementById('infoPageId'),
       infoTitle: document.getElementById('infoTitle'),
+      infoPageSelect: document.getElementById('infoPageSelect'),
+      selectInfoPageBtn: document.getElementById('selectInfoPageBtn'),
       infoLink: document.getElementById('infoLink'),
       infoActive: document.getElementById('infoActive'),
       
@@ -1003,6 +1026,7 @@
     async function init() {
       await loadFooterConfig();
       await loadSocialNetworks();
+      await loadCustomPages();
       await loadInfoLinks();
       await loadPaymentMethods();
       
@@ -1061,6 +1085,18 @@
       }
     }
 
+    async function loadCustomPages() {
+      try {
+        const q = query(collection(db, FOOTER_PAGES), orderBy('createdAt', 'asc'));
+        const snapshot = await getDocs(q);
+        customPages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } catch (error) {
+        console.error('❌ Erreur chargement pages internes:', error);
+        customPages = [];
+      }
+      populateInfoPageOptions();
+    }
+
     async function loadInfoLinks() {
       try {
         const q = query(collection(db, FOOTER_INFOS), orderBy('createdAt', 'asc'));
@@ -1080,6 +1116,34 @@
         renderPaymentMethods();
       } catch (error) {
         console.error('❌ Erreur chargement paiements:', error);
+      }
+    }
+
+    function getPageLink(pageId) {
+      return pageId ? `./page.html?id=${encodeURIComponent(pageId)}` : '';
+    }
+
+    function resolveInfoHref(info) {
+      if (info?.pageId) {
+        return getPageLink(info.pageId);
+      }
+      return info?.link || '#';
+    }
+
+    function populateInfoPageOptions() {
+      if (!elements.infoPageSelect) return;
+
+      const activePages = customPages.filter(page => page.active !== false && page.title);
+      const currentValue = elements.infoPageSelect.value;
+      elements.infoPageSelect.innerHTML = `
+        <option value="">Aucune page sélectionnée</option>
+        ${activePages.map(page => `
+          <option value="${page.id}">${page.title}</option>
+        `).join('')}
+      `;
+
+      if (currentValue && activePages.some(page => page.id === currentValue)) {
+        elements.infoPageSelect.value = currentValue;
       }
     }
 
@@ -1155,7 +1219,8 @@
             <div class="flex justify-between items-center">
               <div class="flex-1 min-w-0">
                 <p class="font-medium truncate">${info.title}</p>
-                <p class="text-xs text-accent truncate">${info.link}</p>
+                <p class="text-xs text-accent truncate">${resolveInfoHref(info)}</p>
+                ${info.pageId ? '<p class="text-[11px] text-secondary mt-1">Page interne associee</p>' : ''}
               </div>
               <span class="text-xs ml-2 ${info.active === false ? 'text-accent' : 'text-success'}">
                 ${info.active === false ? 'Inactif' : 'Actif'}
@@ -1280,7 +1345,7 @@
       
       elements.infoPreview.innerHTML = activeInfos.map(info => `
         <div>
-          <a href="${info.link}" class="text-sm hover:text-secondary transition-colors">
+          <a href="${resolveInfoHref(info)}" class="text-sm hover:text-secondary transition-colors">
             ${info.title}
           </a>
         </div>
@@ -1390,7 +1455,7 @@
             <div class="space-y-2">
               ${activeInfos.map(info => `
                 <div>
-                  <a href="${info.link}" class="text-sm text-ivory/80 hover:text-secondary transition-colors">
+                  <a href="${resolveInfoHref(info)}" class="text-sm text-ivory/80 hover:text-secondary transition-colors">
                     ${info.title}
                   </a>
                 </div>
@@ -1543,6 +1608,10 @@
     function resetInfoForm() {
       currentInfoId = null;
       elements.infoId.value = '';
+      elements.infoPageId.value = '';
+      if (elements.infoPageSelect) {
+        elements.infoPageSelect.value = '';
+      }
       elements.infoTitle.value = '';
       elements.infoLink.value = '';
       elements.infoActive.checked = true;
@@ -1554,8 +1623,12 @@
       
       currentInfoId = id;
       elements.infoId.value = id;
+      elements.infoPageId.value = info.pageId || '';
       elements.infoTitle.value = info.title || '';
-      elements.infoLink.value = info.link || '';
+      elements.infoLink.value = info.pageId ? getPageLink(info.pageId) : (info.link || '');
+      if (elements.infoPageSelect) {
+        elements.infoPageSelect.value = info.pageId || '';
+      }
       elements.infoActive.checked = info.active !== false;
       
       openInfoModal(true);
@@ -1577,10 +1650,14 @@
 
     async function saveInfo(e) {
       e.preventDefault();
+
+      const selectedPageId = elements.infoPageId.value || '';
+      const finalLink = selectedPageId ? getPageLink(selectedPageId) : elements.infoLink.value;
       
       const infoData = {
         title: elements.infoTitle.value,
-        link: elements.infoLink.value,
+        link: finalLink,
+        pageId: selectedPageId || null,
         active: elements.infoActive.checked,
         updatedAt: new Date().toISOString()
       };
@@ -1608,6 +1685,21 @@
       } catch (error) {
         console.error('❌ Erreur sauvegarde:', error);
         showNotification('Erreur lors de la sauvegarde', 'error');
+      }
+    }
+
+    function selectInfoPage() {
+      const pageId = elements.infoPageSelect?.value || '';
+      const page = customPages.find(item => item.id === pageId);
+      if (!pageId || !page) {
+        elements.infoPageId.value = '';
+        return;
+      }
+
+      elements.infoPageId.value = pageId;
+      elements.infoLink.value = getPageLink(pageId);
+      if (!elements.infoTitle.value.trim()) {
+        elements.infoTitle.value = page.title || '';
       }
     }
 
@@ -1827,6 +1919,17 @@
       
       // Liens informations
       elements.addInfoBtn.addEventListener('click', () => openInfoModal(false));
+      elements.selectInfoPageBtn?.addEventListener('click', selectInfoPage);
+      elements.infoLink.addEventListener('input', () => {
+        const currentPageId = elements.infoPageId.value;
+        if (!currentPageId) return;
+        if (elements.infoLink.value !== getPageLink(currentPageId)) {
+          elements.infoPageId.value = '';
+          if (elements.infoPageSelect) {
+            elements.infoPageSelect.value = '';
+          }
+        }
+      });
       
       // Moyens de paiement
       elements.addPaymentBtn.addEventListener('click', () => openPaymentModal(false));

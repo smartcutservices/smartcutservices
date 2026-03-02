@@ -88,6 +88,10 @@
       max-width: 100%;
     }
 
+    #sierra-categories-root {
+      scroll-margin-top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + 1rem);
+    }
+
     /* Overlays / modales: base mobile-first robuste */
     [class*="product-modal-overlay-"],
     [class*="product-modal-container-"],
@@ -153,6 +157,13 @@
       .cart-container {
         width: min(450px, 100vw) !important;
         max-width: min(450px, 100vw) !important;
+      }
+    }
+
+    @media (max-width: 768px) {
+      #sierra-categories-root {
+        margin-top: 0.75rem;
+        padding-top: calc((var(--header-height-mobile, 70px) * 0.6) + 0.5rem);
       }
     }
     

@@ -924,7 +924,7 @@
         </div>
         
         <!-- Prix et stock -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label class="block text-sm text-text-secondary mb-1">Prix spécifique</label>
             <input type="number" id="varPrice" step="0.01" class="form-input" placeholder="Optionnel">
@@ -932,6 +932,10 @@
           <div>
             <label class="block text-sm text-text-secondary mb-1">Stock *</label>
             <input type="number" id="varStock" class="form-input" required min="0" value="0">
+          </div>
+          <div>
+            <label class="block text-sm text-text-secondary mb-1">Poids (g)</label>
+            <input type="number" id="varWeightGrams" class="form-input" min="0" step="1" value="0" placeholder="Ex: 1500">
           </div>
         </div>
         
@@ -1113,6 +1117,7 @@
           varSku: document.getElementById('varSku'),
           varPrice: document.getElementById('varPrice'),
           varStock: document.getElementById('varStock'),
+          varWeightGrams: document.getElementById('varWeightGrams'),
           varImagesContainer: document.getElementById('varImagesContainer'),
           varImageNameInput: document.getElementById('varImageNameInput'),
           addVarImageNameBtn: document.getElementById('addVarImageNameBtn'),
@@ -1645,6 +1650,10 @@
                   <span class="text-text-secondary">Stock:</span>
                   <span class="ml-2 font-medium">${varia.stock || 0}</span>
                 </div>
+                <div>
+                  <span class="text-text-secondary">Poids:</span>
+                  <span class="ml-2 font-medium">${Number(varia.weightGrams || 0) > 0 ? `${Number(varia.weightGrams)} g` : 'Non défini'}</span>
+                </div>
               </div>
               
               ${variationImages.length > 0 ? `
@@ -1966,6 +1975,7 @@
             this.elements.varSku.value = varia.sku || '';
             this.elements.varPrice.value = varia.price || '';
             this.elements.varStock.value = varia.stock || 0;
+            this.elements.varWeightGrams.value = varia.weightGrams || 0;
             this.elements.variationModalTitle.textContent = 'Modifier la variation';
             
             // Charger les images de la variation
@@ -2027,6 +2037,7 @@
           sku: this.elements.varSku.value.trim(),
           price: parseFloat(this.elements.varPrice.value) || null,
           stock: parseInt(this.elements.varStock.value) || 0,
+          weightGrams: parseInt(this.elements.varWeightGrams.value, 10) || 0,
           customOptions: this.collectCustomOptions()
         };
 
@@ -2109,6 +2120,7 @@
         this.elements.varSku.value = '';
         this.elements.varPrice.value = '';
         this.elements.varStock.value = '0';
+        this.elements.varWeightGrams.value = '0';
         this.elements.customOptionsContainer.innerHTML = '';
         this.elements.varImagesContainer.innerHTML = '';
         this.elements.varImageNameInput.value = '';

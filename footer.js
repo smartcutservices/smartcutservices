@@ -236,6 +236,10 @@ class FooterComponent {
         list-style: none;
         padding: 0;
         margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
       }
       
       .footer-links-${this.uniqueId} li {
@@ -328,13 +332,23 @@ class FooterComponent {
         .footer-${this.uniqueId} {
           padding: 2rem 1rem 1rem;
         }
+
+        .footer-col-${this.uniqueId},
+        .footer-links-${this.uniqueId},
+        .footer-links-${this.uniqueId} li {
+          width: 100%;
+          text-align: left;
+        }
         
         .footer-social-${this.uniqueId} {
           justify-content: center;
         }
         
         .footer-contact-item-${this.uniqueId} {
-          justify-content: center;
+          width: 100%;
+          justify-content: flex-start;
+          align-items: flex-start;
+          text-align: left;
         }
       }
     `;
@@ -484,13 +498,28 @@ class FooterComponent {
   }
   
   renderInfoLinks() {
-    return this.infoLinks.map(link => `
-      <li>
-        <a href="${link.link}" target="_blank" rel="noopener noreferrer">
-          ${link.title}
-        </a>
-      </li>
-    `).join('');
+    return this.infoLinks.map(link => {
+      const href = this.resolveInfoLink(link);
+      const isExternal = this.isExternalLink(href);
+      return `
+        <li>
+          <a href="${href}" ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ''}>
+            ${link.title}
+          </a>
+        </li>
+      `;
+    }).join('');
+  }
+
+  resolveInfoLink(link) {
+    if (link?.pageId) {
+      return `./page.html?id=${encodeURIComponent(link.pageId)}`;
+    }
+    return link?.link || '#';
+  }
+
+  isExternalLink(href) {
+    return /^https?:\/\//i.test(String(href || ''));
   }
   
   renderPaymentMethods() {

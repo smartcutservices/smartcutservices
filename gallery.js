@@ -4,7 +4,12 @@ import {
   collection, query, where, getDocs, orderBy 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
-import anime from 'https://cdn.skypack.dev/animejs@3.2.1';
+const anime = typeof window !== 'undefined' && typeof window.anime === 'function'
+  ? window.anime
+  : Object.assign(() => null, {
+      timeline: () => ({ add() { return this; } }),
+      stagger: () => 0
+    });
 
 class SierraGallery {
   constructor(containerId, options = {}) {

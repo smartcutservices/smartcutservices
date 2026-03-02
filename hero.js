@@ -10,7 +10,12 @@ import {
   getDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
-import anime from 'https://cdn.skypack.dev/animejs@3.2.1';
+const anime = typeof window !== 'undefined' && typeof window.anime === 'function'
+  ? window.anime
+  : Object.assign(() => null, {
+      timeline: () => ({ add() { return this; } }),
+      stagger: () => 0
+    });
 
 // ============================================
 // CONSTANTES
@@ -161,10 +166,12 @@ class SierraHero {
         display: flex;
         flex-direction: column;
         justify-content: center;
+        align-items: flex-start;
         padding: 4rem 3rem;
         background: var(--hero-bg);
         color: white;
         position: relative;
+        text-align: left;
       }
 
       .veltrixaHeroPanel294::before {
@@ -184,6 +191,12 @@ class SierraHero {
         opacity: 1;
         transform: translateY(0);
         will-change: transform, opacity;
+        width: 100%;
+        max-width: 100%;
+        text-align: left;
+        line-height: 1.05;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       
       .veltrixaHeroSubtitle881 {
@@ -197,6 +210,12 @@ class SierraHero {
         opacity: 1;
         transform: translateY(0);
         will-change: transform, opacity;
+        width: 100%;
+        max-width: 100%;
+        text-align: left;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       
       .veltrixaHeroButton562 {
@@ -298,6 +317,9 @@ class SierraHero {
         }
         
         .veltrixaHeroMobileContent528 {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
           position: absolute;
           bottom: calc(env(safe-area-inset-bottom, 0px) + 0.95rem);
           left: clamp(0.85rem, 4vw, 1.35rem);
@@ -323,6 +345,10 @@ class SierraHero {
           line-height: 1.12;
           color: var(--hero-title-color);
           max-width: 18ch;
+          width: 100%;
+          text-align: left;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
         
         .veltrixaHeroMobileSubtitle741 {
@@ -340,6 +366,8 @@ class SierraHero {
           max-width: 32ch;
           text-align: left;
           align-self: flex-start;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
         
         .veltrixaHeroMobileButton892 {
@@ -371,7 +399,9 @@ class SierraHero {
       }
 
       .hero-reveal-line {
-        display: inline-block;
+        display: block;
+        width: 100%;
+        max-width: 100%;
         overflow: hidden;
       }
 

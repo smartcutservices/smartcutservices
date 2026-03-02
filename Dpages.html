@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>Smart Cut Services · Dashboard Pages</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --ink: #1F1E1C;
+      --gold: #C6A75E;
+      --paper: #F5F1E8;
+      --muted: #8B7E6B;
+      --success: #2E5D3A;
+      --danger: #7F1D1D;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(198, 167, 94, 0.12), transparent 26%),
+        linear-gradient(180deg, #fbfaf7 0%, #f5f1e8 100%);
+      color: var(--ink);
+      font-family: 'Manrope', sans-serif;
+    }
+
+    .card-shell {
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(198, 167, 94, 0.18);
+      border-radius: 1.25rem;
+      box-shadow: 0 20px 50px rgba(31, 30, 28, 0.06);
+    }
+
+    .field {
+      width: 100%;
+      border: 1px solid rgba(198, 167, 94, 0.25);
+      border-radius: 0.85rem;
+      background: rgba(245, 241, 232, 0.55);
+      padding: 0.9rem 1rem;
+      font: inherit;
+      color: var(--ink);
+    }
+
+    .field:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(198, 167, 94, 0.18);
+    }
+
+    .btn-main,
+    .btn-soft,
+    .btn-danger {
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+      padding: 0.85rem 1.2rem;
+      transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      text-decoration: none;
+    }
+
+    .btn-main {
+      background: var(--ink);
+      color: var(--paper);
+    }
+
+    .btn-soft {
+      background: rgba(198, 167, 94, 0.12);
+      color: var(--ink);
+      border: 1px solid rgba(198, 167, 94, 0.22);
+    }
+
+    .btn-danger {
+      background: rgba(127, 29, 29, 0.12);
+      color: var(--danger);
+      border: 1px solid rgba(127, 29, 29, 0.18);
+    }
+
+    .btn-main:hover,
+    .btn-soft:hover,
+    .btn-danger:hover {
+      transform: translateY(-1px);
+      opacity: 0.96;
+    }
+  </style>
+</head>
+<body>
+  <main class="max-w-7xl mx-auto px-4 py-6 md:px-6 md:py-8">
+    <section class="card-shell p-5 md:p-7 mb-6">
+      <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-[0.28em] text-[#8B7E6B] mb-2">Dashboard Pages</p>
+          <h1 class="text-4xl md:text-5xl leading-none" style="font-family: 'Cormorant Garamond', serif;">Pages personnalisees</h1>
+          <p class="text-sm md:text-base text-[#6E6557] mt-3 max-w-3xl">Creez les pages internes du site puis associez-les aux liens du footer via le bouton "Selectionner" dans le dashboard footer.</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <a href="./Dfooter.html" class="btn-soft">
+            <i class="fas fa-link"></i>
+            <span>Dashboard footer</span>
+          </a>
+          <a href="./index.html" class="btn-soft">
+            <i class="fas fa-house"></i>
+            <span>Voir le site</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-6">
+      <div class="card-shell p-5 md:p-7">
+        <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-5">
+          <div>
+            <h2 class="text-2xl" style="font-family: 'Cormorant Garamond', serif;">Editeur de page</h2>
+            <p class="text-sm text-[#6E6557] mt-1">Mission, Vision, Objectifs, Livraison, Remboursement ou toute autre page personnalisée.</p>
+          </div>
+          <div id="publicPageLink" class="text-xs text-[#8B7E6B]"></div>
+        </div>
+
+        <div class="mb-5">
+          <p class="text-xs uppercase tracking-[0.18em] text-[#8B7E6B] mb-3">Modeles rapides</p>
+          <div id="templateButtons" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <form id="pageForm" class="space-y-4">
+          <input type="hidden" id="pageId">
+
+          <div>
+            <label class="block text-sm font-semibold mb-2">Titre *</label>
+            <input id="pageTitle" type="text" class="field" required placeholder="Mission">
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold mb-2">Slug</label>
+            <input id="pageSlug" type="text" class="field" placeholder="mission">
+            <p class="text-xs text-[#8B7E6B] mt-2">Le slug est genere automatiquement, mais vous pouvez le personnaliser.</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold mb-2">Resume court</label>
+            <textarea id="pageSummary" class="field min-h-[110px]" placeholder="Courte introduction affichee sous le titre."></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold mb-2">Contenu *</label>
+            <textarea id="pageContent" class="field min-h-[260px]" required placeholder="Redigez ici le contenu complet de votre page."></textarea>
+          </div>
+
+          <label class="inline-flex items-center gap-3 text-sm font-medium">
+            <input id="pageActive" type="checkbox" checked>
+            <span>Page active</span>
+          </label>
+
+          <div class="flex flex-col sm:flex-row gap-3 pt-2">
+            <button type="submit" class="btn-main flex-1">
+              <i class="fas fa-floppy-disk"></i>
+              <span>Enregistrer la page</span>
+            </button>
+            <button type="button" id="resetPageBtn" class="btn-soft">
+              <i class="fas fa-rotate-left"></i>
+              <span>Reinitialiser</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="space-y-6">
+        <div class="card-shell p-5 md:p-7">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 class="text-2xl" style="font-family: 'Cormorant Garamond', serif;">Pages existantes</h2>
+              <p class="text-sm text-[#6E6557] mt-1">Cliquez sur "Modifier" pour recharger une page dans l'editeur.</p>
+            </div>
+            <span id="pageCount" class="text-sm font-semibold text-[#8B7E6B]">0 page</span>
+          </div>
+          <div id="pagesList" class="space-y-3"></div>
+          <div id="pagesEmpty" class="hidden py-8 text-center text-[#8B7E6B]">
+            <i class="fas fa-file-lines text-4xl mb-3 opacity-60"></i>
+            <p>Aucune page creee pour le moment.</p>
+          </div>
+        </div>
+
+        <div class="card-shell p-5 md:p-7">
+          <h2 class="text-2xl mb-4" style="font-family: 'Cormorant Garamond', serif;">Apercu rapide</h2>
+          <div id="pagePreview" class="rounded-3xl border border-[#C6A75E]/20 bg-gradient-to-b from-white to-[#F5F1E8] p-5 md:p-6 min-h-[260px]">
+            <p class="text-xs uppercase tracking-[0.18em] text-[#8B7E6B] mb-3">Page personnalisee</p>
+            <h3 id="previewTitle" class="text-4xl leading-none mb-3" style="font-family: 'Cormorant Garamond', serif;">Nouvelle page</h3>
+            <p id="previewSummary" class="text-sm text-[#6E6557] mb-4">Votre resume apparaitra ici.</p>
+            <div id="previewContent" class="text-sm leading-7 text-[#2C2A29]">Le contenu saisi sera previsualise ici en direct.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { getApp, getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+    import {
+      addDoc,
+      collection,
+      deleteDoc,
+      doc,
+      getDocs,
+      getFirestore,
+      orderBy,
+      query,
+      updateDoc
+    } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCOifibU2E6Vo-3Ohg-WmAHa43sa5HyFuw",
+      authDomain: "smartcutservices.firebaseapp.com",
+      projectId: "smartcutservices",
+      storageBucket: "smartcutservices.firebasestorage.app",
+      messagingSenderId: "589013273323",
+      appId: "1:589013273323:web:415772e7b94f6bb37d8cae",
+      measurementId: "G-R8GJXQP7BD"
+    };
+
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const PAGES_COLLECTION = 'footerPages';
+
+    const templates = [
+      'Mission',
+      'Vision',
+      "Objectifs de l'entreprise",
+      'Politique de livraison',
+      'Politique de remboursement'
+    ];
+
+    const elements = {
+      pageForm: document.getElementById('pageForm'),
+      pageId: document.getElementById('pageId'),
+      pageTitle: document.getElementById('pageTitle'),
+      pageSlug: document.getElementById('pageSlug'),
+      pageSummary: document.getElementById('pageSummary'),
+      pageContent: document.getElementById('pageContent'),
+      pageActive: document.getElementById('pageActive'),
+      resetPageBtn: document.getElementById('resetPageBtn'),
+      templateButtons: document.getElementById('templateButtons'),
+      pagesList: document.getElementById('pagesList'),
+      pagesEmpty: document.getElementById('pagesEmpty'),
+      pageCount: document.getElementById('pageCount'),
+      publicPageLink: document.getElementById('publicPageLink'),
+      previewTitle: document.getElementById('previewTitle'),
+      previewSummary: document.getElementById('previewSummary'),
+      previewContent: document.getElementById('previewContent')
+    };
+
+    let pages = [];
+
+    function slugify(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80);
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function getPublicLink(pageId) {
+      return pageId ? `./page.html?id=${encodeURIComponent(pageId)}` : '';
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        position: fixed;
+        top: 18px;
+        right: 18px;
+        z-index: 999999;
+        background: ${type === 'success' ? '#2E5D3A' : '#7F1D1D'};
+        color: #fff;
+        padding: 0.9rem 1.3rem;
+        border-radius: 999px;
+        box-shadow: 0 16px 30px rgba(0,0,0,0.14);
+        font-size: 0.92rem;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2800);
+    }
+
+    function renderTemplateButtons() {
+      elements.templateButtons.innerHTML = templates.map((label) => `
+        <button type="button" class="btn-soft template-btn" data-label="${label}">
+          ${label}
+        </button>
+      `).join('');
+
+      document.querySelectorAll('.template-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          elements.pageTitle.value = button.dataset.label || '';
+          if (!elements.pageSlug.value.trim()) {
+            elements.pageSlug.value = slugify(elements.pageTitle.value);
+          }
+          updatePreview();
+        });
+      });
+    }
+
+    function resetForm() {
+      elements.pageId.value = '';
+      elements.pageTitle.value = '';
+      elements.pageSlug.value = '';
+      delete elements.pageSlug.dataset.mode;
+      elements.pageSummary.value = '';
+      elements.pageContent.value = '';
+      elements.pageActive.checked = true;
+      updatePreview();
+    }
+
+    function updatePreview() {
+      const title = elements.pageTitle.value.trim() || 'Nouvelle page';
+      const summary = elements.pageSummary.value.trim() || 'Votre resume apparaitra ici.';
+      const content = elements.pageContent.value.trim() || 'Le contenu saisi sera previsualise ici en direct.';
+
+      elements.previewTitle.textContent = title;
+      elements.previewSummary.textContent = summary;
+      elements.previewContent.innerHTML = escapeHtml(content).replace(/\n/g, '<br>');
+
+      const publicLink = getPublicLink(elements.pageId.value);
+      elements.publicPageLink.innerHTML = publicLink
+        ? `<a href="${publicLink}" target="_blank" rel="noopener noreferrer" class="text-[#8B7E6B] underline">Ouvrir la page publique</a>`
+        : '<span>Le lien public sera genere apres la premiere sauvegarde.</span>';
+    }
+
+    async function loadPages() {
+      try {
+        const snapshot = await getDocs(query(collection(db, PAGES_COLLECTION), orderBy('createdAt', 'desc')));
+        pages = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      } catch (error) {
+        console.error('❌ Erreur chargement pages:', error);
+        pages = [];
+      }
+      renderPages();
+    }
+
+    function renderPages() {
+      elements.pageCount.textContent = `${pages.length} page${pages.length > 1 ? 's' : ''}`;
+
+      if (!pages.length) {
+        elements.pagesList.innerHTML = '';
+        elements.pagesEmpty.classList.remove('hidden');
+        return;
+      }
+
+      elements.pagesEmpty.classList.add('hidden');
+      elements.pagesList.innerHTML = pages.map((page) => `
+        <div class="rounded-3xl border border-[#C6A75E]/15 bg-white/90 p-4">
+          <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <h3 class="text-xl leading-none" style="font-family: 'Cormorant Garamond', serif;">${escapeHtml(page.title || 'Sans titre')}</h3>
+                <span class="text-[11px] px-2 py-1 rounded-full ${page.active === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">
+                  ${page.active === false ? 'Inactive' : 'Active'}
+                </span>
+              </div>
+              <p class="text-xs text-[#8B7E6B] mb-2">Slug: ${escapeHtml(page.slug || '-')}</p>
+              <p class="text-sm text-[#6E6557]">${escapeHtml(page.summary || page.content || '')}</p>
+              <p class="text-xs text-[#8B7E6B] mt-2">${getPublicLink(page.id)}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <a href="${getPublicLink(page.id)}" target="_blank" rel="noopener noreferrer" class="btn-soft">Ouvrir</a>
+              <button type="button" class="btn-soft edit-page" data-id="${page.id}">Modifier</button>
+              <button type="button" class="btn-danger delete-page" data-id="${page.id}">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.edit-page').forEach((button) => {
+        button.addEventListener('click', () => editPage(button.dataset.id));
+      });
+
+      document.querySelectorAll('.delete-page').forEach((button) => {
+        button.addEventListener('click', () => deletePage(button.dataset.id));
+      });
+    }
+
+    function editPage(pageId) {
+      const page = pages.find((item) => item.id === pageId);
+      if (!page) return;
+
+      elements.pageId.value = page.id;
+      elements.pageTitle.value = page.title || '';
+      elements.pageSlug.value = page.slug || '';
+      elements.pageSlug.dataset.mode = 'manual';
+      elements.pageSummary.value = page.summary || '';
+      elements.pageContent.value = page.content || '';
+      elements.pageActive.checked = page.active !== false;
+      updatePreview();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deletePage(pageId) {
+      if (!pageId || !confirm('Supprimer cette page ?')) return;
+
+      try {
+        await deleteDoc(doc(db, PAGES_COLLECTION, pageId));
+        if (elements.pageId.value === pageId) {
+          resetForm();
+        }
+        await loadPages();
+        showToast('Page supprimee');
+      } catch (error) {
+        console.error('❌ Erreur suppression page:', error);
+        showToast('Erreur lors de la suppression', 'error');
+      }
+    }
+
+    async function savePage(event) {
+      event.preventDefault();
+
+      const title = elements.pageTitle.value.trim();
+      const summary = elements.pageSummary.value.trim();
+      const content = elements.pageContent.value.trim();
+      const slug = (elements.pageSlug.value.trim() || slugify(title)).slice(0, 80);
+
+      if (!title || !content) {
+        showToast('Le titre et le contenu sont obligatoires.', 'error');
+        return;
+      }
+
+      const payload = {
+        title,
+        slug,
+        summary,
+        content,
+        active: elements.pageActive.checked,
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        if (elements.pageId.value) {
+          await updateDoc(doc(db, PAGES_COLLECTION, elements.pageId.value), payload);
+          showToast('Page mise a jour');
+        } else {
+          const created = await addDoc(collection(db, PAGES_COLLECTION), {
+            ...payload,
+            createdAt: new Date().toISOString()
+          });
+          elements.pageId.value = created.id;
+          showToast('Page creee');
+        }
+
+        await loadPages();
+        updatePreview();
+      } catch (error) {
+        console.error('❌ Erreur sauvegarde page:', error);
+        showToast('Erreur lors de la sauvegarde', 'error');
+      }
+    }
+
+    function bindEvents() {
+      elements.pageForm.addEventListener('submit', savePage);
+      elements.resetPageBtn.addEventListener('click', resetForm);
+
+      elements.pageTitle.addEventListener('input', () => {
+        if (elements.pageSlug.dataset.mode !== 'manual') {
+          elements.pageSlug.value = slugify(elements.pageTitle.value);
+        }
+        updatePreview();
+      });
+
+      elements.pageSlug.addEventListener('input', () => {
+        elements.pageSlug.dataset.mode = elements.pageSlug.value.trim() ? 'manual' : 'auto';
+        updatePreview();
+      });
+
+      elements.pageSummary.addEventListener('input', updatePreview);
+      elements.pageContent.addEventListener('input', updatePreview);
+      elements.pageActive.addEventListener('change', updatePreview);
+    }
+
+    async function init() {
+      renderTemplateButtons();
+      bindEvents();
+      resetForm();
+      await loadPages();
+    }
+
+    init();
+  </script>
+  <script src="./dashboard-nav-bubble.js"></script>
+</body>
+</html>
