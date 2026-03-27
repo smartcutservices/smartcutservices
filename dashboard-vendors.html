@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Cut Services · Dashboard Vendeurs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Manrope', sans-serif;
+      color: #f6f1e8;
+      background:
+        radial-gradient(circle at top right, rgba(198, 167, 94, 0.18), transparent 24%),
+        linear-gradient(180deg, #171513 0%, #0f0e0d 100%);
+    }
+    .shell {
+      min-height: 100vh;
+      padding: 2rem;
+      display: grid;
+      gap: 1.25rem;
+    }
+    .hero, .panel, .stat-card, .application-card {
+      border-radius: 30px;
+      border: 1px solid rgba(198, 167, 94, 0.16);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      box-shadow: 0 24px 60px rgba(0,0,0,0.24);
+    }
+    .hero { padding: 2rem; }
+    .hero small,
+    .panel small {
+      display: inline-block;
+      color: #c6a75e;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.74rem;
+      font-weight: 700;
+      margin-bottom: 0.85rem;
+    }
+    .hero h1 {
+      margin: 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.6rem, 6vw, 4.5rem);
+      line-height: 0.92;
+    }
+    .hero p {
+      margin: 1rem 0 0;
+      color: rgba(246,241,232,0.72);
+      max-width: 74ch;
+      line-height: 1.85;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .stat-card {
+      padding: 1.15rem 1.2rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .stat-card i {
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(198, 167, 94, 0.14);
+      color: #c6a75e;
+    }
+    .stat-card strong {
+      display: block;
+      font-size: 1.4rem;
+    }
+    .stat-card span {
+      color: rgba(246,241,232,0.68);
+      font-size: 0.86rem;
+    }
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1.25rem;
+    }
+    .vendors-workspace {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr);
+      gap: 1.25rem;
+      align-items: start;
+    }
+    .vendors-sections-nav {
+      position: sticky;
+      top: 1.2rem;
+      display: grid;
+      gap: 0.8rem;
+      padding: 1rem;
+      border-radius: 26px;
+      border: 1px solid rgba(198, 167, 94, 0.16);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+      box-shadow: 0 24px 60px rgba(0,0,0,0.24);
+    }
+    .vendors-sections-content {
+      min-width: 0;
+    }
+    .vendors-section-link {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 0.8rem;
+      align-items: center;
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(198, 167, 94, 0.16);
+      background: rgba(255,255,255,0.03);
+      color: #f6f1e8;
+      border-radius: 18px;
+      padding: 0.85rem 0.95rem;
+      cursor: pointer;
+      font: inherit;
+    }
+    .vendors-section-link i {
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(198, 167, 94, 0.14);
+      color: #c6a75e;
+    }
+    .vendors-section-link strong {
+      display: block;
+      font-size: 0.94rem;
+    }
+    .vendors-section-link small {
+      display: block;
+      margin: 0.18rem 0 0;
+      color: rgba(246,241,232,0.62);
+      font-size: 0.78rem;
+      letter-spacing: 0;
+      text-transform: none;
+      font-weight: 500;
+    }
+    .vendors-section-link.active {
+      background: rgba(198, 167, 94, 0.18);
+      border-color: rgba(198, 167, 94, 0.38);
+      box-shadow: 0 14px 28px rgba(0,0,0,0.18);
+    }
+    .vendors-section-panel {
+      display: none;
+    }
+    .vendors-section-panel.is-active {
+      display: block;
+    }
+    .panel { padding: 1.45rem; }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .panel h2 {
+      margin: 0 0 0.8rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+    }
+    .panel p {
+      margin: 0;
+      color: rgba(246,241,232,0.68);
+      line-height: 1.78;
+    }
+    .applications {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .application-card {
+      padding: 1.15rem;
+      border-radius: 22px;
+    }
+    .application-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .application-top h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+    .application-top p {
+      margin: 0.35rem 0 0;
+      font-size: 0.86rem;
+    }
+    .badge {
+      padding: 0.55rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .application-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    .application-grid strong,
+    .application-copy strong {
+      display: block;
+      color: #c6a75e;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      margin-bottom: 0.4rem;
+    }
+    .application-grid span {
+      color: rgba(246,241,232,0.78);
+      font-size: 0.88rem;
+    }
+    .application-copy {
+      margin-top: 0.95rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 0.95rem;
+    }
+    .application-copy p {
+      margin: 0;
+      color: rgba(246,241,232,0.72);
+      font-size: 0.88rem;
+    }
+    .admin-note {
+      background: rgba(198, 167, 94, 0.06);
+      border-radius: 16px;
+      padding: 0.95rem;
+      border: 1px solid rgba(198, 167, 94, 0.12);
+    }
+    .actions {
+      display: flex;
+      gap: 0.7rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .actions button {
+      border: 1px solid rgba(198, 167, 94, 0.18);
+      background: rgba(255,255,255,0.04);
+      color: #f6f1e8;
+      border-radius: 999px;
+      padding: 0.7rem 0.95rem;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .actions .approve {
+      background: rgba(20, 83, 45, 0.18);
+      border-color: rgba(20, 83, 45, 0.32);
+    }
+    .actions .reject {
+      background: rgba(127, 29, 29, 0.16);
+      border-color: rgba(127, 29, 29, 0.3);
+    }
+    .roadmap {
+      display: grid;
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    .roadmap-item {
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      border-radius: 18px;
+      border: 1px solid rgba(198, 167, 94, 0.14);
+      background: rgba(255,255,255,0.03);
+      padding: 0.95rem;
+    }
+    .roadmap-index {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 999px;
+      background: rgba(198, 167, 94, 0.14);
+      color: #c6a75e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
+    .roadmap-item strong {
+      display: block;
+      font-size: 0.92rem;
+    }
+    .roadmap-item span {
+      display: block;
+      margin-top: 0.25rem;
+      color: rgba(246,241,232,0.68);
+      font-size: 0.84rem;
+      line-height: 1.55;
+    }
+    .empty-state {
+      margin-top: 1rem;
+      border-radius: 22px;
+      border: 1px dashed rgba(198, 167, 94, 0.2);
+      padding: 2rem;
+      text-align: center;
+      color: rgba(246,241,232,0.7);
+    }
+    .empty-state i {
+      color: #c6a75e;
+      font-size: 1.3rem;
+      margin-bottom: 0.8rem;
+    }
+    @media (max-width: 1100px) {
+      .shell { padding: 1rem; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .content-grid { grid-template-columns: 1fr; }
+      .application-grid { grid-template-columns: 1fr; }
+      .vendors-workspace { grid-template-columns: 1fr; }
+      .vendors-sections-nav {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell" id="vendors-dashboard-root"></main>
+  <script type="module">
+    import './firebase-init.js';
+    import VendorsDashboard from './vendors-dashboard.js';
+    new VendorsDashboard();
+  </script>
+</body>
+</html>

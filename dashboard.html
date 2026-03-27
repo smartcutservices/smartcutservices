@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#171614">
+  <title>Smart Cut Services · Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --bg: #12110f;
+      --bg-elevated: #1b1916;
+      --panel: rgba(255, 255, 255, 0.04);
+      --panel-strong: rgba(255, 255, 255, 0.07);
+      --border: rgba(198, 167, 94, 0.16);
+      --border-strong: rgba(198, 167, 94, 0.34);
+      --text: #f6f1e8;
+      --muted: #afa697;
+      --accent: #c6a75e;
+      --accent-soft: rgba(198, 167, 94, 0.14);
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      --sidebar-width: 320px;
+      --desktop-min-width: 1100px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(198, 167, 94, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(198, 167, 94, 0.08), transparent 24%),
+        linear-gradient(180deg, #141310 0%, #0f0e0c 100%);
+      color: var(--text);
+      font-family: 'Manrope', sans-serif;
+    }
+
+    body {
+      min-width: 320px;
+    }
+
+    .dashboard-shell {
+      display: none;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    .dashboard-lock {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+    }
+
+    .dashboard-lock-card {
+      width: min(100%, 520px);
+      border: 1px solid var(--border);
+      background: rgba(18, 17, 15, 0.88);
+      border-radius: 28px;
+      padding: 2.5rem;
+      box-shadow: var(--shadow);
+      text-align: center;
+      backdrop-filter: blur(20px);
+    }
+
+    .dashboard-lock-card h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .dashboard-lock-card p {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.98rem;
+    }
+
+    .dashboard-lock-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      border: 1px solid var(--border-strong);
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 0.65rem 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    @media (min-width: 1100px) {
+      .dashboard-shell {
+        display: grid;
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      }
+
+      .dashboard-lock {
+        display: none;
+      }
+    }
+
+    .dashboard-sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 1.5rem;
+      border-right: 1px solid var(--border);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.02), transparent 18%),
+        linear-gradient(180deg, rgba(18,17,15,0.95), rgba(18,17,15,0.98));
+      backdrop-filter: blur(18px);
+    }
+
+    .sidebar-inner {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border: 1px solid rgba(255,255,255,0.05);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar-head {
+      padding: 1.4rem 1.4rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background:
+        radial-gradient(circle at top left, rgba(198, 167, 94, 0.18), transparent 42%),
+        linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    }
+
+    .sidebar-head small {
+      display: inline-block;
+      margin-bottom: 0.55rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .sidebar-head h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 0.95;
+      margin-bottom: 0.55rem;
+    }
+
+    .sidebar-head p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.65;
+      max-width: 26ch;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .sidebar-link {
+      width: 100%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text);
+      border-radius: 18px;
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      cursor: pointer;
+      text-align: left;
+      transition: 180ms ease;
+    }
+
+    .sidebar-link:hover {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.06);
+      transform: translateX(2px);
+    }
+
+    .sidebar-link.active {
+      background: linear-gradient(180deg, rgba(198,167,94,0.18), rgba(198,167,94,0.1));
+      border-color: var(--border-strong);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .sidebar-link i {
+      width: 18px;
+      text-align: center;
+      color: var(--accent);
+      font-size: 0.95rem;
+      flex: 0 0 auto;
+    }
+
+    .sidebar-link strong {
+      display: block;
+      font-size: 0.94rem;
+      font-weight: 700;
+    }
+
+    .sidebar-link span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      margin-top: 0.15rem;
+    }
+
+    .sidebar-foot {
+      padding: 1rem 1.2rem 1.2rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .sidebar-foot a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.8rem 1rem;
+      background: rgba(255,255,255,0.02);
+      font-size: 0.86rem;
+      transition: 180ms ease;
+    }
+
+    .sidebar-foot a:hover {
+      border-color: var(--border-strong);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .dashboard-workspace {
+      min-width: 0;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .workspace-shell {
+      min-height: calc(100vh - 3rem);
+      border: 1px solid rgba(255,255,255,0.05);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border-radius: 30px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .workspace-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.2rem 1.35rem;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      background:
+        radial-gradient(circle at top right, rgba(198, 167, 94, 0.16), transparent 25%),
+        linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01));
+    }
+
+    .workspace-meta small {
+      display: inline-block;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .workspace-meta h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+      font-weight: 600;
+      line-height: 1;
+    }
+
+    .workspace-meta p {
+      margin-top: 0.35rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .workspace-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .workspace-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      padding: 0.72rem 0.9rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .workspace-status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px rgba(198,167,94,0.15);
+    }
+
+    .workspace-open {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+      border-radius: 999px;
+      border: 1px solid var(--border-strong);
+      color: var(--bg);
+      background: linear-gradient(180deg, #d6bb7f, #b79141);
+      padding: 0.82rem 1rem;
+      font-size: 0.84rem;
+      font-weight: 700;
+      transition: transform 180ms ease, filter 180ms ease;
+    }
+
+    .workspace-open:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .workspace-frame-wrap {
+      min-height: 0;
+      background: rgba(7, 7, 7, 0.18);
+      position: relative;
+    }
+
+    .workspace-frame {
+      width: 100%;
+      height: 100%;
+      min-height: calc(100vh - 133px);
+      border: 0;
+      background: #fff;
+      display: block;
+    }
+
+    .workspace-loader {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 14, 12, 0.42);
+      backdrop-filter: blur(6px);
+      z-index: 2;
+    }
+
+    .workspace-loader.visible {
+      display: flex;
+    }
+
+    .workspace-loader-card {
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: rgba(18, 17, 15, 0.95);
+      color: var(--text);
+      padding: 1rem 1.2rem;
+      box-shadow: var(--shadow);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.9rem;
+    }
+
+    .workspace-loader-card i {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main class="dashboard-shell">
+    <aside class="dashboard-sidebar">
+      <div class="sidebar-inner">
+        <div class="sidebar-head">
+          <small>Back Office</small>
+          <h1>Dashboard</h1>
+          <p>Un seul point d'entrée pour piloter tout le site proprement, section par section.</p>
+        </div>
+
+        <nav class="sidebar-nav" id="dashboard-nav" aria-label="Sections dashboard"></nav>
+
+        <div class="sidebar-foot">
+          <a href="./index.html">
+            <i class="fas fa-arrow-left"></i>
+            <span>Retour au site</span>
+          </a>
+        </div>
+      </div>
+    </aside>
+
+    <section class="dashboard-workspace">
+      <div class="workspace-shell">
+        <header class="workspace-head">
+          <div class="workspace-meta">
+            <small id="workspace-kicker">Section active</small>
+            <h2 id="workspace-title">Chargement</h2>
+            <p id="workspace-description">Le module selectionne apparait ici.</p>
+          </div>
+
+          <div class="workspace-actions">
+            <div class="workspace-status">Desktop only</div>
+            <a id="workspace-open-link" class="workspace-open" href="./Dheader.html" target="_blank" rel="noopener noreferrer">
+              <i class="fas fa-up-right-from-square"></i>
+              <span>Ouvrir seul</span>
+            </a>
+          </div>
+        </header>
+
+        <div class="workspace-frame-wrap">
+          <div class="workspace-loader" id="workspace-loader" aria-hidden="true">
+            <div class="workspace-loader-card">
+              <i class="fas fa-circle-notch fa-spin"></i>
+              <span>Chargement du module...</span>
+            </div>
+          </div>
+          <iframe id="dashboard-frame" class="workspace-frame" title="Dashboard workspace"></iframe>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="dashboard-lock" aria-live="polite">
+    <div class="dashboard-lock-card">
+      <div class="dashboard-lock-badge">
+        <i class="fas fa-desktop"></i>
+        <span>Acces desktop uniquement</span>
+      </div>
+      <h1>Dashboard indisponible sur mobile et tablette</h1>
+      <p>Ce back-office a ete volontairement reserve aux ecrans desktop pour garder une interface stable, lisible et professionnelle.</p>
+    </div>
+  </section>
+
+  <script type="module" src="./dashboard-shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1F1E1C">
+  <title>Imprimerie en ligne | Smart Cut Services</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; min-width: 0; }
+    html, body { width: 100%; max-width: 100%; overflow-x: clip; }
+    body {
+      font-family: 'Manrope', sans-serif;
+      color: #1F1E1C;
+      background:
+        radial-gradient(circle at top right, rgba(198, 167, 94, 0.14), transparent 24%),
+        linear-gradient(180deg, #fbf7ef 0%, #f2ebde 100%);
+      overflow-x: clip;
+    }
+    #printing-hub-root {
+      width: 100%;
+      padding-top: calc(var(--announce-height, 44px) + var(--header-height, 90px));
+    }
+    .printing-hero {
+      width: 100%;
+      min-height: min(88svh, 980px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      background:
+        linear-gradient(120deg, rgba(31, 30, 28, 0.92), rgba(31, 30, 28, 0.7)),
+        radial-gradient(circle at top left, rgba(198, 167, 94, 0.18), transparent 26%);
+      color: #F8F5EF;
+      overflow: hidden;
+    }
+    .printing-hero-copy {
+      padding: clamp(2rem, 6vw, 5.5rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1.1rem;
+    }
+    .printing-hero-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      width: fit-content;
+      padding: .55rem .95rem;
+      border-radius: 999px;
+      background: rgba(198, 167, 94, 0.16);
+      color: #E6C982;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .printing-hero h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(3.2rem, 7vw, 6.4rem);
+      line-height: .9;
+      max-width: 11ch;
+    }
+    .printing-hero p {
+      max-width: 60ch;
+      color: rgba(248, 245, 239, 0.86);
+      line-height: 1.95;
+      font-size: 1rem;
+    }
+    .printing-hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .85rem;
+      margin-top: .5rem;
+    }
+    .printing-hero-link {
+      display: inline-flex;
+      align-items: center;
+      gap: .7rem;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: 1rem 1.25rem;
+      font-weight: 800;
+      transition: transform .24s ease, box-shadow .24s ease, background .24s ease;
+    }
+    .printing-hero-link.primary {
+      background: #F8F5EF;
+      color: #1F1E1C;
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.2);
+    }
+    .printing-hero-link.secondary {
+      background: transparent;
+      color: #F8F5EF;
+      border: 1px solid rgba(248, 245, 239, 0.2);
+    }
+    .printing-hero-link:hover {
+      transform: translateY(-2px);
+    }
+    .printing-hero-media {
+      min-height: 100%;
+      position: relative;
+    }
+    .printing-hero-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .printing-hero-media::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(31, 30, 28, 0.08), rgba(31, 30, 28, 0)),
+        linear-gradient(180deg, rgba(31, 30, 28, 0), rgba(31, 30, 28, 0.18));
+    }
+    .printing-content {
+      width: 100%;
+      display: grid;
+      gap: 1.6rem;
+      padding: 1.75rem 0 3.2rem;
+    }
+    .printing-service {
+      max-width: 1380px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 0 1rem;
+    }
+    .printing-service-shell {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.92fr) minmax(320px, 1.08fr);
+      align-items: stretch;
+      border-radius: 2rem;
+      overflow: hidden;
+      border: 1px solid rgba(31, 30, 28, 0.08);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 28px 60px rgba(31, 30, 28, 0.08);
+    }
+    .printing-service.reverse .printing-service-shell {
+      grid-template-columns: minmax(320px, 1.08fr) minmax(320px, 0.92fr);
+    }
+    .printing-service-copy {
+      padding: clamp(1.45rem, 4vw, 3rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1rem;
+      background:
+        radial-gradient(circle at top left, rgba(198, 167, 94, 0.08), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 241, 232, 0.92));
+    }
+    .printing-service.reverse .printing-service-copy {
+      order: 2;
+    }
+    .printing-service-media {
+      min-height: 430px;
+      background: #ddd3c1;
+    }
+    .printing-service.reverse .printing-service-media {
+      order: 1;
+    }
+    .printing-service-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .printing-service small {
+      color: #8b6c2f;
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      font-size: .74rem;
+      font-weight: 800;
+    }
+    .printing-service h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.2rem, 5vw, 4rem);
+      line-height: .92;
+      color: #1F1E1C;
+    }
+    .printing-service p {
+      color: #6E6557;
+      line-height: 1.9;
+    }
+    .printing-service-list {
+      display: grid;
+      gap: .55rem;
+      list-style: none;
+      margin-top: .25rem;
+      color: #4F473D;
+    }
+    .printing-service-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: .65rem;
+      line-height: 1.75;
+    }
+    .printing-service-list i {
+      color: #C6A75E;
+      margin-top: .2rem;
+    }
+    .printing-service-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .85rem;
+      margin-top: .4rem;
+    }
+    .printing-service-actions a {
+      display: inline-flex;
+      align-items: center;
+      gap: .7rem;
+      width: fit-content;
+      text-decoration: none;
+      border-radius: 999px;
+      padding: .95rem 1.2rem;
+      font-weight: 800;
+      background: #1F1E1C;
+      color: #F8F5EF;
+      box-shadow: 0 14px 28px rgba(31, 30, 28, 0.18);
+    }
+    .printing-service-actions a.secondary {
+      background: #fff;
+      color: #1F1E1C;
+      border: 1px solid rgba(31, 30, 28, 0.12);
+      box-shadow: none;
+    }
+    @media (max-width: 1024px) {
+      #printing-hub-root {
+        padding-top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px));
+      }
+      .printing-hero {
+        min-height: auto;
+      }
+    }
+    @media (max-width: 980px) {
+      .printing-hero,
+      .printing-service-shell,
+      .printing-service.reverse .printing-service-shell {
+        grid-template-columns: 1fr;
+      }
+      .printing-hero h1 {
+        max-width: none;
+      }
+      .printing-service.reverse .printing-service-copy,
+      .printing-service.reverse .printing-service-media {
+        order: initial;
+      }
+      .printing-hero-media {
+        min-height: 320px;
+      }
+      .printing-service-media {
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="sierra-header-root"></div>
+  <main id="printing-hub-root">
+    <section class="printing-hero">
+      <div class="printing-hero-copy">
+        <span class="printing-hero-kicker">Imprimerie en ligne</span>
+        <h1>Commandez vos impressions sans quitter le site.</h1>
+        <p>Envoyez vos fichiers, choisissez vos options, laissez le site calculer le prix et passez votre commande en ligne. Smart Cut Services regroupe maintenant les documents PDF, les impressions photo, les plans CAD et les demandes grand format dans un meme espace clair.</p>
+        <div class="printing-hero-actions">
+          <a class="printing-hero-link secondary" href="#printing-grand-format-service">
+            <i class="fab fa-whatsapp"></i>
+            Voir le grand format
+          </a>
+        </div>
+      </div>
+      <div class="printing-hero-media">
+        <img src="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1800&q=80" alt="Atelier d impression et preparation de commandes" loading="eager">
+      </div>
+    </section>
+
+    <section class="printing-content">
+      <section id="printing-documents-service" class="printing-service">
+        <div class="printing-service-shell">
+          <div class="printing-service-media">
+            <img src="https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1600&q=80" alt="Documents PDF prets a etre imprimes" loading="lazy">
+          </div>
+          <div class="printing-service-copy">
+            <small>Automatique</small>
+            <h2>Impression de documents PDF</h2>
+            <p>Envoyez votre document PDF, choisissez le format et le papier qui vous conviennent, puis laissez le site calculer automatiquement votre prix avant la commande.</p>
+            <ul class="printing-service-list">
+              <li><i class="fas fa-check-circle"></i><span>Choisissez parmi plusieurs formats comme 8.5x11, 8.5x14, 11x17 ou 12x18</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Selectionnez le papier qui convient le mieux a votre besoin: Bond, Glossy, Bristol Glossy ou Autocollant</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Obtenez votre prix automatiquement selon les pages, le papier et le nombre de copies</span></li>
+            </ul>
+            <div class="printing-service-actions">
+              <a href="./printing-documents.html"><i class="fas fa-print"></i>Imprimer un document</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="printing-photo-service" class="printing-service reverse">
+        <div class="printing-service-shell">
+          <div class="printing-service-copy">
+            <small>Automatique</small>
+            <h2>Impression photo</h2>
+            <p>Chargez vos photos, choisissez la finition que vous preferez et obtenez instantanement le prix de votre impression avant de valider.</p>
+            <ul class="printing-service-list">
+              <li><i class="fas fa-check-circle"></i><span>Imprimez vos souvenirs en 4x6, 5x7, 8.5x11, 11x17 ou 13x19</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Choisissez le rendu qui vous ressemble: Matte, Ultra Glossy, Premium Glossy ou Premium Semiglossy</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Voyez le prix final avant d ajouter vos tirages au panier</span></li>
+            </ul>
+            <div class="printing-service-actions">
+              <a href="./printing-photo.html"><i class="fas fa-image"></i>Commander des photos</a>
+            </div>
+          </div>
+          <div class="printing-service-media">
+            <img src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1600&q=80" alt="Impression photo premium" loading="lazy">
+          </div>
+        </div>
+      </section>
+
+      <section id="printing-cad-service" class="printing-service">
+        <div class="printing-service-shell">
+          <div class="printing-service-media">
+            <img src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=80" alt="Plans CAD et architecture" loading="lazy">
+          </div>
+          <div class="printing-service-copy">
+            <small>Automatique</small>
+            <h2>Plans CAD & architecture</h2>
+            <p>Envoyez vos plans, choisissez le format voulu et recevez rapidement un prix adapte a vos impressions techniques et architecturales.</p>
+            <ul class="printing-service-list">
+              <li><i class="fas fa-check-circle"></i><span>Retrouvez les formats CAD les plus demandes comme 17x24, 24x36, 24x48 ou 36x48</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Utilisez aussi les formats complementaires 8.5x11, 8.5x14 et 11x17</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Passez votre commande plus facilement pour vos plans et documents techniques</span></li>
+            </ul>
+            <div class="printing-service-actions">
+              <a href="./printing-cad.html"><i class="fas fa-drafting-compass"></i>Imprimer un plan CAD</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="printing-grand-format-service" class="printing-service reverse">
+        <div class="printing-service-shell">
+          <div class="printing-service-copy">
+            <small>Manuel via equipe</small>
+            <h2>Stickers & grand format</h2>
+            <p>Pour vos stickers, bannieres et grands formats, envoyez simplement votre demande et echangez avec notre equipe pour recevoir un devis adapte a votre projet.</p>
+            <ul class="printing-service-list">
+              <li><i class="fas fa-check-circle"></i><span>Contact rapide via WhatsApp avec un message deja prepare</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Accompagnement direct par une equipe specialisee</span></li>
+              <li><i class="fas fa-check-circle"></i><span>Ideal pour les demandes sur mesure et les projets plus complexes</span></li>
+            </ul>
+            <div class="printing-service-actions">
+              <a href="./printing-grand-format.html" class="secondary"><i class="fab fa-whatsapp"></i>Demander un devis</a>
+            </div>
+          </div>
+          <div class="printing-service-media">
+            <img src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1600&q=80" alt="Stickers et grand format en production" loading="lazy">
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <div id="sierra-footer-root"></div>
+
+  <script type="module">
+    import './firebase-init.js';
+
+    const mount = async (rootId, loader, options = {}) => {
+      const root = document.getElementById(rootId);
+      if (!root) return;
+      try {
+        const mod = await loader();
+        if (typeof mod.getCartManager === 'function') {
+          mod.getCartManager(options);
+          return;
+        }
+        new mod.default(rootId, options);
+      } catch (error) {
+        console.error(`Erreur composant ${rootId}:`, error);
+      }
+    };
+
+    mount('sierra-header-root', () => import('./header.js'));
+    mount('sierra-footer-root', () => import('./footer.js'), {
+      imageBasePath: './',
+      showSocial: true,
+      showContact: true,
+      showInfos: true,
+      showPayments: true,
+      showCopyright: true
+    });
+  </script>
+</body>
+</html>

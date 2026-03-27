@@ -1,0 +1,7 @@
+.vscode/
+.vendor/
+pdf_extracts/
+*.log
+.tmp-index-script-*.mjs
+Thumbs.db
+Desktop.ini
