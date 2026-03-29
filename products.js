@@ -29,6 +29,8 @@ class SierraProducts {
       maxRelatedProducts: 6,
       layout: 'carousel',
       sectionTitle: 'Nos Produits',
+      maxDisplayCount: 0,
+      randomizeOnLoad: false,
       ...options
     };
     
@@ -76,6 +78,14 @@ class SierraProducts {
         }))
         .filter(product => this.isProductVisible(product));
     }
+
+    if (this.options.randomizeOnLoad === true) {
+      this.products = this.shuffleProducts(this.products);
+    }
+
+    if (Number.isFinite(this.options.maxDisplayCount) && this.options.maxDisplayCount > 0) {
+      this.products = this.products.slice(0, this.options.maxDisplayCount);
+    }
     
     // Initialiser l'index d'image pour chaque produit (première variation)
     this.products.forEach(product => {
@@ -88,6 +98,15 @@ class SierraProducts {
       }
     });
     
+  }
+
+  shuffleProducts(products = []) {
+    const copy = [...products];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
   }
   
   isProductVisible(product) {

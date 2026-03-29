@@ -434,7 +434,9 @@
       scrollIndicator: false,
       layout: 'grid-cards',
       sectionTitle: 'Selection produits',
-      maxRelatedProducts: 6
+      maxRelatedProducts: 6,
+      maxDisplayCount: 20,
+      randomizeOnLoad: true
     }, '700px');
 
     mountOnVisible('gallery', 'sierra-gallery-root', () => import('./gallery.js'), {
