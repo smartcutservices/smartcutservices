@@ -18,6 +18,7 @@
     { href: './dashboard.html#orders', label: 'Commandes' },
     { href: './dashboard.html#printing', label: 'Impression' },
     { href: './dashboard.html#vendors', label: 'Vendeurs' },
+    { href: './dashboard.html#security', label: 'Securite' },
     { href: './dashboard.html#music', label: 'Musique' },
     { href: './dashboard.html#theme', label: 'Theme' }
   ];
@@ -44,6 +45,7 @@
     'dashboard-orders',
     'dashboard-printing',
     'dashboard-vendors',
+    'dashboard-security',
     'musique',
     'theme'
   ]);
@@ -69,6 +71,7 @@
     'dashboard-orders': 'orders',
     'dashboard-printing': 'printing',
     'dashboard-vendors': 'vendors',
+    'dashboard-security': 'security',
     musique: 'music',
     theme: 'theme'
   };

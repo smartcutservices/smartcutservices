@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard · Securite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --bg: #f7f3eb;
+      --panel: #ffffff;
+      --text: #1f1e1c;
+      --muted: #7a746b;
+      --accent: #c6a75e;
+      --border: rgba(31, 30, 28, 0.08);
+      --shadow: 0 18px 40px rgba(31, 30, 28, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Manrope', sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(198,167,94,0.14), transparent 24%),
+        linear-gradient(180deg, #faf7f1 0%, #f3eee4 100%);
+      color: var(--text);
+    }
+
+    .security-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 2.5rem;
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .security-hero,
+    .security-card {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+    }
+
+    .security-hero {
+      padding: 1.5rem;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      align-items: stretch;
+    }
+
+    .security-hero h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2.1rem, 5vw, 3.8rem);
+      line-height: .92;
+      margin: .65rem 0 .85rem;
+    }
+
+    .security-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: .55rem;
+      width: fit-content;
+      padding: .55rem .85rem;
+      border-radius: 999px;
+      background: rgba(198,167,94,0.14);
+      color: #8b6c2f;
+      font-size: .76rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .security-hero p {
+      color: var(--muted);
+      line-height: 1.8;
+      margin: 0;
+      max-width: 58ch;
+    }
+
+    .security-stats {
+      display: grid;
+      gap: .9rem;
+      align-content: start;
+    }
+
+    .stat-box {
+      border-radius: 20px;
+      border: 1px solid rgba(198,167,94,0.18);
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246,239,226,0.94));
+      padding: 1rem;
+    }
+
+    .stat-box small {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+      margin-bottom: .35rem;
+    }
+
+    .stat-box strong {
+      font-size: 1rem;
+    }
+
+    .security-grid {
+      display: grid;
+      gap: 1.25rem;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, .8fr);
+    }
+
+    .security-card {
+      padding: 1.4rem;
+    }
+
+    .security-card h2 {
+      margin: 0 0 .45rem;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2rem;
+    }
+
+    .security-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    .security-form {
+      margin-top: 1.15rem;
+      display: grid;
+      gap: .85rem;
+    }
+
+    .security-form label {
+      display: block;
+      font-size: .9rem;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    .security-form input {
+      width: 100%;
+      padding: .9rem 1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(31,30,28,0.12);
+      background: #fff;
+      font: inherit;
+    }
+
+    .security-form input:focus {
+      outline: none;
+      border-color: rgba(198,167,94,0.66);
+      box-shadow: 0 0 0 4px rgba(198,167,94,0.12);
+    }
+
+    .primary-btn,
+    .ghost-btn {
+      border-radius: 999px;
+      padding: .95rem 1.1rem;
+      font-weight: 800;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .primary-btn {
+      border: none;
+      background: #1f1e1c;
+      color: #f8f5ef;
+    }
+
+    .ghost-btn {
+      border: 1px solid rgba(31,30,28,0.12);
+      background: #fff;
+      color: #1f1e1c;
+    }
+
+    .security-actions {
+      display: flex;
+      gap: .75rem;
+      flex-wrap: wrap;
+      margin-top: .2rem;
+    }
+
+    .security-message {
+      margin-top: .9rem;
+      padding: .9rem 1rem;
+      border-radius: 16px;
+      font-size: .92rem;
+      display: none;
+    }
+
+    .security-message.visible { display: block; }
+    .security-message.success { background: #ecfdf3; color: #166534; border: 1px solid #bbf7d0; }
+    .security-message.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .security-message.info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+    .security-list {
+      margin: 1rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: .75rem;
+    }
+
+    .security-list li {
+      border-radius: 18px;
+      background: #faf8f3;
+      border: 1px solid rgba(31,30,28,0.08);
+      padding: .9rem 1rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 920px) {
+      .security-hero,
+      .security-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="security-shell">
+    <section class="security-hero">
+      <div>
+        <span class="security-kicker"><i class="fas fa-shield-halved"></i><span>Securite admin</span></span>
+        <h1>Protegez le dashboard avec un vrai compte admin.</h1>
+        <p>Le dashboard ne doit plus etre ouvert a tout le monde. Cette section utilise Firebase Authentication pour le mot de passe, et Firestore pour verifier que le compte connecte a bien le role <strong>admin</strong>.</p>
+      </div>
+      <div class="security-stats">
+        <div class="stat-box">
+          <small>Compte connecte</small>
+          <strong id="security-admin-email">Verification...</strong>
+        </div>
+        <div class="stat-box">
+          <small>Role detecte</small>
+          <strong id="security-admin-role">En attente</strong>
+        </div>
+        <div class="stat-box">
+          <small>Derniere mise a jour securite</small>
+          <strong id="security-password-date">Aucune donnee</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="security-grid">
+      <article class="security-card">
+        <h2>Changer le mot de passe admin</h2>
+        <p>Le mot de passe n est jamais stocke en clair dans Firestore. Il reste gere par Firebase Auth. Ici, on demande simplement une re-authentification avant d appliquer le nouveau mot de passe.</p>
+
+        <form id="security-password-form" class="security-form">
+          <div>
+            <label for="security-current-password">Mot de passe actuel</label>
+            <input id="security-current-password" type="password" autocomplete="current-password" required>
+          </div>
+          <div>
+            <label for="security-new-password">Nouveau mot de passe</label>
+            <input id="security-new-password" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div>
+            <label for="security-confirm-password">Confirmer le nouveau mot de passe</label>
+            <input id="security-confirm-password" type="password" autocomplete="new-password" minlength="8" required>
+          </div>
+
+          <div class="security-actions">
+            <button type="submit" class="primary-btn">Mettre a jour le mot de passe</button>
+            <button type="button" id="security-reset-email" class="ghost-btn">Envoyer un email de reinitialisation</button>
+          </div>
+        </form>
+
+        <div id="security-message" class="security-message" aria-live="polite"></div>
+      </article>
+
+      <aside class="security-card">
+        <h2>Configuration base de donnees</h2>
+        <p>Pour autoriser un compte, cree ou complete son document dans <code>clients/{uid}</code> avec le role admin.</p>
+
+        <ul class="security-list">
+          <li><strong>Etape 1.</strong> Cree le compte admin dans Firebase Authentication.</li>
+          <li><strong>Etape 2.</strong> Dans Firestore, cree ou mets a jour <code>clients/{uid}</code>.</li>
+          <li><strong>Etape 3.</strong> Ajoute au minimum <code>role: "admin"</code> et idealement <code>dashboardAccess: true</code>.</li>
+          <li><strong>Etape 4.</strong> Une fois connecte avec ce compte, le dashboard s ouvrira automatiquement.</li>
+        </ul>
+      </aside>
+    </section>
+  </main>
+
+  <script type="module" src="./admin-access.js"></script>
+  <script type="module" src="./dashboard-security.js"></script>
+</body>
+</html>

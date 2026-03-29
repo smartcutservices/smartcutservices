@@ -91,6 +91,13 @@ const DASHBOARD_SECTIONS = [
     icon: 'fa-store'
   },
   {
+    id: 'security',
+    label: 'Securite',
+    description: 'Protection admin du dashboard et changement du mot de passe.',
+    href: './dashboard-security.html',
+    icon: 'fa-shield-halved'
+  },
+  {
     id: 'music',
     label: 'Musique',
     description: 'Gestion de la musique et de l ambiance sonore.',
