@@ -27,6 +27,8 @@ class SierraProducts {
       visibleProductsMobile: 1.2,
       scrollIndicator: true,
       maxRelatedProducts: 6,
+      layout: 'carousel',
+      sectionTitle: 'Nos Produits',
       ...options
     };
     
@@ -171,12 +173,17 @@ class SierraProducts {
       return;
     }
     
+    if (this.options.layout === 'grid-cards') {
+      this.renderGridCards();
+      return;
+    }
+
     const html = `
       <div class="products-wrapper-${this.uniqueId} w-full relative">
         <!-- En-tête avec indicateur de scroll -->
         <div class="flex justify-between items-center mb-6 px-4 md:px-6">
           <h2 class="font-primary text-2xl md:text-3xl text-luxury">
-            Nos Produits
+            ${this.options.sectionTitle}
           </h2>
           ${this.options.scrollIndicator ? `
             <div class="scroll-indicator-${this.uniqueId} flex items-center gap-2 text-accent text-sm md:hidden">
@@ -404,6 +411,90 @@ class SierraProducts {
     this.container.innerHTML = html;
   }
   
+
+  renderGridCards() {
+    this.container.innerHTML = `
+      <div class="products-wrapper-${this.uniqueId} products-grid-layout-${this.uniqueId}">
+        <div class="products-grid-header-${this.uniqueId}">
+          <h2 class="font-primary text-2xl md:text-3xl text-luxury">${this.options.sectionTitle}</h2>
+        </div>
+
+        <div class="products-grid-shell-${this.uniqueId}">
+          ${this.products.map((product, index) => this.renderProductCard(product, index)).join('')}
+        </div>
+      </div>
+
+      <style>
+        .products-grid-layout-${this.uniqueId} {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 0 1rem;
+        }
+
+        .products-grid-header-${this.uniqueId} {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1.2rem;
+        }
+
+        .products-grid-shell-${this.uniqueId} {
+          display: grid;
+          gap: 1.2rem;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .products-grid-shell-${this.uniqueId} .product-card-${this.uniqueId} {
+          width: auto;
+          max-width: none;
+          min-width: 0;
+          border-radius: 18px;
+          overflow: hidden;
+          background: #FFFFFF;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .products-grid-shell-${this.uniqueId} .product-card-${this.uniqueId}:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 20px 35px rgba(0, 0, 0, 0.12);
+        }
+
+        .products-grid-shell-${this.uniqueId} .product-image-container-${this.uniqueId} {
+          margin-bottom: 0;
+          border-radius: 0;
+          aspect-ratio: 1 / 1;
+        }
+
+        .products-grid-shell-${this.uniqueId} .product-main-image {
+          object-fit: cover !important;
+          padding: 0 !important;
+        }
+
+        .products-grid-shell-${this.uniqueId} .px-1 {
+          padding: 1rem;
+        }
+
+        @media (min-width: 640px) {
+          .products-grid-shell-${this.uniqueId} {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .products-grid-shell-${this.uniqueId} {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+        }
+
+        @media (min-width: 1440px) {
+          .products-grid-shell-${this.uniqueId} {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+          }
+        }
+      </style>
+    `;
+  }
+
   renderProductCard(product, index) {
     const hasVariations = product.variations && product.variations.length > 0;
     const activeVariation = this.getActiveVariation(product);
@@ -822,6 +913,7 @@ class SierraProducts {
   }
   
   initScrollIndicators() {
+    if (this.options.layout === 'grid-cards') return;
     const indicator = this.container.querySelector(`.scroll-indicator-${this.uniqueId}`);
     if (indicator && typeof anime !== 'undefined') {
       setTimeout(() => {

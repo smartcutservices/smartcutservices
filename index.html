@@ -302,14 +302,14 @@
   <!-- 2. Hero Section -->
   <div id="sierra-hero-root"></div>
   
-  <!-- 3. CatÃ©gories -->
-  <div id="sierra-categories-root"></div>
+  <!-- 3. Produits Section -->
+  <div id="sierra-products-root" class="my-10"></div>
   
   <!-- 4. Gallery Section -->
   <div id="sierra-gallery-root" class="my-8"></div>
 
-  <!-- 5. Produits Section -->
-  <div id="sierra-products-root" class="my-10"></div>
+  <!-- 5. CatÃ©gories -->
+  <div id="sierra-categories-root" class="my-10"></div>
 
   <section aria-label="Acces catalogue" style="max-width:1280px;margin:0 auto;padding:0 1rem 1rem;">
     <div style="border:1px solid rgba(31,30,28,0.08);border-radius:1.8rem;background:linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,242,230,0.94));box-shadow:0 20px 48px rgba(31,30,28,0.08);padding:1.35rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;">
@@ -424,11 +424,18 @@
     runTask(() => mount('header', 'sierra-header-root', () => import('./header.js')));
     runTask(() => mount('hero', 'sierra-hero-root', () => import('./hero.js')));
 
-    mountOnVisible('categories', 'sierra-categories-root', () => import('./categories.js'), {
-      collectionName: 'categorieindex',
-      docId: 'sectionConfig',
-      imagePath: ''
-    }, '800px');
+    mountOnVisible('products', 'sierra-products-root', () => import('./products.js'), {
+      collectionName: 'products',
+      filterActive: true,
+      imageBasePath: './',
+      animationDuration: 800,
+      visibleProductsDesktop: 4,
+      visibleProductsMobile: 1.2,
+      scrollIndicator: false,
+      layout: 'grid-cards',
+      sectionTitle: 'Selection produits',
+      maxRelatedProducts: 6
+    }, '700px');
 
     mountOnVisible('gallery', 'sierra-gallery-root', () => import('./gallery.js'), {
       collectionName: 'veltrixaGallerySectionMatrix7721',
@@ -437,16 +444,11 @@
       animationDuration: 800
     });
 
-    mountOnVisible('products', 'sierra-products-root', () => import('./products.js'), {
-      collectionName: 'products',
-      filterActive: true,
-      imageBasePath: './',
-      animationDuration: 800,
-      visibleProductsDesktop: 4,
-      visibleProductsMobile: 1.2,
-      scrollIndicator: true,
-      maxRelatedProducts: 6
-    }, '700px');
+    mountOnVisible('categories', 'sierra-categories-root', () => import('./categories.js'), {
+      layout: 'carousel',
+      sectionTitle: 'Explorer par categorie',
+      scrollHint: true
+    }, '800px');
 
     mountOnVisible('actualites', 'sierra-actualites-root', () => import('./actualites.js'), {
       collectionName: 'presentations',

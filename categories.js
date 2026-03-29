@@ -2,12 +2,19 @@ import { db } from './firebase-init.js';
 import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class CategoriesDisplay {
-  constructor(containerId) {
+  constructor(containerId, options = {}) {
     this.container = document.getElementById(containerId);
     if (!this.container) {
       console.error('Container categories introuvable');
       return;
     }
+
+    this.options = {
+      layout: 'grid',
+      sectionTitle: 'Nos categories',
+      scrollHint: true,
+      ...options
+    };
 
     this.collectionName = 'categories_list';
     this.items = [];
@@ -32,44 +39,97 @@ class CategoriesDisplay {
 
   renderBase() {
     this.container.innerHTML = `
-      <div class="categories-wrapper">
-        <div class="categories-grid"></div>
+      <div class="categories-wrapper-${this.options.layout}">
+        ${this.options.layout === 'carousel' ? `
+          <div class="categories-head">
+            <h2>${this.options.sectionTitle}</h2>
+            ${this.options.scrollHint ? `
+              <div class="categories-scroll-hint">
+                <span>Faites glisser</span>
+                <i class="fas fa-arrow-right"></i>
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
+        <div class="${this.options.layout === 'carousel' ? 'categories-row' : 'categories-grid'}"></div>
       </div>
     `;
 
-    this.grid = this.container.querySelector('.categories-grid');
+    this.grid = this.container.querySelector(this.options.layout === 'carousel' ? '.categories-row' : '.categories-grid');
 
     if (!document.getElementById('ultra-categories-style')) {
       const style = document.createElement('style');
       style.id = 'ultra-categories-style';
       style.textContent = `
-        .categories-wrapper {
+        .categories-wrapper-grid,
+        .categories-wrapper-carousel {
           max-width: 1400px;
           margin: auto;
-          padding: 1.5rem;
+          padding: 0 1rem;
         }
 
         .categories-grid {
           display: grid;
           gap: 1.2rem;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .categories-wrapper-carousel .categories-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .categories-wrapper-carousel .categories-head h2 {
+          font-family: 'Cormorant Garamond', serif;
+          font-size: clamp(1.6rem, 3vw, 2.2rem);
+          color: #1F1E1C;
+          margin: 0;
+        }
+
+        .categories-scroll-hint {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          color: #7A746B;
+          font-size: 0.88rem;
+        }
+
+        .categories-scroll-hint i {
+          animation: categoriesHintPulse 1s infinite;
+        }
+
+        .categories-row {
+          display: flex;
+          gap: 1rem;
+          overflow-x: auto;
+          padding-bottom: 0.35rem;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          scroll-behavior: smooth;
+        }
+
+        .categories-row::-webkit-scrollbar {
+          display: none;
         }
 
         @media (min-width: 640px) {
           .categories-grid {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
 
         @media (min-width: 1024px) {
           .categories-grid {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(4, minmax(0, 1fr));
           }
         }
 
         @media (min-width: 1440px) {
           .categories-grid {
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(5, minmax(0, 1fr));
           }
         }
 
@@ -83,6 +143,10 @@ class CategoriesDisplay {
             transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
             box-shadow 0.4s ease;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .categories-row .category-card {
+          flex: 0 0 min(230px, 70vw);
         }
 
         .category-card.scroll-hidden {
@@ -138,6 +202,11 @@ class CategoriesDisplay {
           letter-spacing: 0.5px;
           color: #111;
           background: white;
+        }
+
+        @keyframes categoriesHintPulse {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(5px); }
         }
       `;
       document.head.appendChild(style);
