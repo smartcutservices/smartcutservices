@@ -632,64 +632,65 @@ class SierraProducts {
   
   attachEvents() {
     const carousel = this.container.querySelector(`.products-carousel-${this.uniqueId}`);
-    if (!carousel) return;
     
-    // Variables pour le drag
-    let isDown = false;
-    let startX;
-    let scrollLeft;
-    
-    // Drag events
-    carousel.addEventListener('mousedown', (e) => {
-      isDown = true;
-      carousel.classList.add('active');
-      startX = e.pageX - carousel.offsetLeft;
-      scrollLeft = carousel.scrollLeft;
-    });
-    
-    carousel.addEventListener('mouseleave', () => {
-      isDown = false;
-      carousel.classList.remove('active');
-    });
-    
-    carousel.addEventListener('mouseup', () => {
-      isDown = false;
-      carousel.classList.remove('active');
-    });
-    
-    carousel.addEventListener('mousemove', (e) => {
-      if (!isDown) return;
-      e.preventDefault();
-      const x = e.pageX - carousel.offsetLeft;
-      const walk = (x - startX) * 2;
-      carousel.scrollLeft = scrollLeft - walk;
-    });
-    
-    // Scroll events pour indicateur mobile
-    carousel.addEventListener('scroll', () => {
-      if (!this.isScrolling) {
-        window.requestAnimationFrame(() => {
-          this.updateScrollIndicator(carousel);
-          this.isScrolling = false;
+    if (carousel) {
+      // Variables pour le drag
+      let isDown = false;
+      let startX;
+      let scrollLeft;
+      
+      // Drag events
+      carousel.addEventListener('mousedown', (e) => {
+        isDown = true;
+        carousel.classList.add('active');
+        startX = e.pageX - carousel.offsetLeft;
+        scrollLeft = carousel.scrollLeft;
+      });
+      
+      carousel.addEventListener('mouseleave', () => {
+        isDown = false;
+        carousel.classList.remove('active');
+      });
+      
+      carousel.addEventListener('mouseup', () => {
+        isDown = false;
+        carousel.classList.remove('active');
+      });
+      
+      carousel.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - carousel.offsetLeft;
+        const walk = (x - startX) * 2;
+        carousel.scrollLeft = scrollLeft - walk;
+      });
+      
+      // Scroll events pour indicateur mobile
+      carousel.addEventListener('scroll', () => {
+        if (!this.isScrolling) {
+          window.requestAnimationFrame(() => {
+            this.updateScrollIndicator(carousel);
+            this.isScrolling = false;
+          });
+          this.isScrolling = true;
+        }
+      });
+      
+      // Navigation flèches
+      const leftBtn = this.container.querySelector(`.scroll-left-${this.uniqueId}`);
+      const rightBtn = this.container.querySelector(`.scroll-right-${this.uniqueId}`);
+      
+      if (leftBtn) {
+        leftBtn.addEventListener('click', () => {
+          carousel.scrollBy({ left: -300, behavior: 'smooth' });
         });
-        this.isScrolling = true;
       }
-    });
-    
-    // Navigation flèches
-    const leftBtn = this.container.querySelector(`.scroll-left-${this.uniqueId}`);
-    const rightBtn = this.container.querySelector(`.scroll-right-${this.uniqueId}`);
-    
-    if (leftBtn) {
-      leftBtn.addEventListener('click', () => {
-        carousel.scrollBy({ left: -300, behavior: 'smooth' });
-      });
-    }
-    
-    if (rightBtn) {
-      rightBtn.addEventListener('click', () => {
-        carousel.scrollBy({ left: 300, behavior: 'smooth' });
-      });
+      
+      if (rightBtn) {
+        rightBtn.addEventListener('click', () => {
+          carousel.scrollBy({ left: 300, behavior: 'smooth' });
+        });
+      }
     }
     
     // Navigation images
@@ -738,7 +739,7 @@ class SierraProducts {
       btn.addEventListener('pointerdown', (e) => e.preventDefault());
     });
     
-    // Clic sur la carte produit pour ouvrir le modal
+    // Clic sur la carte produit pour ouvrir la page produit
     this.container.querySelectorAll('.product-content').forEach(wrapper => {
       wrapper.addEventListener('click', (e) => {
         // Éviter de déclencher si on clique sur les flèches ou les dots
