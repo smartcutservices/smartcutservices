@@ -584,7 +584,6 @@ class SierraHeaderNebula {
     try {
       const infoQuery = query(collection(db, 'footerInfos'), orderBy('createdAt', 'asc'));
       const infoSnap = await getDocs(infoQuery);
-      console.log('[HEADER] footerInfos menu mobile', infoSnap.size);
       const infos = infoSnap.docs
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((row) => row.active !== false && row.title && (row.link || row.pageId));
@@ -628,16 +627,10 @@ class SierraHeaderNebula {
     try {
       const configRef = doc(db, 'headerConfig', 'sierraHeaderGlobal');
       const configSnap = await getDoc(configRef);
-      console.log('[HEADER] Lecture config header', {
-        collection: 'headerConfig',
-        docId: 'sierraHeaderGlobal',
-        exists: configSnap.exists()
-      });
 
       if (!configSnap.exists()) return;
 
       const config = configSnap.data() || {};
-      console.log('[HEADER] Config header chargee', config);
 
       if (config.primaryColor) {
         document.documentElement.style.setProperty('--primary-color', config.primaryColor);

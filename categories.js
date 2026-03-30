@@ -218,7 +218,6 @@ class CategoriesDisplay {
     const productsRef = collection(db, 'products');
 
     onSnapshot(query(categoriesRef), (snapshot) => {
-      console.log('[CATEGORIES] Snapshot categories', snapshot.size);
       this.rawCategories = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
@@ -229,7 +228,6 @@ class CategoriesDisplay {
     });
 
     onSnapshot(query(productsRef), (snapshot) => {
-      console.log('[CATEGORIES] Snapshot produits pour categories', snapshot.size);
       this.firstProductImageByCategoryId.clear();
 
       snapshot.forEach((doc) => {
@@ -281,10 +279,6 @@ class CategoriesDisplay {
       });
     });
 
-    console.log('[CATEGORIES] Categories rendues', {
-      raw: this.rawCategories.length,
-      final: this.items.length
-    });
     this.renderCategories();
   }
 

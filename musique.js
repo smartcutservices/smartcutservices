@@ -50,17 +50,9 @@ class MusiqueComponent {
 
   async loadConfig() {
     const configRef = doc(db, this.options.configCollection, this.options.configDocId);
-    console.log('[MUSIQUE] Lecture config', {
-      collection: this.options.configCollection,
-      docId: this.options.configDocId
-    });
     const snapshot = await getDoc(configRef);
 
     if (!snapshot.exists()) {
-      console.warn('[MUSIQUE] Document introuvable', {
-        collection: this.options.configCollection,
-        docId: this.options.configDocId
-      });
       this.config = {
         isActive: false,
         mp3FileName: ''
@@ -69,7 +61,6 @@ class MusiqueComponent {
     }
 
     this.config = snapshot.data() || {};
-    console.log('[MUSIQUE] Config chargee', this.config);
   }
 
   isConfigPlayable() {

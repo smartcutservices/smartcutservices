@@ -243,17 +243,12 @@ class SierraGallery {
     );
     
     const snapshot = await getDocs(q);
-    console.log('[GALLERY] Snapshot galerie', {
-      collection: this.options.collectionName,
-      docs: snapshot.size
-    });
     this.blocks = snapshot.docs
       .map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
       .filter(block => this.options.filterActive ? block.galleryBlockIsActive321 !== false : true);
-    console.log('[GALLERY] Blocs retenus', this.blocks.length);
     
   }
   

@@ -75,7 +75,6 @@ class ActualitesCarousel {
       const q = query(presentationsRef, orderBy('createdAt', 'desc'));
       
       const snapshot = await getDocs(q);
-      console.log('[ACTUALITES] Snapshot presentations', snapshot.size);
       
       this.presentations = snapshot.docs
         .map(doc => {
@@ -85,7 +84,6 @@ class ActualitesCarousel {
           });
         })
         .filter(p => this.options.filterActive ? true : true);
-      console.log('[ACTUALITES] Presentations retenues', this.presentations.length);
       
       
     } catch (error) {
