@@ -110,6 +110,18 @@ function ensureGate() {
           font-weight:800;
           cursor:pointer;
         ">Se connecter</button>
+        <a href="./admin-setup.html" style="
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          text-decoration:none;
+          border-radius:999px;
+          padding:.95rem 1.2rem;
+          background:rgba(198,167,94,0.12);
+          border:1px solid rgba(198,167,94,0.32);
+          color:#F6F1E8;
+          font-weight:700;
+        ">Creer le compte admin</a>
         <a href="./index.html" style="
           display:inline-flex;
           align-items:center;

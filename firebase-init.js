@@ -37,6 +37,11 @@ try {
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
   storage = getStorage(app, STORAGE_BUCKET_URL);
+  console.log('[FIREBASE] Initialisation OK', {
+    projectId: firebaseConfig.projectId,
+    authDomain: firebaseConfig.authDomain,
+    storageBucket: firebaseConfig.storageBucket
+  });
   
   // Configuration du provider Google
   googleProvider.setCustomParameters({

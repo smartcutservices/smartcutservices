@@ -64,6 +64,7 @@ class SierraProducts {
   async loadProducts() {
     if (this.options.collectionName === 'products') {
       this.products = await loadPublicProducts({ maxPerCollection: 50 });
+      console.log('[PRODUCTS] Produits publics charges', this.products.length);
     } else {
       const q = query(
         collection(db, this.options.collectionName),
@@ -71,6 +72,10 @@ class SierraProducts {
       );
       
       const snapshot = await getDocs(q);
+      console.log('[PRODUCTS] Snapshot collection', {
+        collection: this.options.collectionName,
+        docs: snapshot.size
+      });
       this.products = snapshot.docs
         .map(doc => ({
           id: doc.id,
@@ -81,10 +86,15 @@ class SierraProducts {
 
     if (this.options.randomizeOnLoad === true) {
       this.products = this.shuffleProducts(this.products);
+      console.log('[PRODUCTS] Shuffle applique');
     }
 
     if (Number.isFinite(this.options.maxDisplayCount) && this.options.maxDisplayCount > 0) {
       this.products = this.products.slice(0, this.options.maxDisplayCount);
+      console.log('[PRODUCTS] Limite appliquee', {
+        maxDisplayCount: this.options.maxDisplayCount,
+        finalCount: this.products.length
+      });
     }
     
     // Initialiser l'index d'image pour chaque produit (première variation)

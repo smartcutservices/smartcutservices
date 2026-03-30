@@ -48,9 +48,11 @@ class FooterComponent {
     try {
       // Charger la configuration générale
       const configSnapshot = await getDocs(collection(db, 'footerConfig'));
+      console.log('[FOOTER] footerConfig docs', configSnapshot.size);
       if (!configSnapshot.empty) {
         this.config = configSnapshot.docs[0].data();
       } else {
+        console.warn('[FOOTER] footerConfig vide, fallback local utilise');
         this.config = {
           logo: '',
       companyName: 'Smart Cut Services',
@@ -72,6 +74,7 @@ class FooterComponent {
         collection(db, 'footerSocial'), 
         orderBy('createdAt', 'asc')
       ));
+      console.log('[FOOTER] footerSocial docs', socialSnapshot.size);
       this.socialNetworks = socialSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(s => s.active !== false);
@@ -81,6 +84,7 @@ class FooterComponent {
         collection(db, 'footerInfos'), 
         orderBy('createdAt', 'asc')
       ));
+      console.log('[FOOTER] footerInfos docs', infoSnapshot.size);
       this.infoLinks = infoSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(i => i.active !== false);
@@ -90,6 +94,7 @@ class FooterComponent {
         collection(db, 'footerPayment'), 
         orderBy('createdAt', 'asc')
       ));
+      console.log('[FOOTER] footerPayment docs', paymentSnapshot.size);
       this.paymentMethods = paymentSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(p => p.active !== false);

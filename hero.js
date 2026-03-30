@@ -802,8 +802,18 @@ class SierraHero {
     // Chargement initial
     try {
       const snap = await getDoc(heroDocRef);
+      console.log('[HERO] Lecture hero', {
+        collection: this.options.collectionName,
+        docId: this.options.docId,
+        exists: snap.exists()
+      });
       if (snap.exists()) {
         this.renderHero(snap.data());
+      } else {
+        console.warn('[HERO] Document hero absent', {
+          collection: this.options.collectionName,
+          docId: this.options.docId
+        });
       }
     } catch (error) {
       console.error('❌ [HERO] Erreur chargement:', error);
@@ -811,6 +821,11 @@ class SierraHero {
     
     // Écouter les changements en temps réel
     onSnapshot(heroDocRef, (snap) => {
+      console.log('[HERO] Snapshot hero', {
+        collection: this.options.collectionName,
+        docId: this.options.docId,
+        exists: snap.exists()
+      });
       if (snap.exists()) {
         this.renderHero(snap.data());
       }

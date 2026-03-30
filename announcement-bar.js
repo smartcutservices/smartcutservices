@@ -219,6 +219,7 @@ class AnnouncementBar {
       const q = query(announcementsRef, where('isActive', '==', true), orderBy('order', 'asc'));
       
       onSnapshot(q, (snapshot) => {
+        console.log('[ANNOUNCEMENT] Snapshot annonces', snapshot.size);
         this.announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         this.startRotation();
       }, (error) => {
