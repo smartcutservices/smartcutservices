@@ -1,6 +1,5 @@
 import { auth, db } from './firebase-init.js';
-import { getAuthManager } from './auth.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, query, collection, where, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 const ADMIN_ROLE = 'admin';
@@ -99,18 +98,72 @@ function ensureGate() {
         font-size:.96rem;
         margin:0 auto 1.25rem;
         max-width:42ch;
-      ">Seul un compte connecte avec le role admin peut ouvrir ce dashboard.</p>
-      <div style="display:flex;justify-content:center;gap:.8rem;flex-wrap:wrap;">
-        <button id="admin-gate-login" type="button" style="
-          border:none;
-          border-radius:999px;
-          padding:.95rem 1.2rem;
-          background:#C6A75E;
-          color:#171614;
-          font-weight:800;
-          cursor:pointer;
-        ">Se connecter</button>
-        <a href="./index.html" style="
+      ">Connecte-toi avec ton email admin et ton mot de passe pour ouvrir le dashboard.</p>
+
+      <form id="admin-gate-form" style="
+        display:grid;
+        gap:.8rem;
+        margin:0 auto 1rem;
+        text-align:left;
+      ">
+        <div>
+          <label for="admin-gate-email" style="
+            display:block;
+            margin-bottom:.35rem;
+            color:#B7AE9F;
+            font-size:.9rem;
+          ">Email admin</label>
+          <input id="admin-gate-email" type="email" autocomplete="username" style="
+            width:100%;
+            padding:.95rem 1rem;
+            border-radius:16px;
+            border:1px solid rgba(198,167,94,0.22);
+            background:rgba(255,255,255,0.06);
+            color:#F6F1E8;
+            font:inherit;
+          " />
+        </div>
+
+        <div>
+          <label for="admin-gate-password" style="
+            display:block;
+            margin-bottom:.35rem;
+            color:#B7AE9F;
+            font-size:.9rem;
+          ">Mot de passe</label>
+          <input id="admin-gate-password" type="password" autocomplete="current-password" style="
+            width:100%;
+            padding:.95rem 1rem;
+            border-radius:16px;
+            border:1px solid rgba(198,167,94,0.22);
+            background:rgba(255,255,255,0.06);
+            color:#F6F1E8;
+            font:inherit;
+          " />
+        </div>
+
+        <div id="admin-gate-error" style="
+          display:none;
+          padding:.8rem .95rem;
+          border-radius:14px;
+          background:rgba(127,29,29,0.18);
+          border:1px solid rgba(248,113,113,0.32);
+          color:#fecaca;
+          font-size:.9rem;
+          line-height:1.55;
+        "></div>
+
+        <div style="display:flex;justify-content:center;gap:.8rem;flex-wrap:wrap;margin-top:.2rem;">
+          <button id="admin-gate-login" type="submit" style="
+            border:none;
+            border-radius:999px;
+            padding:.95rem 1.2rem;
+            background:#C6A75E;
+            color:#171614;
+            font-weight:800;
+            cursor:pointer;
+          ">Se connecter</button>
+          <a href="./index.html" style="
           display:inline-flex;
           align-items:center;
           justify-content:center;
@@ -122,7 +175,8 @@ function ensureGate() {
           background:rgba(255,255,255,0.03);
           font-weight:700;
         ">Retour au site</a>
-      </div>
+        </div>
+      </form>
     </div>
   `;
 
@@ -133,31 +187,134 @@ function ensureGate() {
 function updateGateState({ mode = 'login' } = {}) {
   const gate = ensureGate();
   const copy = gate.querySelector('#admin-gate-copy');
+  const form = gate.querySelector('#admin-gate-form');
   const loginBtn = gate.querySelector('#admin-gate-login');
-  if (!copy || !loginBtn) return gate;
+  const errorBox = gate.querySelector('#admin-gate-error');
+  if (!copy || !loginBtn || !form || !errorBox) return gate;
 
   if (mode === 'checking') {
     copy.textContent = 'Verification du compte admin en cours...';
     loginBtn.textContent = 'Verification...';
     loginBtn.disabled = true;
     loginBtn.style.opacity = '0.7';
+    errorBox.style.display = 'none';
   } else if (mode === 'forbidden') {
-    copy.textContent = 'Ce compte est connecte, mais il n a pas le role admin dans la base de donnees.';
-    loginBtn.textContent = 'Se reconnecter';
-    loginBtn.disabled = false;
-    loginBtn.style.opacity = '1';
-  } else {
-    copy.textContent = 'Seul un compte connecte avec le role admin peut ouvrir ce dashboard.';
+    copy.textContent = 'Ce compte est connecte, mais il n a pas les droits admin pour ce dashboard.';
     loginBtn.textContent = 'Se connecter';
     loginBtn.disabled = false;
     loginBtn.style.opacity = '1';
+    errorBox.style.display = 'block';
+    errorBox.textContent = 'Ce compte ne peut pas ouvrir le dashboard admin.';
+  } else {
+    copy.textContent = 'Connecte-toi avec ton email admin et ton mot de passe pour ouvrir le dashboard.';
+    loginBtn.textContent = 'Se connecter';
+    loginBtn.disabled = false;
+    loginBtn.style.opacity = '1';
+    errorBox.style.display = 'none';
   }
 
-  loginBtn.onclick = () => {
-    getAuthManager().openAuthModal('login');
-  };
+  if (!form.dataset.bound) {
+    form.addEventListener('submit', handleAdminLogin);
+    form.dataset.bound = '1';
+  }
 
   return gate;
+}
+
+function getAuthErrorMessage(code) {
+  const messages = {
+    'auth/user-not-found': 'Aucun compte admin n a ete trouve avec cet email.',
+    'auth/wrong-password': 'Mot de passe incorrect.',
+    'auth/invalid-credential': 'Email ou mot de passe invalide.',
+    'auth/invalid-email': 'Email invalide.',
+    'auth/too-many-requests': 'Trop de tentatives. Reessaie plus tard.',
+    'auth/network-request-failed': 'Erreur reseau. Verifie la connexion.',
+    'auth/operation-not-allowed': 'La connexion Email / Mot de passe n est pas activee dans Firebase Authentication.'
+  };
+  return messages[code] || 'Connexion admin impossible pour le moment.';
+}
+
+async function handleAdminLogin(event) {
+  event.preventDefault();
+
+  const gate = ensureGate();
+  const emailInput = gate.querySelector('#admin-gate-email');
+  const passwordInput = gate.querySelector('#admin-gate-password');
+  const loginBtn = gate.querySelector('#admin-gate-login');
+  const errorBox = gate.querySelector('#admin-gate-error');
+  const copy = gate.querySelector('#admin-gate-copy');
+
+  const email = emailInput?.value?.trim() || '';
+  const password = passwordInput?.value || '';
+
+  if (!email || !password) {
+    if (errorBox) {
+      errorBox.style.display = 'block';
+      errorBox.textContent = 'Saisis l email admin et le mot de passe.';
+    }
+    return;
+  }
+
+  if (errorBox) {
+    errorBox.style.display = 'none';
+    errorBox.textContent = '';
+  }
+
+  if (copy) {
+    copy.textContent = 'Connexion admin en cours...';
+  }
+
+  if (loginBtn) {
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Connexion...';
+    loginBtn.style.opacity = '0.7';
+  }
+
+  try {
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const profile = await loadAdminProfile(credential.user?.uid);
+
+    if (!isAdminProfile(profile)) {
+      try {
+        await signOut(auth);
+      } catch (signOutError) {
+        console.error('Erreur deconnexion compte non admin:', signOutError);
+      }
+
+      if (errorBox) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'Ce compte ne peut pas ouvrir le dashboard admin.';
+      }
+
+      if (copy) {
+        copy.textContent = 'Ce compte est connecte, mais il n a pas les droits admin pour ce dashboard.';
+      }
+
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Se connecter';
+        loginBtn.style.opacity = '1';
+      }
+
+      return;
+    }
+
+    allowAccess(profile);
+  } catch (error) {
+    console.error('Erreur connexion admin:', error);
+    if (errorBox) {
+      errorBox.style.display = 'block';
+      errorBox.textContent = getAuthErrorMessage(error?.code);
+    }
+    if (copy) {
+      copy.textContent = 'Connecte-toi avec ton email admin et ton mot de passe pour ouvrir le dashboard.';
+    }
+    if (loginBtn) {
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Se connecter';
+      loginBtn.style.opacity = '1';
+    }
+  }
 }
 
 function allowAccess(profile) {
@@ -185,6 +342,11 @@ export function protectAdminPage() {
     const profile = await loadAdminProfile(user.uid);
 
     if (!isAdminProfile(profile)) {
+      try {
+        await signOut(auth);
+      } catch (error) {
+        console.error('Erreur deconnexion compte non admin:', error);
+      }
       denyAccess('forbidden');
       return;
     }
