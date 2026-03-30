@@ -145,7 +145,7 @@ class AuthManager {
         height: 100vh;
         background: rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(5px);
-        z-index: 1000000;
+        z-index: 1000010;
         display: flex;
         align-items: center;
         justify-content: center;
