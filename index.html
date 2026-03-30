@@ -88,6 +88,10 @@
       max-width: 100%;
     }
 
+    #sierra-hero-root {
+      min-height: 68vh;
+    }
+
     #sierra-categories-root {
       scroll-margin-top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + 1rem);
     }
@@ -384,6 +388,19 @@
     const loaded = new Set();
     const shouldIdle = window.innerWidth > 900;
 
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+
+    const ensureTopOnEntry = () => {
+      if (window.location.hash) return;
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    };
+
+    ensureTopOnEntry();
+    window.addEventListener('pageshow', ensureTopOnEntry);
+    window.addEventListener('load', ensureTopOnEntry);
+
     const runTask = (task) => {
       if (!shouldIdle || typeof window.requestIdleCallback !== 'function') {
         task();
@@ -421,8 +438,8 @@
       observer.observe(root);
     };
 
-    runTask(() => mount('header', 'sierra-header-root', () => import('./header.js')));
-    runTask(() => mount('hero', 'sierra-hero-root', () => import('./hero.js')));
+    mount('header', 'sierra-header-root', () => import('./header.js'));
+    mount('hero', 'sierra-hero-root', () => import('./hero.js'));
 
     mountOnVisible('products', 'sierra-products-root', () => import('./products.js'), {
       collectionName: 'products',
