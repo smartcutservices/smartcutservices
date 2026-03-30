@@ -180,6 +180,99 @@ class SierraProducts {
       return `${this.formatPrice(minPrice)} - ${this.formatPrice(maxPrice)}`;
     }
   }
+
+  getVariationLabel(variation) {
+    const parts = [];
+    if (variation?.color) parts.push(variation.color);
+    if (variation?.size) parts.push(variation.size);
+    if (variation?.volume) parts.push(variation.volume);
+    if (Array.isArray(variation?.customOptions)) {
+      variation.customOptions.forEach((opt) => {
+        if (opt?.name && opt?.value) {
+          parts.push(`${opt.name}: ${opt.value}`);
+        }
+      });
+    }
+    return parts.join(' • ') || variation?.sku || 'Variation';
+  }
+
+  toStockLimit(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.max(0, Math.floor(parsed));
+  }
+
+  getSelectionWeight(product, variation = null) {
+    const variationWeight = Number(variation?.weightGrams ?? variation?.weight);
+    if (Number.isFinite(variationWeight) && variationWeight > 0) {
+      return variationWeight;
+    }
+
+    const productWeight = Number(product?.weightGrams ?? product?.weight);
+    if (Number.isFinite(productWeight) && productWeight > 0) {
+      return productWeight;
+    }
+
+    return 0;
+  }
+
+  buildQuickAddItem(product) {
+    if (!product?.id) return null;
+
+    const state = this.currentImageIndex.get(product.id) || { variationIndex: 0, imageIndex: 0 };
+    const variationIndex = Number.isInteger(state.variationIndex) ? state.variationIndex : 0;
+    const variation = Array.isArray(product?.variations) ? product.variations[variationIndex] || null : null;
+    const fallbackImage = this.getVariationImages(product, variationIndex)[0] || '';
+    const finalImage = variation?.images?.[0] || fallbackImage;
+    const finalPrice = this.getVariationEffectivePrice(product, variation);
+    const stockLimit = variation
+      ? this.toStockLimit(variation?.stock)
+      : this.toStockLimit(product?.stock);
+    const selectedOptions = [];
+
+    if (variation) {
+      selectedOptions.push({
+        type: 'variation',
+        value: this.getVariationLabel(variation),
+        image: finalImage,
+        variationIndex
+      });
+    }
+
+    return {
+      productId: product.id,
+      sku: variation?.sku || product?.sku || '',
+      name: product?.name || 'Produit',
+      price: finalPrice,
+      image: finalImage,
+      stockLimit,
+      weightGrams: this.getSelectionWeight(product, variation),
+      selectedOptions,
+      quantity: 1,
+      timestamp: Date.now()
+    };
+  }
+
+  async quickAddProductToCart(productId) {
+    const product = this.products.find((item) => item.id === productId);
+    if (!product) return;
+
+    const item = this.buildQuickAddItem(product);
+    if (!item) return;
+
+    try {
+      const { getCartManager } = await import('./cart.js');
+      const cart = getCartManager();
+      if (cart && typeof cart.addItem === 'function') {
+        cart.addItem(item);
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Erreur quick add panier:', error);
+    }
+
+    document.dispatchEvent(new CustomEvent('addToCart', { detail: item }));
+  }
   
   render() {
     if (this.products.length === 0) {
@@ -730,7 +823,7 @@ class SierraProducts {
         e.stopPropagation();
         const productId = btn.dataset.productId;
         if (productId) {
-          this.openProductModal(productId);
+          this.quickAddProductToCart(productId);
         }
       };
       btn.addEventListener('click', handleCart);
