@@ -1,5 +1,6 @@
 import { db } from './firebase-init.js';
 import { getAuthManager } from './auth.js';
+import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 import {
   doc,
   getDoc,
@@ -157,7 +158,7 @@ class VendorApplicationPage {
                       <span style="line-height:1.75;">Votre candidature a ete approuvee par l administration. Vous pouvez maintenant acceder a votre dashboard vendeur personnel.</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
-                    <a href="./DvendorProducts.html" style="display:inline-flex;align-items:center;gap:.65rem;text-decoration:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;">
+                    <a href="${VENDOR_DASHBOARD_URL}" style="display:inline-flex;align-items:center;gap:.65rem;text-decoration:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;">
                       <i class="fas fa-store"></i>
                       Acceder a mon dashboard
                     </a>
