@@ -1405,49 +1405,81 @@ class CartManager {
   }
   
   showNotification(message, type = 'success') {
+    const existing = document.querySelector(`.cart-notification-${this.uniqueId}`);
+    if (existing) {
+      existing.remove();
+    }
+
+    const normalizedMessage = String(message || '')
+      .replace(/^[^\p{L}\p{N}]+/u, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 110);
+
+    const palette = {
+      success: { accent: '#C6A75E', border: 'rgba(198, 167, 94, 0.32)' },
+      warning: { accent: '#C88A2B', border: 'rgba(200, 138, 43, 0.28)' },
+      error: { accent: '#B14B4B', border: 'rgba(177, 75, 75, 0.28)' },
+      info: { accent: '#6F675C', border: 'rgba(111, 103, 92, 0.24)' }
+    };
+
+    const theme = palette[type] || palette.info;
     const notification = document.createElement('div');
     notification.className = `cart-notification-${this.uniqueId}`;
     notification.style.cssText = `
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${type === 'success' ? '#10B981' : type === 'warning' ? '#F59E0B' : type === 'error' ? '#EF4444' : '#3B82F6'};
-      color: white;
-      padding: 1rem 2rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-      z-index: 1000001;
-      transform: translateX(120%);
-      transition: transform 0.3s ease;
-      font-size: 0.95rem;
+      left: 1rem;
+      bottom: 1rem;
+      width: min(320px, calc(100vw - 2rem));
+      background: rgba(245, 241, 232, 0.98);
+      color: #1F1E1C;
+      border: 1px solid ${theme.border};
+      border-left: 4px solid ${theme.accent};
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+      z-index: 999995;
+      transform: translateY(24px);
+      opacity: 0;
+      transition: transform 0.22s ease, opacity 0.22s ease;
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      max-width: 350px;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.9rem 1rem;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
     `;
-    
+
     const icons = {
-      success: 'fa-check-circle',
-      warning: 'fa-exclamation-triangle',
-      error: 'fa-times-circle',
-      info: 'fa-info-circle'
+      success: 'fa-bag-shopping',
+      warning: 'fa-circle-exclamation',
+      error: 'fa-circle-xmark',
+      info: 'fa-circle-info'
     };
-    
+
     notification.innerHTML = `
-      <i class="fas ${icons[type] || 'fa-info-circle'}"></i>
-      <span>${message}</span>
+      <div style="width: 2rem; height: 2rem; flex: 0 0 2rem; border-radius: 999px; background: ${theme.accent}16; color: ${theme.accent}; display: flex; align-items: center; justify-content: center; margin-top: 0.05rem;">
+        <i class="fas ${icons[type] || 'fa-circle-info'}"></i>
+      </div>
+      <div style="min-width: 0; flex: 1;">
+        <div style="font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: ${theme.accent}; font-weight: 800; margin-bottom: 0.22rem;">Panier</div>
+        <div style="font-size: 0.92rem; line-height: 1.45; color: #1F1E1C; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+          ${normalizedMessage}
+        </div>
+      </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
+    requestAnimationFrame(() => {
+      notification.style.transform = 'translateY(0)';
+      notification.style.opacity = '1';
+    });
+
     setTimeout(() => {
-      notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    setTimeout(() => {
-      notification.style.transform = 'translateX(120%)';
-      setTimeout(() => notification.remove(), 300);
-    }, 5000);
+      notification.style.transform = 'translateY(16px)';
+      notification.style.opacity = '0';
+      setTimeout(() => notification.remove(), 220);
+    }, 2200);
   }
   
   toggleOrdersVisibility() {
