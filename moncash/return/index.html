@@ -3,23 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smart Cut Services | Retour MonCash</title>
+  <title>Smart Cut Services | Confirmation MonCash</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #f5f1e8;
-      --card: #ffffff;
+      --card: rgba(255, 255, 255, 0.94);
       --ink: #1f1e1c;
       --muted: #746b60;
       --accent: #c6a75e;
-      --border: rgba(198, 167, 94, 0.22);
+      --accent-strong: #a88a43;
+      --border: rgba(198, 167, 94, 0.24);
       --success: #1f7a45;
       --danger: #9b1c1c;
+      --pending: #8a6b1f;
     }
 
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -27,19 +30,21 @@
       place-items: center;
       padding: 1.5rem;
       background:
-        radial-gradient(circle at top left, rgba(198, 167, 94, 0.18), transparent 32%),
+        radial-gradient(circle at top left, rgba(198, 167, 94, 0.22), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(31, 30, 28, 0.1), transparent 34%),
         var(--bg);
       color: var(--ink);
       font-family: 'Manrope', sans-serif;
     }
 
     .card {
-      width: min(100%, 720px);
-      background: rgba(255, 255, 255, 0.92);
+      width: min(100%, 760px);
+      background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 28px;
+      border-radius: 30px;
       padding: 2rem;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(12px);
     }
 
     .eyebrow {
@@ -49,7 +54,7 @@
       padding: 0.55rem 0.9rem;
       border-radius: 999px;
       border: 1px solid var(--border);
-      color: var(--accent);
+      color: var(--accent-strong);
       font-size: 0.78rem;
       letter-spacing: 0.14em;
       text-transform: uppercase;
@@ -59,7 +64,7 @@
     h1 {
       margin: 1rem 0 0.75rem;
       font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(2.2rem, 5vw, 3.4rem);
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
       line-height: 0.95;
     }
 
@@ -72,7 +77,7 @@
     .status-box {
       margin-top: 1.5rem;
       padding: 1.2rem 1.25rem;
-      border-radius: 20px;
+      border-radius: 22px;
       background: #fff;
       border: 1px solid var(--border);
     }
@@ -80,10 +85,27 @@
     .status-box strong {
       display: block;
       margin-bottom: 0.35rem;
+      font-size: 1.05rem;
     }
 
     .status-paid strong { color: var(--success); }
     .status-failed strong { color: var(--danger); }
+    .status-pending strong { color: var(--pending); }
+
+    .meta {
+      display: none;
+      gap: 0.55rem;
+      margin-top: 1rem;
+    }
+
+    .meta-line {
+      padding: 0.75rem 0.9rem;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(245, 241, 232, 0.72);
+      color: var(--ink);
+      font-size: 0.94rem;
+    }
 
     .actions {
       display: flex;
@@ -101,6 +123,8 @@
       text-decoration: none;
       font-weight: 800;
       border: 1px solid var(--border);
+      cursor: pointer;
+      font: inherit;
     }
 
     .btn-primary {
@@ -112,21 +136,38 @@
       background: #fff;
       color: var(--ink);
     }
+
+    @media (max-width: 640px) {
+      .card {
+        padding: 1.35rem;
+        border-radius: 24px;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
   <main class="card">
     <div class="eyebrow">MonCash</div>
-    <h1 id="page-title">Vérification du paiement</h1>
-    <p id="page-copy">Nous vérifions l’état réel de votre transaction MonCash.</p>
+    <h1 id="page-title">Confirmation du paiement</h1>
+    <p id="page-copy">Nous finalisons la verification de votre transaction et la mise a jour de votre commande.</p>
 
-    <section id="status-box" class="status-box">
-      <strong>Chargement…</strong>
+    <section id="status-box" class="status-box status-pending">
+      <strong>Chargement...</strong>
       <span id="status-detail">Merci de patienter quelques secondes.</span>
+      <div id="order-meta" class="meta"></div>
     </section>
 
     <div class="actions">
-      <a class="btn btn-primary" href="/">Retour à l’accueil</a>
+      <button id="refresh-status-btn" class="btn btn-primary" type="button">Verifier le statut</button>
+      <a class="btn btn-secondary" href="/">Retour a l accueil</a>
       <a class="btn btn-secondary" href="/catalogue.html">Continuer vos achats</a>
     </div>
   </main>

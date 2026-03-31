@@ -1082,6 +1082,19 @@ class PaymentModal {
         throw new Error('MonCash n’a pas renvoyé d’URL de paiement.');
       }
 
+      try {
+        localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
+          sessionId: response?.sessionId || '',
+          orderId: response?.orderId || '',
+          amount: this.options.amount || 0,
+          customerName: customer.customerName,
+          customerEmail: customer.customerEmail,
+          startedAt: new Date().toISOString()
+        }));
+      } catch (_) {
+        // Ignore localStorage errors and continue to payment.
+      }
+
       window.location.assign(response.checkoutUrl);
     } catch (error) {
       console.error('❌ Erreur démarrage MonCash:', error);
