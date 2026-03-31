@@ -818,18 +818,23 @@ class SierraProducts {
     });
 
     this.container.querySelectorAll('.mobile-cart-btn').forEach(btn => {
-      const handleCart = (e) => {
+      btn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        const now = Date.now();
+        const lastTriggerAt = Number(btn.dataset.lastTriggerAt || 0);
+        if (now - lastTriggerAt < 500) {
+          return;
+        }
+
+        btn.dataset.lastTriggerAt = String(now);
+
         const productId = btn.dataset.productId;
         if (productId) {
           this.quickAddProductToCart(productId);
         }
-      };
-      btn.addEventListener('click', handleCart);
-      btn.addEventListener('pointerup', handleCart);
-      btn.addEventListener('touchend', handleCart, { passive: false });
-      btn.addEventListener('pointerdown', (e) => e.preventDefault());
+      });
     });
     
     // Clic sur la carte produit pour ouvrir la page produit
