@@ -56,5 +56,5 @@ export async function getMoncashPaymentStatus(reference) {
 }
 
 export function getMoncashReturnUrl() {
-  return new URL('/moncash/return/', window.location.origin).toString();
+  return new URL('/moncash/return', window.location.origin).toString();
 }

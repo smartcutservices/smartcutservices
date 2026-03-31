@@ -18,7 +18,7 @@ const MONCASH_GATEWAY_BASE = normalizeBaseUrl(
   process.env.MONCASH_GATEWAY_BASE || 'https://moncashbutton.digicelgroup.com/Moncash-middleware'
 );
 const MONCASH_CURRENCY = process.env.MONCASH_CURRENCY || 'HTG';
-const DEFAULT_RETURN_URL = `${SITE_BASE_URL}/moncash/return/`;
+const DEFAULT_RETURN_URL = `${SITE_BASE_URL}/moncash/return`;
 const DEFAULT_ALERT_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/moncashAlert`;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
