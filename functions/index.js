@@ -132,13 +132,6 @@ function buildBasicAuthHeader(clientId, clientSecret) {
   return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
 }
 
-function buildCredentialUrl(baseUrl, clientId, clientSecret, path) {
-  const url = new URL(`${normalizeBaseUrl(baseUrl)}${path}`);
-  url.username = clientId;
-  url.password = clientSecret;
-  return url.toString();
-}
-
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
   const rawText = await response.text();
@@ -191,18 +184,23 @@ async function getMoncashAccessToken() {
       throw error;
     }
 
-    logger.warn('MonCash OAuth with Authorization header failed, retrying with credential URL', {
+    logger.warn('MonCash OAuth with Authorization header failed, retrying with form credentials', {
       status,
       message: error?.message || ''
     });
 
-    payload = await fetchJson(buildCredentialUrl(MONCASH_API_BASE, clientId, clientSecret, '/oauth/token'), {
+    payload = await fetchJson(`${MONCASH_API_BASE}/oauth/token`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: authBody
+      body: new URLSearchParams({
+        scope: 'read,write',
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret
+      }).toString()
     });
   }
 

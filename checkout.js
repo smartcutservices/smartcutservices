@@ -1209,7 +1209,7 @@ class CheckoutModal {
       if (!this.validateDelivery()) {
         return;
       }
-      const module = await import('./payment.js');
+      const module = await import('./payment.js?v=20260331-3');
       const PaymentModal = module.default;
       
       await this.close();

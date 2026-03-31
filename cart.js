@@ -701,7 +701,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js');
+      const module = await import('./checkout.js?v=20260331-3');
       const CheckoutModal = module.default;
       
       if (this.modal) {
