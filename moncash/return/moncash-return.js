@@ -1,12 +1,16 @@
 import { getMoncashPaymentStatus } from '../../moncash-client.js';
+import { downloadOrderPdfReceipt } from '../../order-pdf.js';
 
 const PENDING_PAYMENT_KEY = 'smartcut_pending_moncash_payment';
+const CART_STORAGE_KEY = 'veltrixa_cart';
 const titleEl = document.getElementById('page-title');
 const copyEl = document.getElementById('page-copy');
 const statusBox = document.getElementById('status-box');
 const statusDetail = document.getElementById('status-detail');
 const orderMeta = document.getElementById('order-meta');
 const refreshBtn = document.getElementById('refresh-status-btn');
+const downloadPdfBtn = document.getElementById('download-pdf-btn');
+let latestOrder = null;
 
 function readPendingPayment() {
   try {
@@ -20,6 +24,15 @@ function readPendingPayment() {
 function clearPendingPayment() {
   try {
     localStorage.removeItem(PENDING_PAYMENT_KEY);
+  } catch (_) {
+    // Ignore storage issues.
+  }
+}
+
+function clearCartStorage() {
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, '[]');
+    localStorage.removeItem(CART_STORAGE_KEY);
   } catch (_) {
     // Ignore storage issues.
   }
@@ -53,6 +66,12 @@ function setState({ title, copy, detail, tone = 'neutral', meta = [] }) {
   setMetaLines(meta);
 }
 
+function setDownloadButton(order) {
+  latestOrder = order || null;
+  if (!downloadPdfBtn) return;
+  downloadPdfBtn.classList.toggle('btn-hidden', !latestOrder);
+}
+
 function buildReference(params, pending) {
   return {
     sessionId: params.get('session_id') || params.get('sessionId') || pending?.sessionId || '',
@@ -82,12 +101,9 @@ async function pollPaymentStatus(reference, pending) {
     const status = String(payload?.status || payload?.paymentStatus || '').toLowerCase();
 
     if (status === 'paid') {
-      try {
-        localStorage.removeItem('veltrixa_cart');
-      } catch (_) {
-        // Ignore storage issues.
-      }
+      clearCartStorage();
       clearPendingPayment();
+      setDownloadButton(payload?.order || null);
       setState({
         title: 'Paiement confirme',
         copy: 'Votre transaction MonCash a bien ete confirmee et votre commande est enregistree.',
@@ -99,6 +115,7 @@ async function pollPaymentStatus(reference, pending) {
     }
 
     if (status === 'failed' || status === 'cancelled') {
+      setDownloadButton(null);
       setState({
         title: 'Paiement non confirme',
         copy: 'La transaction n a pas ete validee par MonCash.',
@@ -138,6 +155,7 @@ async function runStatusCheck() {
 
   if (reference.forcedStatus === 'cancelled') {
     clearPendingPayment();
+    setDownloadButton(null);
     setState({
       title: 'Paiement annule',
       copy: 'Le paiement MonCash a ete annule avant validation.',
@@ -149,6 +167,7 @@ async function runStatusCheck() {
   }
 
   if (!reference.sessionId && !reference.transactionId && !reference.orderId) {
+    setDownloadButton(null);
     setState({
       title: 'Retour MonCash detecte',
       copy: 'Aucune reference de paiement n a ete trouvee dans cette page.',
@@ -167,6 +186,27 @@ async function runStatusCheck() {
   });
 
   await pollPaymentStatus(reference, pending);
+}
+
+if (downloadPdfBtn) {
+  downloadPdfBtn.addEventListener('click', async () => {
+    if (!latestOrder) return;
+    try {
+      await downloadOrderPdfReceipt(latestOrder, {
+        companyName: 'Smart Cut Services',
+        companyAddress: 'smartcutservices.com',
+        thankYouMessage: 'Merci pour votre confiance. Conservez ce PDF avec votre code unique.'
+      });
+    } catch (error) {
+      setState({
+        title: 'PDF indisponible',
+        copy: 'Le paiement est confirme, mais le PDF ne peut pas etre genere pour le moment.',
+        detail: error?.message || 'Reessayez dans quelques instants.',
+        tone: 'failed',
+        meta: buildMeta(latestOrder, readPendingPayment())
+      });
+    }
+  });
 }
 
 if (refreshBtn) {

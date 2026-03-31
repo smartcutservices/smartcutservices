@@ -120,6 +120,14 @@ function createSessionId() {
   return db.collection('paymentSessions').doc().id;
 }
 
+function createUniqueCode(seed = '') {
+  const normalized = String(seed || '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase();
+  const short = (normalized || Math.random().toString(36).slice(2)).slice(0, 6).padEnd(6, 'X');
+  return `SCS-${short}`;
+}
+
 function safeSecretValue(secretParam) {
   try {
     return String(secretParam.value() || '').trim();
@@ -325,6 +333,93 @@ async function updateOrderState(clientId, orderId, payload) {
   await orderRef.set(payload, { merge: true });
 }
 
+async function getOrderRecord(clientId, orderId) {
+  if (!clientId || !orderId) return null;
+  const snap = await db.collection('clients').doc(clientId).collection('orders').doc(orderId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ref: snap.ref, data: snap.data() || {} };
+}
+
+function getProductCollectionName(item) {
+  if (item?.sourceType === 'vendor' || item?.vendorId) {
+    return 'vendorProducts';
+  }
+  return 'products';
+}
+
+function getSelectedVariationIndex(item) {
+  const options = Array.isArray(item?.selectedOptions) ? item.selectedOptions : [];
+  const match = options.find((opt) => Number.isInteger(Number(opt?.variationIndex)));
+  return match ? Number(match.variationIndex) : null;
+}
+
+function getSelectedSizeValue(item) {
+  const options = Array.isArray(item?.selectedOptions) ? item.selectedOptions : [];
+  const match = options.find((opt) => {
+    const key = String(opt?.type || opt?.name || opt?.key || '').toLowerCase();
+    return key === 'size' || key === 'taille';
+  });
+  return match ? String(match.value || match.val || match.option || '').trim() : '';
+}
+
+async function decrementInventoryForItems(transaction, items = []) {
+  for (const item of items) {
+    const productId = String(item?.productId || '').trim();
+    if (!productId) continue;
+
+    const quantity = Math.max(1, toNumber(item?.quantity) || 1);
+    const collectionName = getProductCollectionName(item);
+    const productRef = db.collection(collectionName).doc(productId);
+    const productSnap = await transaction.get(productRef);
+    if (!productSnap.exists) continue;
+
+    const productData = productSnap.data() || {};
+    const patch = {};
+    let touched = false;
+
+    if (Number.isFinite(toNumber(productData.stock))) {
+      patch.stock = Math.max(0, toNumber(productData.stock) - quantity);
+      touched = true;
+    }
+
+    const variationIndex = getSelectedVariationIndex(item);
+    if (Number.isInteger(variationIndex) && Array.isArray(productData.variations) && productData.variations[variationIndex]) {
+      const variations = productData.variations.map((variation) => ({ ...variation }));
+      const variation = { ...variations[variationIndex] };
+      if (Number.isFinite(toNumber(variation.stock))) {
+        variation.stock = Math.max(0, toNumber(variation.stock) - quantity);
+        variations[variationIndex] = variation;
+        patch.variations = variations;
+        touched = true;
+      }
+    }
+
+    const sizeValue = getSelectedSizeValue(item);
+    if (sizeValue && Array.isArray(productData.sizes)) {
+      let sizeTouched = false;
+      const sizes = productData.sizes.map((size) => {
+        if (String(size?.size || '') !== sizeValue) return size;
+        const currentQty = toNumber(size?.quantity);
+        if (!Number.isFinite(currentQty)) return size;
+        sizeTouched = true;
+        return {
+          ...size,
+          quantity: Math.max(0, currentQty - quantity)
+        };
+      });
+
+      if (sizeTouched) {
+        patch.sizes = sizes;
+        touched = true;
+      }
+    }
+
+    if (touched) {
+      transaction.set(productRef, patch, { merge: true });
+    }
+  }
+}
+
 async function findSessionBySessionId(sessionId) {
   if (!sessionId) return null;
   const snap = await db.collection('paymentSessions').doc(sessionId).get();
@@ -403,11 +498,24 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   if (paymentStatus === 'paid') {
     orderPatch.paidAt = now;
     orderPatch.fulfillmentStatus = 'ordered';
+    orderPatch.receiptAvailable = true;
+    orderPatch.receiptReadyAt = now;
   }
 
-  await Promise.all([
-    session.ref.set(
-      {
+  if (paymentStatus === 'paid') {
+    await db.runTransaction(async (transaction) => {
+      const freshSessionSnap = await transaction.get(session.ref);
+      const freshSessionData = freshSessionSnap.data() || {};
+      const orderRef = db.collection('clients').doc(clientId).collection('orders').doc(orderId);
+      const orderSnap = await transaction.get(orderRef);
+      const orderData = orderSnap.data() || {};
+      const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
+
+      if (!alreadyApplied) {
+        await decrementInventoryForItems(transaction, orderData.items || []);
+      }
+
+      transaction.set(session.ref, {
         status: paymentStatus,
         providerOrderId: details.orderId || orderId,
         providerTransactionId: details.transactionId || null,
@@ -415,12 +523,30 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         providerMessage: details.message || '',
         providerResponse: details.providerResponse || null,
         updatedAt: now,
-        paidAt: paymentStatus === 'paid' ? now : sessionData.paidAt || null
-      },
-      { merge: true }
-    ),
-    updateOrderState(clientId, orderId, orderPatch)
-  ]);
+        paidAt: now,
+        inventoryAppliedAt: alreadyApplied ? freshSessionData.inventoryAppliedAt || null : now
+      }, { merge: true });
+
+      transaction.set(orderRef, orderPatch, { merge: true });
+    });
+  } else {
+    await Promise.all([
+      session.ref.set(
+        {
+          status: paymentStatus,
+          providerOrderId: details.orderId || orderId,
+          providerTransactionId: details.transactionId || null,
+          payer: details.payer || null,
+          providerMessage: details.message || '',
+          providerResponse: details.providerResponse || null,
+          updatedAt: now,
+          paidAt: sessionData.paidAt || null
+        },
+        { merge: true }
+      ),
+      updateOrderState(clientId, orderId, orderPatch)
+    ]);
+  }
 
   return {
     sessionId: session.id,
@@ -472,8 +598,9 @@ async function resolveAndSyncPayment({ sessionId = '', orderId = '', transaction
   };
 }
 
-function buildStatusResponse({ session, details, syncResult, fallbackSessionId = '' }) {
+function buildStatusResponse({ session, details, syncResult, fallbackSessionId = '', order = null }) {
   const sessionData = session?.data || {};
+  const orderData = order?.data || {};
   return {
     ok: true,
     sessionId: session?.id || fallbackSessionId || '',
@@ -482,9 +609,10 @@ function buildStatusResponse({ session, details, syncResult, fallbackSessionId =
     currency: sessionData.currency || MONCASH_CURRENCY,
     orderId: details?.orderId || sessionData.orderId || '',
     transactionId: details?.transactionId || sessionData.providerTransactionId || '',
-    uniqueCode: sessionData.uniqueCode || '',
+    uniqueCode: orderData.uniqueCode || sessionData.uniqueCode || '',
     orderStatus: syncResult?.paymentStatus === 'paid' ? 'paid' : (sessionData.status || ''),
-    paymentStatus: syncResult?.paymentStatus || sessionData.status || ''
+    paymentStatus: syncResult?.paymentStatus || sessionData.status || '',
+    order: order ? { id: order.id, ...orderData } : null
   };
 }
 
@@ -542,7 +670,7 @@ exports.createMoncashPayment = onRequest(
     const orderId = orderRef.id;
     const sessionRef = db.collection('paymentSessions').doc(sessionId);
     const now = new Date().toISOString();
-    const uniqueCode = `MCS-${sessionId.slice(0, 8).toUpperCase()}`;
+    const uniqueCode = createUniqueCode(sessionId);
 
     const orderDraft = {
       clientId: localClientId,
@@ -684,21 +812,25 @@ exports.moncashAlert = onRequest(
       return;
     }
 
-    try {
-      const result = await resolveAndSyncPayment({
-        sessionId,
-        orderId,
-        transactionId,
-        source: 'alert'
-      });
+      try {
+        const result = await resolveAndSyncPayment({
+          sessionId,
+          orderId,
+          transactionId,
+          source: 'alert'
+        });
+        const clientId = result.session?.data?.clientId || '';
+        const resolvedOrderId = result.syncResult?.orderId || result.details?.orderId || result.session?.data?.orderId || '';
+        const order = await getOrderRecord(clientId, resolvedOrderId);
 
-      sendJson(res, 200, buildStatusResponse({
-        session: result.session,
-        details: result.details,
-        syncResult: result.syncResult,
-        fallbackSessionId: sessionId
-      }));
-    } catch (error) {
+        sendJson(res, 200, buildStatusResponse({
+          session: result.session,
+          details: result.details,
+          syncResult: result.syncResult,
+          fallbackSessionId: sessionId,
+          order
+        }));
+      } catch (error) {
       logger.error('MonCash alert sync failed', error);
       sendJson(res, 500, {
         ok: false,
@@ -737,35 +869,42 @@ exports.getMoncashPaymentStatus = onRequest(
       const currentStatus = String(session?.data?.status || '').toLowerCase();
       const shouldRefreshFromProvider = Boolean(orderId || transactionId) || currentStatus !== 'paid';
 
-      if (shouldRefreshFromProvider) {
-        const result = await resolveAndSyncPayment({
-          sessionId,
-          orderId,
-          transactionId,
-          source: 'status'
+        if (shouldRefreshFromProvider) {
+          const result = await resolveAndSyncPayment({
+            sessionId,
+            orderId,
+            transactionId,
+            source: 'status'
+          });
+          const clientId = result.session?.data?.clientId || '';
+          const resolvedOrderId = result.syncResult?.orderId || result.details?.orderId || result.session?.data?.orderId || '';
+          const order = await getOrderRecord(clientId, resolvedOrderId);
+
+          sendJson(res, 200, buildStatusResponse({
+            session: result.session,
+            details: result.details,
+            syncResult: result.syncResult,
+            fallbackSessionId: sessionId,
+            order
+          }));
+          return;
+        }
+
+        const clientId = session?.data?.clientId || '';
+        const order = await getOrderRecord(clientId, session?.data?.orderId || orderId);
+        sendJson(res, 200, {
+          ok: true,
+          sessionId: session?.id || sessionId,
+          status: session?.data?.status || 'pending',
+          amount: session?.data?.amount || 0,
+          currency: session?.data?.currency || MONCASH_CURRENCY,
+          orderId: session?.data?.orderId || orderId,
+          transactionId: session?.data?.providerTransactionId || transactionId,
+          uniqueCode: order?.data?.uniqueCode || session?.data?.uniqueCode || '',
+          orderStatus: session?.data?.status || '',
+          paymentStatus: session?.data?.status || '',
+          order: order ? { id: order.id, ...order.data } : null
         });
-
-        sendJson(res, 200, buildStatusResponse({
-          session: result.session,
-          details: result.details,
-          syncResult: result.syncResult,
-          fallbackSessionId: sessionId
-        }));
-        return;
-      }
-
-      sendJson(res, 200, {
-        ok: true,
-        sessionId: session?.id || sessionId,
-        status: session?.data?.status || 'pending',
-        amount: session?.data?.amount || 0,
-        currency: session?.data?.currency || MONCASH_CURRENCY,
-        orderId: session?.data?.orderId || orderId,
-        transactionId: session?.data?.providerTransactionId || transactionId,
-        uniqueCode: session?.data?.uniqueCode || '',
-        orderStatus: session?.data?.status || '',
-        paymentStatus: session?.data?.status || ''
-      });
     } catch (error) {
       logger.error('MonCash status lookup failed', error);
       sendJson(res, 500, {

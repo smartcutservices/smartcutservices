@@ -4,6 +4,7 @@ import { getAuthManager } from './auth.js';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
+import { downloadOrderPdfReceipt } from './order-pdf.js';
 import { 
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -525,7 +526,7 @@ class CartManager {
   }
   
   generateUniqueCode() {
-    return 'VLX-' + Math.random().toString(36).substr(2, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+    return 'SCS-' + Math.random().toString(36).substr(2, 6).toUpperCase();
   }
   
   emitOrdersUpdate() {
@@ -535,7 +536,7 @@ class CartManager {
         count: this.orders.length,
         pending: this.orders.filter(o => o.status === 'pending').length,
         review: this.orders.filter(o => o.status === 'review').length,
-        approved: this.orders.filter(o => o.status === 'approved').length,
+        approved: this.orders.filter(o => o.status === 'approved' || o.status === 'paid').length,
         rejected: this.orders.filter(o => o.status === 'rejected').length
       }
     });
@@ -572,12 +573,12 @@ class CartManager {
 
   hideOrderFromClient(orderId) {
     const order = this.orders.find((o) => o.id === orderId);
-    if (!order || (order.status !== 'approved' && order.status !== 'rejected')) {
+    if (!order || (!['approved', 'paid', 'rejected'].includes(order.status))) {
       this.showNotification('❌ Seules les commandes approuvées ou rejetées peuvent être masquées', 'error');
       return;
     }
 
-    const warningMessage = order.status === 'approved'
+    const warningMessage = ['approved', 'paid'].includes(order.status)
       ? (
         '⚠️ Attention: si vous supprimez cette commande sans télécharger le PDF, vous pouvez perdre le colis.\n\n' +
         'Téléchargez d’abord le reçu PDF avec votre code de retrait.\n\n' +
@@ -816,7 +817,7 @@ class CartManager {
         return;
       }
       
-      if (order.status !== 'approved') {
+      if (!['approved', 'paid'].includes(order.status)) {
         this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
@@ -828,6 +829,26 @@ class CartManager {
       
       this.showNotification('📄 Génération du PDF en cours...', 'info');
       
+      this.showNotification('Generation du PDF en cours...', 'info');
+      await downloadOrderPdfReceipt(
+        {
+          ...order,
+          items: this.getOrderItems(order),
+          amount: this.getOrderAmount(order)
+        },
+        {
+          companyName: this.pdfConfig?.companyName || 'Smart Cut Services',
+          companyAddress: this.pdfConfig?.companyAddress || 'smartcutservices.com',
+          thankYouMessage: this.pdfConfig?.thankYouMessage || 'Merci pour votre confiance !',
+          primaryColor: this.hexToRgb(this.getThemeColors().background.button || '#C6A75E')
+        }
+      );
+      this.showNotification('PDF telecharge avec succes !', 'success');
+      setTimeout(() => {
+        this.showNotification('Conservez ce PDF precieusement : il contient votre code unique.', 'warning');
+      }, 1000);
+      return;
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       const orderItems = this.getOrderItems(order);
@@ -1041,7 +1062,7 @@ class CartManager {
         return;
       }
       
-      if (order.status !== 'approved') {
+      if (!['approved', 'paid'].includes(order.status)) {
         this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
@@ -1259,7 +1280,8 @@ class CartManager {
   getStatusText(status) {
     const texts = {
       pending: 'En attente',
-      review: 'En examen',
+        review: 'En examen',
+        paid: 'Paiement confirme',
       approved: '✅ Approuvé',
       rejected: '❌ Rejeté',
       expired: '⏰ Expiré'
@@ -1270,7 +1292,8 @@ class CartManager {
   getStatusColor(status) {
     const colors = {
       pending: '#F59E0B',
-      review: '#3B82F6',
+        review: '#3B82F6',
+        paid: '#10B981',
       approved: '#10B981',
       rejected: '#EF4444',
       expired: '#6B7280'
@@ -1394,7 +1417,7 @@ class CartManager {
           color: ${colors.text.body};
           line-height: 1.5;
         ">
-          ${order.status === 'approved'
+          ${['approved', 'paid'].includes(order.status)
             ? 'Paiement confirme. Votre commande avance maintenant selon le suivi de livraison.'
             : order.status === 'pending' || order.status === 'review'
               ? 'Votre commande est bien enregistree. Le suivi de livraison se mettra a jour apres validation.'
@@ -2098,7 +2121,7 @@ class CartManager {
         ">
           <span>${order.methodName || 'Paiement mobile'}</span>
           <span>•</span>
-          <span>Code: ${order.uniqueCode?.substr(0, 8)}...</span>
+          <span>Code: ${order.uniqueCode || order.id || 'N/A'}</span>
         </div>
 
         ${this.renderFulfillmentTracker(order, colors)}
@@ -2124,7 +2147,7 @@ class CartManager {
           </div>
         ` : ''}
         
-        ${(order.status === 'approved' || order.status === 'rejected') ? `
+        ${(['approved', 'paid', 'rejected'].includes(order.status)) ? `
           <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
             <button class="hide-order-btn" data-order-id="${order.id}" title="Masquer cette commande" style="
               background: transparent;
@@ -2145,7 +2168,7 @@ class CartManager {
           </div>
         ` : ''}
 
-        ${order.status === 'approved' ? `
+        ${(['approved', 'paid'].includes(order.status)) ? `
           <div style="
             margin-top: 0.5rem;
             padding: 0.5rem;

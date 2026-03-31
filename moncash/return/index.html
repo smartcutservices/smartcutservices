@@ -137,6 +137,10 @@
       color: var(--ink);
     }
 
+    .btn-hidden {
+      display: none;
+    }
+
     @media (max-width: 640px) {
       .card {
         padding: 1.35rem;
@@ -166,12 +170,14 @@
     </section>
 
     <div class="actions">
+      <button id="download-pdf-btn" class="btn btn-secondary btn-hidden" type="button">Telecharger le PDF</button>
       <button id="refresh-status-btn" class="btn btn-primary" type="button">Verifier le statut</button>
       <a class="btn btn-secondary" href="/">Retour a l accueil</a>
       <a class="btn btn-secondary" href="/catalogue.html">Continuer vos achats</a>
     </div>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script type="module" src="./moncash-return.js"></script>
 </body>
 </html>
