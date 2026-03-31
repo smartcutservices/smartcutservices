@@ -367,7 +367,7 @@ class Catg {
                     src="${fullImagePath}" 
                     alt="${category.name}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='https://via.placeholder.com/400x400/${colors.luxury.slice(1)}/ffffff?text=${encodeURIComponent(category.name.charAt(0))}';"
+                    onerror="this.onerror=null; this.src='./logo.png';"
                 >
             </div>
             <div class="catg-name">

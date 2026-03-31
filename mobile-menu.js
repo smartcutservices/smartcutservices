@@ -209,10 +209,10 @@ class MobileMenu {
       card.setAttribute('data-category-id', cat.id);
       
       // Utiliser l'image de la catégorie si disponible
-      const imageUrl = cat.image || 'https://via.placeholder.com/90';
+      const imageUrl = cat.image || './logo.png';
       
       card.innerHTML = `
-        <img src="${imageUrl}" class="mobile-category-image" alt="${cat.name}" onerror="this.src='https://via.placeholder.com/90?text='+encodeURIComponent('${cat.name?.charAt(0)}');">
+        <img src="${imageUrl}" class="mobile-category-image" alt="${cat.name}" onerror="this.onerror=null; this.src='./logo.png';">
         <span class="mobile-category-name">${cat.name}</span>
       `;
       
@@ -418,7 +418,7 @@ class MobileMenu {
         const productImages = product.images || [];
         const firstImage = productImages.length > 0 ? productImages[0] : null;
         
-        let imageUrl = 'https://via.placeholder.com/70?text=Produit';
+        let imageUrl = './logo.png';
         if (firstImage) {
           if (firstImage.startsWith('http')) {
             imageUrl = firstImage;
@@ -433,7 +433,7 @@ class MobileMenu {
         return `
           <div class="mobile-featured-card" data-product-id="${product.id}" data-product-link="${product.link || '#'}">
             <img src="${imageUrl}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 12px;" 
-                 onerror="this.src='https://via.placeholder.com/70?text=img'; this.onerror=null;">
+                 onerror="this.onerror=null; this.src='./logo.png';">
             <div style="flex: 1;">
               <h4 style="font-family: var(--primary-font); font-weight: 600; margin-bottom: 0.2rem;">${product.name || 'Produit'}</h4>
               <p style="font-size: 0.75rem; margin-bottom: 0.3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">

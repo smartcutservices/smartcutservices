@@ -401,7 +401,7 @@ class MegaMenu {
       const productImages = product.images || [];
       const firstImage = productImages.length > 0 ? productImages[0] : null;
       
-      let imageUrl = 'https://via.placeholder.com/80?text=Produit';
+      let imageUrl = './logo.png';
       if (firstImage) {
         if (firstImage.startsWith('http')) {
           imageUrl = firstImage;
@@ -419,7 +419,7 @@ class MegaMenu {
           ${oldPrice ? '<span class="featured-chip">OFFRE</span>' : ''}
           <img src="${imageUrl}" alt="${product.name || 'Produit'}" 
                class="featured-media"
-               onerror="this.src='https://via.placeholder.com/80?text=img'; this.onerror=null;">
+               onerror="this.onerror=null; this.src='./logo.png';">
           <div class="featured-content">
             <h4 style="font-family: ${theme.getTypography().family || theme.getFonts().primary || 'Cormorant Garamond, serif'}; 
                        font-weight: 600; 
