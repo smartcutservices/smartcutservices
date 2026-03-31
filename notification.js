@@ -5,7 +5,6 @@ import {
   collection,
   collectionGroup,
   query,
-  where,
   orderBy,
   limit,
   addDoc,
@@ -248,10 +247,7 @@ export class NotificationComponent {
 
   async findClientIdByUid(uid) {
     try {
-      const q = query(collection(db, 'clients'), where('uid', '==', uid), limit(1));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
-      return snapshot.docs[0].id;
+      return uid || null;
     } catch (error) {
       console.error('❌ Erreur client notification:', error);
       return null;

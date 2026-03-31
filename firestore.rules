@@ -100,6 +100,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /productLikes/{docId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /notificationBroadcasts/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /deliverySettings/{docId} {
       allow read: if true;
       allow write: if isAdmin();

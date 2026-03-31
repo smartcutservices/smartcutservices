@@ -11,6 +11,8 @@ class SierraHeaderNebula {
     this.navbar = null;
     this.announcementBar = null;
     this.cartManager = null;
+    this.handleCartUpdated = null;
+    this.handleStorageSync = null;
 
     this.injectStyles();
     this.render();
@@ -138,6 +140,33 @@ class SierraHeaderNebula {
         color: #1e1e1e;
         cursor: pointer;
         transition: all 0.25s ease;
+      }
+
+      .cart-icon-shell {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .cart-count-badge {
+        position: absolute;
+        top: -9px;
+        right: -11px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: #C6A75E;
+        color: #1F1E1C;
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
+        pointer-events: none;
       }
 
       .desktop-icon:hover,
@@ -444,6 +473,13 @@ class SierraHeaderNebula {
       @media (max-width: 1024px) {
         .desktop-header-inner { display: none !important; }
         .mobile-header-inner { display: flex !important; }
+        .cart-count-badge {
+          top: -7px;
+          right: -9px;
+          min-width: 18px;
+          height: 18px;
+          font-size: 0.68rem;
+        }
       }
 
       @media (min-width: 1025px) {
@@ -478,7 +514,10 @@ class SierraHeaderNebula {
           </div>
           <div class="desktop-icons">
             <i id="desktopSearchIcon" class="fas fa-search desktop-icon search-trigger"></i>
-            <i id="desktopCartIcon" class="fas fa-shopping-bag desktop-icon"></i>
+            <span class="cart-icon-shell">
+              <i id="desktopCartIcon" class="fas fa-shopping-bag desktop-icon"></i>
+              <span id="desktopCartBadge" class="cart-count-badge" aria-hidden="true">0</span>
+            </span>
           </div>
         </div>
 
@@ -493,7 +532,10 @@ class SierraHeaderNebula {
           </div>
           <div class="mobile-right-group">
             <i id="mobileSearchIcon" class="fas fa-search mobile-icon search-trigger"></i>
-            <i id="mobileCartIcon" class="fas fa-shopping-bag mobile-icon"></i>
+            <span class="cart-icon-shell">
+              <i id="mobileCartIcon" class="fas fa-shopping-bag mobile-icon"></i>
+              <span id="mobileCartBadge" class="cart-count-badge" aria-hidden="true">0</span>
+            </span>
           </div>
         </div>
       </header>
@@ -575,6 +617,7 @@ class SierraHeaderNebula {
     await this.applyHeaderConfig();
     await this.loadMobileFooterLinks();
     this.setupScrollBehavior();
+    this.setupCartBadge();
   }
 
   async loadMobileFooterLinks() {
@@ -681,9 +724,61 @@ class SierraHeaderNebula {
     window.addEventListener('scroll', onScroll, { passive: true });
   }
 
+  getCartCount() {
+    if (this.cartManager && typeof this.cartManager.getTotalItems === 'function') {
+      return this.cartManager.getTotalItems();
+    }
+
+    try {
+      const raw = localStorage.getItem('veltrixa_cart');
+      const cart = raw ? JSON.parse(raw) : [];
+      return Array.isArray(cart)
+        ? cart.reduce((total, item) => total + (Number(item?.quantity) || 1), 0)
+        : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  updateCartBadge(count = this.getCartCount()) {
+    const safeCount = Math.max(0, Number(count) || 0);
+    const label = safeCount > 99 ? '99+' : String(safeCount);
+
+    ['desktopCartBadge', 'mobileCartBadge'].forEach((id) => {
+      const badge = document.getElementById(id);
+      if (!badge) return;
+      badge.textContent = label;
+      badge.style.display = safeCount > 0 ? 'inline-flex' : 'none';
+    });
+  }
+
+  setupCartBadge() {
+    this.updateCartBadge();
+
+    this.handleCartUpdated = (event) => {
+      const nextCount = Number(event?.detail?.count);
+      this.updateCartBadge(Number.isFinite(nextCount) ? nextCount : this.getCartCount());
+    };
+
+    this.handleStorageSync = (event) => {
+      if (!event.key || event.key === 'veltrixa_cart') {
+        this.updateCartBadge();
+      }
+    };
+
+    document.addEventListener('cartUpdated', this.handleCartUpdated);
+    window.addEventListener('storage', this.handleStorageSync);
+  }
+
   destroy() {
     if (this.navbar?.destroy) this.navbar.destroy();
     if (this.announcementBar?.destroy) this.announcementBar.destroy();
+    if (this.handleCartUpdated) {
+      document.removeEventListener('cartUpdated', this.handleCartUpdated);
+    }
+    if (this.handleStorageSync) {
+      window.removeEventListener('storage', this.handleStorageSync);
+    }
   }
 }
 

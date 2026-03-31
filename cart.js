@@ -5,7 +5,7 @@ import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
 import { 
-  collection, query, where, getDocs, orderBy, onSnapshot, addDoc, doc, updateDoc, getDoc 
+  collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class CartManager {
@@ -104,23 +104,10 @@ class CartManager {
     return 'smartcut_guest_client_id';
   }
 
-  async getOrCreateGuestClient() {
-    if (this.guestClient?.id) return this.guestClient;
-
-    const storedId = localStorage.getItem(this.getGuestStorageKey());
-    if (storedId) {
-      try {
-        const snapshot = await getDoc(doc(db, 'clients', storedId));
-        if (snapshot.exists()) {
-          this.guestClient = { id: snapshot.id, ...snapshot.data() };
-          return this.guestClient;
-        }
-      } catch (error) {
-        console.error('❌ Erreur chargement client invité:', error);
-      }
-    }
-
-    const guestData = {
+  createGuestClientPayload(guestId) {
+    const now = new Date().toISOString();
+    return {
+      id: guestId,
       uid: '',
       name: 'Client invité',
       email: '',
@@ -129,13 +116,23 @@ class CartManager {
       city: '',
       role: 'guest',
       isGuest: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: now,
+      updatedAt: now
     };
+  }
 
-    const guestRef = await addDoc(collection(db, 'clients'), guestData);
-    this.guestClient = { id: guestRef.id, ...guestData };
-    localStorage.setItem(this.getGuestStorageKey(), guestRef.id);
+  async getOrCreateGuestClient() {
+    if (this.guestClient?.id) return this.guestClient;
+
+    const storedId = localStorage.getItem(this.getGuestStorageKey());
+    if (storedId) {
+      this.guestClient = this.createGuestClientPayload(storedId);
+      return this.guestClient;
+    }
+
+    const guestId = doc(collection(db, 'clients')).id;
+    this.guestClient = this.createGuestClientPayload(guestId);
+    localStorage.setItem(this.getGuestStorageKey(), guestId);
     return this.guestClient;
   }
 
@@ -272,13 +269,11 @@ class CartManager {
     }
     
     try {
-      
-      const clientsRef = collection(db, 'clients');
-      const q = query(clientsRef, where('uid', '==', user.uid));
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        
+      const clientRef = doc(db, 'clients', user.uid);
+      const snapshot = await getDoc(clientRef);
+      const now = new Date().toISOString();
+
+      if (!snapshot.exists()) {
         const clientData = {
           uid: user.uid,
           name: user.displayName || '',
@@ -286,15 +281,27 @@ class CartManager {
           phone: '',
           address: '',
           city: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: now,
+          updatedAt: now
         };
-        
-        const docRef = await addDoc(clientsRef, clientData);
-        this.currentClient = { id: docRef.id, ...clientData };
-        
+
+        await setDoc(clientRef, clientData, { merge: true });
+        this.currentClient = { id: user.uid, ...clientData };
       } else {
-        this.currentClient = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+        const existing = snapshot.data() || {};
+        const mergedData = {
+          uid: user.uid,
+          name: existing.name || user.displayName || '',
+          email: existing.email || user.email || '',
+          phone: existing.phone || '',
+          address: existing.address || '',
+          city: existing.city || '',
+          createdAt: existing.createdAt || now,
+          updatedAt: now
+        };
+
+        await setDoc(clientRef, mergedData, { merge: true });
+        this.currentClient = { id: user.uid, ...mergedData };
       }
 
       this.loadHiddenOrders();
@@ -306,6 +313,19 @@ class CartManager {
       
     } catch (error) {
       console.error('❌ Erreur lors de la gestion du client:', error);
+      this.currentClient = {
+        id: user.uid,
+        uid: user.uid,
+        name: user.displayName || '',
+        email: user.email || '',
+        phone: '',
+        address: '',
+        city: ''
+      };
+      const event = new CustomEvent('clientReady', {
+        detail: { client: this.currentClient }
+      });
+      document.dispatchEvent(event);
     }
   }
   
