@@ -21,12 +21,16 @@ class CategoriesDisplay {
     this.rawCategories = [];
     this.firstProductImageByCategoryId = new Map();
     this.categoryObserver = null;
+    this.isPointerDown = false;
+    this.pointerStartX = 0;
+    this.scrollStartLeft = 0;
 
     this.init();
   }
 
   init() {
     this.renderBase();
+    this.bindCarouselEvents();
     this.loadData();
     this.bindMenuOpenEvents();
   }
@@ -43,12 +47,22 @@ class CategoriesDisplay {
         ${this.options.layout === 'carousel' ? `
           <div class="categories-head">
             <h2>${this.options.sectionTitle}</h2>
-            ${this.options.scrollHint ? `
-              <div class="categories-scroll-hint">
-                <span>Faites glisser</span>
-                <i class="fas fa-arrow-right"></i>
+            <div class="categories-head-actions">
+              ${this.options.scrollHint ? `
+                <div class="categories-scroll-hint">
+                  <span>Faites glisser</span>
+                  <i class="fas fa-arrow-right"></i>
+                </div>
+              ` : ''}
+              <div class="categories-nav-buttons">
+                <button type="button" class="categories-nav-btn categories-nav-btn-left" aria-label="Voir les categories precedentes">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <button type="button" class="categories-nav-btn categories-nav-btn-right" aria-label="Voir les categories suivantes">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
               </div>
-            ` : ''}
+            </div>
           </div>
         ` : ''}
         <div class="${this.options.layout === 'carousel' ? 'categories-row' : 'categories-grid'}"></div>
@@ -56,6 +70,8 @@ class CategoriesDisplay {
     `;
 
     this.grid = this.container.querySelector(this.options.layout === 'carousel' ? '.categories-row' : '.categories-grid');
+    this.leftButton = this.container.querySelector('.categories-nav-btn-left');
+    this.rightButton = this.container.querySelector('.categories-nav-btn-right');
 
     if (!document.getElementById('ultra-categories-style')) {
       const style = document.createElement('style');
@@ -80,6 +96,7 @@ class CategoriesDisplay {
           align-items: center;
           gap: 1rem;
           margin-bottom: 1rem;
+          flex-wrap: wrap;
         }
 
         .categories-wrapper-carousel .categories-head h2 {
@@ -87,6 +104,13 @@ class CategoriesDisplay {
           font-size: clamp(1.6rem, 3vw, 2.2rem);
           color: #1F1E1C;
           margin: 0;
+        }
+
+        .categories-head-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-left: auto;
         }
 
         .categories-scroll-hint {
@@ -101,6 +125,39 @@ class CategoriesDisplay {
           animation: categoriesHintPulse 1s infinite;
         }
 
+        .categories-nav-buttons {
+          display: none;
+          align-items: center;
+          gap: 0.55rem;
+        }
+
+        .categories-nav-btn {
+          width: 2.6rem;
+          height: 2.6rem;
+          border: none;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(31, 30, 28, 0.88);
+          color: #fff;
+          cursor: pointer;
+          transition: transform 0.2s ease, opacity 0.2s ease, background 0.2s ease;
+          box-shadow: 0 10px 24px rgba(31, 30, 28, 0.16);
+        }
+
+        .categories-nav-btn:hover {
+          transform: translateY(-1px);
+          background: #7c3e3e;
+        }
+
+        .categories-nav-btn:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+          transform: none;
+          background: rgba(31, 30, 28, 0.88);
+        }
+
         .categories-row {
           display: flex;
           gap: 1rem;
@@ -109,10 +166,17 @@ class CategoriesDisplay {
           scrollbar-width: none;
           -ms-overflow-style: none;
           scroll-behavior: smooth;
+          cursor: grab;
         }
 
         .categories-row::-webkit-scrollbar {
           display: none;
+        }
+
+        .categories-row.is-dragging {
+          cursor: grabbing;
+          user-select: none;
+          scroll-behavior: auto;
         }
 
         @media (min-width: 640px) {
@@ -124,6 +188,16 @@ class CategoriesDisplay {
         @media (min-width: 1024px) {
           .categories-grid {
             grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .categories-nav-buttons {
+            display: inline-flex;
+          }
+
+          .categories-scroll-hint {
+            display: none;
           }
         }
 
@@ -213,6 +287,67 @@ class CategoriesDisplay {
     }
   }
 
+  bindCarouselEvents() {
+    if (this.options.layout !== 'carousel' || !this.grid) return;
+
+    this.leftButton?.addEventListener('click', () => this.scrollRowBy(-1));
+    this.rightButton?.addEventListener('click', () => this.scrollRowBy(1));
+
+    this.grid.addEventListener('scroll', () => this.updateCarouselButtons(), { passive: true });
+
+    this.grid.addEventListener('wheel', (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      this.grid.scrollLeft += event.deltaY;
+    }, { passive: false });
+
+    this.grid.addEventListener('mousedown', (event) => {
+      if (event.button !== 0) return;
+      this.isPointerDown = true;
+      this.pointerStartX = event.pageX;
+      this.scrollStartLeft = this.grid.scrollLeft;
+      this.grid.classList.add('is-dragging');
+    });
+
+    window.addEventListener('mouseup', () => this.releasePointerDrag());
+    this.grid.addEventListener('mouseleave', () => this.releasePointerDrag());
+    this.grid.addEventListener('mousemove', (event) => {
+      if (!this.isPointerDown) return;
+      event.preventDefault();
+      const delta = event.pageX - this.pointerStartX;
+      this.grid.scrollLeft = this.scrollStartLeft - delta;
+    });
+
+    window.addEventListener('resize', () => this.updateCarouselButtons());
+  }
+
+  releasePointerDrag() {
+    if (!this.isPointerDown || !this.grid) return;
+    this.isPointerDown = false;
+    this.grid.classList.remove('is-dragging');
+  }
+
+  scrollRowBy(direction = 1) {
+    if (!this.grid) return;
+    const amount = Math.max(this.grid.clientWidth * 0.82, 260);
+    this.grid.scrollBy({
+      left: amount * direction,
+      behavior: 'smooth'
+    });
+  }
+
+  updateCarouselButtons() {
+    if (this.options.layout !== 'carousel' || !this.grid) return;
+
+    const maxScrollLeft = Math.max(this.grid.scrollWidth - this.grid.clientWidth, 0);
+    if (this.leftButton) {
+      this.leftButton.disabled = this.grid.scrollLeft <= 4;
+    }
+    if (this.rightButton) {
+      this.rightButton.disabled = this.grid.scrollLeft >= maxScrollLeft - 4;
+    }
+  }
+
   loadData() {
     const categoriesRef = collection(db, this.collectionName);
     const productsRef = collection(db, 'products');
@@ -296,6 +431,7 @@ class CategoriesDisplay {
     });
 
     this.setupCategoryScrollAnimation();
+    this.updateCarouselButtons();
   }
 
   createCategoryCard(item, index) {
