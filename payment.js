@@ -70,25 +70,26 @@ class PaymentModal {
     try {
       const q = query(collection(db, 'paymentMethods'), where('isActive', '==', true));
       const snapshot = await getDocs(q);
-      this.methods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const activeMethods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      this.methods = activeMethods.filter(method => this.isMoncashMethod(method));
       
       
       if (this.options.methodId) {
-        this.selectedMethod = this.methods.find(m => m.id === this.options.methodId);
-        if (this.selectedMethod) {
-          this.steps = this.selectedMethod.steps || [];
-          this.currentStep = 1;
-        }
+        this.selectedMethod = this.methods.find(m => m.id === this.options.methodId) || null;
       }
       
-      if (this.methods.length === 1 && !this.selectedMethod) {
+      if (!this.selectedMethod && this.methods.length > 0) {
         this.selectedMethod = this.methods[0];
-        this.steps = this.selectedMethod.steps || [];
-        this.currentStep = 1;
       }
+
+      this.steps = [];
+      this.currentStep = this.selectedMethod ? 1 : 0;
     } catch (error) {
       console.error('❌ Erreur chargement méthodes:', error);
       this.methods = [];
+      this.selectedMethod = null;
+      this.steps = [];
+      this.currentStep = 0;
     }
   }
   
@@ -154,7 +155,7 @@ class PaymentModal {
         ">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <div style="display: flex; align-items: center; gap: 1rem;">
-              ${this.currentStep > 0 ? `
+              ${this.currentStep > 1 ? `
                 <button class="back-step" style="
                   background: none;
                   border: none;
@@ -378,6 +379,30 @@ class PaymentModal {
   }
   
   renderProgressBar() {
+    if (this.selectedMethod && this.isMoncashMethod(this.selectedMethod)) {
+      return `
+        <div style="margin-top: 0.5rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-size: 0.85rem; color: #8B7E6B;">Étape 1/1</span>
+            <span style="font-size: 0.85rem; color: #8B7E6B;">100%</span>
+          </div>
+          <div style="
+            width: 100%;
+            height: 4px;
+            background: rgba(198, 167, 94, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+          ">
+            <div style="
+              width: 100%;
+              height: 100%;
+              background: #C6A75E;
+            "></div>
+          </div>
+        </div>
+      `;
+    }
+
     const totalSteps = 1 + (this.steps?.length || 0);
     const currentStepDisplay = this.currentStep + 1;
     const progress = (currentStepDisplay / totalSteps) * 100;
@@ -407,36 +432,16 @@ class PaymentModal {
   }
   
   renderCurrentStep() {
-    if (this.currentStep === 0) {
-      return this.renderStep0();
+    if (this.selectedMethod && this.isMoncashMethod(this.selectedMethod)) {
+      return this.renderMoncashStep();
     }
-    
-    if (!this.steps || this.steps.length === 0) {
-      return this.renderNoSteps();
-    }
-    
-    const stepIndex = this.currentStep - 1;
-    const step = this.steps[stepIndex];
-    
-    if (!step) {
-      return this.renderNoSteps();
-    }
-    
-    switch(step.type) {
-      case 'form':
-        return this.renderFormStep(step);
-      case 'payment':
-        return this.renderPaymentStep(step);
-      case 'proof':
-        return this.renderProofStep(step);
-      case 'confirmation':
-        return this.renderConfirmationStep(step);
-      default:
-        return this.renderCustomStep(step);
-    }
+
+    return this.renderMoncashUnavailableStep();
   }
   
   renderStep0() {
+    return this.renderMoncashUnavailableStep();
+
     if (this.methods.length === 0) {
       return `
         <div style="text-align: center; padding: 2rem;">
@@ -455,6 +460,34 @@ class PaymentModal {
         <div id="methodsList" style="display: flex; flex-direction: column; gap: 1rem;">
           ${this.methods.map(method => this.renderMethodCard(method)).join('')}
         </div>
+      </div>
+    `;
+  }
+
+  renderMoncashUnavailableStep() {
+    return `
+      <div style="text-align: center; padding: 2rem;">
+        <div style="
+          width: 88px;
+          height: 88px;
+          border-radius: 50%;
+          margin: 0 auto 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(198, 167, 94, 0.12);
+          color: #C6A75E;
+          font-size: 2rem;
+        ">
+          <i class="fas fa-wallet"></i>
+        </div>
+        <h3 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Paiement MonCash indisponible</h3>
+        <p style="color: #8B7E6B; max-width: 420px; margin: 0 auto 1.5rem;">
+          Les paiements se font maintenant uniquement via MonCash. Aucune méthode MonCash active n'a été trouvée pour cette boutique.
+        </p>
+        <button class="next-step-btn" id="closeUnavailablePayment">
+          Retourner au panier
+        </button>
       </div>
     `;
   }
@@ -498,6 +531,74 @@ class PaymentModal {
         <div style="width: 24px; height: 24px; min-width: 24px; min-height: 24px; flex-shrink: 0; border-radius: 50%; border: 2px solid #C6A75E; display: flex; align-items: center; justify-content: center;">
           ${isSelected ? '<div style="width: 12px; height: 12px; border-radius: 50%; background: #C6A75E;"></div>' : ''}
         </div>
+      </div>
+    `;
+  }
+
+  isMoncashMethod(method = null) {
+    if (!method) return false;
+    const haystack = [
+      method.provider,
+      method.gateway,
+      method.slug,
+      method.name
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes('moncash');
+  }
+
+  renderMoncashStep() {
+    const fallbackName = this.clientData.fullName || this.clientData.name || this.options.client?.name || '';
+    const fallbackEmail = this.clientData.email || this.options.client?.email || '';
+    const fallbackPhone = this.clientData.phone || this.options.client?.phone || '';
+
+    return `
+      <div>
+        <h3 style="font-size: 1.3rem; margin-bottom: 0.65rem;">Payer avec MonCash</h3>
+        <p style="color: #8B7E6B; margin-bottom: 1.5rem;">
+          Vous allez être redirigé vers MonCash pour finaliser votre paiement en toute sécurité.
+        </p>
+
+        <div style="
+          background: white;
+          border: 1px solid rgba(198,167,94,0.2);
+          border-radius: 1rem;
+          padding: 1.2rem;
+          margin-bottom: 1.25rem;
+        ">
+          <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.85rem;color:#8B7E6B;">Méthode</div>
+              <div style="font-weight:700;">${this.selectedMethod?.name || 'MonCash'}</div>
+            </div>
+            <div>
+              <div style="font-size:0.85rem;color:#8B7E6B;">Montant à payer</div>
+              <div style="font-weight:700;font-size:1.2rem;">${this.formatPrice(this.options.amount || 0)}</div>
+            </div>
+          </div>
+        </div>
+
+        <form id="moncashForm" class="space-y-4">
+          <div class="form-group">
+            <label>Nom complet *</label>
+            <input type="text" id="moncashName" value="${fallbackName}">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="moncashEmail" value="${fallbackEmail}">
+          </div>
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input type="text" id="moncashPhone" value="${fallbackPhone}">
+          </div>
+        </form>
+
+        <button class="next-step-btn launch-moncash-btn" id="launchMoncashBtn">
+          Payer avec MonCash
+        </button>
       </div>
     `;
   }
@@ -789,11 +890,7 @@ class PaymentModal {
       }
     });
     
-    if (this.currentStep === 0) {
-      this.attachStep0Events();
-    } else {
-      this.attachStepEvents();
-    }
+    this.attachStepEvents();
     
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -815,7 +912,9 @@ class PaymentModal {
             this.selectedMethod = method;
             this.steps = this.selectedMethod.steps || [];
             this.currentStep = 1;
-            this.skipPaymentStepsForward();
+            if (!this.isMoncashMethod(method)) {
+              this.skipPaymentStepsForward();
+            }
             this.updateStepDisplay();
           }
         });
@@ -843,6 +942,16 @@ class PaymentModal {
   }
   
   attachStepEvents() {
+    const unavailableBtn = this.modal.querySelector('#closeUnavailablePayment');
+    if (unavailableBtn) {
+      unavailableBtn.addEventListener('click', () => this.close());
+    }
+
+    const moncashBtn = this.modal.querySelector('#launchMoncashBtn');
+    if (moncashBtn) {
+      moncashBtn.addEventListener('click', () => this.startMoncashCheckout());
+    }
+
     const nextBtn = this.modal.querySelector('#nextStepBtn');
     if (nextBtn) {
       nextBtn.addEventListener('click', () => this.handleNextStep());
@@ -881,10 +990,87 @@ class PaymentModal {
   }
   
   goBack() {
+    if (this.selectedMethod && this.isMoncashMethod(this.selectedMethod)) {
+      this.close();
+      return;
+    }
+
     if (this.currentStep > 0 && this.currentStep < this.steps.length) {
       this.currentStep--;
       this.skipPaymentStepsBackward();
       this.updateStepDisplay();
+    }
+  }
+
+  collectMoncashCustomerData() {
+    const nameInput = this.modal.querySelector('#moncashName');
+    const emailInput = this.modal.querySelector('#moncashEmail');
+    const phoneInput = this.modal.querySelector('#moncashPhone');
+
+    const customerName = nameInput?.value?.trim() || this.clientData.fullName || this.clientData.name || this.options.client?.name || '';
+    const customerEmail = emailInput?.value?.trim() || this.clientData.email || this.options.client?.email || '';
+    const customerPhone = phoneInput?.value?.trim() || this.clientData.phone || this.options.client?.phone || '';
+
+    return {
+      customerName,
+      customerEmail,
+      customerPhone,
+      customerAddress: this.clientData.address || this.options.client?.address || '',
+      customerCity: this.clientData.city || this.options.client?.city || ''
+    };
+  }
+
+  async startMoncashCheckout() {
+    const launchBtn = this.modal.querySelector('#launchMoncashBtn');
+    if (launchBtn) {
+      launchBtn.disabled = true;
+      launchBtn.innerHTML = '<div class="loading-spinner"></div> Redirection vers MonCash...';
+    }
+
+    try {
+      if (!this.selectedMethod || !this.isMoncashMethod(this.selectedMethod)) {
+        throw new Error('Aucune méthode MonCash active n’est disponible pour le moment.');
+      }
+
+      const customer = this.collectMoncashCustomerData();
+      if (!customer.customerName || !customer.customerEmail) {
+        throw new Error('Veuillez renseigner votre nom complet et votre email avant de continuer.');
+      }
+
+      this.clientData = {
+        ...this.clientData,
+        fullName: customer.customerName,
+        email: customer.customerEmail,
+        phone: customer.customerPhone
+      };
+
+      const { createMoncashPaymentSession } = await import('./moncash-client.js');
+      const response = await createMoncashPaymentSession({
+        clientId: this.options.client?.id || '',
+        clientUid: this.options.client?.uid || '',
+        methodId: this.selectedMethod?.id || '',
+        methodName: this.selectedMethod?.name || 'MonCash',
+        items: this.options.cart || [],
+        delivery: this.options.delivery || null,
+        customerName: customer.customerName,
+        customerEmail: customer.customerEmail,
+        customerPhone: customer.customerPhone,
+        customerAddress: customer.customerAddress,
+        customerCity: customer.customerCity
+      });
+
+      if (!response?.checkoutUrl) {
+        throw new Error('MonCash n’a pas renvoyé d’URL de paiement.');
+      }
+
+      window.location.assign(response.checkoutUrl);
+    } catch (error) {
+      console.error('❌ Erreur démarrage MonCash:', error);
+      if (launchBtn) {
+        launchBtn.disabled = false;
+        launchBtn.textContent = 'Payer avec MonCash';
+      }
+      alert(error?.message || 'Impossible de démarrer le paiement MonCash.');
     }
   }
   
@@ -1139,7 +1325,7 @@ class PaymentModal {
       if (titleDiv) {
         titleDiv.innerHTML = `
           <div style="display: flex; align-items: center; gap: 1rem;">
-            ${this.currentStep > 0 && this.currentStep < (this.steps?.length || 0) && !this.isSubmitted ? `
+            ${this.currentStep > 1 && this.currentStep < (this.steps?.length || 0) && !this.isSubmitted ? `
               <button class="back-step" style="
                 background: none;
                 border: none;
@@ -1192,7 +1378,7 @@ class PaymentModal {
         oldProgress.remove();
       }
       
-      if (this.currentStep < (this.steps?.length || 0) && !this.isSubmitted) {
+      if ((this.selectedMethod && this.isMoncashMethod(this.selectedMethod)) || (this.currentStep < (this.steps?.length || 0) && !this.isSubmitted)) {
         const newProgress = document.createElement('div');
         newProgress.innerHTML = this.renderProgressBar();
         header.appendChild(newProgress.firstChild);
