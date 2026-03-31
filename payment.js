@@ -1,7 +1,7 @@
 // ============= PAYMENT COMPONENT - PROCESSUS DE PAIEMENT =============
 import { db } from './firebase-init.js';
 import { 
-  collection, query, where, getDocs, addDoc, doc
+  collection, getDocs, addDoc, doc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class PaymentModal {
@@ -68,10 +68,9 @@ class PaymentModal {
   
   async loadPaymentMethods() {
     try {
-      const q = query(collection(db, 'paymentMethods'), where('isActive', '==', true));
-      const snapshot = await getDocs(q);
-      const activeMethods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      this.methods = activeMethods.filter(method => this.isMoncashMethod(method));
+      const snapshot = await getDocs(collection(db, 'paymentMethods'));
+      const methods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      this.methods = methods.filter(method => this.isMethodActive(method) && this.isMoncashMethod(method));
       
       
       if (this.options.methodId) {
@@ -81,15 +80,18 @@ class PaymentModal {
       if (!this.selectedMethod && this.methods.length > 0) {
         this.selectedMethod = this.methods[0];
       }
+      if (!this.selectedMethod) {
+        this.selectedMethod = this.createDefaultMoncashMethod();
+      }
 
       this.steps = [];
-      this.currentStep = this.selectedMethod ? 1 : 0;
+      this.currentStep = 1;
     } catch (error) {
       console.error('❌ Erreur chargement méthodes:', error);
       this.methods = [];
-      this.selectedMethod = null;
+      this.selectedMethod = this.createDefaultMoncashMethod();
       this.steps = [];
-      this.currentStep = 0;
+      this.currentStep = 1;
     }
   }
   
@@ -548,6 +550,23 @@ class PaymentModal {
       .toLowerCase();
 
     return haystack.includes('moncash');
+  }
+
+  isMethodActive(method = null) {
+    if (!method) return false;
+    return method.isActive !== false;
+  }
+
+  createDefaultMoncashMethod() {
+    return {
+      id: 'moncash-default',
+      name: 'MonCash',
+      provider: 'moncash',
+      gateway: 'moncash',
+      slug: 'moncash',
+      isActive: true,
+      instructions: 'Paiement MonCash securise.'
+    };
   }
 
   renderMoncashStep() {

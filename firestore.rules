@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == "admin";
+    }
+
+    match /products/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /vendorProducts/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories_list/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories_list/{docId}/{sub=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /presentations/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /headerConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /announcementBar/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /heroSectionControlMatrix9472/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /veltrixaGallerySectionMatrix7721/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /footerConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /footerSocial/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /footerInfos/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /footerPayment/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /pdfConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /siteMusicConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /paymentMethods/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /deliverySettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /deliveryHomeZones/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /deliveryPickupPoints/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /deliveryMeetupZones/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /deliveryWeightRules/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /clients/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if isOwner(uid) || isAdmin();
+    }
+
+    match /clients/{uid}/orders/{orderId} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    match /vendorApplications/{docId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /vendorApplicationSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /vendors/{docId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /printingSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
