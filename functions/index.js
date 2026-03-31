@@ -132,6 +132,13 @@ function buildBasicAuthHeader(clientId, clientSecret) {
   return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
 }
 
+function buildCredentialUrl(baseUrl, clientId, clientSecret, path) {
+  const url = new URL(`${normalizeBaseUrl(baseUrl)}${path}`);
+  url.username = clientId;
+  url.password = clientSecret;
+  return url.toString();
+}
+
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
   const rawText = await response.text();
@@ -165,15 +172,39 @@ async function getMoncashAccessToken() {
     throw new Error('MonCash credentials are not configured');
   }
 
-  const payload = await fetchJson(`${MONCASH_API_BASE}/oauth/token`, {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      Authorization: buildBasicAuthHeader(clientId, clientSecret),
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'scope=read,write&grant_type=client_credentials'
-  });
+  const authBody = 'scope=read,write&grant_type=client_credentials';
+  let payload;
+
+  try {
+    payload = await fetchJson(`${MONCASH_API_BASE}/oauth/token`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: buildBasicAuthHeader(clientId, clientSecret),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: authBody
+    });
+  } catch (error) {
+    const status = Number(error?.status || 0);
+    if (status !== 401 && status !== 403) {
+      throw error;
+    }
+
+    logger.warn('MonCash OAuth with Authorization header failed, retrying with credential URL', {
+      status,
+      message: error?.message || ''
+    });
+
+    payload = await fetchJson(buildCredentialUrl(MONCASH_API_BASE, clientId, clientSecret, '/oauth/token'), {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: authBody
+    });
+  }
 
   const accessToken = String(payload?.access_token || '').trim();
   if (!accessToken) {

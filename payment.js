@@ -1,7 +1,7 @@
 // ============= PAYMENT COMPONENT - PROCESSUS DE PAIEMENT =============
 import { db } from './firebase-init.js';
 import { 
-  collection, getDocs, addDoc, doc
+  collection, getDocs, addDoc, doc, query
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class PaymentModal {
