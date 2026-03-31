@@ -613,6 +613,9 @@ class SierraHeaderNebula {
     this.cartManager = getCartManager({
       imageBasePath: './'
     });
+    console.info('[HEADER] Cart manager initialise', {
+      hasCartManager: Boolean(this.cartManager)
+    });
 
     await this.applyHeaderConfig();
     await this.loadMobileFooterLinks();
@@ -726,16 +729,25 @@ class SierraHeaderNebula {
 
   getCartCount() {
     if (this.cartManager && typeof this.cartManager.getTotalItems === 'function') {
-      return this.cartManager.getTotalItems();
+      const count = this.cartManager.getTotalItems();
+      console.info('[HEADER] getCartCount via cartManager', { count });
+      return count;
     }
 
     try {
       const raw = localStorage.getItem('veltrixa_cart');
       const cart = raw ? JSON.parse(raw) : [];
-      return Array.isArray(cart)
+      const count = Array.isArray(cart)
         ? cart.reduce((total, item) => total + (Number(item?.quantity) || 1), 0)
         : 0;
+      console.info('[HEADER] getCartCount via localStorage', {
+        hasRaw: Boolean(raw),
+        items: Array.isArray(cart) ? cart.length : 0,
+        count
+      });
+      return count;
     } catch (_) {
+      console.warn('[HEADER] getCartCount: lecture localStorage impossible');
       return 0;
     }
   }
@@ -750,18 +762,30 @@ class SierraHeaderNebula {
       badge.textContent = label;
       badge.style.display = safeCount > 0 ? 'inline-flex' : 'none';
     });
+    console.info('[HEADER] updateCartBadge', {
+      count: safeCount,
+      label
+    });
   }
 
   setupCartBadge() {
     this.updateCartBadge();
+    console.info('[HEADER] setupCartBadge: listeners attaches');
 
     this.handleCartUpdated = (event) => {
       const nextCount = Number(event?.detail?.count);
+      console.info('[HEADER] cartUpdated recu', {
+        nextCount,
+        detail: event?.detail || null
+      });
       this.updateCartBadge(Number.isFinite(nextCount) ? nextCount : this.getCartCount());
     };
 
     this.handleStorageSync = (event) => {
       if (!event.key || event.key === 'veltrixa_cart') {
+        console.info('[HEADER] storage sync panier', {
+          key: event.key || null
+        });
         this.updateCartBadge();
       }
     };

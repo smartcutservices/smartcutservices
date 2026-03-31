@@ -127,12 +127,14 @@ class CartManager {
     const storedId = localStorage.getItem(this.getGuestStorageKey());
     if (storedId) {
       this.guestClient = this.createGuestClientPayload(storedId);
+      console.info('[CART] Client invite charge depuis localStorage', { guestId: storedId });
       return this.guestClient;
     }
 
     const guestId = doc(collection(db, 'clients')).id;
     this.guestClient = this.createGuestClientPayload(guestId);
     localStorage.setItem(this.getGuestStorageKey(), guestId);
+    console.info('[CART] Nouveau client invite cree', { guestId });
     return this.guestClient;
   }
 
@@ -234,10 +236,19 @@ class CartManager {
   }
   
   async handleAuthChange(user) {
+    console.info('[CART] handleAuthChange', {
+      isAuthenticated: Boolean(user),
+      uid: user?.uid || null,
+      currentClientId: this.currentClient?.id || null
+    });
     
     if (user) {
       await this.loadOrCreateClient(user);
       if (this.currentClient) {
+        console.info('[CART] Client pret apres auth', {
+          clientId: this.currentClient.id,
+          email: this.currentClient.email || null
+        });
         this.loadCustomerOrders(this.currentClient.id);
       }
     } else {
@@ -269,9 +280,17 @@ class CartManager {
     }
     
     try {
+      console.info('[CART] loadOrCreateClient:start', {
+        uid: user?.uid || null,
+        email: user?.email || null
+      });
       const clientRef = doc(db, 'clients', user.uid);
       const snapshot = await getDoc(clientRef);
       const now = new Date().toISOString();
+      console.info('[CART] loadOrCreateClient:snapshot', {
+        uid: user.uid,
+        exists: snapshot.exists()
+      });
 
       if (!snapshot.exists()) {
         const clientData = {
@@ -287,6 +306,10 @@ class CartManager {
 
         await setDoc(clientRef, clientData, { merge: true });
         this.currentClient = { id: user.uid, ...clientData };
+        console.info('[CART] Client cree en base', {
+          clientId: this.currentClient.id,
+          email: this.currentClient.email || null
+        });
       } else {
         const existing = snapshot.data() || {};
         const mergedData = {
@@ -302,6 +325,10 @@ class CartManager {
 
         await setDoc(clientRef, mergedData, { merge: true });
         this.currentClient = { id: user.uid, ...mergedData };
+        console.info('[CART] Client charge depuis base', {
+          clientId: this.currentClient.id,
+          email: this.currentClient.email || null
+        });
       }
 
       this.loadHiddenOrders();
@@ -326,6 +353,11 @@ class CartManager {
         detail: { client: this.currentClient }
       });
       document.dispatchEvent(event);
+      console.info('[CART] Fallback client local active', {
+        clientId: this.currentClient.id,
+        uid: this.currentClient.uid,
+        email: this.currentClient.email || null
+      });
     }
   }
   
@@ -579,11 +611,18 @@ class CartManager {
     }
     
     this.updateTimeout = requestAnimationFrame(() => {
+      const count = this.getTotalItems();
+      const total = this.getTotalPrice();
+      console.info('[CART] Emission cartUpdated', {
+        items: this.cart.length,
+        count,
+        total
+      });
       const event = new CustomEvent('cartUpdated', { 
         detail: {
           cart: this.cart,
-          count: this.getTotalItems(),
-          total: this.getTotalPrice()
+          count,
+          total
         }
       });
       document.dispatchEvent(event);
@@ -623,26 +662,43 @@ class CartManager {
   async openCheckout(cartData) {
     let checkoutClient = null;
     const isGuestMode = cartData?.mode === 'guest';
+    console.info('[CART] openCheckout:start', {
+      mode: cartData?.mode || 'authenticated',
+      cartItems: (cartData?.cart || this.cart || []).length,
+      currentClientId: this.currentClient?.id || null,
+      isAuthenticated: Boolean(this.auth?.isAuthenticated?.())
+    });
 
     if (isGuestMode) {
       checkoutClient = await this.getOrCreateGuestClient();
     } else {
       if (!this.auth || !this.auth.isAuthenticated()) {
+        console.warn('[CART] openCheckout: auth requise, ouverture du choix checkout');
         this.showCheckoutChoice();
         return;
       }
 
       const user = this.auth?.getCurrentUser?.();
       if (!this.currentClient && user) {
+        console.info('[CART] openCheckout: loadOrCreateClient avant checkout', { uid: user.uid });
         await this.loadOrCreateClient(user);
       }
       checkoutClient = this.currentClient;
     }
 
     if (!checkoutClient) {
+      console.error('[CART] openCheckout: aucun client resolu', {
+        mode: cartData?.mode || 'authenticated',
+        currentClient: this.currentClient || null
+      });
       this.showNotification('❌ Impossible de charger le client. Réessayez.');
       return;
     }
+    console.info('[CART] openCheckout: client resolu', {
+      clientId: checkoutClient.id || null,
+      uid: checkoutClient.uid || null,
+      email: checkoutClient.email || null
+    });
     
     try {
       const module = await import('./checkout.js');
