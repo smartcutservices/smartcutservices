@@ -27,6 +27,40 @@ function getDeliveryLabel(delivery) {
   return 'Livraison';
 }
 
+function buildPdfFilename(order) {
+  const raw = String(order?.uniqueCode || order?.id || 'commande')
+    .replace(/[^A-Za-z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `recu-${raw || 'commande'}.pdf`;
+}
+
+function triggerPdfDownload(doc, filename) {
+  const blob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // Fallback mobile/webview: ouvrir aussi le PDF si le téléchargement natif est ignoré.
+  const isTouchDevice = window.matchMedia?.('(pointer: coarse)')?.matches;
+  const isAppleDevice = /iPad|iPhone|iPod|Macintosh/i.test(window.navigator.userAgent || '');
+  if (isTouchDevice || isAppleDevice) {
+    window.setTimeout(() => {
+      window.open(blobUrl, '_blank', 'noopener');
+    }, 120);
+  }
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(blobUrl);
+  }, 60_000);
+}
+
 export async function downloadOrderPdfReceipt(order, config = {}) {
   if (typeof window.jspdf === 'undefined') {
     throw new Error('Bibliotheque PDF non chargee');
@@ -146,5 +180,5 @@ export async function downloadOrderPdfReceipt(order, config = {}) {
   doc.setFontSize(8);
   doc.text(`Code de verification: ${order?.uniqueCode || order?.id || 'N/A'}`, 18, 286);
 
-  doc.save(`recu-${order?.uniqueCode || order?.id || 'commande'}.pdf`);
+  triggerPdfDownload(doc, buildPdfFilename(order));
 }
