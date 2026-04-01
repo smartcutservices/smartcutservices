@@ -166,6 +166,11 @@ class PrintingDocumentsPage {
       paper,
       copies,
       pageCount,
+      basePrice: Number(pricing.basePrice) || 0,
+      pagePrice: (Number(pricing.perPagePrice) || 0) * pageCount,
+      copyPrice: Number(pricing.perCopyPrice) || 0,
+      dimensionPrice: Number(dimension?.price) || 0,
+      paperPrice: Number(paper?.price) || 0,
       unitPrice,
       totalPrice: unitPrice * copies
     };
@@ -721,27 +726,34 @@ class PrintingDocumentsPage {
         maxSizeMb: 20
       });
 
-      const unitPrice = quote.unitPrice;
+      const lineTotal = quote.totalPrice;
       const lineName = jobName
         ? `Impression PDF - ${jobName}`
         : `Impression PDF ${dimensionLabel}`;
 
       document.dispatchEvent(new CustomEvent('addToCart', {
-        detail: {
-          productId: 'printing-documents',
-          name: lineName,
-          price: unitPrice,
-          quantity: quote.copies,
-          sku: `POD-DOC-${Date.now()}`,
-          image: PRODUCT_IMAGE,
-          selectedOptions: [
-            { label: 'Dimension', value: dimensionLabel },
-            { label: 'Papier', value: paperLabel },
-            { label: 'Pages', value: String(this.fileInfo.pageCount) },
-            { label: 'Copies', value: String(quote.copies) },
-            { label: 'Fichier', value: this.file.name },
-            { label: 'URL fichier', value: uploaded.url },
-            { label: 'Chemin storage', value: uploaded.path },
+          detail: {
+            productId: 'printing-documents',
+            name: lineName,
+            price: lineTotal,
+            quantity: 1,
+            sku: `POD-DOC-${Date.now()}`,
+            image: PRODUCT_IMAGE,
+            selectedOptions: [
+              { label: 'Dimension', value: dimensionLabel },
+              { label: 'Prix dimension', value: this.formatPrice(quote.dimensionPrice) },
+              { label: 'Papier', value: paperLabel },
+              { label: 'Prix papier', value: this.formatPrice(quote.paperPrice) },
+              { label: 'Pages', value: String(this.fileInfo.pageCount) },
+              { label: 'Copies', value: String(quote.copies) },
+              { label: 'Prix base', value: this.formatPrice(quote.basePrice) },
+              { label: 'Prix pages', value: this.formatPrice(quote.pagePrice) },
+              { label: 'Prix copie', value: this.formatPrice(quote.copyPrice) },
+              { label: 'Prix unitaire calcule', value: this.formatPrice(quote.unitPrice) },
+              { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
+              { label: 'Fichier', value: this.file.name },
+              { label: 'URL fichier', value: uploaded.url },
+              { label: 'Chemin storage', value: uploaded.path },
             ...(notes ? [{ label: 'Notes', value: notes }] : [])
           ]
         }

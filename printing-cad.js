@@ -130,8 +130,24 @@ class PrintingCadPage {
     const pageCount = this.fileInfo?.pageCount || 0;
     const oversized = /24x|36x|48/.test(String(dimensionLabel || ''));
     const pricing = this.config.pricing || {};
-    const unitPrice = (Number(pricing.basePrice) || 0) + ((Number(pricing.perSheetPrice) || 0) * pageCount) + (Number(dimension?.price) || 0) + (Number(paper?.price) || 0) + (oversized ? (Number(pricing.oversizedPrice) || 0) : 0);
-    return { pageCount, unitPrice, totalPrice: unitPrice, dimension, paper };
+    const basePrice = Number(pricing.basePrice) || 0;
+    const sheetPrice = (Number(pricing.perSheetPrice) || 0) * pageCount;
+    const dimensionPrice = Number(dimension?.price) || 0;
+    const paperPrice = Number(paper?.price) || 0;
+    const oversizedPrice = oversized ? (Number(pricing.oversizedPrice) || 0) : 0;
+    const unitPrice = basePrice + sheetPrice + dimensionPrice + paperPrice + oversizedPrice;
+    return {
+      pageCount,
+      unitPrice,
+      totalPrice: unitPrice,
+      dimension,
+      paper,
+      basePrice,
+      sheetPrice,
+      dimensionPrice,
+      paperPrice,
+      oversizedPrice
+    };
   }
 
   getStepValidity(step = this.currentStep) {
@@ -285,14 +301,21 @@ class PrintingCadPage {
         detail: {
           productId: 'printing-cad',
           name: `Impression plan CAD ${dimensionLabel}`,
-          price: quote.unitPrice,
+          price: quote.totalPrice,
           quantity: 1,
           sku: `CAD-${Date.now()}`,
           image: 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 viewBox=%220 0 240 240%22%3E%3Crect width=%22240%22 height=%22240%22 rx=%2236%22 fill=%22%23F2E9DA%22/%3E%3Cpath d=%22M48 180h144M70 148l32-40 22 26 40-48 22 28%22 stroke=%22%231F1E1C%22 stroke-width=%228%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 fill=%22none%22/%3E%3C/svg%3E',
           selectedOptions: [
             { label: 'Dimension', value: dimensionLabel },
+            { label: 'Prix dimension', value: this.formatPrice(quote.dimensionPrice) },
             { label: 'Papier', value: paperLabel },
+            { label: 'Prix papier', value: this.formatPrice(quote.paperPrice) },
             { label: 'Pages', value: String(this.fileInfo?.pageCount || 0) },
+            { label: 'Prix base', value: this.formatPrice(quote.basePrice) },
+            { label: 'Prix plans', value: this.formatPrice(quote.sheetPrice) },
+            { label: 'Supplement grand format', value: this.formatPrice(quote.oversizedPrice) },
+            { label: 'Prix unitaire calcule', value: this.formatPrice(quote.unitPrice) },
+            { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             { label: 'Dimension detectee', value: this.fileInfo?.suggestedDimension || '-' },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },

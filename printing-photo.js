@@ -98,8 +98,22 @@ class PrintingPhotoPage {
     const dimension = this.getEnabledDimensions().find((item) => item.label === dimensionLabel);
     const paper = this.getEnabledPapers().find((item) => item.label === paperLabel);
     const pricing = this.config.pricing || {};
-    const unitPrice = (Number(pricing.basePrice) || 0) + (Number(pricing.perUnitPrice) || 0) + (Number(dimension?.price) || 0) + (Number(paper?.price) || 0);
-    return { copies, unitPrice, totalPrice: unitPrice * copies, dimension, paper };
+    const basePrice = Number(pricing.basePrice) || 0;
+    const unitComponentPrice = Number(pricing.perUnitPrice) || 0;
+    const dimensionPrice = Number(dimension?.price) || 0;
+    const paperPrice = Number(paper?.price) || 0;
+    const unitPrice = basePrice + unitComponentPrice + dimensionPrice + paperPrice;
+    return {
+      copies,
+      unitPrice,
+      totalPrice: unitPrice * copies,
+      dimension,
+      paper,
+      basePrice,
+      unitComponentPrice,
+      dimensionPrice,
+      paperPrice
+    };
   }
 
   getStepValidity(step = this.currentStep) {
@@ -375,17 +389,25 @@ class PrintingPhotoPage {
       this.isBusy = true;
       if (statusEl) statusEl.textContent = 'Upload image et ajout au panier...';
       const uploaded = await uploadImageFile(this.file, 'printing-photo', { maxSizeMb: 12 });
+      const lineTotal = quote.totalPrice;
       document.dispatchEvent(new CustomEvent('addToCart', {
         detail: {
           productId: 'printing-photo',
           name: `Impression photo ${dimensionLabel}`,
-          price: quote.unitPrice,
-          quantity: quote.copies,
+          price: lineTotal,
+          quantity: 1,
           sku: `PHOTO-${Date.now()}`,
           image: uploaded.url,
           selectedOptions: [
             { label: 'Dimension', value: dimensionLabel },
+            { label: 'Prix dimension', value: this.formatPrice(quote.dimensionPrice) },
             { label: 'Papier', value: paperLabel },
+            { label: 'Prix papier', value: this.formatPrice(quote.paperPrice) },
+            { label: 'Tirages', value: String(quote.copies) },
+            { label: 'Prix base', value: this.formatPrice(quote.basePrice) },
+            { label: 'Prix tirage', value: this.formatPrice(quote.unitComponentPrice) },
+            { label: 'Prix unitaire calcule', value: this.formatPrice(quote.unitPrice) },
+            { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },
             { label: 'Chemin storage', value: uploaded.path }
