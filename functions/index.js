@@ -121,11 +121,17 @@ function createSessionId() {
 }
 
 function createUniqueCode(seed = '') {
-  const normalized = String(seed || '')
-    .replace(/[^A-Za-z0-9]/g, '')
-    .toUpperCase();
-  const short = (normalized || Math.random().toString(36).slice(2)).slice(0, 6).padEnd(6, 'X');
-  return `SCS-${short}`;
+  const normalized = String(seed || '').replace(/[^A-Za-z0-9]/g, '');
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(i)) % 100000000;
+  }
+
+  if (!hash) {
+    hash = Math.floor(Math.random() * 100000000);
+  }
+
+  return `SCS-${String(hash).padStart(8, '0')}`;
 }
 
 function safeSecretValue(secretParam) {

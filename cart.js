@@ -526,7 +526,7 @@ class CartManager {
   }
   
   generateUniqueCode() {
-    return 'SCS-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    return `SCS-${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`;
   }
   
   emitOrdersUpdate() {
