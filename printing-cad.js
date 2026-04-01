@@ -132,9 +132,12 @@ class PrintingCadPage {
     const pricing = this.config.pricing || {};
     const basePrice = Number(pricing.basePrice) || 0;
     const sheetPrice = (Number(pricing.perSheetPrice) || 0) * pageCount;
-    const dimensionPrice = Number(dimension?.price) || 0;
-    const paperPrice = Number(paper?.price) || 0;
-    const oversizedPrice = oversized ? (Number(pricing.oversizedPrice) || 0) : 0;
+    const dimensionUnitPrice = Number(dimension?.price) || 0;
+    const paperUnitPrice = Number(paper?.price) || 0;
+    const oversizedUnitPrice = oversized ? (Number(pricing.oversizedPrice) || 0) : 0;
+    const dimensionPrice = dimensionUnitPrice * pageCount;
+    const paperPrice = paperUnitPrice * pageCount;
+    const oversizedPrice = oversizedUnitPrice * pageCount;
     const unitPrice = basePrice + sheetPrice + dimensionPrice + paperPrice + oversizedPrice;
     return {
       pageCount,
@@ -144,6 +147,9 @@ class PrintingCadPage {
       paper,
       basePrice,
       sheetPrice,
+      dimensionUnitPrice,
+      paperUnitPrice,
+      oversizedUnitPrice,
       dimensionPrice,
       paperPrice,
       oversizedPrice

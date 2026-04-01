@@ -154,12 +154,17 @@ class PrintingDocumentsPage {
     const dimension = this.getEnabledDimensions().find((item) => item.label === dimensionLabel);
     const paper = this.getEnabledPapers().find((item) => item.label === paperLabel);
     const pricing = this.config.pricing || {};
+    const dimensionUnitPrice = Number(dimension?.price) || 0;
+    const paperUnitPrice = Number(paper?.price) || 0;
+    const pagePrice = (Number(pricing.perPagePrice) || 0) * pageCount;
+    const dimensionPrice = dimensionUnitPrice * pageCount;
+    const paperPrice = paperUnitPrice * pageCount;
     const unitPrice =
       (Number(pricing.basePrice) || 0) +
-      ((Number(pricing.perPagePrice) || 0) * pageCount) +
+      pagePrice +
       (Number(pricing.perCopyPrice) || 0) +
-      (Number(dimension?.price) || 0) +
-      (Number(paper?.price) || 0);
+      dimensionPrice +
+      paperPrice;
 
     return {
       dimension,
@@ -167,10 +172,12 @@ class PrintingDocumentsPage {
       copies,
       pageCount,
       basePrice: Number(pricing.basePrice) || 0,
-      pagePrice: (Number(pricing.perPagePrice) || 0) * pageCount,
+      pagePrice,
       copyPrice: Number(pricing.perCopyPrice) || 0,
-      dimensionPrice: Number(dimension?.price) || 0,
-      paperPrice: Number(paper?.price) || 0,
+      dimensionUnitPrice,
+      paperUnitPrice,
+      dimensionPrice,
+      paperPrice,
       unitPrice,
       totalPrice: unitPrice * copies
     };
