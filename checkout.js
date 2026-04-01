@@ -2,6 +2,24 @@
 import { db } from './firebase-init.js';
 import { collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
+function normalizeSelectedOptionLabel(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function isCustomerVisibleOption(option) {
+  if (!option || typeof option === 'string') return true;
+  const label = normalizeSelectedOptionLabel(option?.label || option?.name || option?.key || option?.type || '');
+  return !['url fichier', 'lien fichier', 'chemin storage', 'storage path'].includes(label);
+}
+
+function getCustomerVisibleOptions(options) {
+  return (Array.isArray(options) ? options : []).filter(isCustomerVisibleOption);
+}
+
 class CheckoutModal {
   constructor(options = {}) {
     this.options = {
@@ -613,7 +631,7 @@ class CheckoutModal {
   }
   
   renderDesktopRow(item, index) {
-    const options = item.selectedOptions || [];
+    const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
     
@@ -677,7 +695,7 @@ class CheckoutModal {
   }
   
   renderMobileCard(item, index) {
-    const options = item.selectedOptions || [];
+    const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
     

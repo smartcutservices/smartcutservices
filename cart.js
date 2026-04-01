@@ -1276,6 +1276,24 @@ class CartManager {
       maximumFractionDigits: 0
     }).format(price || 0);
   }
+
+  normalizeSelectedOptionLabel(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  isCustomerVisibleOption(option) {
+    if (!option || typeof option === 'string') return true;
+    const label = this.normalizeSelectedOptionLabel(option?.label || option?.name || option?.key || option?.type || '');
+    return !['url fichier', 'lien fichier', 'chemin storage', 'storage path'].includes(label);
+  }
+
+  getCustomerVisibleOptions(options) {
+    return (Array.isArray(options) ? options : []).filter((option) => this.isCustomerVisibleOption(option));
+  }
   
   getStatusText(status) {
     const texts = {
@@ -2321,7 +2339,7 @@ class CartManager {
   renderCartItems(colors, fonts) {
     return this.cart.map((item, index) => {
       const itemTotal = (item.price || 0) * (item.quantity || 1);
-      const options = item.selectedOptions || [];
+      const options = this.getCustomerVisibleOptions(item.selectedOptions || []);
       const imagePath = this.getImagePath(item.image || '');
       
       return `

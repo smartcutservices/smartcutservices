@@ -7,8 +7,22 @@ function formatPrice(value) {
   }).format(Number(value || 0));
 }
 
+function normalizeSelectedOptionLabel(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function isCustomerVisibleOption(option) {
+  if (!option || typeof option === 'string') return true;
+  const label = normalizeSelectedOptionLabel(option?.label || option?.name || option?.key || option?.type || '');
+  return !['url fichier', 'lien fichier', 'chemin storage', 'storage path'].includes(label);
+}
+
 function formatOptions(item) {
-  const options = Array.isArray(item?.selectedOptions) ? item.selectedOptions : [];
+  const options = (Array.isArray(item?.selectedOptions) ? item.selectedOptions : []).filter(isCustomerVisibleOption);
   if (!options.length) return '-';
 
   return options.map((opt) => {
