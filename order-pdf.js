@@ -27,6 +27,45 @@ function getDeliveryLabel(delivery) {
   return 'Livraison';
 }
 
+function buildDeliveryLines(delivery) {
+  if (!delivery) return [];
+
+  const lines = [`Methode: ${getDeliveryLabel(delivery)}`];
+
+  if (delivery.method === 'home') {
+    const zoneLabel = delivery?.homeZone?.city || delivery?.homeZone?.zone || delivery?.homeZone?.name || '';
+    if (zoneLabel) lines.push(`Zone: ${zoneLabel}`);
+    if (delivery.address) lines.push(`Adresse: ${String(delivery.address)}`);
+    if (delivery.phone) lines.push(`Telephone: ${String(delivery.phone)}`);
+    if (delivery.whatsapp) lines.push(`WhatsApp: ${String(delivery.whatsapp)}`);
+  }
+
+  if (delivery.method === 'pickup') {
+    const pointName = delivery?.pickupPoint?.name || delivery?.pickupPoint?.title || '';
+    const pointAddress = delivery?.pickupPoint?.address || delivery?.pickupPoint?.location || '';
+    const pointContact = delivery?.pickupPoint?.phone || delivery?.pickupPoint?.whatsapp || '';
+    const pointHours = delivery?.pickupPoint?.hours || delivery?.pickupPoint?.schedule || '';
+    if (pointName) lines.push(`Point de retrait: ${pointName}`);
+    if (pointAddress) lines.push(`Adresse du point: ${pointAddress}`);
+    if (pointContact) lines.push(`Contact du point: ${pointContact}`);
+    if (pointHours) lines.push(`Horaire: ${pointHours}`);
+  }
+
+  if (delivery.method === 'meetup') {
+    const meetupLabel = delivery?.meetupZone?.zone || delivery?.meetupZone?.city || delivery?.meetupZone?.name || '';
+    if (meetupLabel) lines.push(`Zone de rencontre: ${meetupLabel}`);
+    if (delivery.meetupProposal) lines.push(`Proposition: ${String(delivery.meetupProposal)}`);
+    if (delivery.phone) lines.push(`Telephone: ${String(delivery.phone)}`);
+    if (delivery.whatsapp) lines.push(`WhatsApp: ${String(delivery.whatsapp)}`);
+  }
+
+  if (Number(delivery.totalFee || 0) > 0) {
+    lines.push(`Frais: ${formatPrice(delivery.totalFee)}`);
+  }
+
+  return lines;
+}
+
 function buildPdfFilename(order) {
   const raw = String(order?.uniqueCode || order?.id || 'commande')
     .replace(/[^A-Za-z0-9_-]/g, '-')
@@ -118,14 +157,14 @@ export async function downloadOrderPdfReceipt(order, config = {}) {
     y += 10;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Methode: ${getDeliveryLabel(order.delivery)}`, 18, y);
-    y += 8;
-    if (order.delivery?.address) {
-      doc.text(`Adresse: ${String(order.delivery.address).slice(0, 100)}`, 18, y);
-      y += 8;
-    }
-    if (Number(order.delivery?.totalFee || 0) > 0) {
-      doc.text(`Frais: ${formatPrice(order.delivery.totalFee)}`, 18, y);
+    const deliveryLines = buildDeliveryLines(order.delivery);
+    deliveryLines.forEach((line) => {
+      const wrapped = doc.splitTextToSize(line, 170);
+      doc.text(wrapped, 18, y);
+      y += wrapped.length * 6 + 2;
+    });
+    if (deliveryLines.length === 0) {
+      doc.text(`Methode: ${getDeliveryLabel(order.delivery)}`, 18, y);
       y += 8;
     }
   }
@@ -175,7 +214,8 @@ export async function downloadOrderPdfReceipt(order, config = {}) {
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text(thankYouMessage, 18, Math.min(y + 8, 276));
+  const wrappedThankYou = doc.splitTextToSize(thankYouMessage, 170);
+  doc.text(wrappedThankYou, 18, Math.min(y + 8, 270));
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
   doc.text(`Code de verification: ${order?.uniqueCode || order?.id || 'N/A'}`, 18, 286);
