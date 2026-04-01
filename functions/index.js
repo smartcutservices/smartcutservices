@@ -55,6 +55,15 @@ function sendJson(res, status, body) {
   res.status(status).json(body);
 }
 
+function buildReturnPageUrl({ sessionId = '', orderId = '', transactionId = '', status = '' } = {}) {
+  const url = new URL(DEFAULT_RETURN_URL);
+  if (sessionId) url.searchParams.set('session_id', String(sessionId).trim());
+  if (orderId) url.searchParams.set('orderId', String(orderId).trim());
+  if (transactionId) url.searchParams.set('transactionId', String(transactionId).trim());
+  if (status) url.searchParams.set('status', String(status).trim());
+  return url.toString();
+}
+
 function toNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -829,15 +838,36 @@ exports.moncashAlert = onRequest(
         const resolvedOrderId = result.syncResult?.orderId || result.details?.orderId || result.session?.data?.orderId || '';
         const order = await getOrderRecord(clientId, resolvedOrderId);
 
-        sendJson(res, 200, buildStatusResponse({
+        const responseBody = buildStatusResponse({
           session: result.session,
           details: result.details,
           syncResult: result.syncResult,
           fallbackSessionId: sessionId,
           order
-        }));
+        });
+
+        if (req.method === 'GET') {
+          res.redirect(302, buildReturnPageUrl({
+            sessionId: responseBody.sessionId,
+            orderId: responseBody.orderId,
+            transactionId: responseBody.transactionId,
+            status: responseBody.status === 'failed' ? 'failed' : ''
+          }));
+          return;
+        }
+
+        sendJson(res, 200, responseBody);
       } catch (error) {
       logger.error('MonCash alert sync failed', error);
+      if (req.method === 'GET') {
+        res.redirect(302, buildReturnPageUrl({
+          sessionId,
+          orderId,
+          transactionId,
+          status: 'failed'
+        }));
+        return;
+      }
       sendJson(res, 500, {
         ok: false,
         error: 'sync-failed',
