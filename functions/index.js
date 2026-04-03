@@ -55,6 +55,41 @@ function sendJson(res, status, body) {
   res.status(status).json(body);
 }
 
+async function verifyBearerUser(req) {
+  const header = String(req.headers.authorization || '');
+  if (!header.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = header.slice(7).trim();
+  if (!token) return null;
+
+  return admin.auth().verifyIdToken(token);
+}
+
+async function getVendorProfile(uid) {
+  if (!uid) return null;
+
+  const vendorSnap = await db.collection('vendors').doc(uid).get();
+  if (vendorSnap.exists) {
+    return { id: vendorSnap.id, ...(vendorSnap.data() || {}) };
+  }
+
+  const clientSnap = await db.collection('clients').doc(uid).get();
+  if (clientSnap.exists) {
+    return { id: clientSnap.id, ...(clientSnap.data() || {}) };
+  }
+
+  return null;
+}
+
+function isApprovedVendorProfile(profile) {
+  if (!profile) return false;
+  const role = String(profile.role || '').toLowerCase();
+  const status = String(profile.status || profile.vendorStatus || '').toLowerCase();
+  return role === 'vendor' && ['active', 'approved'].includes(status || 'active');
+}
+
 function buildReturnPageUrl({ sessionId = '', orderId = '', transactionId = '', status = '' } = {}) {
   const url = new URL(DEFAULT_RETURN_URL);
   if (sessionId) url.searchParams.set('session_id', String(sessionId).trim());
@@ -947,6 +982,53 @@ exports.getMoncashPaymentStatus = onRequest(
         ok: false,
         error: 'status-lookup-failed',
         message: error?.message || 'Unable to retrieve MonCash payment status'
+      });
+    }
+  }
+);
+
+exports.createVendorDashboardAccess = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(decodedUser.uid);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
+        return;
+      }
+
+      const customToken = await admin.auth().createCustomToken(decodedUser.uid, {
+        role: 'vendor',
+        vendorDashboard: true
+      });
+
+      const dashboardUrl = new URL('https://smartcutservices.github.io/dashboard-/DvendorProducts.html');
+      dashboardUrl.searchParams.set('access_token', customToken);
+
+      sendJson(res, 200, {
+        ok: true,
+        uid: decodedUser.uid,
+        dashboardUrl: dashboardUrl.toString()
+      });
+    } catch (error) {
+      logger.error('Vendor dashboard access bootstrap failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-dashboard-bootstrap-failed',
+        message: error?.message || 'Unable to prepare vendor dashboard access'
       });
     }
   }

@@ -1,6 +1,6 @@
 import { db } from './firebase-init.js';
 import { getAuthManager } from './auth.js';
-import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
+import { VENDOR_DASHBOARD_URL, getVendorDashboardAccessUrl } from './dashboard-links.js';
 import {
   doc,
   getDoc,
@@ -158,7 +158,7 @@ class VendorApplicationPage {
                       <span style="line-height:1.75;">Votre candidature a ete approuvee par l administration. Vous pouvez maintenant acceder a votre dashboard vendeur personnel.</span>
                     </div>
                     <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
-                    <a href="${VENDOR_DASHBOARD_URL}" style="display:inline-flex;align-items:center;gap:.65rem;text-decoration:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;">
+                    <a href="${VENDOR_DASHBOARD_URL}" id="vendorDashboardAccessBtn" style="display:inline-flex;align-items:center;gap:.65rem;text-decoration:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;">
                       <i class="fas fa-store"></i>
                       Acceder a mon dashboard
                     </a>
@@ -339,6 +339,36 @@ class VendorApplicationPage {
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         await this.submitApplication();
+      });
+    }
+
+    const dashboardButton = this.container.querySelector('#vendorDashboardAccessBtn');
+    if (dashboardButton) {
+      dashboardButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+
+        const user = this.auth.getCurrentUser();
+        if (!user) {
+          this.auth.showToast('Connectez-vous d abord pour ouvrir le dashboard vendeur.', 'error');
+          this.auth.openAuthModal('login');
+          return;
+        }
+
+        const originalLabel = dashboardButton.innerHTML;
+        dashboardButton.style.pointerEvents = 'none';
+        dashboardButton.style.opacity = '0.75';
+        dashboardButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ouverture...';
+
+        try {
+          const accessUrl = await getVendorDashboardAccessUrl(user);
+          window.location.href = accessUrl;
+        } catch (error) {
+          console.error('Erreur ouverture dashboard vendeur:', error);
+          dashboardButton.style.pointerEvents = '';
+          dashboardButton.style.opacity = '1';
+          dashboardButton.innerHTML = originalLabel;
+          this.auth.showToast('Impossible d ouvrir automatiquement le dashboard vendeur pour le moment.', 'error');
+        }
       });
     }
   }
