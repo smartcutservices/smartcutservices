@@ -400,7 +400,13 @@ class CategoriesDisplay {
   buildItems() {
     this.items = [];
 
-    this.rawCategories.forEach((category) => {
+    const sortedCategories = [...this.rawCategories].sort((a, b) => {
+      const aTime = this.getDateMs(a?.updatedAt || a?.createdAt);
+      const bTime = this.getDateMs(b?.updatedAt || b?.createdAt);
+      return bTime - aTime;
+    });
+
+    sortedCategories.forEach((category) => {
       const categoryName = category?.name || '';
       if (!categoryName) return;
 
@@ -415,6 +421,36 @@ class CategoriesDisplay {
     });
 
     this.renderCategories();
+  }
+
+  getDateMs(value) {
+    if (!value) return 0;
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    if (value instanceof Date) {
+      const ms = value.getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    }
+
+    if (typeof value?.toDate === 'function') {
+      const ms = value.toDate().getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    }
+
+    if (typeof value === 'object' && Number.isFinite(value.seconds)) {
+      const nanos = Number.isFinite(value.nanoseconds) ? value.nanoseconds : 0;
+      return (value.seconds * 1000) + Math.floor(nanos / 1e6);
+    }
+
+    return 0;
   }
 
   renderCategories() {

@@ -297,7 +297,7 @@ class Catg {
                             createdAt: data.createdAt || null,
                             updatedAt: data.updatedAt || null
                         };
-                    });
+                    }).sort((a, b) => this.getDateMs(b.updatedAt || b.createdAt) - this.getDateMs(a.updatedAt || a.createdAt));
                     
                     // Optionnel: filtrer pour n'afficher que celles avec showInHeader = true
                     // this.categories = this.categories.filter(cat => cat.showInHeader);
@@ -330,6 +330,34 @@ class Catg {
         if (this.grid) {
             this.grid.style.display = 'none';
         }
+    }
+
+    getDateMs(value) {
+        if (!value) return 0;
+
+        if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+
+        if (typeof value === 'string') {
+            const parsed = Date.parse(value);
+            return Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        if (value instanceof Date) {
+            const ms = value.getTime();
+            return Number.isFinite(ms) ? ms : 0;
+        }
+
+        if (typeof value?.toDate === 'function') {
+            const ms = value.toDate().getTime();
+            return Number.isFinite(ms) ? ms : 0;
+        }
+
+        if (typeof value === 'object' && Number.isFinite(value.seconds)) {
+            const nanos = Number.isFinite(value.nanoseconds) ? value.nanoseconds : 0;
+            return (value.seconds * 1000) + Math.floor(nanos / 1e6);
+        }
+
+        return 0;
     }
 
     renderCategories() {
