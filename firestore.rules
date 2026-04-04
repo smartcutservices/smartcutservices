@@ -191,6 +191,11 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /vendorCommissionRules/{docId} {
+      allow read: if isAdmin() || isApprovedVendor();
+      allow write: if isAdmin();
+    }
+
     match /vendorApplicationSettings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
