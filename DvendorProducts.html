@@ -1043,12 +1043,14 @@
     
     const PRODUCTS_COLLECTION = "vendorProducts";
     const CATEGORIES_COLLECTION = "categories_list";
+    const COMMISSION_RULES_COLLECTION = "vendorCommissionRules";
 
     // ========== CLASSE PRODUCT MANAGER ==========
     class ProductManager {
       constructor() {
         this.products = [];
         this.categories = [];
+        this.commissionRules = [];
         this.productLikes = new Map();
         this.likesModal = null;
         this.likesUnsubscribe = null;
@@ -1078,7 +1080,8 @@
         this.setupModalEvents(); // Configuration spécifique de la modale
         await Promise.all([
           this.loadProducts(),
-          this.loadCategories()
+          this.loadCategories(),
+          this.loadCommissionRules()
         ]);
         this.setupRealtimeListener();
         this.setupLikesListener();
@@ -1606,6 +1609,67 @@
         } catch (error) {
           console.error('Erreur chargement catégories:', error);
         }
+      }
+
+      async loadCommissionRules() {
+        try {
+          const q = query(collection(db, COMMISSION_RULES_COLLECTION), orderBy('category'));
+          const snapshot = await getDocs(q);
+          this.commissionRules = snapshot.docs
+            .map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+            .filter(rule => rule.active !== false);
+        } catch (error) {
+          console.error('Erreur chargement commissions vendeur:', error);
+          this.commissionRules = [];
+        }
+      }
+
+      normalizeCategory(value) {
+        return String(value || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+
+      getSelectedCategory(categoryId = this.elements?.categorySelect?.value || this.currentProduct?.categoryId || '') {
+        return this.categories.find(category => category.id === categoryId) || null;
+      }
+
+      getCategoryCommissionRule(categoryName) {
+        const normalized = this.normalizeCategory(categoryName);
+        if (!normalized) return null;
+        return this.commissionRules.find(rule => this.normalizeCategory(rule.category) === normalized) || null;
+      }
+
+      buildCommissionRule(categoryName, now) {
+        const currentRule = this.currentProduct?.commissionRule || null;
+        const currentUpdatedBy = String(currentRule?.updatedBy || '').toLowerCase();
+        const isManualProductOverride = currentRule && (
+          currentRule.source === 'product_override' ||
+          currentUpdatedBy === 'dashboard_admin'
+        );
+
+        if (isManualProductOverride) {
+          return currentRule;
+        }
+
+        const categoryRule = this.getCategoryCommissionRule(categoryName);
+        if (categoryRule) {
+          return {
+            category: categoryRule.category || categoryName || '',
+            categoryRate: Number(categoryRule.rate) || 0,
+            source: 'vendorCommissionRules',
+            updatedAt: now,
+            updatedBy: 'vendor_dashboard_default'
+          };
+        }
+
+        return currentRule || this.vendorContext.commissionRule || null;
       }
       
       async loadColumns(categoryId) {
@@ -2250,6 +2314,12 @@
       async saveProduct() {
         const now = new Date().toISOString();
         const nextStatus = this.elements.productStatus.checked ? 'pending_review' : 'draft';
+        const selectedCategory = this.getSelectedCategory();
+        const selectedCategoryName = String(
+          selectedCategory?.name ||
+          this.currentProduct?.category ||
+          ''
+        ).trim();
         const productData = {
           name: this.elements.productName.value.trim(),
           sku: this.elements.mainSku.value.trim() || this.generateMainSku(),
@@ -2260,6 +2330,7 @@
           status: nextStatus,
           requestedStatus: this.elements.productStatus.checked ? 'active' : 'draft',
           categoryId: this.elements.categorySelect.value || null,
+          category: selectedCategoryName,
           categorySelections: this.categorySelections,
           variations: this.currentVariations.map((v, index) => ({
             ...v,
@@ -2270,7 +2341,7 @@
           vendorName: this.vendorContext.vendorName || this.vendorContext.shopName || 'Vendeur',
           shopName: this.vendorContext.shopName || '',
           deliveryMode: this.vendorContext.deliveryMode || '',
-          commissionRule: this.currentProduct?.commissionRule || this.vendorContext.commissionRule || null,
+          commissionRule: this.buildCommissionRule(selectedCategoryName, now),
           createdBy: 'vendor_dashboard_products',
           adminReviewNote: this.currentProduct?.id
             ? 'Produit mis a jour par le vendeur. Une nouvelle revue admin est necessaire.'
