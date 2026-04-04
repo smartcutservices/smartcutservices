@@ -3,7 +3,7 @@ import { db } from './firebase-init.js';
 import { findPublicProductById, loadPublicProducts } from './catalog-products.js';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
-import { buildProductPageUrl } from './product-links.js';
+import { buildProductPageUrl, buildProductShareUrl } from './product-links.js';
 import { 
   doc, getDoc, collection, query, getDocs, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -186,8 +186,10 @@ class ProductModal {
   }
 
   getProductShareUrl() {
-    const path = buildProductPageUrl(this.product?.id || this.options.productId || '');
-    return new URL(path, window.location.href).toString();
+    return buildProductShareUrl(
+      this.product?.id || this.options.productId || '',
+      this.product?.sourceCollection || this.options.collectionName || ''
+    );
   }
 
   getProductPageUrl(productId = this.product?.id || this.options.productId || '') {

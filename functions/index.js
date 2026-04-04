@@ -99,6 +99,197 @@ function buildReturnPageUrl({ sessionId = '', orderId = '', transactionId = '', 
   return url.toString();
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function truncateText(value, maxLength = 220) {
+  const text = String(value || '').trim().replace(/\s+/g, ' ');
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
+}
+
+function buildProductPageAbsoluteUrl(productId = '') {
+  const url = new URL('/product.html', `${SITE_BASE_URL}/`);
+  if (productId) url.searchParams.set('product', String(productId).trim());
+  return url.toString();
+}
+
+async function findPublicProductDocument(productId = '', preferredCollection = '') {
+  const trimmedId = String(productId || '').trim();
+  if (!trimmedId) return null;
+
+  const collections = preferredCollection
+    ? [preferredCollection, ...(preferredCollection === 'vendorProducts' ? ['products'] : ['vendorProducts'])]
+    : ['products', 'vendorProducts'];
+
+  for (const collectionName of collections) {
+    const snap = await db.collection(collectionName).doc(trimmedId).get();
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    const status = String(data.status || '').toLowerCase();
+    const isVisible = status ? status === 'active' : data.active !== false;
+    if (!isVisible) continue;
+    return {
+      id: snap.id,
+      sourceCollection: collectionName,
+      ...data
+    };
+  }
+
+  return null;
+}
+
+function getPrimaryProductImage(product = {}) {
+  if (Array.isArray(product.images) && product.images[0]) {
+    return String(product.images[0]).trim();
+  }
+
+  if (Array.isArray(product.variations)) {
+    for (const variation of product.variations) {
+      if (Array.isArray(variation?.images) && variation.images[0]) {
+        return String(variation.images[0]).trim();
+      }
+      if (variation?.image) {
+        return String(variation.image).trim();
+      }
+    }
+  }
+
+  return `${SITE_BASE_URL}/logo.png`;
+}
+
+function buildProductShareHtml(product = {}, productUrl = '') {
+  const title = truncateText(product.name || 'Produit Smart Cut Services', 90);
+  const description = truncateText(
+    product.shortDescription || product.longDescription || product.description || 'Découvrez ce produit sur Smart Cut Services.',
+    200
+  );
+  const imageUrl = getPrimaryProductImage(product);
+  const price = Number.isFinite(Number(product.price)) ? `${Number(product.price)} HTG` : '';
+  const category = truncateText(product.category || product.categoryName || '', 60);
+  const vendorName = truncateText(product.vendorName || product.shopName || '', 60);
+  const subtitleParts = [category, vendorName, price].filter(Boolean);
+  const subtitle = subtitleParts.join(' • ');
+  const safeTitle = escapeHtml(title);
+  const safeDescription = escapeHtml(description);
+  const safeImageUrl = escapeHtml(imageUrl);
+  const safeProductUrl = escapeHtml(productUrl);
+  const safeSubtitle = escapeHtml(subtitle);
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${safeTitle} | Smart Cut Services</title>
+  <meta name="description" content="${safeDescription}">
+  <link rel="canonical" href="${safeProductUrl}">
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="Smart Cut Services">
+  <meta property="og:title" content="${safeTitle}">
+  <meta property="og:description" content="${safeDescription}">
+  <meta property="og:url" content="${safeProductUrl}">
+  <meta property="og:image" content="${safeImageUrl}">
+  <meta property="og:image:secure_url" content="${safeImageUrl}">
+  <meta property="og:image:alt" content="${safeTitle}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${safeTitle}">
+  <meta name="twitter:description" content="${safeDescription}">
+  <meta name="twitter:image" content="${safeImageUrl}">
+  <meta http-equiv="refresh" content="0;url=${safeProductUrl}">
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #fbf7ef 0%, #f2ebde 100%);
+      color: #1f1e1c;
+      font-family: Arial, sans-serif;
+      padding: 1.5rem;
+    }
+    .card {
+      width: min(100%, 560px);
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(198,167,94,0.18);
+      border-radius: 24px;
+      padding: 1.5rem;
+      box-shadow: 0 18px 42px rgba(31,30,28,0.08);
+    }
+    .media {
+      width: 100%;
+      aspect-ratio: 1.2;
+      object-fit: cover;
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(198,167,94,0.14);
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .45rem;
+      padding: .45rem .8rem;
+      border-radius: 999px;
+      background: rgba(198,167,94,0.12);
+      color: #8a6e2f;
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      margin: 1rem 0 .6rem;
+      font-size: clamp(1.7rem, 4vw, 2.5rem);
+      line-height: 1.05;
+    }
+    p {
+      margin: 0;
+      color: #5f5a52;
+      line-height: 1.7;
+    }
+    .meta {
+      margin-top: .9rem;
+      color: #8b7e6b;
+      font-size: .92rem;
+    }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1.2rem;
+      padding: .9rem 1.2rem;
+      border-radius: 999px;
+      background: #1f1e1c;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+  </style>
+  <script>
+    window.location.replace(${JSON.stringify(productUrl)});
+  </script>
+</head>
+<body>
+  <main class="card">
+    <div class="eyebrow">Smart Cut Services</div>
+    <img class="media" src="${safeImageUrl}" alt="${safeTitle}">
+    <h1>${safeTitle}</h1>
+    <p>${safeDescription}</p>
+    ${safeSubtitle ? `<div class="meta">${safeSubtitle}</div>` : ''}
+    <a class="cta" href="${safeProductUrl}">Voir le produit</a>
+  </main>
+</body>
+</html>`;
+}
+
 function toNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -1030,6 +1221,39 @@ exports.createVendorDashboardAccess = onRequest(
         error: 'vendor-dashboard-bootstrap-failed',
         message: error?.message || 'Unable to prepare vendor dashboard access'
       });
+    }
+  }
+);
+
+exports.productSharePage = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    try {
+      const productId = String(req.query.product || req.query.id || '').trim();
+      const preferredCollection = String(req.query.source || '').trim();
+      const productUrl = buildProductPageAbsoluteUrl(productId);
+
+      if (!productId) {
+        res.set('Cache-Control', 'public, max-age=300');
+        res.status(302).redirect(productUrl);
+        return;
+      }
+
+      const product = await findPublicProductDocument(productId, preferredCollection);
+      if (!product) {
+        res.set('Cache-Control', 'public, max-age=300');
+        res.status(302).redirect(productUrl);
+        return;
+      }
+
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Cache-Control', 'public, max-age=600');
+      res.status(200).send(buildProductShareHtml(product, productUrl));
+    } catch (error) {
+      logger.error('productSharePage failed', error);
+      const fallbackUrl = buildProductPageAbsoluteUrl(String(req.query.product || req.query.id || '').trim());
+      res.set('Cache-Control', 'public, max-age=120');
+      res.status(302).redirect(fallbackUrl);
     }
   }
 );
