@@ -106,6 +106,85 @@
       top: 0;
       z-index: 40;
     }
+
+    .vendor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .vendor-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      min-width: 0;
+    }
+
+    .vendor-header-logo {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 14px 28px rgba(198, 167, 94, 0.24);
+      flex-shrink: 0;
+    }
+
+    .vendor-header-copy {
+      min-width: 0;
+      display: grid;
+      gap: 0.2rem;
+    }
+
+    .vendor-header-copy p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .vendor-header-copy h2 {
+      margin: 0;
+      font-size: 1.3rem;
+      line-height: 1.1;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: min(50vw, 480px);
+    }
+
+    .vendor-header-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .vendor-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid rgba(198, 167, 94, 0.18);
+      background: rgba(198, 167, 94, 0.08);
+      color: #8a6e2f;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .vendor-chip i {
+      font-size: 0.82rem;
+    }
     
     /* ========== CARDS ========== */
     .stat-card {
@@ -798,17 +877,38 @@
     <main class="main-content">
       <!-- Header -->
       <header class="header flex items-center justify-between">
-        <button id="menuToggle" class="lg:hidden btn-icon">
-          <i class="fas fa-bars text-xl"></i>
-        </button>
-        
-        <h2 id="currentViewTitle" class="text-xl font-semibold">Vue globale vendeur</h2>
-        
-        <div class="flex items-center gap-3">
-          <button id="addProductBtn" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            <span class="hidden sm:inline">Ajouter un produit</span>
-          </button>
+        <div class="vendor-header w-full">
+          <div class="vendor-header-brand">
+            <button id="menuToggle" class="lg:hidden btn-icon">
+              <i class="fas fa-bars text-xl"></i>
+            </button>
+            <div class="vendor-header-logo">
+              <i class="fas fa-store text-xl"></i>
+            </div>
+            <div class="vendor-header-copy">
+              <p>Dashboard vendeur</p>
+              <h2 id="currentViewTitle">Vue globale vendeur</h2>
+            </div>
+          </div>
+
+          <div class="vendor-header-meta">
+            <span id="vendorHeaderName" class="vendor-chip">
+              <i class="fas fa-user-circle"></i>
+              <span>Vendeur</span>
+            </span>
+            <span id="vendorHeaderStatus" class="vendor-chip">
+              <i class="fas fa-circle-check"></i>
+              <span>Compte approuve</span>
+            </span>
+            <a href="https://smartcutservices.com/" class="btn btn-secondary">
+              <i class="fas fa-arrow-left"></i>
+              <span>Retour au site</span>
+            </a>
+            <button id="addProductBtn" class="btn btn-primary">
+              <i class="fas fa-plus"></i>
+              <span class="hidden sm:inline">Ajouter un produit</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1310,6 +1410,7 @@
           return;
         }
         this.cacheElements();
+        this.renderVendorHeader();
         this.setupEventListeners();
         this.setupModalEvents(); // Configuration spécifique de la modale
         await Promise.all([
@@ -1384,6 +1485,32 @@
         const role = String(profile.role || '').toLowerCase();
         const status = String(profile.status || profile.vendorStatus || '').toLowerCase();
         return role === 'vendor' && ['active', 'approved'].includes(status || 'active');
+      }
+
+      renderVendorHeader() {
+        if (!this.elements?.vendorHeaderName || !this.elements?.vendorHeaderStatus) return;
+
+        const displayName = String(
+          this.vendorContext?.shopName ||
+          this.vendorContext?.vendorName ||
+          this.vendorContext?.displayName ||
+          this.vendorContext?.email ||
+          'Vendeur approuve'
+        ).trim();
+
+        const status = String(this.vendorContext?.status || this.vendorContext?.vendorStatus || 'approved').trim().toLowerCase();
+        const statusLabel = ['approved', 'active'].includes(status)
+          ? 'Compte approuve'
+          : 'Compte vendeur';
+
+        this.elements.vendorHeaderName.innerHTML = `
+          <i class="fas fa-user-circle"></i>
+          <span>${this.escape(displayName)}</span>
+        `;
+        this.elements.vendorHeaderStatus.innerHTML = `
+          <i class="fas fa-circle-check"></i>
+          <span>${this.escape(statusLabel)}</span>
+        `;
       }
 
       setVendorSessionFlag() {
@@ -1607,9 +1734,11 @@
             editor: document.getElementById('product-editor-view'),
             categories: document.getElementById('categories-view')
           },
-          currentViewTitle: document.getElementById('currentViewTitle'),
-          
-          // Stats
+            currentViewTitle: document.getElementById('currentViewTitle'),
+            vendorHeaderName: document.getElementById('vendorHeaderName'),
+            vendorHeaderStatus: document.getElementById('vendorHeaderStatus'),
+            
+            // Stats
             statsTotalProducts: document.getElementById('stats-total-products'),
             statsInStock: document.getElementById('stats-in-stock'),
             statsOutStock: document.getElementById('stats-out-stock'),
