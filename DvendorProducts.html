@@ -1033,7 +1033,11 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
     const googleProvider = new GoogleAuthProvider();
-    const dashboardNotifier = new NotificationComponent({ mode: 'dashboard', defaultUrl: './DvendorProducts.html' });
+    const dashboardNotifier = new NotificationComponent({
+      mode: 'dashboard',
+      defaultUrl: './DvendorProducts.html',
+      listenDashboardOrders: false
+    });
     dashboardNotifier.init();
     const VENDOR_SESSION_KEY = 'smartcut-vendor-session';
     

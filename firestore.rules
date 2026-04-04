@@ -15,6 +15,21 @@ service cloud.firestore {
         get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == "admin";
     }
 
+    function isApprovedVendor() {
+      return signedIn() && (
+        (
+          exists(/databases/$(database)/documents/vendors/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/vendors/$(request.auth.uid)).data.role == "vendor" &&
+          get(/databases/$(database)/documents/vendors/$(request.auth.uid)).data.status == "active"
+        ) ||
+        (
+          exists(/databases/$(database)/documents/clients/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == "vendor" &&
+          get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.vendorStatus == "active"
+        )
+      );
+    }
+
     match /products/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -22,7 +37,19 @@ service cloud.firestore {
 
     match /vendorProducts/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isAdmin() || (
+        isApprovedVendor() &&
+        request.resource.data.vendorId == request.auth.uid
+      );
+      allow update: if isAdmin() || (
+        isApprovedVendor() &&
+        resource.data.vendorId == request.auth.uid &&
+        request.resource.data.vendorId == resource.data.vendorId
+      );
+      allow delete: if isAdmin() || (
+        isApprovedVendor() &&
+        resource.data.vendorId == request.auth.uid
+      );
     }
 
     match /categories_list/{docId} {
