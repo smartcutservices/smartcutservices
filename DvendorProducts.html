@@ -84,6 +84,12 @@
       .main-content {
         margin-left: 0 !important;
       }
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+      .chart-bars {
+        min-height: 180px;
+      }
     }
     
     .main-content {
@@ -131,6 +137,178 @@
     
     .card-body {
       padding: 1.5rem;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+
+    .analytics-stack {
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    .chart-panel {
+      background: linear-gradient(180deg, rgba(198, 167, 94, 0.08) 0%, rgba(255,255,255,0.96) 100%);
+      border: 1px solid rgba(198, 167, 94, 0.18);
+      border-radius: 1rem;
+      padding: 1.25rem;
+    }
+
+    .chart-bars {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+      gap: 0.75rem;
+      align-items: end;
+      min-height: 220px;
+      margin-top: 1rem;
+    }
+
+    .chart-bar-item {
+      display: grid;
+      gap: 0.55rem;
+      justify-items: center;
+    }
+
+    .chart-bar-value {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      min-height: 1rem;
+    }
+
+    .chart-bar-track {
+      width: 100%;
+      min-height: 150px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.06);
+      display: flex;
+      align-items: end;
+      padding: 0.28rem;
+    }
+
+    .chart-bar-fill {
+      width: 100%;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--secondary-light) 0%, var(--secondary) 100%);
+      box-shadow: 0 12px 24px rgba(198, 167, 94, 0.22);
+      min-height: 8px;
+      transition: height 0.25s ease;
+    }
+
+    .chart-bar-label {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .donut-wrap {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 0.75rem;
+    }
+
+    .donut-chart {
+      --p: 0;
+      width: 132px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(farthest-side, var(--surface) 68%, transparent 69% 100%),
+        conic-gradient(var(--secondary) calc(var(--p) * 1%), rgba(15, 23, 42, 0.08) 0);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .donut-value {
+      text-align: center;
+      display: grid;
+      gap: 0.2rem;
+    }
+
+    .donut-value strong {
+      font-size: 1.35rem;
+      color: var(--text-primary);
+    }
+
+    .donut-value span {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .legend-list {
+      display: grid;
+      gap: 0.65rem;
+      margin-top: 1rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+    }
+
+    .legend-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      min-width: 0;
+    }
+
+    .legend-dot {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 999px;
+      background: var(--secondary);
+      flex-shrink: 0;
+    }
+
+    .top-products-list {
+      display: grid;
+      gap: 0.85rem;
+      margin-top: 1rem;
+    }
+
+    .top-product-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 0.9rem;
+      background: rgba(255,255,255,0.88);
+      border: 1px solid rgba(198, 167, 94, 0.14);
+    }
+
+    .top-product-item strong {
+      display: block;
+      color: var(--text-primary);
+      font-size: 0.92rem;
+    }
+
+    .top-product-item span {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+
+    .analytics-empty {
+      padding: 1.25rem;
+      border-radius: 0.95rem;
+      background: rgba(255,255,255,0.88);
+      border: 1px dashed rgba(198, 167, 94, 0.2);
+      color: var(--text-secondary);
+      text-align: center;
+      font-size: 0.92rem;
     }
     
     /* ========== PRODUCT CARD ========== */
@@ -651,10 +829,10 @@
         <!-- ========== VIEW: DASHBOARD ========== -->
         <div id="dashboard-view" class="view active">
           <!-- Stats -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div class="stat-card">
-              <p class="text-sm text-text-secondary mb-1">Mes produits</p>
-              <p class="text-2xl font-semibold" id="stats-total-products">0</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div class="stat-card">
+                <p class="text-sm text-text-secondary mb-1">Mes produits</p>
+                <p class="text-2xl font-semibold" id="stats-total-products">0</p>
             </div>
             <div class="stat-card">
               <p class="text-sm text-text-secondary mb-1">En stock</p>
@@ -664,14 +842,68 @@
               <p class="text-sm text-text-secondary mb-1">En rupture</p>
               <p class="text-2xl font-semibold" id="stats-out-stock">0</p>
             </div>
-            <div class="stat-card">
-              <p class="text-sm text-text-secondary mb-1">Avec variations</p>
-              <p class="text-2xl font-semibold" id="stats-with-variations">0</p>
+              <div class="stat-card">
+                <p class="text-sm text-text-secondary mb-1">Avec variations</p>
+                <p class="text-2xl font-semibold" id="stats-with-variations">0</p>
+              </div>
             </div>
-          </div>
 
-          <!-- Derniers produits -->
-          <div class="content-card">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+              <div class="stat-card">
+                <p class="text-sm text-text-secondary mb-1">Ventes confirmees</p>
+                <p class="text-2xl font-semibold" id="sales-total-orders">0</p>
+              </div>
+              <div class="stat-card">
+                <p class="text-sm text-text-secondary mb-1">Articles vendus</p>
+                <p class="text-2xl font-semibold" id="sales-items-sold">0</p>
+              </div>
+              <div class="stat-card">
+                <p class="text-sm text-text-secondary mb-1">Ventes brutes</p>
+                <p class="text-2xl font-semibold" id="sales-gross">0 HTG</p>
+              </div>
+              <div class="stat-card">
+                <p class="text-sm text-text-secondary mb-1">Revenus estimes</p>
+                <p class="text-2xl font-semibold" id="sales-net">0 HTG</p>
+              </div>
+            </div>
+
+            <div class="analytics-grid mb-6">
+              <div class="chart-panel">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <p class="text-sm text-text-secondary mb-1">Evolution</p>
+                    <h3 class="text-lg font-semibold">Ventes des 6 derniers mois</h3>
+                  </div>
+                  <span class="text-xs text-text-secondary">Commandes confirmees uniquement</span>
+                </div>
+                <div id="sales-trend-chart" class="chart-bars"></div>
+              </div>
+
+              <div class="analytics-stack">
+                <div class="chart-panel">
+                  <p class="text-sm text-text-secondary mb-1">Statut des ventes</p>
+                  <h3 class="text-lg font-semibold">Repartition</h3>
+                  <div class="donut-wrap">
+                    <div id="sales-status-donut" class="donut-chart" style="--p: 0;">
+                      <div class="donut-value">
+                        <strong id="sales-status-donut-value">0%</strong>
+                        <span>confirme</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="sales-status-legend" class="legend-list"></div>
+                </div>
+
+                <div class="chart-panel">
+                  <p class="text-sm text-text-secondary mb-1">Top produits</p>
+                  <h3 class="text-lg font-semibold">Les meilleures ventes</h3>
+                  <div id="top-selling-products" class="top-products-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Derniers produits -->
+            <div class="content-card">
             <div class="card-header">
               <span>Derniers produits vendeur</span>
               <button class="btn-secondary btn-sm" onclick="window.productManager.switchView('products')">Voir tout</button>
@@ -1044,6 +1276,7 @@
     const PRODUCTS_COLLECTION = "vendorProducts";
     const CATEGORIES_COLLECTION = "categories_list";
     const COMMISSION_RULES_COLLECTION = "vendorCommissionRules";
+    const VENDOR_ANALYTICS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardAnalytics';
 
     // ========== CLASSE PRODUCT MANAGER ==========
     class ProductManager {
@@ -1051,6 +1284,7 @@
         this.products = [];
         this.categories = [];
         this.commissionRules = [];
+        this.salesAnalytics = null;
         this.productLikes = new Map();
         this.likesModal = null;
         this.likesUnsubscribe = null;
@@ -1081,7 +1315,8 @@
         await Promise.all([
           this.loadProducts(),
           this.loadCategories(),
-          this.loadCommissionRules()
+          this.loadCommissionRules(),
+          this.loadSalesAnalytics()
         ]);
         this.setupRealtimeListener();
         this.setupLikesListener();
@@ -1375,14 +1610,23 @@
           currentViewTitle: document.getElementById('currentViewTitle'),
           
           // Stats
-          statsTotalProducts: document.getElementById('stats-total-products'),
-          statsInStock: document.getElementById('stats-in-stock'),
-          statsOutStock: document.getElementById('stats-out-stock'),
-          statsWithVariations: document.getElementById('stats-with-variations'),
-          recentProducts: document.getElementById('recent-products'),
-          
-          // Products list
-          productsGrid: document.getElementById('products-grid'),
+            statsTotalProducts: document.getElementById('stats-total-products'),
+            statsInStock: document.getElementById('stats-in-stock'),
+            statsOutStock: document.getElementById('stats-out-stock'),
+            statsWithVariations: document.getElementById('stats-with-variations'),
+            recentProducts: document.getElementById('recent-products'),
+            salesTotalOrders: document.getElementById('sales-total-orders'),
+            salesItemsSold: document.getElementById('sales-items-sold'),
+            salesGross: document.getElementById('sales-gross'),
+            salesNet: document.getElementById('sales-net'),
+            salesTrendChart: document.getElementById('sales-trend-chart'),
+            salesStatusDonut: document.getElementById('sales-status-donut'),
+            salesStatusDonutValue: document.getElementById('sales-status-donut-value'),
+            salesStatusLegend: document.getElementById('sales-status-legend'),
+            topSellingProducts: document.getElementById('top-selling-products'),
+            
+            // Products list
+            productsGrid: document.getElementById('products-grid'),
           productsCount: document.getElementById('products-count'),
           searchProducts: document.getElementById('search-products'),
           
@@ -1625,6 +1869,42 @@
           console.error('Erreur chargement commissions vendeur:', error);
           this.commissionRules = [];
         }
+      }
+
+      async loadSalesAnalytics() {
+        if (!this.vendorContext?.uid) return;
+
+        try {
+          const analytics = await this.fetchVendorSalesAnalytics();
+          this.salesAnalytics = analytics;
+        } catch (error) {
+          console.error('Erreur chargement analytics vendeur:', error);
+          this.salesAnalytics = null;
+        }
+
+        this.renderSalesAnalytics();
+      }
+
+      async fetchVendorSalesAnalytics() {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('Utilisateur vendeur non connecte');
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(VENDOR_ANALYTICS_FUNCTION_URL, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+        }
+
+        return payload?.analytics || null;
       }
 
       normalizeCategory(value) {
@@ -2217,8 +2497,121 @@
               <i class="fas fa-trash"></i>
             </button>
           </div>
-        `).join('');
-      }
+          `).join('');
+
+          this.renderSalesAnalytics();
+        }
+
+        renderSalesAnalytics() {
+          const analytics = this.salesAnalytics || {};
+          const totalOrders = Number(analytics.totalOrders || 0);
+          const itemsSold = Number(analytics.itemCount || 0);
+          const grossAmount = Number(analytics.grossAmount || 0);
+          const vendorNetAmount = Number(analytics.vendorNetAmount || 0);
+
+          this.elements.salesTotalOrders.textContent = totalOrders;
+          this.elements.salesItemsSold.textContent = itemsSold;
+          this.elements.salesGross.textContent = this.formatCurrency(grossAmount);
+          this.elements.salesNet.textContent = this.formatCurrency(vendorNetAmount);
+
+          this.renderSalesTrendChart(Array.isArray(analytics.timeline) ? analytics.timeline : []);
+          this.renderSalesStatusChart(analytics.statusBreakdown || {});
+          this.renderTopSellingProducts(Array.isArray(analytics.topProducts) ? analytics.topProducts : []);
+        }
+
+        renderSalesTrendChart(timeline = []) {
+          if (!this.elements.salesTrendChart) return;
+
+          if (!timeline.length) {
+            this.elements.salesTrendChart.innerHTML = '<div class="analytics-empty" style="grid-column:1/-1;">Les ventes apparaitront ici des que vos premieres commandes confirmees seront enregistrees.</div>';
+            return;
+          }
+
+          const maxAmount = timeline.reduce((max, item) => Math.max(max, Number(item?.amount || 0)), 0) || 1;
+          this.elements.salesTrendChart.innerHTML = timeline.map((item) => {
+            const amount = Number(item?.amount || 0);
+            const height = Math.max(10, Math.round((amount / maxAmount) * 100));
+            const label = this.escape(String(item?.label || '').slice(0, 8) || 'Mois');
+            const orders = Number(item?.orders || 0);
+            return `
+              <div class="chart-bar-item">
+                <div class="chart-bar-value">${this.escape(this.formatCurrency(amount))}</div>
+                <div class="chart-bar-track">
+                  <div class="chart-bar-fill" style="height:${height}%"></div>
+                </div>
+                <div class="chart-bar-label">${label}<br><span style="font-size:0.72rem;color:var(--text-tertiary);">${orders} cmd</span></div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        renderSalesStatusChart(breakdown = {}) {
+          if (!this.elements.salesStatusDonut || !this.elements.salesStatusLegend) return;
+
+          const confirmed = Number(breakdown.confirmed || 0);
+          const pending = Number(breakdown.pending || 0);
+          const review = Number(breakdown.review || 0);
+          const cancelled = Number(breakdown.cancelled || 0);
+          const total = confirmed + pending + review + cancelled;
+          const ratio = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+
+          this.elements.salesStatusDonut.style.setProperty('--p', ratio);
+          this.elements.salesStatusDonutValue.textContent = `${ratio}%`;
+
+          const rows = [
+            { label: 'Confirmees', value: confirmed, color: 'var(--secondary)' },
+            { label: 'Paiement en attente', value: pending, color: '#94A3B8' },
+            { label: 'En revue', value: review, color: '#3B82F6' },
+            { label: 'Annulees / refusees', value: cancelled, color: '#EF4444' }
+          ];
+
+          this.elements.salesStatusLegend.innerHTML = rows.map((row) => `
+            <div class="legend-item">
+              <span class="legend-meta">
+                <span class="legend-dot" style="background:${row.color};"></span>
+                <span>${this.escape(row.label)}</span>
+              </span>
+              <strong>${row.value}</strong>
+            </div>
+          `).join('');
+        }
+
+        renderTopSellingProducts(products = []) {
+          if (!this.elements.topSellingProducts) return;
+
+          if (!products.length) {
+            this.elements.topSellingProducts.innerHTML = '<div class="analytics-empty">Aucune vente confirmee pour le moment.</div>';
+            return;
+          }
+
+          this.elements.topSellingProducts.innerHTML = products.slice(0, 5).map((product) => `
+            <div class="top-product-item">
+              <div>
+                <strong>${this.escape(product?.name || 'Produit')}</strong>
+                <span>${Number(product?.quantity || 0)} vente(s)</span>
+              </div>
+              <strong>${this.escape(this.formatCurrency(Number(product?.amount || 0)))}</strong>
+            </div>
+          `).join('');
+        }
+
+        escape(value) {
+          return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        formatCurrency(value) {
+          return new Intl.NumberFormat('fr-HT', {
+            style: 'currency',
+            currency: 'HTG',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          }).format(Number(value || 0));
+        }
       
       // ========== CRUD PRODUITS ==========
       

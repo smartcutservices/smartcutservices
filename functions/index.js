@@ -31,6 +31,8 @@ let tokenCache = {
   expiresAt: 0
 };
 
+const CONFIRMED_ORDER_STATUSES = new Set(['approved', 'paid']);
+
 function normalizeBaseUrl(value) {
   return String(value || '').replace(/\/+$/, '');
 }
@@ -88,6 +90,63 @@ function isApprovedVendorProfile(profile) {
   const role = String(profile.role || '').toLowerCase();
   const status = String(profile.status || profile.vendorStatus || '').toLowerCase();
   return role === 'vendor' && ['active', 'approved'].includes(status || 'active');
+}
+
+function normalizeOrderStatus(order = {}) {
+  return String(order?.paymentStatus || order?.status || '').trim().toLowerCase();
+}
+
+function isConfirmedOrder(order = {}) {
+  return CONFIRMED_ORDER_STATUSES.has(normalizeOrderStatus(order));
+}
+
+function toDateMs(value) {
+  if (!value) return 0;
+
+  if (typeof value?.toDate === 'function') {
+    return value.toDate().getTime();
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toMonthKey(value) {
+  const date = value ? new Date(value) : new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function createMonthBuckets(months = 6) {
+  const formatter = new Intl.DateTimeFormat('fr-FR', {
+    month: 'short',
+    year: '2-digit',
+    timeZone: 'America/Port-au-Prince'
+  });
+  const now = new Date();
+  const buckets = [];
+
+  for (let index = months - 1; index >= 0; index -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - index, 1);
+    buckets.push({
+      key: toMonthKey(date),
+      label: formatter.format(date).replace('.', ''),
+      amount: 0,
+      orders: 0
+    });
+  }
+
+  return buckets;
+}
+
+function getRelevantVendorItems(order = {}, vendorUid = '', vendorProductIds = new Set()) {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  return items.filter((item) => {
+    const itemVendorId = String(item?.vendorId || '').trim();
+    const productId = String(item?.productId || '').trim();
+    return itemVendorId === vendorUid || (productId && vendorProductIds.has(productId));
+  });
 }
 
 function buildReturnPageUrl({ sessionId = '', orderId = '', transactionId = '', status = '' } = {}) {
@@ -1220,6 +1279,152 @@ exports.createVendorDashboardAccess = onRequest(
         ok: false,
         error: 'vendor-dashboard-bootstrap-failed',
         message: error?.message || 'Unable to prepare vendor dashboard access'
+      });
+    }
+  }
+);
+
+exports.getVendorDashboardAnalytics = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(decodedUser.uid);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
+        return;
+      }
+
+      const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
+      const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+
+      const ordersSnap = await db.collectionGroup('orders').get();
+      const monthBuckets = createMonthBuckets(6);
+      const monthMap = new Map(monthBuckets.map((bucket) => [bucket.key, bucket]));
+      const statusBreakdown = {
+        confirmed: 0,
+        pending: 0,
+        review: 0,
+        cancelled: 0
+      };
+      const topProducts = new Map();
+      const recentOrders = [];
+
+      let totalOrders = 0;
+      let grossAmount = 0;
+      let commissionAmount = 0;
+      let vendorNetAmount = 0;
+      let itemCount = 0;
+
+      ordersSnap.docs.forEach((snap) => {
+        const order = snap.data() || {};
+        const relevantItems = getRelevantVendorItems(order, decodedUser.uid, vendorProductIds);
+        if (!relevantItems.length) return;
+
+        const status = normalizeOrderStatus(order);
+        if (isConfirmedOrder(order)) {
+          statusBreakdown.confirmed += 1;
+        } else if (['awaiting_payment', 'redirect_ready', 'initiated', 'pending'].includes(status)) {
+          statusBreakdown.pending += 1;
+        } else if (['pending_review', 'review', 'processing'].includes(status)) {
+          statusBreakdown.review += 1;
+        } else {
+          statusBreakdown.cancelled += 1;
+        }
+
+        if (!isConfirmedOrder(order)) return;
+
+        totalOrders += 1;
+        const createdAtMs = toDateMs(order?.paidAt || order?.updatedAt || order?.createdAt);
+        const bucket = monthMap.get(toMonthKey(createdAtMs));
+
+        let orderAmount = 0;
+        let orderCommission = 0;
+        let orderItemsCount = 0;
+
+        relevantItems.forEach((item) => {
+          const quantity = Math.max(1, Number(item?.quantity || 1));
+          const unitPrice = Number(item?.price || 0);
+          const amount = unitPrice * quantity;
+          const commissionRate = Math.max(0, Number(item?.commissionRule?.rate ?? item?.commissionRule?.categoryRate ?? 0));
+
+          orderAmount += amount;
+          orderCommission += amount * (commissionRate / 100);
+          orderItemsCount += quantity;
+
+          const productId = String(item?.productId || '').trim() || String(item?.sku || '').trim() || `product-${topProducts.size + 1}`;
+          const existingProduct = topProducts.get(productId) || {
+            productId,
+            name: String(item?.name || 'Produit vendeur').trim(),
+            quantity: 0,
+            amount: 0
+          };
+          existingProduct.quantity += quantity;
+          existingProduct.amount += amount;
+          topProducts.set(productId, existingProduct);
+        });
+
+        grossAmount += orderAmount;
+        commissionAmount += orderCommission;
+        vendorNetAmount += Math.max(0, orderAmount - orderCommission);
+        itemCount += orderItemsCount;
+
+        if (bucket) {
+          bucket.amount += orderAmount;
+          bucket.orders += 1;
+        }
+
+        recentOrders.push({
+          id: snap.id,
+          uniqueCode: order?.uniqueCode || '',
+          customerName: order?.customerName || '',
+          createdAt: order?.paidAt || order?.updatedAt || order?.createdAt || '',
+          amount: orderAmount,
+          items: orderItemsCount,
+          status
+        });
+      });
+
+      const averageTicket = totalOrders > 0 ? grossAmount / totalOrders : 0;
+      const topSellingProducts = Array.from(topProducts.values())
+        .sort((a, b) => b.amount - a.amount || b.quantity - a.quantity)
+        .slice(0, 5);
+
+      recentOrders.sort((a, b) => toDateMs(b.createdAt) - toDateMs(a.createdAt));
+
+      sendJson(res, 200, {
+        ok: true,
+        analytics: {
+          totalOrders,
+          itemCount,
+          grossAmount,
+          commissionAmount,
+          vendorNetAmount,
+          averageTicket,
+          timeline: monthBuckets,
+          statusBreakdown,
+          topProducts: topSellingProducts,
+          recentOrders: recentOrders.slice(0, 6)
+        }
+      });
+    } catch (error) {
+      logger.error('Vendor analytics failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-analytics-failed',
+        message: error?.message || 'Unable to load vendor analytics'
       });
     }
   }
