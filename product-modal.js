@@ -1677,7 +1677,7 @@ class ProductModal {
     
     this.fullscreenViewer.style.display = 'flex';
 
-    if (!this.fullscreenHistoryActive && typeof window !== 'undefined' && window.history?.pushState) {
+    if (!this.options.pageMode && !this.fullscreenHistoryActive && typeof window !== 'undefined' && window.history?.pushState) {
       window.history.pushState(
         {
           ...(window.history.state || {}),
@@ -1696,7 +1696,7 @@ class ProductModal {
   }
   
   closeFullscreen(syncHistory = true) {
-    if (syncHistory && this.fullscreenHistoryActive && typeof window !== 'undefined' && window.history) {
+    if (!this.options.pageMode && syncHistory && this.fullscreenHistoryActive && typeof window !== 'undefined' && window.history) {
       window.history.back();
       return;
     }
