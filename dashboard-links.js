@@ -5,13 +5,19 @@ const globalBase =
 
 export const DASHBOARD_BASE_URL = (globalBase || 'https://smartcutservices.github.io/dashboard-').replace(/\/+$/, '');
 export const DASHBOARD_FUNCTIONS_BASE_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
+const SITE_ORIGIN =
+  typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin.replace(/\/+$/, '')
+    : '';
 
 export function getDashboardUrl(path = 'dashboard.html') {
   const cleanPath = String(path || 'dashboard.html').replace(/^\/+/, '');
   return `${DASHBOARD_BASE_URL}/${cleanPath}`;
 }
 
-export const VENDOR_DASHBOARD_URL = getDashboardUrl('DvendorProducts.html');
+export const VENDOR_DASHBOARD_URL = SITE_ORIGIN
+  ? `${SITE_ORIGIN}/DvendorProducts.html`
+  : '/DvendorProducts.html';
 
 export async function getVendorDashboardAccessUrl(user) {
   if (!user?.getIdToken) {
