@@ -36,7 +36,7 @@ class SierraHeaderNebula {
         --secondary-font: 'Manrope', sans-serif;
         --announce-height: 0px;
         --header-height: 118px;
-        --header-height-mobile: 136px;
+        --header-height-mobile: 164px;
       }
 
       #headerNebulaX92 {
