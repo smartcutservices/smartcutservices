@@ -52,9 +52,27 @@ class ProfilePanel {
     }
   }
 
+  async ensureAuthenticatedOrdersLoaded() {
+    if (!this.authManager.isAuthenticated()) return;
+
+    const user = this.authManager.getCurrentUser();
+    if (!user?.uid) return;
+
+    if (!this.cartManager.currentClient || this.cartManager.currentClient.id !== user.uid) {
+      await this.cartManager.loadOrCreateClient(user);
+    }
+
+    if (!this.cartManager.currentClient?.id) return;
+
+    if (!this.cartManager.ordersListener || !this.cartManager.orders.length) {
+      await this.cartManager.loadCustomerOrders(this.cartManager.currentClient.id);
+    }
+  }
+
   async open() {
     if (this.modal) return;
 
+    await this.ensureAuthenticatedOrdersLoaded();
     await this.ensureGuestOrdersLoaded();
 
     this.modal = document.createElement('div');
