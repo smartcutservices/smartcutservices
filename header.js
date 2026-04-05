@@ -714,8 +714,9 @@ class SierraHeaderNebula {
           </a>
           <div id="desktopCategoriesContainer" class="desktop-categories"></div>
         </div>
+      </div>
 
-        <div class="mobile-header-inner">
+      <div class="mobile-header-inner">
           <div class="mobile-top-bar">
             <div class="mobile-left-group">
             <i id="mobileHamburgerBtn" class="mobile-hamburger fas fa-bars"></i>
