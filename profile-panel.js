@@ -102,6 +102,32 @@ class ProfilePanel {
     return user?.displayName || user?.email || 'Mon profil';
   }
 
+  updateSectionVisibility(sectionName) {
+    if (!this.modal) return;
+
+    if (sectionName === 'orders') {
+      const content = this.modal.querySelector('.orders-content');
+      const icon = this.modal.querySelector('.orders-header .fa-chevron-down');
+      if (content) {
+        content.style.display = this.cartManager.ordersVisible ? 'block' : 'none';
+      }
+      if (icon) {
+        icon.style.transform = this.cartManager.ordersVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    }
+
+    if (sectionName === 'likes') {
+      const content = this.modal.querySelector('.likes-content');
+      const icon = this.modal.querySelector('.likes-header .fa-chevron-down');
+      if (content) {
+        content.style.display = this.cartManager.likesVisible ? 'block' : 'none';
+      }
+      if (icon) {
+        icon.style.transform = this.cartManager.likesVisible ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    }
+  }
+
   renderSummaryCards(colors) {
     const likes = this.likeManager.getLikedProducts();
     const orders = this.getVisibleOrders();
@@ -387,14 +413,16 @@ class ProfilePanel {
 
     ordersHeader?.addEventListener('click', (event) => {
       event.preventDefault();
+      event.stopPropagation();
       this.cartManager.ordersVisible = !this.cartManager.ordersVisible;
-      this.render();
+      this.updateSectionVisibility('orders');
     });
 
     likesHeader?.addEventListener('click', (event) => {
       event.preventDefault();
+      event.stopPropagation();
       this.cartManager.likesVisible = !this.cartManager.likesVisible;
-      this.render();
+      this.updateSectionVisibility('likes');
     });
 
     this.modal.querySelectorAll('.liked-product-open').forEach((button) => {
