@@ -376,8 +376,16 @@ class SierraHeaderNebula {
         align-items: center;
         gap: 0.7rem;
         overflow-x: auto;
+        overflow-y: hidden;
         white-space: nowrap;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
         scrollbar-width: none;
+      }
+
+      .mobile-nav-scroll::-webkit-scrollbar {
+        display: none;
       }
 
       .mobile-nav-all {
@@ -388,12 +396,16 @@ class SierraHeaderNebula {
         font-size: 0.88rem;
         font-weight: 700;
         flex-shrink: 0;
+        flex: 0 0 auto;
       }
 
       .mobile-nav-items {
         display: flex;
         align-items: center;
         gap: 0.45rem;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        min-width: max-content;
       }
 
       .mobile-nav-item {
@@ -404,6 +416,7 @@ class SierraHeaderNebula {
         color: #2d2a26;
         font-size: 0.84rem;
         font-weight: 600;
+        flex: 0 0 auto;
       }
 
       #megaPortalLux21 {
