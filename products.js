@@ -247,6 +247,12 @@ class SierraProducts {
       image: finalImage,
       stockLimit,
       weightGrams: this.getSelectionWeight(product, variation),
+      vendorId: String(product?.vendorId || '').trim(),
+      vendorName: String(product?.vendorName || product?.shopName || '').trim(),
+      commissionRule: product?.commissionRule || null,
+      sourceType: String(product?.sourceType || (product?.vendorId ? 'vendor' : '')).trim(),
+      category: String(product?.category || product?.categoryName || '').trim(),
+      deliveryMode: String(product?.deliveryMode || '').trim(),
       selectedOptions,
       quantity: 1,
       timestamp: Date.now()

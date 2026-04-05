@@ -1783,10 +1783,23 @@ class ProductModal {
     }, 100);
   }
   
+ getVendorCartMeta(product = this.product) {
+  const vendorId = String(product?.vendorId || '').trim();
+  return {
+    vendorId,
+    vendorName: String(product?.vendorName || product?.shopName || '').trim(),
+    commissionRule: product?.commissionRule || null,
+    sourceType: String(product?.sourceType || (vendorId ? 'vendor' : '')).trim(),
+    category: String(product?.category || product?.categoryName || '').trim(),
+    deliveryMode: String(product?.deliveryMode || '').trim()
+  };
+}
+
  addToCart() {
   // Récupérer l'instance du panier
   import('./cart.js').then(({ getCartManager }) => {
     const cart = getCartManager();
+    const vendorCartMeta = this.getVendorCartMeta(this.product);
     
     // Collecter les images des options sélectionnées
     const selectedOptionsWithImages = Array.from(this.selectedOptions.entries())
@@ -1853,7 +1866,8 @@ class ProductModal {
             }
           ],
           quantity: safeQuantity,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          ...vendorCartMeta
         };
 
         if (cart && typeof cart.addItem === 'function') {
@@ -1886,7 +1900,8 @@ class ProductModal {
         weightGrams: this.getCurrentSelectionWeight(variationData),
         selectedOptions: selectedOptionsWithImages,
         quantity: safeQuantity,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        ...vendorCartMeta
       };
       if (cart && typeof cart.addItem === 'function') {
         cart.addItem(item);

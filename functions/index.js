@@ -85,6 +85,13 @@ async function getVendorProfile(uid) {
   return null;
 }
 
+async function isAdminUser(uid) {
+  if (!uid) return false;
+  const clientSnap = await db.collection('clients').doc(uid).get();
+  if (!clientSnap.exists) return false;
+  return String(clientSnap.data()?.role || '').toLowerCase() === 'admin';
+}
+
 function isApprovedVendorProfile(profile) {
   if (!profile) return false;
   const role = String(profile.role || '').toLowerCase();
@@ -376,6 +383,215 @@ function normalizeItems(items) {
         };
       })
     : [];
+}
+
+function normalizeDeliveryModeValue(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function vendorHandlesDeliveryMode(value = '') {
+  const normalized = normalizeDeliveryModeValue(value);
+  if (!normalized) return false;
+  return normalized.includes('vendeur') || normalized.includes('seller');
+}
+
+function smartCutHandlesDeliveryMode(value = '') {
+  const normalized = normalizeDeliveryModeValue(value);
+  if (!normalized) return false;
+  return normalized.includes('smart cut') || normalized.includes('smartcut');
+}
+
+function sanitizeCommissionRule(rule, fallbackCategory = '') {
+  if (!rule || typeof rule !== 'object') return null;
+  const categoryRate = Number(rule?.categoryRate ?? rule?.rate);
+  if (!Number.isFinite(categoryRate)) return null;
+  return {
+    ...rule,
+    category: String(rule?.category || fallbackCategory || '').trim(),
+    categoryRate,
+    rate: Number.isFinite(Number(rule?.rate)) ? Number(rule.rate) : categoryRate
+  };
+}
+
+async function enrichMarketplaceItems(items = []) {
+  const normalizedItems = normalizeItems(items);
+  if (!normalizedItems.length) return [];
+
+  return Promise.all(normalizedItems.map(async (item) => {
+    const itemVendorId = String(item?.vendorId || '').trim();
+    const isVendorItem = itemVendorId || String(item?.sourceType || '').toLowerCase().includes('vendor');
+    const productId = String(item?.productId || '').trim();
+
+    if (!isVendorItem || !productId) {
+      return {
+        ...item,
+        commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+      };
+    }
+
+    try {
+      const productSnap = await db.collection('vendorProducts').doc(productId).get();
+      if (!productSnap.exists) {
+        return {
+          ...item,
+          sourceType: 'vendor',
+          commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+        };
+      }
+
+      const productData = productSnap.data() || {};
+      const resolvedCategory = String(item?.category || productData?.category || productData?.categoryName || '').trim();
+      return {
+        ...item,
+        name: item?.name || productData?.name || 'Produit vendeur',
+        sku: item?.sku || productData?.sku || '',
+        image: item?.image || (Array.isArray(productData?.images) ? productData.images[0] || '' : ''),
+        vendorId: itemVendorId || String(productData?.vendorId || '').trim(),
+        vendorName: item?.vendorName || String(productData?.vendorName || productData?.shopName || '').trim(),
+        commissionRule: sanitizeCommissionRule(item?.commissionRule || productData?.commissionRule, resolvedCategory),
+        sourceType: 'vendor',
+        category: resolvedCategory,
+        deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim()
+      };
+    } catch (error) {
+      logger.warn('Unable to enrich vendor marketplace item', {
+        productId,
+        message: error?.message || ''
+      });
+      return {
+        ...item,
+        sourceType: 'vendor',
+        commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+      };
+    }
+  }));
+}
+
+function getCommissionRate(rule = null) {
+  const rate = Number(rule?.categoryRate ?? rule?.rate);
+  return Number.isFinite(rate) ? Math.max(0, rate) : 0;
+}
+
+function buildVendorItemMetrics(item = {}) {
+  const quantity = Math.max(1, Number(item?.quantity || 1));
+  const unitPrice = Number(item?.price || 0);
+  const grossAmount = unitPrice * quantity;
+  const commissionRate = getCommissionRate(item?.commissionRule);
+  const commissionAmount = grossAmount * (commissionRate / 100);
+  const vendorNetAmount = Math.max(0, grossAmount - commissionAmount);
+
+  return {
+    ...item,
+    quantity,
+    unitPrice,
+    grossAmount,
+    commissionRate,
+    commissionAmount,
+    vendorNetAmount
+  };
+}
+
+function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '') {
+  const relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
+  if (!relevantItems.length) return null;
+
+  const deliveryModes = relevantItems.map((item) => String(item?.deliveryMode || '').trim()).filter(Boolean);
+  const vendorManagedDelivery =
+    deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode)) &&
+    !deliveryModes.some((mode) => smartCutHandlesDeliveryMode(mode));
+
+  return {
+    refPath,
+    orderId: String(order?.id || '').trim(),
+    uniqueCode: String(order?.uniqueCode || order?.id || '').trim(),
+    status: normalizeOrderStatus(order),
+    fulfillmentStatus: String(order?.fulfillmentStatus || 'ordered').trim(),
+    paymentStatus: String(order?.paymentStatus || order?.status || '').trim(),
+    createdAt: order?.createdAt || '',
+    updatedAt: order?.updatedAt || '',
+    paidAt: order?.paidAt || '',
+    vendorManagedDelivery,
+    deliveryModeLabel: deliveryModes[0] || '',
+    items: relevantItems,
+    grossAmount: relevantItems.reduce((sum, item) => sum + item.grossAmount, 0),
+    commissionAmount: relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0),
+    vendorNetAmount: relevantItems.reduce((sum, item) => sum + item.vendorNetAmount, 0),
+    itemCount: relevantItems.reduce((sum, item) => sum + item.quantity, 0),
+    customer: vendorManagedDelivery
+      ? {
+          name: String(order?.customerName || '').trim(),
+          email: String(order?.customerEmail || '').trim(),
+          phone: String(order?.customerPhone || '').trim(),
+          address: String(order?.customerAddress || '').trim(),
+          city: String(order?.customerCity || '').trim()
+        }
+      : {
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          city: ''
+        },
+    delivery: vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
+      ? order.delivery
+      : null
+  };
+}
+
+function buildVendorOrderNotifications(order = {}, sessionId = '') {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const grouped = new Map();
+
+  items.forEach((item) => {
+    const vendorId = String(item?.vendorId || '').trim();
+    if (!vendorId) return;
+
+    const current = grouped.get(vendorId) || {
+      vendorId,
+      vendorName: String(item?.vendorName || '').trim(),
+      itemCount: 0
+    };
+
+    current.itemCount += Math.max(1, Number(item?.quantity || 1));
+    if (!current.vendorName && item?.vendorName) {
+      current.vendorName = String(item.vendorName).trim();
+    }
+
+    grouped.set(vendorId, current);
+  });
+
+  const dashboardUrl = new URL('/DvendorProducts.html', `${SITE_BASE_URL}/`).toString();
+
+  return Array.from(grouped.values()).map((entry) => {
+    const itemLabel = entry.itemCount > 1 ? `${entry.itemCount} articles` : '1 article';
+    const uniqueCode = String(order?.uniqueCode || order?.id || '').trim();
+    return {
+      id: `vendor-order-${String(sessionId || order?.paymentSessionId || order?.id || entry.vendorId).trim()}-${entry.vendorId}`,
+      title: 'Nouvelle commande vendeur',
+      body: uniqueCode
+        ? `La commande ${uniqueCode} contient ${itemLabel} pour votre boutique.`
+        : `Une nouvelle commande contient ${itemLabel} pour votre boutique.`,
+      type: 'vendor-order',
+      target: 'user',
+      targetUid: entry.vendorId,
+      url: dashboardUrl,
+      createdBy: 'payment_system',
+      createdAt: new Date().toISOString()
+    };
+  });
+}
+
+function createPayoutReportNumber(seed = '') {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const suffix = createUniqueCode(seed).replace('SCS-', '');
+  return `DEC-${y}${m}${d}-${suffix}`;
 }
 
 function buildOrderTotals(items, delivery) {
@@ -810,6 +1026,7 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       const orderSnap = await transaction.get(orderRef);
       const orderData = orderSnap.data() || {};
       const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
+      const vendorNotifications = !alreadyApplied ? buildVendorOrderNotifications(orderData, session.id) : [];
 
       if (!alreadyApplied) {
         await decrementInventoryForItems(transaction, orderData.items || []);
@@ -828,6 +1045,11 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       }, { merge: true });
 
       transaction.set(orderRef, orderPatch, { merge: true });
+
+      vendorNotifications.forEach((notification) => {
+        const notificationRef = db.collection('notificationBroadcasts').doc(notification.id);
+        transaction.set(notificationRef, notification, { merge: true });
+      });
     });
   } else {
     await Promise.all([
@@ -942,7 +1164,7 @@ exports.createMoncashPayment = onRequest(
     const customerAddress = String(body.customerAddress || '').trim();
     const customerCity = String(body.customerCity || '').trim();
     const delivery = body.delivery && typeof body.delivery === 'object' ? body.delivery : null;
-    const items = normalizeItems(body.items);
+    const items = await enrichMarketplaceItems(body.items);
 
     if (!localClientId) {
       sendJson(res, 400, { ok: false, error: 'missing-client-id' });
@@ -1309,6 +1531,19 @@ exports.getVendorDashboardAnalytics = onRequest(
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', decodedUser.uid).get();
+      const settledOrderRefs = new Set();
+      let settledNetAmount = 0;
+
+      payoutsSnap.docs.forEach((snap) => {
+        const payout = snap.data() || {};
+        settledNetAmount += Math.max(0, toNumber(payout?.netAmount));
+        const refs = Array.isArray(payout?.coveredOrderRefs) ? payout.coveredOrderRefs : [];
+        refs.forEach((refPath) => {
+          const normalized = String(refPath || '').trim();
+          if (normalized) settledOrderRefs.add(normalized);
+        });
+      });
 
       const ordersSnap = await db.collectionGroup('orders').get();
       const monthBuckets = createMonthBuckets(6);
@@ -1326,12 +1561,13 @@ exports.getVendorDashboardAnalytics = onRequest(
       let grossAmount = 0;
       let commissionAmount = 0;
       let vendorNetAmount = 0;
+      let pendingPayoutAmount = 0;
       let itemCount = 0;
 
       ordersSnap.docs.forEach((snap) => {
         const order = snap.data() || {};
-        const relevantItems = getRelevantVendorItems(order, decodedUser.uid, vendorProductIds);
-        if (!relevantItems.length) return;
+        const orderContext = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path);
+        if (!orderContext) return;
 
         const status = normalizeOrderStatus(order);
         if (isConfirmedOrder(order)) {
@@ -1350,20 +1586,7 @@ exports.getVendorDashboardAnalytics = onRequest(
         const createdAtMs = toDateMs(order?.paidAt || order?.updatedAt || order?.createdAt);
         const bucket = monthMap.get(toMonthKey(createdAtMs));
 
-        let orderAmount = 0;
-        let orderCommission = 0;
-        let orderItemsCount = 0;
-
-        relevantItems.forEach((item) => {
-          const quantity = Math.max(1, Number(item?.quantity || 1));
-          const unitPrice = Number(item?.price || 0);
-          const amount = unitPrice * quantity;
-          const commissionRate = Math.max(0, Number(item?.commissionRule?.rate ?? item?.commissionRule?.categoryRate ?? 0));
-
-          orderAmount += amount;
-          orderCommission += amount * (commissionRate / 100);
-          orderItemsCount += quantity;
-
+        orderContext.items.forEach((item) => {
           const productId = String(item?.productId || '').trim() || String(item?.sku || '').trim() || `product-${topProducts.size + 1}`;
           const existingProduct = topProducts.get(productId) || {
             productId,
@@ -1371,18 +1594,21 @@ exports.getVendorDashboardAnalytics = onRequest(
             quantity: 0,
             amount: 0
           };
-          existingProduct.quantity += quantity;
-          existingProduct.amount += amount;
+          existingProduct.quantity += item.quantity;
+          existingProduct.amount += item.grossAmount;
           topProducts.set(productId, existingProduct);
         });
 
-        grossAmount += orderAmount;
-        commissionAmount += orderCommission;
-        vendorNetAmount += Math.max(0, orderAmount - orderCommission);
-        itemCount += orderItemsCount;
+        grossAmount += orderContext.grossAmount;
+        commissionAmount += orderContext.commissionAmount;
+        vendorNetAmount += orderContext.vendorNetAmount;
+        itemCount += orderContext.itemCount;
+        if (!settledOrderRefs.has(snap.ref.path)) {
+          pendingPayoutAmount += orderContext.vendorNetAmount;
+        }
 
         if (bucket) {
-          bucket.amount += orderAmount;
+          bucket.amount += orderContext.grossAmount;
           bucket.orders += 1;
         }
 
@@ -1391,9 +1617,10 @@ exports.getVendorDashboardAnalytics = onRequest(
           uniqueCode: order?.uniqueCode || '',
           customerName: order?.customerName || '',
           createdAt: order?.paidAt || order?.updatedAt || order?.createdAt || '',
-          amount: orderAmount,
-          items: orderItemsCount,
-          status
+          amount: orderContext.grossAmount,
+          items: orderContext.itemCount,
+          status,
+          vendorManagedDelivery: orderContext.vendorManagedDelivery
         });
       });
 
@@ -1412,6 +1639,8 @@ exports.getVendorDashboardAnalytics = onRequest(
           grossAmount,
           commissionAmount,
           vendorNetAmount,
+          settledNetAmount,
+          pendingPayoutAmount,
           averageTicket,
           timeline: monthBuckets,
           statusBreakdown,
@@ -1425,6 +1654,197 @@ exports.getVendorDashboardAnalytics = onRequest(
         ok: false,
         error: 'vendor-analytics-failed',
         message: error?.message || 'Unable to load vendor analytics'
+      });
+    }
+  }
+);
+
+exports.getVendorDashboardOrders = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(decodedUser.uid);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
+        return;
+      }
+
+      const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
+      const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const ordersSnap = await db.collectionGroup('orders').get();
+      const orders = [];
+
+      ordersSnap.docs.forEach((snap) => {
+        const order = { id: snap.id, ...(snap.data() || {}) };
+        const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path);
+        if (!context) return;
+
+        orders.push({
+          id: snap.id,
+          refPath: snap.ref.path,
+          uniqueCode: context.uniqueCode,
+          createdAt: context.paidAt || context.updatedAt || context.createdAt || '',
+          paymentStatus: context.paymentStatus,
+          fulfillmentStatus: context.fulfillmentStatus,
+          grossAmount: context.grossAmount,
+          commissionAmount: context.commissionAmount,
+          vendorNetAmount: context.vendorNetAmount,
+          itemCount: context.itemCount,
+          vendorManagedDelivery: context.vendorManagedDelivery,
+          deliveryModeLabel: context.deliveryModeLabel,
+          customer: context.customer,
+          delivery: context.delivery,
+          items: context.items,
+          downloadableReceipt: context.vendorManagedDelivery && isConfirmedOrder(order)
+        });
+      });
+
+      orders.sort((a, b) => toDateMs(b.createdAt) - toDateMs(a.createdAt));
+
+      sendJson(res, 200, {
+        ok: true,
+        orders
+      });
+    } catch (error) {
+      logger.error('Vendor orders failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-orders-failed',
+        message: error?.message || 'Unable to load vendor orders'
+      });
+    }
+  }
+);
+
+exports.createVendorPayout = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const vendorId = String(body?.vendorId || '').trim();
+      if (!vendorId) {
+        sendJson(res, 400, { ok: false, error: 'missing-vendor-id' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(vendorId);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 404, { ok: false, error: 'vendor-not-found' });
+        return;
+      }
+
+      const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', vendorId).get();
+      const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', vendorId).get();
+      const settledOrderRefs = new Set();
+      payoutsSnap.docs.forEach((snap) => {
+        const payout = snap.data() || {};
+        const refs = Array.isArray(payout?.coveredOrderRefs) ? payout.coveredOrderRefs : [];
+        refs.forEach((refPath) => {
+          const normalized = String(refPath || '').trim();
+          if (normalized) settledOrderRefs.add(normalized);
+        });
+      });
+
+      const ordersSnap = await db.collectionGroup('orders').get();
+      const outstandingOrders = [];
+      let grossAmount = 0;
+      let commissionAmount = 0;
+      let netAmount = 0;
+      let itemCount = 0;
+
+      ordersSnap.docs.forEach((snap) => {
+        const order = { id: snap.id, ...(snap.data() || {}) };
+        if (!isConfirmedOrder(order) || settledOrderRefs.has(snap.ref.path)) return;
+        const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path);
+        if (!context) return;
+
+        grossAmount += context.grossAmount;
+        commissionAmount += context.commissionAmount;
+        netAmount += context.vendorNetAmount;
+        itemCount += context.itemCount;
+
+        outstandingOrders.push({
+          refPath: snap.ref.path,
+          orderId: snap.id,
+          uniqueCode: context.uniqueCode,
+          createdAt: context.paidAt || context.updatedAt || context.createdAt || '',
+          grossAmount: context.grossAmount,
+          commissionAmount: context.commissionAmount,
+          netAmount: context.vendorNetAmount,
+          itemCount: context.itemCount
+        });
+      });
+
+      if (!outstandingOrders.length || netAmount <= 0) {
+        sendJson(res, 400, {
+          ok: false,
+          error: 'no-outstanding-balance',
+          message: 'Aucun solde vendeur disponible pour un decaissement.'
+        });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const payoutRef = db.collection('vendorPayouts').doc();
+      const payout = {
+        vendorId,
+        vendorName: String(vendorProfile?.vendorName || vendorProfile?.shopName || 'Vendeur').trim(),
+        reportNumber: createPayoutReportNumber(payoutRef.id),
+        grossAmount,
+        commissionAmount,
+        netAmount,
+        itemCount,
+        orderCount: outstandingOrders.length,
+        coveredOrderRefs: outstandingOrders.map((item) => item.refPath),
+        coveredOrderIds: outstandingOrders.map((item) => item.orderId),
+        coveredOrders: outstandingOrders,
+        status: 'paid',
+        createdAt: now,
+        createdBy: decodedUser.uid
+      };
+
+      await payoutRef.set(payout, { merge: true });
+
+      sendJson(res, 200, {
+        ok: true,
+        payout: {
+          id: payoutRef.id,
+          ...payout
+        }
+      });
+    } catch (error) {
+      logger.error('Vendor payout failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-payout-failed',
+        message: error?.message || 'Unable to create vendor payout'
       });
     }
   }

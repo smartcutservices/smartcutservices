@@ -13,6 +13,7 @@
   
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   
   <!-- Import Map Firebase -->
   <script type="importmap">
@@ -962,7 +963,7 @@
                 <p class="text-2xl font-semibold" id="sales-gross">0 HTG</p>
               </div>
               <div class="stat-card">
-                <p class="text-sm text-text-secondary mb-1">Revenus estimes</p>
+                <p class="text-sm text-text-secondary mb-1">Net a recevoir</p>
                 <p class="text-2xl font-semibold" id="sales-net">0 HTG</p>
               </div>
             </div>
@@ -998,6 +999,20 @@
                   <p class="text-sm text-text-secondary mb-1">Top produits</p>
                   <h3 class="text-lg font-semibold">Les meilleures ventes</h3>
                   <div id="top-selling-products" class="top-products-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="content-card mb-6">
+              <div class="card-header">
+                <div>
+                  <span>Commandes vendeur</span>
+                  <p id="vendor-orders-summary" class="text-sm text-text-secondary mt-1">Les commandes confirmees apparaitront ici avec les bonnes infos de livraison.</p>
+                </div>
+              </div>
+              <div class="card-body">
+                <div id="vendor-orders-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="analytics-empty">Aucune commande vendeur pour le moment.</div>
                 </div>
               </div>
             </div>
@@ -1377,6 +1392,7 @@
     const CATEGORIES_COLLECTION = "categories_list";
     const COMMISSION_RULES_COLLECTION = "vendorCommissionRules";
     const VENDOR_ANALYTICS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardAnalytics';
+    const VENDOR_ORDERS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardOrders';
 
     // ========== CLASSE PRODUCT MANAGER ==========
     class ProductManager {
@@ -1385,6 +1401,7 @@
         this.categories = [];
         this.commissionRules = [];
         this.salesAnalytics = null;
+        this.vendorOrders = [];
         this.productLikes = new Map();
         this.likesModal = null;
         this.likesUnsubscribe = null;
@@ -1417,7 +1434,8 @@
           this.loadProducts(),
           this.loadCategories(),
           this.loadCommissionRules(),
-          this.loadSalesAnalytics()
+          this.loadSalesAnalytics(),
+          this.loadVendorOrders()
         ]);
         this.setupRealtimeListener();
         this.setupLikesListener();
@@ -1753,6 +1771,8 @@
             salesStatusDonutValue: document.getElementById('sales-status-donut-value'),
             salesStatusLegend: document.getElementById('sales-status-legend'),
             topSellingProducts: document.getElementById('top-selling-products'),
+            vendorOrdersSummary: document.getElementById('vendor-orders-summary'),
+            vendorOrdersList: document.getElementById('vendor-orders-list'),
             
             // Products list
             productsGrid: document.getElementById('products-grid'),
@@ -1879,6 +1899,16 @@
         
         // Search
         this.elements.searchProducts.addEventListener('input', () => this.renderProductsList());
+
+        window.addEventListener('smartcut-notification', (event) => {
+          const type = String(event?.detail?.data?.broadcastType || '').trim().toLowerCase();
+          if (type !== 'vendor-order') return;
+
+          this.loadVendorOrders();
+          this.loadSalesAnalytics();
+          this.loadProducts();
+          this.showToast('Nouvelle commande vendeur recue.', 'info');
+        });
       }
       
       setupModalEvents() {
@@ -2014,6 +2044,20 @@
         this.renderSalesAnalytics();
       }
 
+      async loadVendorOrders() {
+        if (!this.vendorContext?.uid) return;
+
+        try {
+          const orders = await this.fetchVendorOrders();
+          this.vendorOrders = Array.isArray(orders) ? orders : [];
+        } catch (error) {
+          console.error('Erreur chargement commandes vendeur:', error);
+          this.vendorOrders = [];
+        }
+
+        this.renderVendorOrders();
+      }
+
       async fetchVendorSalesAnalytics() {
         const user = auth.currentUser;
         if (!user) {
@@ -2034,6 +2078,28 @@
         }
 
         return payload?.analytics || null;
+      }
+
+      async fetchVendorOrders() {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('Utilisateur vendeur non connecte');
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(VENDOR_ORDERS_FUNCTION_URL, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+        }
+
+        return payload?.orders || [];
       }
 
       normalizeCategory(value) {
@@ -2588,18 +2654,21 @@
       
       updateStats() {
         const total = this.products.length;
-        const inStock = this.products.filter(p => {
-          if (p.variations?.length) {
-            return p.variations.some(v => v.stock > 0);
+        const getProductTotalStock = (product) => {
+          if (product?.variations?.length) {
+            return product.variations.reduce((sum, variation) => sum + (Number(variation?.stock) || 0), 0);
           }
-          return p.stock > 0;
-        }).length;
+          return Number(product?.stock) || 0;
+        };
+
+        const inStock = this.products.reduce((sum, product) => sum + getProductTotalStock(product), 0);
+        const outStock = this.products.filter((product) => getProductTotalStock(product) <= 0).length;
         
         const withVariations = this.products.filter(p => p.variations?.length > 0).length;
         
         this.elements.statsTotalProducts.textContent = total;
         this.elements.statsInStock.textContent = inStock;
-        this.elements.statsOutStock.textContent = total - inStock;
+        this.elements.statsOutStock.textContent = outStock;
         this.elements.statsWithVariations.textContent = withVariations;
         
         // Produits récents
@@ -2636,7 +2705,7 @@
           const totalOrders = Number(analytics.totalOrders || 0);
           const itemsSold = Number(analytics.itemCount || 0);
           const grossAmount = Number(analytics.grossAmount || 0);
-          const vendorNetAmount = Number(analytics.vendorNetAmount || 0);
+          const vendorNetAmount = Number(analytics.pendingPayoutAmount ?? analytics.vendorNetAmount ?? 0);
 
           this.elements.salesTotalOrders.textContent = totalOrders;
           this.elements.salesItemsSold.textContent = itemsSold;
@@ -2646,6 +2715,7 @@
           this.renderSalesTrendChart(Array.isArray(analytics.timeline) ? analytics.timeline : []);
           this.renderSalesStatusChart(analytics.statusBreakdown || {});
           this.renderTopSellingProducts(Array.isArray(analytics.topProducts) ? analytics.topProducts : []);
+          this.renderVendorOrders();
         }
 
         renderSalesTrendChart(timeline = []) {
@@ -2722,6 +2792,188 @@
               <strong>${this.escape(this.formatCurrency(Number(product?.amount || 0)))}</strong>
             </div>
           `).join('');
+        }
+
+        normalizeDeliveryMode(value) {
+          return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+        }
+
+        vendorHandlesDelivery(value) {
+          const normalized = this.normalizeDeliveryMode(value);
+          return normalized.includes('vendeur') || normalized.includes('seller');
+        }
+
+        getVendorOrderStatusLabel(value) {
+          const status = String(value || '').toLowerCase();
+          if (status === 'paid' || status === 'approved') return 'Paye';
+          if (status === 'awaiting_payment' || status === 'redirect_ready' || status === 'initiated') return 'Paiement en attente';
+          if (status === 'rejected' || status === 'failed') return 'Echoue';
+          return 'En cours';
+        }
+
+        getVendorFulfillmentLabel(value) {
+          const status = String(value || '').toLowerCase();
+          if (status === 'delivered') return 'Livre';
+          if (status === 'in_delivery') return 'En livraison';
+          if (status === 'shipped') return 'Expedie';
+          return 'Commande recue';
+        }
+
+        renderVendorOrders() {
+          if (!this.elements.vendorOrdersList || !this.elements.vendorOrdersSummary) return;
+
+          const orders = Array.isArray(this.vendorOrders) ? this.vendorOrders : [];
+          this.elements.vendorOrdersSummary.textContent = orders.length
+            ? `${orders.length} commande(s) liee(s) a vos produits. Les coordonnees client et le PDF apparaissent uniquement si vous gerez la livraison.`
+            : 'Les commandes confirmees apparaitront ici avec les bonnes infos de livraison.';
+
+          if (!orders.length) {
+            this.elements.vendorOrdersList.innerHTML = '<div class="analytics-empty" style="grid-column:1/-1;">Aucune commande vendeur pour le moment.</div>';
+            return;
+          }
+
+          this.elements.vendorOrdersList.innerHTML = orders.map((order) => {
+            const vendorManaged = !!order.vendorManagedDelivery;
+            const customer = order.customer || {};
+            const items = Array.isArray(order.items) ? order.items : [];
+            const itemsHtml = items.map((item) => `
+              <div style="display:flex;justify-content:space-between;gap:1rem;padding:.65rem .8rem;border-radius:.85rem;background:rgba(255,255,255,.82);border:1px solid rgba(198,167,94,.12);">
+                <div style="min-width:0;">
+                  <strong style="display:block;color:var(--text-primary);">${this.escape(item?.name || 'Produit')}</strong>
+                  <span style="display:block;color:var(--text-secondary);font-size:.82rem;">Qte ${Number(item?.quantity || 0)} · Commission ${Number(item?.commissionRate || 0)}%</span>
+                </div>
+                <strong style="white-space:nowrap;">${this.escape(this.formatCurrency(Number(item?.vendorNetAmount || 0)))}</strong>
+              </div>
+            `).join('');
+
+            return `
+              <article class="content-card" style="margin-bottom:0;">
+                <div class="card-body" style="display:grid;gap:1rem;">
+                  <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+                    <div>
+                      <h3 style="margin:0 0 .2rem;font-size:1rem;">${this.escape(order.uniqueCode || order.id || 'Commande')}</h3>
+                      <p style="margin:0;color:var(--text-secondary);font-size:.88rem;">${order.createdAt ? new Date(order.createdAt).toLocaleString('fr-FR') : '-'}</p>
+                    </div>
+                    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                      <span class="vendor-chip">${this.escape(this.getVendorOrderStatusLabel(order.paymentStatus))}</span>
+                      <span class="vendor-chip">${this.escape(this.getVendorFulfillmentLabel(order.fulfillmentStatus))}</span>
+                    </div>
+                  </div>
+
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;">
+                    <div class="analytics-empty" style="padding:.9rem 1rem;text-align:left;">
+                      <strong style="display:block;margin-bottom:.25rem;">Brut</strong>
+                      <span>${this.escape(this.formatCurrency(Number(order.grossAmount || 0)))}</span>
+                    </div>
+                    <div class="analytics-empty" style="padding:.9rem 1rem;text-align:left;">
+                      <strong style="display:block;margin-bottom:.25rem;">Commission</strong>
+                      <span>${this.escape(this.formatCurrency(Number(order.commissionAmount || 0)))}</span>
+                    </div>
+                    <div class="analytics-empty" style="padding:.9rem 1rem;text-align:left;">
+                      <strong style="display:block;margin-bottom:.25rem;">Net vendeur</strong>
+                      <span>${this.escape(this.formatCurrency(Number(order.vendorNetAmount || 0)))}</span>
+                    </div>
+                  </div>
+
+                  <div style="display:grid;gap:.65rem;">
+                    ${itemsHtml}
+                  </div>
+
+                  ${vendorManaged ? `
+                    <div class="analytics-empty" style="text-align:left;">
+                      <strong style="display:block;margin-bottom:.45rem;">Client & livraison</strong>
+                      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.65rem;">
+                        <div><strong>Nom</strong><br>${this.escape(customer.name || '-')}</div>
+                        <div><strong>Email</strong><br>${this.escape(customer.email || '-')}</div>
+                        <div><strong>Telephone</strong><br>${this.escape(customer.phone || '-')}</div>
+                        <div><strong>Ville</strong><br>${this.escape(customer.city || '-')}</div>
+                        <div style="grid-column:1 / -1;"><strong>Adresse</strong><br>${this.escape(customer.address || '-')}</div>
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap;">
+                      <button type="button" class="btn btn-secondary" data-download-vendor-order-pdf="${this.escape(order.id)}">
+                        <i class="fas fa-file-pdf"></i>
+                        Telecharger le PDF
+                      </button>
+                    </div>
+                  ` : `
+                    <div class="analytics-empty">Smart Cut Services gere la livraison pour cette commande. Les coordonnees client et le PDF ne sont donc pas exposes au vendeur.</div>
+                  `}
+                </div>
+              </article>
+            `;
+          }).join('');
+
+          this.elements.vendorOrdersList.querySelectorAll('[data-download-vendor-order-pdf]').forEach((button) => {
+            button.addEventListener('click', () => this.downloadVendorOrderPdf(button.dataset.downloadVendorOrderPdf));
+          });
+        }
+
+        async downloadVendorOrderPdf(orderId) {
+          try {
+            const order = (this.vendorOrders || []).find((item) => String(item.id) === String(orderId));
+            if (!order || !order.vendorManagedDelivery) {
+              throw new Error('Le PDF n est pas disponible pour cette commande.');
+            }
+
+            const { jsPDF } = window.jspdf || {};
+            if (!jsPDF) {
+              throw new Error('Bibliotheque PDF indisponible.');
+            }
+
+            const doc = new jsPDF();
+            let y = 22;
+            doc.setFillColor(198, 167, 94);
+            doc.rect(0, 0, 210, 28, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(18);
+            doc.text('Commande vendeur', 14, 18);
+
+            doc.setTextColor(31, 30, 28);
+            doc.setFontSize(11);
+            y = 40;
+            [
+              `Code: ${order.uniqueCode || order.id}`,
+              `Date: ${order.createdAt ? new Date(order.createdAt).toLocaleString('fr-FR') : '-'}`,
+              `Net vendeur: ${this.formatCurrency(order.vendorNetAmount)}`,
+              `Client: ${order.customer?.name || '-'}`,
+              `Telephone: ${order.customer?.phone || '-'}`,
+              `Adresse: ${order.customer?.address || '-'}`,
+              `Ville: ${order.customer?.city || '-'}`
+            ].forEach((line) => {
+              const wrapped = doc.splitTextToSize(line, 178);
+              doc.text(wrapped, 14, y);
+              y += wrapped.length * 6 + 2;
+            });
+
+            y += 4;
+            doc.setFont('helvetica', 'bold');
+            doc.text('Produits', 14, y);
+            y += 8;
+            doc.setFont('helvetica', 'normal');
+
+            (order.items || []).forEach((item, index) => {
+              const line = `${index + 1}. ${item?.name || 'Produit'} | Qte ${Number(item?.quantity || 0)} | PU ${this.formatCurrency(item?.unitPrice || item?.price || 0)} | Net ${this.formatCurrency(item?.vendorNetAmount || 0)}`;
+              const wrapped = doc.splitTextToSize(line, 178);
+              if (y > 270) {
+                doc.addPage();
+                y = 20;
+              }
+              doc.text(wrapped, 14, y);
+              y += wrapped.length * 6 + 3;
+            });
+
+            const safeName = String(order.uniqueCode || order.id || 'commande-vendeur').replace(/[^A-Za-z0-9_-]/g, '-');
+            doc.save(`commande-vendeur-${safeName}.pdf`);
+          } catch (error) {
+            console.error('Erreur generation PDF vendeur:', error);
+            this.showToast(error?.message || 'Impossible de generer le PDF commande.', 'error');
+          }
         }
 
         escape(value) {
