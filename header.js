@@ -4,6 +4,7 @@ import './search.js';
 import Navbar from './navbar.js';
 import { getCartManager } from './cart.js?v=20260331-2';
 import { getAuthManager } from './auth.js';
+import { getProfilePanel } from './profile-panel.js';
 
 class SierraHeaderNebula {
   constructor(containerId = 'sierra-header-root') {
@@ -296,7 +297,7 @@ class SierraHeaderNebula {
 
       .mobile-top-bar {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.75rem;
       }
@@ -323,14 +324,14 @@ class SierraHeaderNebula {
       .mobile-logo-center {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         min-width: 0;
       }
 
       .mobile-logo-link {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 0.55rem;
         min-width: 0;
         text-decoration: none;
@@ -731,9 +732,6 @@ class SierraHeaderNebula {
 
       <div class="mobile-header-inner">
           <div class="mobile-top-bar">
-            <div class="mobile-left-group">
-            <i id="mobileHamburgerBtn" class="mobile-hamburger fas fa-bars"></i>
-          </div>
           <div class="mobile-logo-center">
             <a class="mobile-logo-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
               <img id="mobileLogoImg" class="mobile-logo" src="" alt="logo" style="display: none;">
@@ -741,9 +739,6 @@ class SierraHeaderNebula {
             </a>
           </div>
           <div class="mobile-right-group">
-            <button id="mobileSearchQuickBtn" class="mobile-icon-button search-trigger" type="button" aria-label="Recherche rapide">
-              <i id="mobileSearchIcon" class="fas fa-search mobile-icon search-trigger"></i>
-            </button>
             <button id="mobileProfileIcon" class="mobile-icon-button" type="button" aria-label="Profil">
               <i class="fas fa-user mobile-icon"></i>
             </button>
@@ -956,16 +951,7 @@ class SierraHeaderNebula {
       event.preventDefault();
       event.stopPropagation();
 
-      const manager = this.authManager || getAuthManager();
-      const currentUser = manager?.getCurrentUser?.();
-
-      if (!currentUser) {
-        manager?.openAuthModal?.('login');
-        return;
-      }
-
-      const label = currentUser.displayName || currentUser.email || 'utilisateur';
-      manager?.showToast?.(`Connecté en tant que ${label}.`, 'info');
+      getProfilePanel().open();
     };
 
     ['desktopProfileIcon', 'mobileProfileIcon'].forEach((id) => {

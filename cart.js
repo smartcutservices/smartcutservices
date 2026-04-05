@@ -1593,12 +1593,7 @@ class CartManager {
     const colors = this.getThemeColors();
     const fonts = this.getThemeFonts();
     
-    const totalItems = this.getTotalItems();
     const totalPrice = this.getTotalPrice();
-    const hasOrders = this.orders.length > 0;
-    const isAuthenticated = this.auth ? this.auth.isAuthenticated() : false;
-    const user = this.auth ? this.auth.getCurrentUser() : null;
-    const likedProducts = this.likeManager ? this.likeManager.getLikedProducts() : [];
     
     this.modal.innerHTML = `
       <div class="cart-overlay" style="
@@ -1633,7 +1628,6 @@ class CartManager {
         display: flex;
         flex-direction: column;
       ">
-        <!-- Header -->
         <div style="
           padding: 1.5rem;
           border-bottom: 1px solid rgba(198, 167, 94, 0.2);
@@ -1650,88 +1644,11 @@ class CartManager {
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.65rem;
           ">
             <i class="fas fa-shopping-bag" style="color: ${colors.icon.hover};"></i>
+            <span>Panier</span>
           </h2>
-
-          <button class="toggle-likes-btn" title="Produits favoris" style="
-            background: none;
-            border: 1px solid ${colors.background.button}55;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            color: #DC2626;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-          ">
-            <i class="fas fa-heart"></i>
-            ${likedProducts.length > 0 ? `
-              <span style="
-                position: absolute;
-                top: -5px;
-                right: -5px;
-                min-width: 18px;
-                height: 18px;
-                border-radius: 999px;
-                background: #DC2626;
-                color: white;
-                font-size: 0.65rem;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                padding: 0 4px;
-                border: 2px solid ${colors.background.general};
-              ">${likedProducts.length}</span>
-            ` : ''}
-          </button>
-          
-          ${isAuthenticated ? `
-            <div style="display:flex;align-items:center;gap:0.45rem;min-width:0;max-width:min(46vw,260px);">
-              <span title="${user?.email || ''}" style="
-                font-size: 0.78rem;
-                color: ${colors.text.body};
-                max-width: min(30vw, 180px);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                display: inline-block;
-                padding: 0.28rem 0.55rem;
-                border-radius: 999px;
-                border: 1px solid ${colors.background.button}55;
-                background: ${colors.background.general};
-              ">${user?.email || ''}</span>
-              <button class="logout-btn" style="
-                background: none;
-                border: 1px solid ${colors.background.button};
-                padding: 0.25rem 0.75rem;
-                border-radius: 2rem;
-                font-size: 0.75rem;
-                cursor: pointer;
-                color: ${colors.text.body};
-                transition: all 0.2s;
-                flex-shrink: 0;
-              " onmouseover="this.style.background='${colors.background.button}'; this.style.color='${colors.text.button}'" onmouseout="this.style.background='transparent'; this.style.color='${colors.text.body}'">
-                Déconnexion
-              </button>
-            </div>
-          ` : `
-            <button class="login-btn" style="
-              background: none;
-              border: 1px solid ${colors.background.button};
-              padding: 0.25rem 1rem;
-              border-radius: 2rem;
-              font-size: 0.85rem;
-              cursor: pointer;
-              color: ${colors.text.body};
-              transition: all 0.2s;
-            " onmouseover="this.style.background='${colors.background.button}'; this.style.color='${colors.text.button}'" onmouseout="this.style.background='transparent'; this.style.color='${colors.text.body}'">
-              Se connecter
-            </button>
-          `}
           
           <button class="close-cart-btn" style="
             background: none;
@@ -1752,23 +1669,10 @@ class CartManager {
           </button>
         </div>
         
-        <!-- Contenu avec scroll -->
         <div style="flex: 1; overflow-y: auto; padding: 1.5rem;">
-          ${this.renderLikedSection(colors, fonts)}
-          ${isAuthenticated ? this.renderOrdersSection(colors, fonts) : this.renderLoginPrompt(colors, fonts)}
-          
-          ${isAuthenticated && hasOrders && this.cart.length > 0 ? `
-            <div style="
-              height: 1px;
-              background: rgba(198, 167, 94, 0.2);
-              margin: 1.5rem 0;
-            "></div>
-          ` : ''}
-          
           ${this.renderCartSection(colors, fonts)}
         </div>
         
-        <!-- Footer Panier -->
         ${this.cart.length > 0 ? `
           <div style="
             padding: 1.5rem;
