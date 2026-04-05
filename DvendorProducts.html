@@ -2951,6 +2951,24 @@
               y += wrapped.length * 6 + 2;
             });
 
+            const deliveryLines = this.buildVendorDeliveryLines(order);
+            if (deliveryLines.length) {
+              y += 4;
+              doc.setFont('helvetica', 'bold');
+              doc.text('Livraison', 14, y);
+              y += 8;
+              doc.setFont('helvetica', 'normal');
+              deliveryLines.forEach((line) => {
+                const wrapped = doc.splitTextToSize(line, 178);
+                if (y > 270) {
+                  doc.addPage();
+                  y = 20;
+                }
+                doc.text(wrapped, 14, y);
+                y += wrapped.length * 6 + 2;
+              });
+            }
+
             y += 4;
             doc.setFont('helvetica', 'bold');
             doc.text('Produits', 14, y);
@@ -2992,6 +3010,55 @@
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
           }).format(Number(value || 0));
+        }
+
+        buildVendorDeliveryLines(order = {}) {
+          const delivery = order?.delivery && typeof order.delivery === 'object' ? order.delivery : null;
+          if (!delivery) return [];
+
+          const method = String(delivery.method || '').trim().toLowerCase();
+          const lines = [];
+
+          if (method === 'pickup') {
+            const pointLabel =
+              delivery?.pickupPoint?.displayLabel ||
+              delivery?.pickupPoint?.name ||
+              delivery?.pickupPoint?.title ||
+              '';
+            const pointAddress = delivery?.pickupPoint?.address || delivery?.pickupPoint?.location || '';
+            const pointPhone = delivery?.pickupPoint?.phone || '';
+            const pointWhatsapp = delivery?.pickupPoint?.whatsapp || '';
+            const pointHours = delivery?.pickupPoint?.hours || delivery?.pickupPoint?.schedule || '';
+
+            lines.push('Mode: Retrait en point de vente');
+            if (pointLabel) lines.push(`Point choisi: ${pointLabel}`);
+            if (pointAddress) lines.push(`Adresse du point: ${pointAddress}`);
+            if (pointPhone) lines.push(`Telephone du point: ${pointPhone}`);
+            if (pointWhatsapp) lines.push(`WhatsApp du point: ${pointWhatsapp}`);
+            if (pointHours) lines.push(`Horaire: ${pointHours}`);
+          } else if (method === 'home') {
+            const zoneLabel = delivery?.homeZone?.city || delivery?.homeZone?.zone || delivery?.homeZone?.name || '';
+            lines.push('Mode: Livraison a domicile');
+            if (zoneLabel) lines.push(`Zone: ${zoneLabel}`);
+            if (delivery?.address) lines.push(`Adresse: ${delivery.address}`);
+            if (delivery?.phone) lines.push(`Telephone livraison: ${delivery.phone}`);
+            if (delivery?.whatsapp) lines.push(`WhatsApp livraison: ${delivery.whatsapp}`);
+          } else if (method === 'meetup') {
+            const meetupLabel = delivery?.meetupZone?.zone || delivery?.meetupZone?.city || delivery?.meetupZone?.name || '';
+            lines.push('Mode: Rencontre livreur');
+            if (meetupLabel) lines.push(`Zone: ${meetupLabel}`);
+            if (delivery?.meetupProposal) lines.push(`Proposition: ${delivery.meetupProposal}`);
+            if (delivery?.phone) lines.push(`Telephone livraison: ${delivery.phone}`);
+            if (delivery?.whatsapp) lines.push(`WhatsApp livraison: ${delivery.whatsapp}`);
+          } else if (order?.deliveryModeLabel) {
+            lines.push(`Mode: ${order.deliveryModeLabel}`);
+          }
+
+          if (Number(delivery?.totalFee || 0) > 0) {
+            lines.push(`Frais: ${this.formatCurrency(delivery.totalFee)}`);
+          }
+
+          return lines;
         }
       
       // ========== CRUD PRODUITS ==========

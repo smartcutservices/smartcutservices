@@ -55,13 +55,19 @@ function buildDeliveryLines(delivery) {
   }
 
   if (delivery.method === 'pickup') {
-    const pointName = delivery?.pickupPoint?.name || delivery?.pickupPoint?.title || '';
+    const pointName =
+      delivery?.pickupPoint?.displayLabel ||
+      delivery?.pickupPoint?.name ||
+      delivery?.pickupPoint?.title ||
+      '';
     const pointAddress = delivery?.pickupPoint?.address || delivery?.pickupPoint?.location || '';
-    const pointContact = delivery?.pickupPoint?.phone || delivery?.pickupPoint?.whatsapp || '';
+    const pointContact = delivery?.pickupPoint?.phone || '';
+    const pointWhatsapp = delivery?.pickupPoint?.whatsapp || '';
     const pointHours = delivery?.pickupPoint?.hours || delivery?.pickupPoint?.schedule || '';
     if (pointName) lines.push(`Point de retrait: ${pointName}`);
     if (pointAddress) lines.push(`Adresse du point: ${pointAddress}`);
-    if (pointContact) lines.push(`Contact du point: ${pointContact}`);
+    if (pointContact) lines.push(`Telephone du point: ${pointContact}`);
+    if (pointWhatsapp) lines.push(`WhatsApp du point: ${pointWhatsapp}`);
     if (pointHours) lines.push(`Horaire: ${pointHours}`);
   }
 
