@@ -1,38 +1,68 @@
 import { db } from './firebase-init.js';
-import { uploadImageFile } from './firebase-storage.js';
+import { uploadPdfFile } from './firebase-storage.js';
 import { getCartManager } from './cart.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import {
+  normalizePrintingConfig,
+  getEnabledPapers,
+  getEnabledDimensionsForPaper,
+  findPaperByLabel,
+  findDimensionByLabel,
+  ensureValidPaperSelection,
+  ensureValidDimensionSelection
+} from './printing-config-utils.js';
+
+const PHOTO_DIMENSIONS = [
+  { label: '4x5', enabled: true, price: 15 },
+  { label: '5x7', enabled: true, price: 17 },
+  { label: '8x10', enabled: true, price: 28 },
+  { label: '8.5x11', enabled: true, price: 47 },
+  { label: '11x17', enabled: true, price: 110 },
+  { label: '13x19', enabled: true, price: 89 }
+];
+
+function buildPaper(label) {
+  return {
+    label,
+    enabled: true,
+    dimensions: PHOTO_DIMENSIONS.map((dimension) => ({ ...dimension }))
+  };
+}
 
 const DEFAULT_CONFIG = {
   enabled: true,
-  dimensions: [
-    { label: '4x6', enabled: true, price: 0 },
-    { label: '5x7', enabled: true, price: 0 },
-    { label: '8.5x11', enabled: true, price: 0 },
-    { label: '11x17', enabled: true, price: 0 },
-    { label: '13x19', enabled: true, price: 0 }
-  ],
   papers: [
-    { label: 'Matte', enabled: true, price: 0 },
-    { label: 'Ultra Glossy', enabled: true, price: 0 },
-    { label: 'Premium Glossy', enabled: true, price: 0 },
-    { label: 'Premium Semiglossy', enabled: true, price: 0 }
+    buildPaper('Glossy'),
+    buildPaper('Matte'),
+    buildPaper('Premium Glossy')
   ],
-  pricing: { basePrice: 0, perUnitPrice: 0, rushPrice: 0 },
   notes: ''
 };
+
+const PRODUCT_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
+  <rect width="240" height="240" rx="36" fill="#F2E9DA"/>
+  <rect x="42" y="52" width="156" height="136" rx="18" fill="#FFFFFF" stroke="#C6A75E" stroke-width="8"/>
+  <circle cx="92" cy="102" r="18" fill="#F6EFE2"/>
+  <path d="M66 166l34-30 24 20 26-24 24 34" fill="none" stroke="#1F1E1C" stroke-opacity=".78" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+`)}`;
+
+function mergeConfig(data = {}) {
+  return normalizePrintingConfig(DEFAULT_CONFIG, data);
+}
 
 class PrintingPhotoPage {
   constructor(containerId = 'printing-photo-root') {
     this.container = document.getElementById(containerId);
-    this.config = { ...DEFAULT_CONFIG };
+    this.config = mergeConfig();
     this.file = null;
     this.fileInfo = null;
     this.isBusy = false;
     this.currentStep = 1;
     this.formState = {
-      dimensionLabel: '',
       paperLabel: '',
+      dimensionLabel: '',
       copies: 1
     };
     this.cart = getCartManager({ imageBasePath: './' });
@@ -49,39 +79,61 @@ class PrintingPhotoPage {
   async loadConfig() {
     try {
       const snapshot = await getDoc(doc(db, 'printingSettings', 'photo'));
-      this.config = snapshot.exists() ? {
-        ...DEFAULT_CONFIG,
-        ...snapshot.data(),
-        dimensions: Array.isArray(snapshot.data().dimensions) ? snapshot.data().dimensions : DEFAULT_CONFIG.dimensions,
-        papers: Array.isArray(snapshot.data().papers) ? snapshot.data().papers : DEFAULT_CONFIG.papers,
-        pricing: { ...DEFAULT_CONFIG.pricing, ...(snapshot.data().pricing || {}) }
-      } : { ...DEFAULT_CONFIG };
+      this.config = snapshot.exists() ? mergeConfig(snapshot.data()) : mergeConfig();
     } catch (error) {
       console.error('Erreur chargement config photo:', error);
-      this.config = { ...DEFAULT_CONFIG };
+      this.config = mergeConfig();
     }
   }
 
-  getEnabledDimensions() {
-    return (this.config.dimensions || []).filter((item) => item?.enabled !== false && item?.label);
+  getEnabledPapers() {
+    return getEnabledPapers(this.config.papers || []);
   }
 
-  getEnabledPapers() {
-    return (this.config.papers || []).filter((item) => item?.enabled !== false && item?.label);
+  getEnabledDimensions(paperLabel = '') {
+    return getEnabledDimensionsForPaper(this.config.papers || [], paperLabel);
   }
 
   formatPrice(value) {
-    return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0);
+    return new Intl.NumberFormat('fr-HT', {
+      style: 'currency',
+      currency: 'HTG',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(Number(value) || 0);
   }
 
   escape(value) {
-    return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  getPdfLib() {
+    const lib = window.pdfjsLib;
+    if (!lib) {
+      throw new Error('Le lecteur PDF n est pas disponible pour le moment.');
+    }
+    if (!lib.GlobalWorkerOptions.workerSrc) {
+      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    return lib;
+  }
+
+  async analyzePdf(file) {
+    const pdfjsLib = this.getPdfLib();
+    const bytes = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    return { pageCount: pdf.numPages || 0 };
   }
 
   getCurrentSelections() {
     return {
-      dimensionLabel: this.container.querySelector('#photoDimension')?.value || this.formState.dimensionLabel || '',
       paperLabel: this.container.querySelector('#photoPaper')?.value || this.formState.paperLabel || '',
+      dimensionLabel: this.container.querySelector('#photoDimension')?.value || this.formState.dimensionLabel || '',
       copies: Math.max(1, Number.parseInt(this.container.querySelector('#photoCopies')?.value || String(this.formState.copies || 1), 10) || 1)
     };
   }
@@ -93,33 +145,37 @@ class PrintingPhotoPage {
     };
   }
 
+  ensureValidSelections() {
+    this.formState.paperLabel = ensureValidPaperSelection(this.config.papers || [], this.formState.paperLabel);
+    this.formState.dimensionLabel = ensureValidDimensionSelection(
+      this.config.papers || [],
+      this.formState.paperLabel,
+      this.formState.dimensionLabel
+    );
+  }
+
   calculateQuote() {
-    const { dimensionLabel, paperLabel, copies } = this.getCurrentSelections();
-    const dimension = this.getEnabledDimensions().find((item) => item.label === dimensionLabel);
-    const paper = this.getEnabledPapers().find((item) => item.label === paperLabel);
-    const pricing = this.config.pricing || {};
-    const basePrice = Number(pricing.basePrice) || 0;
-    const unitComponentPrice = Number(pricing.perUnitPrice) || 0;
-    const dimensionPrice = Number(dimension?.price) || 0;
-    const paperPrice = Number(paper?.price) || 0;
-    const unitPrice = basePrice + unitComponentPrice + dimensionPrice + paperPrice;
+    const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
+    const pageCount = this.fileInfo?.pageCount || 0;
+    const paper = findPaperByLabel(this.config.papers || [], paperLabel);
+    const dimension = findDimensionByLabel(this.config.papers || [], paperLabel, dimensionLabel);
+    const pricePerPage = Number(dimension?.price) || 0;
+    const printUnitPrice = pricePerPage * pageCount;
     return {
-      copies,
-      unitPrice,
-      totalPrice: unitPrice * copies,
-      dimension,
       paper,
-      basePrice,
-      unitComponentPrice,
-      dimensionPrice,
-      paperPrice
+      dimension,
+      copies,
+      pageCount,
+      pricePerPage,
+      printUnitPrice,
+      totalPrice: printUnitPrice * copies
     };
   }
 
   getStepValidity(step = this.currentStep) {
-    const { dimensionLabel, paperLabel, copies } = this.getCurrentSelections();
-    if (step === 1) return Boolean(this.file);
-    if (step === 2) return Boolean(dimensionLabel && paperLabel && copies >= 1);
+    const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
+    if (step === 1) return Boolean(this.file && this.fileInfo?.pageCount);
+    if (step === 2) return Boolean(paperLabel && dimensionLabel && copies >= 1);
     return this.getStepValidity(1) && this.getStepValidity(2);
   }
 
@@ -149,19 +205,18 @@ class PrintingPhotoPage {
       <section class="printing-quiz-panel">
         <div class="printing-quiz-panel-head">
           <small>Etape 1</small>
-          <h2>Chargez votre image</h2>
-          <p>Ajoutez la photo que vous souhaitez imprimer pour commencer votre commande.</p>
+          <h2>Chargez votre PDF photo</h2>
+          <p>Tout fichier photo doit etre envoye en PDF. Le site utilisera le nombre de pages du PDF pour calculer automatiquement votre tarif.</p>
         </div>
         <label class="printing-quiz-field">
-          <span>Image</span>
+          <span>Fichier PDF</span>
           <div class="printing-quiz-upload">
-            <input id="photoFile" class="printing-quiz-input" type="file" accept="image/*" ${this.config.enabled === false ? 'disabled' : ''}>
+            <input id="photoPdfFile" class="printing-quiz-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}>
             <div id="photoFileStatus" class="printing-quiz-upload-status" style="color:${this.fileInfo ? '#0f9f6e' : '#6E6557'};">
-              ${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.width}x${this.fileInfo.height}px` : 'Choisissez une image pour impression photo.'}
+              ${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.pageCount} page(s)` : 'Choisissez un PDF photo pour commencer.'}
             </div>
           </div>
         </label>
-        ${this.fileInfo?.preview ? `<div class="printing-quiz-preview"><img src="${this.fileInfo.preview}" alt="Preview photo"></div>` : ''}
         <div class="printing-quiz-actions">
           <button type="button" class="printing-quiz-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button>
         </div>
@@ -169,27 +224,29 @@ class PrintingPhotoPage {
     `;
   }
 
-  renderStepTwo(dimensions, papers) {
+  renderStepTwo() {
+    const papers = this.getEnabledPapers();
+    const dimensions = this.getEnabledDimensions(this.formState.paperLabel);
     return `
       <section class="printing-quiz-panel">
         <div class="printing-quiz-panel-head">
           <small>Etape 2</small>
           <h2>Choisissez vos options</h2>
-          <p>Selectionnez le format, le papier et le nombre de tirages que vous voulez recevoir.</p>
+          <p>Choisissez le type de papier, puis la dimension disponible pour ce papier, et enfin le nombre de tirages.</p>
         </div>
         <div class="printing-quiz-grid">
           <label class="printing-quiz-field">
-            <span>Dimension</span>
-            <select id="photoDimension" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''}>
-              <option value="">Choisir un format</option>
-              ${dimensions.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)}</option>`).join('')}
+            <span>Type de papier</span>
+            <select id="photoPaper" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''}>
+              <option value="">Choisir un papier</option>
+              ${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}
             </select>
           </label>
           <label class="printing-quiz-field">
-            <span>Papier</span>
-            <select id="photoPaper" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''}>
-              <option value="">Choisir un papier</option>
-              ${papers.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)}</option>`).join('')}
+            <span>Dimension</span>
+            <select id="photoDimension" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}>
+              <option value="">Choisir une dimension</option>
+              ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}">${this.escape(dimension.label)} · ${this.formatPrice(dimension.price || 0)} / page</option>`).join('')}
             </select>
           </label>
         </div>
@@ -211,13 +268,15 @@ class PrintingPhotoPage {
         <div class="printing-quiz-panel-head">
           <small>Etape 3</small>
           <h2>Votre tarif est pret</h2>
-          <p>Verifiez votre selection avant d ajouter votre impression photo au panier.</p>
+          <p>Le total se base sur les pages du PDF, le prix de la dimension choisie et le nombre de tirages.</p>
         </div>
         <div class="printing-quiz-summary">
-          <div class="printing-quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
           <div class="printing-quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Pages PDF</span><strong>${quote.pageCount}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Prix par tirage</span><strong id="photoQuoteUnit">${this.formatPrice(quote.printUnitPrice)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Tirages</span><strong id="photoQuoteCopies">${quote.copies}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Prix unitaire</span><strong id="photoQuoteUnit">${this.formatPrice(quote.unitPrice)}</strong></div>
           <div class="printing-quiz-summary-total"><span>Total</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
         </div>
         ${this.config.notes ? `<div class="printing-quiz-note">${this.escape(this.config.notes)}</div>` : ''}
@@ -232,8 +291,6 @@ class PrintingPhotoPage {
   }
 
   render() {
-    const dimensions = this.getEnabledDimensions();
-    const papers = this.getEnabledPapers();
     const quote = this.calculateQuote();
 
     this.container.innerHTML = `
@@ -258,12 +315,8 @@ class PrintingPhotoPage {
         .printing-quiz-panel-head p{color:#6E6557;line-height:1.8;max-width:58ch}
         .printing-quiz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
         .printing-quiz-field{display:grid;gap:.5rem}
-        .printing-quiz-field span{font-size:.9rem;color:#6E6557;font-weight:700}
-        .printing-quiz-input,.printing-quiz-textarea{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:1rem;padding:.95rem 1rem;background:#fff;font:inherit}
-        .printing-quiz-textarea{resize:vertical}
+        .printing-quiz-input{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:1rem;padding:.95rem 1rem;background:#fff;font:inherit}
         .printing-quiz-upload{border:1px dashed rgba(198,167,94,.4);border-radius:1.3rem;padding:1rem;background:linear-gradient(180deg,rgba(248,242,230,.7),rgba(255,255,255,.96));display:grid;gap:.85rem}
-        .printing-quiz-preview{width:min(100%,320px);overflow:hidden;border-radius:1.25rem;border:1px solid rgba(31,30,28,.08)}
-        .printing-quiz-preview img{width:100%;display:block}
         .printing-quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}
         .printing-quiz-summary-row,.printing-quiz-summary-total{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}
         .printing-quiz-summary-total{margin-top:.25rem;padding-top:.9rem;border-top:1px solid rgba(31,30,28,.08);color:#1F1E1C;font-size:1.2rem;font-weight:800}
@@ -274,7 +327,6 @@ class PrintingPhotoPage {
         .printing-quiz-btn.primary{background:#1F1E1C;color:#F8F5EF;box-shadow:0 14px 28px rgba(31,30,28,.18)}
         .printing-quiz-btn.secondary{background:#fff;color:#1F1E1C;border:1px solid rgba(31,30,28,.12)}
         .printing-quiz-btn.ghost{background:transparent;color:#6E6557;border:1px solid rgba(31,30,28,.1)}
-        .printing-quiz-submit-status,.printing-quiz-upload-status{font-size:.92rem;line-height:1.7}
         .printing-quiz-btn:disabled,.printing-quiz-step:disabled{opacity:.5;cursor:not-allowed}
         @media (max-width:860px){.printing-quiz-steps,.printing-quiz-grid{grid-template-columns:1fr}}
       </style>
@@ -282,18 +334,18 @@ class PrintingPhotoPage {
         <header class="printing-quiz-topbar">
           <div class="printing-quiz-heading">
             <small>Impression photo</small>
-            <h1>Commandez vos tirages et voyez votre tarif pas a pas.</h1>
-            <p>Suivez les etapes pour charger votre image, choisir vos finitions et valider votre impression photo.</p>
+            <h1>Commandez vos tirages photo a partir d un PDF</h1>
+            <p>Choisissez le papier, la dimension et le nombre de tirages. Le prix final suit automatiquement le nombre de pages du PDF charge.</p>
           </div>
           ${this.config.enabled === false ? `<div class="printing-quiz-note is-error">Le module photo est temporairement indisponible.</div>` : ''}
           <div class="printing-quiz-steps">
-            ${this.renderStepChip(1, 'Votre image')}
+            ${this.renderStepChip(1, 'Votre PDF')}
             ${this.renderStepChip(2, 'Vos options')}
             ${this.renderStepChip(3, 'Votre tarif')}
           </div>
         </header>
         ${this.currentStep === 1 ? this.renderStepOne() : ''}
-        ${this.currentStep === 2 ? this.renderStepTwo(dimensions, papers) : ''}
+        ${this.currentStep === 2 ? this.renderStepTwo() : ''}
         ${this.currentStep === 3 ? this.renderStepThree(quote) : ''}
       </section>
     `;
@@ -302,15 +354,15 @@ class PrintingPhotoPage {
   }
 
   restoreFormState() {
-    const dimensionSelect = this.container.querySelector('#photoDimension');
     const paperSelect = this.container.querySelector('#photoPaper');
+    const dimensionSelect = this.container.querySelector('#photoDimension');
     const copiesInput = this.container.querySelector('#photoCopies');
     const fileStatus = this.container.querySelector('#photoFileStatus');
-    if (dimensionSelect && this.formState.dimensionLabel) dimensionSelect.value = this.formState.dimensionLabel;
     if (paperSelect && this.formState.paperLabel) paperSelect.value = this.formState.paperLabel;
+    if (dimensionSelect && this.formState.dimensionLabel) dimensionSelect.value = this.formState.dimensionLabel;
     if (copiesInput) copiesInput.value = String(this.formState.copies || 1);
     if (fileStatus && this.fileInfo) {
-      fileStatus.textContent = `${this.fileInfo.name} · ${this.fileInfo.width}x${this.fileInfo.height}px`;
+      fileStatus.textContent = `${this.fileInfo.name} · ${this.fileInfo.pageCount} page(s)`;
       fileStatus.style.color = '#0f9f6e';
     }
   }
@@ -319,12 +371,18 @@ class PrintingPhotoPage {
     this.container.querySelectorAll('[data-go-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.goStep))));
     this.container.querySelectorAll('[data-next-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.nextStep))));
     this.container.querySelectorAll('[data-prev-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.prevStep))));
-    this.container.querySelector('#photoFile')?.addEventListener('change', async (event) => {
-      const file = event.target.files?.[0];
-      await this.handleImageSelection(file);
+    this.container.querySelector('#photoPdfFile')?.addEventListener('change', async (event) => {
+      await this.handlePdfSelection(event.target.files?.[0]);
+    });
+    this.container.querySelector('#photoPaper')?.addEventListener('change', () => {
+      this.syncFormState();
+      this.formState.dimensionLabel = '';
+      this.ensureValidSelections();
+      this.render();
+      this.attachEvents();
+      this.refreshQuote();
     });
     this.container.querySelector('#photoDimension')?.addEventListener('change', () => this.refreshQuote());
-    this.container.querySelector('#photoPaper')?.addEventListener('change', () => this.refreshQuote());
     this.container.querySelector('#photoCopies')?.addEventListener('input', () => this.refreshQuote());
     this.container.querySelector('#submitPhotoOrder')?.addEventListener('click', async () => {
       await this.handleSubmit();
@@ -332,29 +390,33 @@ class PrintingPhotoPage {
     this.container.querySelector('#openCartFromPhoto')?.addEventListener('click', () => document.dispatchEvent(new CustomEvent('openCart')));
   }
 
-  async handleImageSelection(file) {
+  async handlePdfSelection(file) {
     const statusEl = this.container.querySelector('#photoFileStatus');
     this.file = null;
     this.fileInfo = null;
     if (!file) {
-      if (statusEl) statusEl.textContent = 'Choisissez une image pour impression photo.';
+      if (statusEl) {
+        statusEl.textContent = 'Choisissez un PDF photo pour commencer.';
+        statusEl.style.color = '#6E6557';
+      }
       return;
     }
     try {
-      const preview = URL.createObjectURL(file);
-      const dimensions = await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight, preview });
-        img.onerror = reject;
-        img.src = preview;
-      });
+      if (statusEl) {
+        statusEl.textContent = 'Analyse du PDF en cours...';
+        statusEl.style.color = '#6E6557';
+      }
+      const analysis = await this.analyzePdf(file);
       this.file = file;
-      this.fileInfo = { name: file.name, ...dimensions };
+      this.fileInfo = { name: file.name, pageCount: analysis.pageCount };
       this.render();
       this.attachEvents();
     } catch (error) {
-      console.error('Erreur lecture image:', error);
-      if (statusEl) statusEl.textContent = 'Impossible de lire cette image.';
+      console.error('Erreur lecture PDF photo:', error);
+      if (statusEl) {
+        statusEl.textContent = error.message || 'Impossible de lire ce PDF.';
+        statusEl.style.color = '#b91c1c';
+      }
     }
   }
 
@@ -366,7 +428,7 @@ class PrintingPhotoPage {
     const totalEl = this.container.querySelector('#photoQuoteTotal');
     const nextButton = this.container.querySelector('[data-next-step="3"]');
     if (copiesEl) copiesEl.textContent = String(quote.copies);
-    if (unitEl) unitEl.textContent = this.formatPrice(quote.unitPrice);
+    if (unitEl) unitEl.textContent = this.formatPrice(quote.printUnitPrice);
     if (totalEl) totalEl.textContent = this.formatPrice(quote.totalPrice);
     if (nextButton) nextButton.disabled = !this.getStepValidity(2) || this.config.enabled === false;
   }
@@ -374,39 +436,36 @@ class PrintingPhotoPage {
   async handleSubmit() {
     const statusEl = this.container.querySelector('#photoSubmitStatus');
     this.syncFormState();
-    const dimensionLabel = this.container.querySelector('#photoDimension')?.value || this.formState.dimensionLabel || '';
-    const paperLabel = this.container.querySelector('#photoPaper')?.value || this.formState.paperLabel || '';
+    const paperLabel = this.formState.paperLabel || '';
+    const dimensionLabel = this.formState.dimensionLabel || '';
     const quote = this.calculateQuote();
-    if (!this.file) {
-      if (statusEl) statusEl.textContent = 'Ajoutez une image valide.';
+    if (!this.file || !this.fileInfo?.pageCount) {
+      if (statusEl) statusEl.textContent = 'Ajoutez un PDF photo valide.';
       return;
     }
-    if (!dimensionLabel || !paperLabel) {
+    if (!paperLabel || !dimensionLabel) {
       if (statusEl) statusEl.textContent = 'Choisissez une dimension et un papier.';
       return;
     }
     try {
       this.isBusy = true;
-      if (statusEl) statusEl.textContent = 'Upload image et ajout au panier...';
-      const uploaded = await uploadImageFile(this.file, 'printing-photo', { maxSizeMb: 12 });
-      const lineTotal = quote.totalPrice;
+      if (statusEl) statusEl.textContent = 'Upload PDF et ajout au panier...';
+      const uploaded = await uploadPdfFile(this.file, 'printing-photo', { maxSizeMb: 20 });
       document.dispatchEvent(new CustomEvent('addToCart', {
         detail: {
           productId: 'printing-photo',
           name: `Impression photo ${dimensionLabel}`,
-          price: lineTotal,
+          price: quote.totalPrice,
           quantity: 1,
           sku: `PHOTO-${Date.now()}`,
-          image: uploaded.url,
+          image: PRODUCT_IMAGE,
           selectedOptions: [
+            { label: 'Type de papier', value: paperLabel },
             { label: 'Dimension', value: dimensionLabel },
-            { label: 'Prix dimension', value: this.formatPrice(quote.dimensionPrice) },
-            { label: 'Papier', value: paperLabel },
-            { label: 'Prix papier', value: this.formatPrice(quote.paperPrice) },
+            { label: 'Pages', value: String(this.fileInfo.pageCount) },
             { label: 'Tirages', value: String(quote.copies) },
-            { label: 'Prix base', value: this.formatPrice(quote.basePrice) },
-            { label: 'Prix tirage', value: this.formatPrice(quote.unitComponentPrice) },
-            { label: 'Prix unitaire calcule', value: this.formatPrice(quote.unitPrice) },
+            { label: 'Prix / page', value: this.formatPrice(quote.pricePerPage) },
+            { label: 'Prix par tirage', value: this.formatPrice(quote.printUnitPrice) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },
@@ -414,11 +473,17 @@ class PrintingPhotoPage {
           ]
         }
       }));
-      if (statusEl) { statusEl.textContent = 'Votre demande photo a ete ajoutee au panier.'; statusEl.style.color = '#0f9f6e'; }
+      if (statusEl) {
+        statusEl.textContent = 'Votre demande photo a ete ajoutee au panier.';
+        statusEl.style.color = '#0f9f6e';
+      }
       document.dispatchEvent(new CustomEvent('openCart'));
     } catch (error) {
       console.error('Erreur impression photo:', error);
-      if (statusEl) { statusEl.textContent = error.message || 'Impossible d ajouter cette photo au panier.'; statusEl.style.color = '#b91c1c'; }
+      if (statusEl) {
+        statusEl.textContent = error.message || 'Impossible d ajouter cette demande photo au panier.';
+        statusEl.style.color = '#b91c1c';
+      }
     } finally {
       this.isBusy = false;
     }

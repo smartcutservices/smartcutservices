@@ -13,7 +13,7 @@ class PrintingGrandFormatPage {
     this.container = document.getElementById(containerId);
     this.config = { ...DEFAULT_CONFIG };
     this.currentStep = 1;
-    this.formState = { type: 'Sticker', width: '', height: '', notes: '' };
+    this.formState = { type: 'Stickers', width: '', height: '', notes: '' };
     if (!this.container) return;
     this.init();
   }
@@ -45,7 +45,7 @@ class PrintingGrandFormatPage {
 
   syncFormState() {
     this.formState = {
-      type: this.container.querySelector('#grandFormatType')?.value || this.formState.type || 'Grand format',
+      type: this.container.querySelector('#grandFormatType')?.value || this.formState.type || 'Impression Grand Format',
       width: this.container.querySelector('#grandFormatWidth')?.value || this.formState.width || '',
       height: this.container.querySelector('#grandFormatHeight')?.value || this.formState.height || '',
       notes: this.container.querySelector('#grandFormatNotes')?.value || this.formState.notes || ''
@@ -101,15 +101,15 @@ class PrintingGrandFormatPage {
         ${this.currentStep === 1 ? `
           <section class="quiz-panel">
             <div class="quiz-head"><small>Etape 1</small><h2>De quel type de projet s agit-il ?</h2><p>Choisissez le type de demande pour que notre equipe comprenne rapidement votre besoin.</p></div>
-            <label class="quiz-field"><span>Type de demande</span><select id="grandFormatType" class="quiz-input"><option value="Sticker" ${this.formState.type === 'Sticker' ? 'selected' : ''}>Sticker</option><option value="Banniere" ${this.formState.type === 'Banniere' ? 'selected' : ''}>Banniere</option><option value="Grand format" ${this.formState.type === 'Grand format' ? 'selected' : ''}>Grand format</option><option value="Autre" ${this.formState.type === 'Autre' ? 'selected' : ''}>Autre</option></select></label>
+            <label class="quiz-field"><span>Type de demande</span><select id="grandFormatType" class="quiz-input"><option value="Stickers" ${this.formState.type === 'Stickers' ? 'selected' : ''}>Stickers</option><option value="Banners" ${this.formState.type === 'Banners' ? 'selected' : ''}>Banners</option><option value="Impression Grand Format" ${this.formState.type === 'Impression Grand Format' ? 'selected' : ''}>Impression Grand Format</option><option value="Autre" ${this.formState.type === 'Autre' ? 'selected' : ''}>Autre</option></select></label>
             <div class="quiz-actions"><button type="button" class="quiz-btn primary" data-next-step="2" ${this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
           </section>` : ''}
         ${this.currentStep === 2 ? `
           <section class="quiz-panel">
             <div class="quiz-head"><small>Etape 2</small><h2>Donnez les dimensions de votre projet</h2><p>Indiquez la largeur et la hauteur estimees pour que votre demande soit plus precise.</p></div>
             <div class="quiz-grid">
-              <label class="quiz-field"><span>Largeur estimee</span><input id="grandFormatWidth" class="quiz-input" type="text" placeholder="Ex: 4 pieds" value="${this.escape(this.formState.width)}"></label>
-              <label class="quiz-field"><span>Hauteur estimee</span><input id="grandFormatHeight" class="quiz-input" type="text" placeholder="Ex: 6 pieds" value="${this.escape(this.formState.height)}"></label>
+              <label class="quiz-field"><span>Largeur estimee</span><input id="grandFormatWidth" class="quiz-input" type="text" placeholder="Ex: 80 pouces" value="${this.escape(this.formState.width)}"></label>
+              <label class="quiz-field"><span>Hauteur estimee</span><input id="grandFormatHeight" class="quiz-input" type="text" placeholder="Ex: 33 pouces" value="${this.escape(this.formState.height)}"></label>
             </div>
             <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
           </section>` : ''}
