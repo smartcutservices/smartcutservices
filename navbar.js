@@ -232,6 +232,7 @@ class Navbar {
         
         
         this.renderDesktopCategories();
+        this.renderMobileNav();
         this.mobileMenu.setCategories(this.mobileCategories);
       }, (error) => {
         console.error("❌ Erreur chargement catégories depuis categories_list:", error);
@@ -280,6 +281,31 @@ class Navbar {
       });
       
       container.appendChild(catEl);
+    });
+  }
+
+  buildCategoryUrl(category) {
+    const params = new URLSearchParams();
+    params.set('category', category?.name || category?.id || '');
+    return `./catalogue.html?${params.toString()}`;
+  }
+
+  renderMobileNav() {
+    const container = document.getElementById(this.options.mobileContainerId);
+    if (!container) return;
+
+    if (this.mobileCategories.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = '';
+    this.mobileCategories.forEach((cat) => {
+      const link = document.createElement('a');
+      link.className = 'mobile-nav-item';
+      link.href = this.buildCategoryUrl(cat);
+      link.textContent = cat.name;
+      container.appendChild(link);
     });
   }
   
