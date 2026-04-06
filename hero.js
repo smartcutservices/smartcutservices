@@ -1,831 +1,721 @@
-/**
- * hero.js - Component Hero Smart Cut Services
- * VERSION AVEC ANIME.JS - Animation au scroll optimisée
- */
-
 import { db } from './firebase-init.js';
-import { redirectToProductPage } from './product-links.js';
-import { 
-  doc, 
-  onSnapshot,
-  getDoc
+import {
+  doc,
+  getDoc,
+  onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
-const anime = typeof window !== 'undefined' && typeof window.anime === 'function'
-  ? window.anime
-  : Object.assign(() => null, {
-      timeline: () => ({ add() { return this; } }),
-      stagger: () => 0
-    });
 
-// ============================================
-// CONSTANTES
-// ============================================
-const VELTRIXA_HERO_COLLECTION = "heroSectionControlMatrix9472";
-const VELTRIXA_HERO_DOC_ID = "heroPrimaryBlock8391";
+const HERO_COLLECTION = 'heroSectionControlMatrix9472';
+const HERO_DOC_ID = 'heroPrimaryBlock8391';
+const DEFAULT_AUTOPLAY_MS = 4800;
+
+function toNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizePosterFileName(value = '') {
+  return String(value || '').trim();
+}
+
+function buildPosterUrl(fileName = '') {
+  const raw = normalizePosterFileName(fileName);
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/')) return raw;
+  return `./${raw}`;
+}
+
+function extractLegacyFileName(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const normalized = raw.replace(/\\/g, '/');
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || raw;
+}
+
+function normalizeSlide(slide = {}, index = 0) {
+  const fileName = normalizePosterFileName(slide.fileName || slide.imageName || slide.posterName || slide.image || '');
+  const altText = String(slide.altText || slide.alt || `Affiche Smart Cut ${index + 1}`).trim();
+  return {
+    id: String(slide.id || `poster-${index + 1}`).trim(),
+    fileName,
+    altText,
+    isActive: slide.isActive !== false
+  };
+}
+
+function getSlidesFromData(data = {}) {
+  const explicitSlides = Array.isArray(data.posterSlides)
+    ? data.posterSlides.map((slide, index) => normalizeSlide(slide, index))
+    : [];
+  const filteredExplicit = explicitSlides.filter((slide) => slide.isActive !== false && slide.fileName);
+  if (filteredExplicit.length) return filteredExplicit;
+
+  const legacyNames = Array.isArray(data.heroPosterImageNames)
+    ? data.heroPosterImageNames
+        .map((name, index) => normalizeSlide({ fileName: name, altText: `Affiche Smart Cut ${index + 1}` }, index))
+        .filter((slide) => slide.fileName)
+    : [];
+  if (legacyNames.length) return legacyNames;
+
+  const legacySingle = normalizePosterFileName(
+    data.heroPosterImageName ||
+    extractLegacyFileName(data.heroImageURL839 || '')
+  );
+  if (legacySingle) {
+    return [normalizeSlide({ fileName: legacySingle, altText: data.heroTitleText552 || 'Affiche Smart Cut' })];
+  }
+
+  return [];
+}
 
 class SierraHero {
   constructor(containerId, options = {}) {
-    
     this.container = document.getElementById(containerId);
-    if (!this.container) {
-      console.error(`❌ [HERO] Container #${containerId} non trouvé`);
-      return;
-    }
-    
+    if (!this.container) return;
+
     this.options = {
-      collectionName: options.collectionName || VELTRIXA_HERO_COLLECTION,
-      docId: options.docId || VELTRIXA_HERO_DOC_ID,
-      productsCollection: options.productsCollection || 'products',
+      collectionName: options.collectionName || HERO_COLLECTION,
+      docId: options.docId || HERO_DOC_ID,
       ...options
     };
-    
+
     this.data = null;
-    this.currentModal = null;
-    this.ProductModalClass = null;
-    this.observer = null;
-    this.isAnimating = false;
-    this.hasAnimated = false; // Pour la première animation
-    
-    // S'abonner aux changements de thème
-    this.unsubscribeTheme = theme.subscribe((newTheme) => {
+    this.currentIndex = 0;
+    this.autoplayTimer = null;
+    this.mobileScrollLock = false;
+    this.unsubscribeSnapshot = null;
+    this.unsubscribeTheme = null;
+    this.handleResize = this.handleResize.bind(this);
+
+    this.unsubscribeTheme = theme.subscribe(() => {
       this.injectStyles();
-      if (this.data) {
-        this.renderHero(this.data);
-      }
+      if (this.data) this.renderHero(this.data);
     });
-    
+
     this.init();
   }
-  
-  // ============================================
-  // STYLES
-  // ============================================
+
   injectStyles() {
-    if (document.getElementById('veltrixaHeroStyles728')) {
-      document.getElementById('veltrixaHeroStyles728').remove();
-    }
-    
-    const colors = theme.getColors();
-    const fonts = theme.getFonts();
-    const typography = theme.getTypography();
-    
-    // Couleurs hero dédiées (contraste garanti desktop/mobile)
-    const titleColor = '#F8F5EF';
-    const subtitleColor = '#D6B985';
-    const buttonTextColor = '#1C1917';
-    const buttonBgColor = colors?.background?.button || '#C6A75E';
-    const bgGeneralColor = '#1C1917';
-    
-    // Polices
-    const primaryFont = typography?.family || fonts?.primary || "'Cormorant Garamond', serif";
-    const secondaryFont = fonts?.secondary || "'Manrope', sans-serif";
-    
-    const styleEl = document.createElement('style');
-    styleEl.id = 'veltrixaHeroStyles728';
-    styleEl.textContent = `
+    const existing = document.getElementById('smartcutPosterHeroStyles');
+    if (existing) existing.remove();
+
+    const colors = theme.getColors?.() || {};
+    const fonts = theme.getFonts?.() || {};
+    const typography = theme.getTypography?.() || {};
+
+    const accent = colors?.background?.button || '#C6A75E';
+    const headingFont = typography?.family || fonts?.primary || "'Cormorant Garamond', serif";
+    const bodyFont = fonts?.secondary || "'Manrope', sans-serif";
+
+    const style = document.createElement('style');
+    style.id = 'smartcutPosterHeroStyles';
+    style.textContent = `
       :root {
-        --hero-title-color: ${titleColor};
-        --hero-subtitle-color: ${subtitleColor};
-        --hero-button-text: ${buttonTextColor};
-        --hero-button-bg: ${buttonBgColor};
-        --hero-bg: ${bgGeneralColor};
-        --hero-font-primary: ${primaryFont};
-        --hero-font-secondary: ${secondaryFont};
-      }
-      
-      .veltrixaHeroViewport992 {
-        height: 100vh;
-        width: 100%;
-        position: relative;
-        overflow: hidden;
-        background: var(--hero-bg);
-        opacity: 1;
-        visibility: visible;
-      }
-      
-      /* Desktop Layout */
-      .veltrixaHeroDesktop847 {
-        display: flex;
-        width: 100%;
-        height: 100vh;
-      }
-      
-      .veltrixaHeroImageBanner683 {
-        flex: 0 0 70%;
-        height: 100vh;
-        overflow: hidden;
-        position: relative;
-      }
-      
-      .veltrixaHeroImageAsset511 {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: center;
-        transform: scale(1);
-        will-change: transform;
+        --poster-hero-accent: ${accent};
+        --poster-hero-heading: ${headingFont};
+        --poster-hero-body: ${bodyFont};
+        --poster-hero-bg: #0f0d0b;
+        --poster-hero-surface: rgba(255,255,255,0.08);
+        --poster-hero-text: #f8f5ef;
+        --poster-hero-muted: rgba(248,245,239,0.7);
+        --poster-hero-border: rgba(255,255,255,0.14);
       }
 
-      .veltrixaHeroImageVignette901 {
+      .posterHeroRoot913 {
+        position: relative;
+        width: 100%;
+        background:
+          radial-gradient(circle at top right, rgba(198, 167, 94, 0.22), transparent 32%),
+          linear-gradient(180deg, #151210 0%, #0f0d0b 100%);
+        overflow: hidden;
+      }
+
+      .posterHeroViewport913 {
+        position: relative;
+        min-height: clamp(420px, 72vh, 780px);
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .posterHeroBackdrop913 {
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(circle at 20% 20%, rgba(198, 167, 94, 0.2), transparent 45%),
-          linear-gradient(to right, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.08));
+          linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.38)),
+          radial-gradient(circle at 16% 18%, rgba(198,167,94,0.12), transparent 28%);
         pointer-events: none;
+        z-index: 0;
       }
 
-      .veltrixaHeroAmbientOrb {
+      .posterHeroTopline913 {
         position: absolute;
+        top: 1rem;
+        left: 1rem;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: .6rem;
+        padding: .65rem .9rem;
         border-radius: 999px;
-        filter: blur(30px);
-        opacity: 0.45;
-        pointer-events: none;
-        will-change: transform, opacity;
+        border: 1px solid var(--poster-hero-border);
+        background: rgba(8, 8, 8, 0.34);
+        backdrop-filter: blur(12px);
+        color: var(--poster-hero-text);
+        font-family: var(--poster-hero-body);
+        font-size: .73rem;
+        letter-spacing: .16em;
+        text-transform: uppercase;
       }
 
-      .veltrixaHeroAmbientOrb.orb-a {
-        width: 220px;
-        height: 220px;
-        top: 10%;
-        left: 6%;
-        background: rgba(198, 167, 94, 0.5);
+      .posterHeroTopline913::before {
+        content: "";
+        width: .55rem;
+        height: .55rem;
+        border-radius: 999px;
+        background: var(--poster-hero-accent);
+        box-shadow: 0 0 0 6px rgba(198,167,94,0.14);
       }
 
-      .veltrixaHeroAmbientOrb.orb-b {
-        width: 180px;
-        height: 180px;
-        bottom: 12%;
-        right: 8%;
-        background: rgba(122, 116, 107, 0.45);
-      }
-      
-      .veltrixaHeroPanel294 {
-        flex: 0 0 30%;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: flex-start;
-        padding: 4rem 3rem;
-        background: var(--hero-bg);
-        color: white;
+      .posterHeroTrack913 {
         position: relative;
-        text-align: left;
+        z-index: 1;
+        display: flex;
+        width: 100%;
+        height: 100%;
+        transform: translate3d(0,0,0);
+        transition: transform .78s cubic-bezier(.22, 1, .36, 1);
       }
 
-      .veltrixaHeroPanel294::before {
+      .posterHeroSlide913 {
+        min-width: 100%;
+        width: 100%;
+        padding: 5rem 1rem 1.2rem;
+        display: flex;
+        align-items: stretch;
+      }
+
+      .posterHeroPoster913 {
+        position: relative;
+        width: 100%;
+        min-height: 360px;
+        border-radius: 1.6rem;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 26px 80px rgba(0,0,0,0.32);
+        background-color: #2d241b;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: cover;
+        isolation: isolate;
+      }
+
+      .posterHeroPoster913::before {
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(198, 167, 94, 0.08), transparent 40%);
-        pointer-events: none;
-      }
-      
-      .veltrixaHeroTitle773 {
-        font-family: var(--hero-font-primary);
-        font-size: clamp(2rem, 4vw, 3.5rem);
-        font-weight: 600;
-        margin-bottom: 1.5rem;
-        color: var(--hero-title-color);
-        opacity: 1;
-        transform: translateY(0);
-        will-change: transform, opacity;
-        width: 100%;
-        max-width: 100%;
-        text-align: left;
-        line-height: 1.05;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-      
-      .veltrixaHeroSubtitle881 {
-        font-family: var(--hero-font-secondary);
-        font-size: clamp(0.875rem, 1.2vw, 1rem);
-        font-weight: 300;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin-bottom: 2rem;
-        color: var(--hero-subtitle-color);
-        opacity: 1;
-        transform: translateY(0);
-        will-change: transform, opacity;
-        width: 100%;
-        max-width: 100%;
-        text-align: left;
-        line-height: 1.45;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-      
-      .veltrixaHeroButton562 {
-        display: inline-flex;
-        background: var(--hero-button-bg);
-        color: var(--hero-button-text);
-        font-family: var(--hero-font-secondary);
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-        padding: 1rem 2.5rem;
-        border: none;
-        border-radius: 2px;
-        text-decoration: none;
-        width: fit-content;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.16)),
+          linear-gradient(0deg, rgba(7,7,7,0.58), rgba(7,7,7,0.04) 42%, rgba(7,7,7,0.14));
+        z-index: 0;
       }
 
-      .veltrixaHeroButton562::after {
+      .posterHeroPoster913::after {
         content: "";
         position: absolute;
-        top: 0;
-        left: -120%;
-        width: 80%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-        transform: skewX(-20deg);
+        inset: auto -10% -28% auto;
+        width: 66%;
+        height: 60%;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(198,167,94,0.22), transparent 70%);
+        filter: blur(24px);
+        pointer-events: none;
+        z-index: 0;
       }
 
-      .veltrixaHeroButton562:hover::after {
-        left: 140%;
-        transition: left 0.65s ease;
+      .posterHeroCaption913 {
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
       }
-      
-      .veltrixaHeroButton562:hover {
-        opacity: 0.9;
+
+      .posterHeroCaptionCopy913 {
+        max-width: min(100%, 520px);
+      }
+
+      .posterHeroEyebrow913 {
+        display: inline-flex;
+        align-items: center;
+        gap: .55rem;
+        color: var(--poster-hero-accent);
+        font-family: var(--poster-hero-body);
+        font-size: .72rem;
+        font-weight: 700;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        margin-bottom: .8rem;
+      }
+
+      .posterHeroEyebrow913::before {
+        content: "";
+        width: 1.9rem;
+        height: 1px;
+        background: currentColor;
+      }
+
+      .posterHeroTitle913 {
+        margin: 0;
+        color: var(--poster-hero-text);
+        font-family: var(--poster-hero-heading);
+        font-size: clamp(2rem, 7vw, 4.9rem);
+        line-height: .94;
+        text-wrap: balance;
+        max-width: 10ch;
+      }
+
+      .posterHeroMeta913 {
+        color: var(--poster-hero-muted);
+        font-family: var(--poster-hero-body);
+        font-size: .95rem;
+        margin-top: .9rem;
+        max-width: 38ch;
+        line-height: 1.6;
+      }
+
+      .posterHeroCounter913 {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: .7rem;
+        padding: .75rem .9rem;
+        border-radius: 999px;
+        border: 1px solid var(--poster-hero-border);
+        background: rgba(8,8,8,0.42);
+        backdrop-filter: blur(14px);
+        color: var(--poster-hero-text);
+        font-family: var(--poster-hero-body);
+      }
+
+      .posterHeroCounter913 strong {
+        font-size: 1rem;
+      }
+
+      .posterHeroCounter913 span {
+        color: var(--poster-hero-muted);
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: .14em;
+      }
+
+      .posterHeroFooter913 {
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        pointer-events: none;
+      }
+
+      .posterHeroDots913 {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        padding: .65rem .75rem;
+        border-radius: 999px;
+        background: rgba(8,8,8,0.34);
+        border: 1px solid var(--poster-hero-border);
+        backdrop-filter: blur(12px);
+        pointer-events: auto;
+      }
+
+      .posterHeroDot913 {
+        width: .7rem;
+        height: .7rem;
+        border-radius: 999px;
+        border: none;
+        padding: 0;
+        background: rgba(255,255,255,0.24);
+        cursor: pointer;
+        transition: transform .25s ease, background-color .25s ease;
+      }
+
+      .posterHeroDot913.is-active {
+        background: var(--poster-hero-accent);
+        transform: scale(1.16);
+      }
+
+      .posterHeroArrows913 {
+        display: none;
+        align-items: center;
+        gap: .65rem;
+        pointer-events: auto;
+      }
+
+      .posterHeroArrow913 {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 999px;
+        border: 1px solid var(--poster-hero-border);
+        background: rgba(8,8,8,0.42);
+        backdrop-filter: blur(14px);
+        color: var(--poster-hero-text);
+        font-size: 1rem;
+        cursor: pointer;
+        transition: transform .25s ease, background-color .25s ease, border-color .25s ease;
+      }
+
+      .posterHeroArrow913:hover {
         transform: translateY(-2px);
-        background: var(--hero-button-bg);
-        filter: brightness(1.1);
-      }
-      
-      /* MOBILE */
-      @media (max-width: 768px) {
-        .veltrixaHeroDesktop847 { 
-          display: none; 
-        }
-        
-        .veltrixaHeroMobile615 {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          width: 100%;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .veltrixaHeroMobileImageWrapper326 {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          z-index: 1;
-        }
-        
-        .veltrixaHeroMobileImage448 {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          object-position: center;
-          will-change: transform;
-        }
-        
-        .veltrixaHeroMobileOverlay279 {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 50%, transparent 100%);
-          z-index: 2;
-        }
-
-        .veltrixaHeroMobileGlow738 {
-          position: absolute;
-          width: 220px;
-          height: 220px;
-          right: -70px;
-          bottom: -55px;
-          border-radius: 999px;
-          background: rgba(198, 167, 94, 0.4);
-          filter: blur(30px);
-          z-index: 2;
-          pointer-events: none;
-        }
-        
-        .veltrixaHeroMobileContent528 {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          position: absolute;
-          bottom: calc(env(safe-area-inset-bottom, 0px) + 0.95rem);
-          left: clamp(0.85rem, 4vw, 1.35rem);
-          right: auto;
-          z-index: 3;
-          padding: 1.05rem 1rem 1.1rem;
-          width: min(88vw, 440px);
-          text-align: left;
-          color: white;
-          background: linear-gradient(170deg, rgba(10, 10, 10, 0.78) 0%, rgba(10, 10, 10, 0.38) 100%);
-          border: 1px solid rgba(245, 241, 232, 0.18);
-          border-radius: 14px;
-          backdrop-filter: blur(4px);
-          will-change: transform, opacity;
-        }
-        
-        .veltrixaHeroMobileTitle663 {
-          font-family: var(--hero-font-primary);
-          font-size: clamp(1.4rem, 6.8vw, 2.05rem);
-          font-weight: 600;
-          margin: 0 0 0.34rem 0;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          line-height: 1.12;
-          color: var(--hero-title-color);
-          max-width: 18ch;
-          width: 100%;
-          text-align: left;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-        }
-        
-        .veltrixaHeroMobileSubtitle741 {
-          font-family: var(--hero-font-secondary);
-          display: block;
-          width: 100%;
-          font-size: 0.78rem;
-          font-weight: 500;
-          letter-spacing: 0.07em;
-          text-transform: none;
-          margin: 0 0 0.78rem 0;
-          text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-          color: var(--hero-subtitle-color);
-          line-height: 1.45;
-          max-width: 32ch;
-          text-align: left;
-          align-self: flex-start;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-        }
-        
-        .veltrixaHeroMobileButton892 {
-          display: inline-block;
-          background: var(--hero-button-bg);
-          color: var(--hero-button-text);
-          font-family: var(--hero-font-secondary);
-          font-size: 0.72rem;
-          font-weight: 600;
-          letter-spacing: 0.11em;
-          text-transform: uppercase;
-          padding: 0.72rem 1.36rem;
-          border: none;
-          border-radius: 999px;
-          text-decoration: none;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        
-        .veltrixaHeroMobileButton892:hover {
-          opacity: 0.9;
-          transform: translateY(-2px);
-          filter: brightness(1.1);
-        }
-        
-        .veltrixaHeroMobileButton892:active {
-          transform: scale(0.95);
-        }
+        border-color: rgba(198,167,94,0.55);
+        background: rgba(18,18,18,0.55);
       }
 
-      .hero-reveal-line {
+      .posterHeroScrollHint913 {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: .55rem;
+        padding: .6rem .85rem;
+        border-radius: 999px;
+        color: var(--poster-hero-muted);
+        border: 1px solid var(--poster-hero-border);
+        background: rgba(8,8,8,0.34);
+        font-family: var(--poster-hero-body);
+        font-size: .72rem;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        backdrop-filter: blur(12px);
+      }
+
+      .posterHeroEmpty913 {
+        min-height: 420px;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        text-align: center;
+        color: var(--poster-hero-muted);
+        font-family: var(--poster-hero-body);
+      }
+
+      .posterHeroEmpty913 strong {
         display: block;
-        width: 100%;
-        max-width: 100%;
-        overflow: hidden;
+        color: var(--poster-hero-text);
+        font-size: 1rem;
+        margin-bottom: .4rem;
+        text-transform: uppercase;
+        letter-spacing: .18em;
       }
 
-      .hero-reveal-item {
-        display: inline-block;
-        will-change: transform, opacity;
-      }
+      @media (min-width: 768px) {
+        .posterHeroSlide913 {
+          padding: 5.6rem 1.8rem 1.6rem;
+        }
 
-      @keyframes heroOrbFloatA {
-        0%, 100% { transform: translate3d(0, 0, 0); }
-        50% { transform: translate3d(0, -10px, 0); }
-      }
+        .posterHeroPoster913 {
+          min-height: clamp(480px, 76vh, 720px);
+          border-radius: 2rem;
+        }
 
-      @keyframes heroOrbFloatB {
-        0%, 100% { transform: translate3d(0, 0, 0); }
-        50% { transform: translate3d(0, 12px, 0); }
-      }
+        .posterHeroTopline913 {
+          top: 1.4rem;
+          left: 1.5rem;
+          padding: .7rem 1rem;
+        }
 
-      .veltrixaHeroAmbientOrb.orb-a { animation: heroOrbFloatA 5s ease-in-out infinite; }
-      .veltrixaHeroAmbientOrb.orb-b { animation: heroOrbFloatB 6s ease-in-out infinite; }
+        .posterHeroScrollHint913 {
+          top: 1.4rem;
+          right: 1.5rem;
+        }
 
-      @media (prefers-reduced-motion: reduce) {
-        .veltrixaHeroAmbientOrb,
-        .veltrixaHeroButton562::after {
-          animation: none !important;
-          transition: none !important;
+        .posterHeroCaption913 {
+          left: 1.6rem;
+          right: 1.6rem;
+          bottom: 1.5rem;
+        }
+
+        .posterHeroFooter913 {
+          left: 1.5rem;
+          right: 1.5rem;
+          bottom: 1.5rem;
         }
       }
-      
-      @media (min-width: 769px) { 
-        .veltrixaHeroMobile615 { 
-          display: none; 
-        } 
-      }
-      
-      .veltrixaHeroLoading403 {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: var(--hero-bg);
-        color: var(--hero-button-bg);
-        font-family: var(--hero-font-primary);
-        font-size: 1.5rem;
-      }
-      
-      .veltrixaHeroInactive771 {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: var(--hero-bg);
-        color: var(--hero-subtitle-color);
-        font-family: var(--hero-font-secondary);
-        font-size: 0.875rem;
-        letter-spacing: 0.1em;
+
+      @media (min-width: 1024px) {
+        .posterHeroArrows913 {
+          display: inline-flex;
+        }
+
+        .posterHeroScrollHint913 {
+          display: none;
+        }
+
+        .posterHeroTitle913 {
+          max-width: 12ch;
+        }
       }
     `;
-    
-    document.head.appendChild(styleEl);
-  }
-  
-  // ============================================
-  // ANIMATION AVEC ANIME.JS
-  // ============================================
-  animateHero() {
-    // Animation one-shot: évite les resets d'opacité invisibles sur mobile
-    if (this.isAnimating || this.hasAnimated) return;
-    
-    this.isAnimating = true;
-    
-    const isMobile = window.innerWidth <= 768;
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const desktopEl = this.container.querySelector('.veltrixaHeroDesktop847');
-    const mobileEl = this.container.querySelector('.veltrixaHeroMobile615');
 
-    if (reducedMotion) {
-      anime({
-        targets: [
-          '.veltrixaHeroImageAsset511',
-          '.veltrixaHeroPanel294',
-          '.veltrixaHeroMobileContent528',
-          '.hero-reveal-item'
-        ],
-        opacity: [0, 1],
-        translateY: [8, 0],
-        easing: 'easeOutQuad',
-        duration: 380,
-        complete: () => {
-          this.isAnimating = false;
-        }
-      });
-      this.hasAnimated = true;
-      if (this.observer) this.observer.disconnect();
-      return;
-    }
-    
-    // Lancer l'animation
-    if (desktopEl && !isMobile) {
-      // Animation desktop
-      anime.timeline({
-        easing: 'easeOutExpo',
-        complete: () => {
-          this.isAnimating = false;
-        }
-      })
-      .add({
-        targets: desktopEl.querySelector('.veltrixaHeroImageAsset511'),
-        scale: [1.12, 1],
-        opacity: [0, 1],
-        duration: 850
-      })
-      .add({
-        targets: desktopEl.querySelectorAll('.veltrixaHeroAmbientOrb'),
-        opacity: [0, 0.45],
-        scale: [0.8, 1],
-        duration: 560
-      })
-      .add({
-        targets: desktopEl.querySelector('.veltrixaHeroPanel294'),
-        translateX: [44, 0],
-        opacity: [0, 1],
-        duration: 520
-      }, '-=700')
-      .add({
-        targets: desktopEl.querySelectorAll('.veltrixaHeroTitle773 .hero-reveal-item, .veltrixaHeroSubtitle881 .hero-reveal-item'),
-        translateY: [28, 0],
-        opacity: [0, 1],
-        duration: 360,
-        delay: anime.stagger(28)
-      }, '-=340')
-      .add({
-        targets: desktopEl.querySelector('.veltrixaHeroButton562'),
-        translateY: [18, 0],
-        opacity: [0, 1],
-        duration: 340
-      }, '-=220');
-    }
-    
-    if (mobileEl && isMobile) {
-      // Animation mobile
-      anime.timeline({
-        easing: 'easeOutExpo',
-        complete: () => {
-          this.isAnimating = false;
-        }
-      })
-      .add({
-        targets: mobileEl,
-        opacity: [0, 1],
-        scale: [1, 1],
-        duration: 520
-      })
-      .add({
-        targets: mobileEl.querySelector('.veltrixaHeroMobileImage448'),
-        scale: [1.1, 1],
-        duration: 700
-      }, '-=360')
-      .add({
-        targets: mobileEl.querySelectorAll('.veltrixaHeroMobileContent528, .veltrixaHeroMobileGlow738'),
-        translateY: [30, 0],
-        opacity: [0, 1],
-        duration: 460
-      }, '-=260')
-      .add({
-        targets: mobileEl.querySelectorAll('.veltrixaHeroMobileTitle663 .hero-reveal-item, .veltrixaHeroMobileSubtitle741 .hero-reveal-item'),
-        translateY: [24, 0],
-        opacity: [0, 1],
-        duration: 320,
-        delay: anime.stagger(22)
-      }, '-=220')
-      .add({
-        targets: mobileEl.querySelector('.veltrixaHeroMobileButton892'),
-        translateY: [20, 0],
-        opacity: [0, 1],
-        duration: 300
-      }, '-=180');
-    }
-    
-    this.hasAnimated = true;
-
-    // Stopper l'observer après première animation pour éviter les regressions
-    if (this.observer) {
-      this.observer.disconnect();
-    }
-  }
-  
-  // ============================================
-  // GESTION DU SCROLL AVEC INTERSECTION OBSERVER
-  // ============================================
-  setupScrollObserver() {
-    if (this.observer) {
-      this.observer.disconnect();
-    }
-    
-    this.observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          // Le composant est visible
-          this.animateHero();
-        }
-      });
-    }, {
-      threshold: 0.2,
-      rootMargin: "0px"
-    });
-    
-    const heroViewport = this.container.querySelector('.veltrixaHeroViewport992');
-    if (heroViewport) {
-      this.observer.observe(heroViewport);
-    }
+    document.head.appendChild(style);
   }
 
-  // ============================================
-  // FONCTION IMAGE
-  // ============================================
-  resolveImage(imageName) {
-    if (!imageName) return 'https://placehold.co/1600x1200/1F1E1C/C6A75E?text=NO+IMAGE';
-    if (imageName.startsWith('http')) return imageName;
-    if (imageName.startsWith('/')) return imageName;
-    return `${imageName}`;
-  }
-  
-  // ============================================
-  // OUVERTURE DU PRODUCT MODAL
-  // ============================================
-  async openProductModal() {
-    try {
-      const { collection, getDocs, query, limit } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
-      const productsRef = collection(db, this.options.productsCollection);
-      const q = query(productsRef, limit(1));
-      const snapshot = await getDocs(q);
-      
-      if (!snapshot.empty) {
-        const firstProduct = snapshot.docs[0];
-        redirectToProductPage(firstProduct.id);
-      }
-      
-    } catch (error) {
-      console.error('❌ [HERO] Erreur ouverture modal:', error);
-    }
-  }
-  
-  // ============================================
-  // RENDU
-  // ============================================
-  renderHero(data) {
-    this.data = data;
-    
-    if (!data) {
-      this.container.innerHTML = `
-        <div class="veltrixaHeroViewport992">
-          <div class="veltrixaHeroInactive771">
-            <span>• aucune donnée •</span>
-          </div>
-        </div>
-      `;
-      return;
-    }
-    
-    if (data.heroIsActiveToggle321 !== true) {
-      this.container.innerHTML = `
-        <div class="veltrixaHeroViewport992">
-          <div class="veltrixaHeroInactive771">
-            <span>• section inactive •</span>
-          </div>
-        </div>
-      `;
-      return;
-    }
-    
-    const title = data.heroTitleText552 || 'Collection';
-    const subtitle = data.heroSubtitleText662 || 'timeless';
-    const buttonText = data.heroButtonText728 || 'découvrir';
-    const imageUrl = this.resolveImage(data.heroImageURL839);
-    const titleWords = title.split(' ').map((word) => `<span class="hero-reveal-item">${word}</span>`).join(' ');
-    const subtitleWords = subtitle.split(' ').map((word) => `<span class="hero-reveal-item">${word}</span>`).join(' ');
-    
-    const html = `
-      <div class="veltrixaHeroViewport992">
-        <!-- Desktop -->
-        <div class="veltrixaHeroDesktop847">
-          <div class="veltrixaHeroImageBanner683">
-            <img class="veltrixaHeroImageAsset511" 
-                 src="${imageUrl}" 
-                 alt="${title}" 
-                 loading="eager"
-                 onerror="this.onerror=null; this.src='https://placehold.co/1600x1200/1F1E1C/C6A75E?text=IMAGE';">
-            <div class="veltrixaHeroImageVignette901"></div>
-            <div class="veltrixaHeroAmbientOrb orb-a"></div>
-            <div class="veltrixaHeroAmbientOrb orb-b"></div>
-          </div>
-          <div class="veltrixaHeroPanel294">
-            <h1 class="veltrixaHeroTitle773 hero-reveal-line">${titleWords}</h1>
-            <p class="veltrixaHeroSubtitle881 hero-reveal-line">${subtitleWords}</p>
-            <button class="veltrixaHeroButton562" id="heroDesktopShopBtn">${buttonText}</button>
-          </div>
-        </div>
-        
-        <!-- Mobile -->
-        <div class="veltrixaHeroMobile615">
-          <div class="veltrixaHeroMobileImageWrapper326">
-            <img class="veltrixaHeroMobileImage448" 
-                 src="${imageUrl}" 
-                 alt="${title}"
-                 loading="eager"
-                 onerror="this.onerror=null; this.src='https://placehold.co/1600x1200/1F1E1C/C6A75E?text=IMAGE';">
-            <div class="veltrixaHeroMobileOverlay279"></div>
-            <div class="veltrixaHeroMobileGlow738"></div>
-          </div>
-          <div class="veltrixaHeroMobileContent528">
-            <h1 class="veltrixaHeroMobileTitle663 hero-reveal-line">${titleWords}</h1>
-            <p class="veltrixaHeroMobileSubtitle741 hero-reveal-line">${subtitleWords}</p>
-            <button class="veltrixaHeroMobileButton892" id="heroMobileShopBtn">${buttonText}</button>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    this.container.innerHTML = html;
-    
-    // Réinitialiser l'état d'animation
-    this.hasAnimated = false;
-    this.isAnimating = false;
-    
-    // Forcer un petit délai pour s'assurer que le DOM est prêt
-    setTimeout(() => {
-      // Animer immédiatement si le composant est visible au chargement
-      const rect = this.container.getBoundingClientRect();
-      const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-      
-      if (isVisible) {
-        this.animateHero();
-      }
-      
-      // Configurer l'observer pour les futurs scrolls
-      this.setupScrollObserver();
-    }, 100);
-    
-    // Attacher les événements des boutons
-    setTimeout(() => {
-      const desktopBtn = document.getElementById('heroDesktopShopBtn');
-      const mobileBtn = document.getElementById('heroMobileShopBtn');
-      
-      if (desktopBtn) {
-        desktopBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.openProductModal();
-        });
-      }
-      
-      if (mobileBtn) {
-        mobileBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.openProductModal();
-        });
-      }
-    }, 200);
-  }
-  
-  // ============================================
-  // LOADING
-  // ============================================
-  showLoading() {
+  init() {
     this.injectStyles();
-    
+    this.renderLoading();
+    this.bindLifecycle();
+    this.loadHero();
+  }
+
+  bindLifecycle() {
+    window.addEventListener('resize', this.handleResize);
+  }
+
+  handleResize() {
+    if (!this.data) return;
+    this.applySliderPosition(false);
+  }
+
+  renderLoading() {
     this.container.innerHTML = `
-      <div class="veltrixaHeroViewport992">
-        <div class="veltrixaHeroLoading403">
-          <span>• chargement •</span>
+      <section class="posterHeroRoot913">
+        <div class="posterHeroEmpty913">
+          <div>
+            <strong>Chargement</strong>
+            <span>Préparation des affiches hero...</span>
+          </div>
         </div>
-      </div>
+      </section>
     `;
   }
-  
-  // ============================================
-  // INITIALISATION
-  // ============================================
-  async init() {
-    this.showLoading();
-    
-    if (!db) {
-      this.container.innerHTML = '<div class="veltrixaHeroInactive771">• erreur firebase •</div>';
+
+  renderEmpty(message = 'Aucune affiche hero active pour le moment.') {
+    this.stopAutoplay();
+    this.container.innerHTML = `
+      <section class="posterHeroRoot913">
+        <div class="posterHeroEmpty913">
+          <div>
+            <strong>Hero inactif</strong>
+            <span>${message}</span>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  renderHero(data = {}) {
+    this.stopAutoplay();
+    const isActive = data.heroIsActiveToggle321 !== false;
+    const slides = getSlidesFromData(data);
+    if (!isActive || !slides.length) {
+      this.renderEmpty(isActive ? 'Ajoutez des affiches depuis le dashboard hero.' : 'La section hero est désactivée dans le dashboard.');
       return;
     }
-    
-    if (!theme.isLoaded()) {
-      setTimeout(() => {
-        this.injectStyles();
-      }, 500);
-    } else {
-      this.injectStyles();
-    }
-    
-    const heroDocRef = doc(db, this.options.collectionName, this.options.docId);
-    
-    // Chargement initial
-    try {
-      const snap = await getDoc(heroDocRef);
-      if (snap.exists()) {
-        this.renderHero(snap.data());
-      }
-    } catch (error) {
-      console.error('❌ [HERO] Erreur chargement:', error);
-    }
-    
-    // Écouter les changements en temps réel
-    onSnapshot(heroDocRef, (snap) => {
-      if (snap.exists()) {
-        this.renderHero(snap.data());
+
+    const total = slides.length;
+    const autoplayDelay = Math.max(2600, toNumber(data.heroAutoplayDelayMs, DEFAULT_AUTOPLAY_MS));
+
+    this.currentIndex = Math.min(this.currentIndex, total - 1);
+
+    this.container.innerHTML = `
+      <section class="posterHeroRoot913" aria-label="Affiches Smart Cut Services">
+        <div class="posterHeroViewport913">
+          <div class="posterHeroBackdrop913"></div>
+          <div class="posterHeroTopline913">Smart Cut Services</div>
+          <div class="posterHeroScrollHint913">Glisser pour voir</div>
+
+          <div class="posterHeroTrack913" data-hero-track>
+            ${slides.map((slide, index) => {
+              const url = buildPosterUrl(slide.fileName);
+              const safeUrl = String(url).replace(/"/g, '&quot;');
+              return `
+                <article class="posterHeroSlide913" data-hero-slide="${index}" aria-hidden="${index === this.currentIndex ? 'false' : 'true'}">
+                  <div class="posterHeroPoster913" role="img" aria-label="${this.escape(slide.altText)}" style="background-image:url('${safeUrl}')">
+                    <div class="posterHeroCaption913">
+                      <div class="posterHeroCaptionCopy913">
+                        <span class="posterHeroEyebrow913">Affiche ${String(index + 1).padStart(2, '0')}</span>
+                        <h2 class="posterHeroTitle913">Notre collection</h2>
+                        <p class="posterHeroMeta913">Des affiches premium pilotées depuis votre dashboard, pensées pour mettre en avant vos temps forts et vos nouveautés.</p>
+                      </div>
+                      <div class="posterHeroCounter913">
+                        <strong>${String(index + 1).padStart(2, '0')}</strong>
+                        <span>sur ${String(total).padStart(2, '0')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="posterHeroFooter913">
+            <div class="posterHeroDots913" aria-label="Navigation affiches">
+              ${slides.map((slide, index) => `
+                <button
+                  type="button"
+                  class="posterHeroDot913 ${index === this.currentIndex ? 'is-active' : ''}"
+                  data-hero-dot="${index}"
+                  aria-label="Voir l'affiche ${index + 1}"
+                ></button>
+              `).join('')}
+            </div>
+
+            <div class="posterHeroArrows913" aria-label="Flèches hero">
+              <button type="button" class="posterHeroArrow913" data-hero-prev aria-label="Affiche précédente">←</button>
+              <button type="button" class="posterHeroArrow913" data-hero-next aria-label="Affiche suivante">→</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+
+    this.trackEl = this.container.querySelector('[data-hero-track]');
+    this.slideEls = Array.from(this.container.querySelectorAll('[data-hero-slide]'));
+    this.dotEls = Array.from(this.container.querySelectorAll('[data-hero-dot]'));
+    this.prevBtn = this.container.querySelector('[data-hero-prev]');
+    this.nextBtn = this.container.querySelector('[data-hero-next]');
+    this.autoplayDelay = autoplayDelay;
+
+    this.attachSliderEvents();
+    this.applySliderPosition(false);
+    this.startAutoplay();
+  }
+
+  attachSliderEvents() {
+    this.dotEls.forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = toNumber(button.dataset.heroDot, 0);
+        this.goTo(index, true);
+      });
+    });
+
+    this.prevBtn?.addEventListener('click', () => this.goTo(this.currentIndex - 1, true));
+    this.nextBtn?.addEventListener('click', () => this.goTo(this.currentIndex + 1, true));
+
+    this.container.addEventListener('mouseenter', () => this.stopAutoplay());
+    this.container.addEventListener('mouseleave', () => this.startAutoplay());
+
+    let pointerStartX = 0;
+    let pointerActive = false;
+
+    this.trackEl?.addEventListener('pointerdown', (event) => {
+      pointerActive = true;
+      pointerStartX = event.clientX;
+      this.stopAutoplay();
+    });
+
+    this.trackEl?.addEventListener('pointerup', (event) => {
+      if (!pointerActive) return;
+      const delta = event.clientX - pointerStartX;
+      pointerActive = false;
+
+      if (Math.abs(delta) > 36) {
+        if (delta < 0) {
+          this.goTo(this.currentIndex + 1, true);
+        } else {
+          this.goTo(this.currentIndex - 1, true);
+        }
+      } else {
+        this.startAutoplay();
       }
     });
+
+    this.trackEl?.addEventListener('pointerleave', () => {
+      pointerActive = false;
+      this.startAutoplay();
+    });
   }
-  
-  destroy() {
-    if (this.unsubscribeTheme) {
-      this.unsubscribeTheme();
-    }
-    
-    if (this.observer) {
-      this.observer.disconnect();
+
+  goTo(index, restartAutoplay = false) {
+    if (!this.slideEls?.length) return;
+    const max = this.slideEls.length - 1;
+    if (index < 0) {
+      this.currentIndex = max;
+    } else if (index > max) {
+      this.currentIndex = 0;
+    } else {
+      this.currentIndex = index;
     }
 
+    this.applySliderPosition();
+    if (restartAutoplay) this.startAutoplay();
+  }
+
+  applySliderPosition(animate = true) {
+    if (!this.trackEl) return;
+    this.trackEl.style.transition = animate ? 'transform .78s cubic-bezier(.22, 1, .36, 1)' : 'none';
+    this.trackEl.style.transform = `translate3d(-${this.currentIndex * 100}%, 0, 0)`;
+
+    this.slideEls?.forEach((slide, index) => {
+      slide.setAttribute('aria-hidden', index === this.currentIndex ? 'false' : 'true');
+    });
+
+    this.dotEls?.forEach((dot, index) => {
+      dot.classList.toggle('is-active', index === this.currentIndex);
+    });
+  }
+
+  startAutoplay() {
+    this.stopAutoplay();
+    if (!this.slideEls?.length || this.slideEls.length < 2) return;
+    this.autoplayTimer = window.setInterval(() => {
+      this.goTo(this.currentIndex + 1);
+    }, this.autoplayDelay || DEFAULT_AUTOPLAY_MS);
+  }
+
+  stopAutoplay() {
+    if (this.autoplayTimer) {
+      window.clearInterval(this.autoplayTimer);
+      this.autoplayTimer = null;
+    }
+  }
+
+  async loadHero() {
+    try {
+      const heroDocRef = doc(db, this.options.collectionName, this.options.docId);
+      const snap = await getDoc(heroDocRef);
+      this.data = snap.exists() ? (snap.data() || {}) : {};
+      this.renderHero(this.data);
+
+      this.unsubscribeSnapshot?.();
+      this.unsubscribeSnapshot = onSnapshot(heroDocRef, (nextSnap) => {
+        this.data = nextSnap.exists() ? (nextSnap.data() || {}) : {};
+        this.renderHero(this.data);
+      });
+    } catch (error) {
+      console.error('Erreur chargement hero affiches:', error);
+      this.renderEmpty('Impossible de charger les affiches hero pour le moment.');
+    }
+  }
+
+  escape(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  destroy() {
+    this.stopAutoplay();
+    this.unsubscribeSnapshot?.();
+    this.unsubscribeTheme?.();
+    window.removeEventListener('resize', this.handleResize);
   }
 }
 
