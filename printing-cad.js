@@ -48,7 +48,7 @@ class PrintingCadPage {
     this.file = null;
     this.fileInfo = null;
     this.currentStep = 1;
-    this.formState = { paperLabel: '', dimensionLabel: '' };
+    this.formState = { paperLabel: '', dimensionLabel: '', copies: 1 };
     this.cart = getCartManager({ imageBasePath: './' });
     if (!this.container) return;
     this.init();
@@ -134,7 +134,8 @@ class PrintingCadPage {
   getCurrentSelections() {
     return {
       paperLabel: this.container.querySelector('#cadPaper')?.value || this.formState.paperLabel || '',
-      dimensionLabel: this.container.querySelector('#cadDimension')?.value || this.formState.dimensionLabel || ''
+      dimensionLabel: this.container.querySelector('#cadDimension')?.value || this.formState.dimensionLabel || '',
+      copies: Math.max(1, Number.parseInt(this.container.querySelector('#cadCopies')?.value || String(this.formState.copies || 1), 10) || 1)
     };
   }
 
@@ -153,24 +154,27 @@ class PrintingCadPage {
   }
 
   calculateQuote() {
-    const { paperLabel, dimensionLabel } = this.getCurrentSelections();
+    const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
     const pageCount = this.fileInfo?.pageCount || 0;
     const paper = findPaperByLabel(this.config.papers || [], paperLabel);
     const dimension = findDimensionByLabel(this.config.papers || [], paperLabel, dimensionLabel);
     const pricePerPage = Number(dimension?.price) || 0;
+    const printUnitPrice = pricePerPage * pageCount;
     return {
       pageCount,
+      copies,
       paper,
       dimension,
       pricePerPage,
-      totalPrice: pricePerPage * pageCount
+      printUnitPrice,
+      totalPrice: printUnitPrice * copies
     };
   }
 
   getStepValidity(step = this.currentStep) {
-    const { paperLabel, dimensionLabel } = this.getCurrentSelections();
+    const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
     if (step === 1) return Boolean(this.file && this.fileInfo?.pageCount);
-    if (step === 2) return Boolean(paperLabel && dimensionLabel);
+    if (step === 2) return Boolean(paperLabel && dimensionLabel && copies >= 1);
     return this.getStepValidity(1) && this.getStepValidity(2);
   }
 
@@ -228,19 +232,22 @@ class PrintingCadPage {
             <div class="quiz-grid">
               <label class="quiz-field"><span>Papier</span><select id="cadPaper" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''}><option value="">Choisir un papier</option>${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}</select></label>
               <label class="quiz-field"><span>Dimension</span><select id="cadDimension" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}><option value="">Choisir un format</option>${dimensions.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)} / page</option>`).join('')}</select></label>
-            </div>
-            <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button></div>
-          </section>` : ''}
+              </div>
+              <label class="quiz-field"><span>Nombre d impressions</span><input id="cadCopies" class="quiz-input" type="number" min="1" step="1" value="${this.formState.copies || 1}" ${this.config.enabled === false ? 'disabled' : ''}></label>
+              <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button></div>
+            </section>` : ''}
         ${this.currentStep === 3 ? `
           <section class="quiz-panel">
             <div class="quiz-head"><small>Etape 3</small><h2>Votre tarif est pret</h2><p>Le total suit directement le prix de la dimension choisie et le nombre de pages du PDF.</p></div>
             <div class="quiz-summary">
               <div class="quiz-summary-row"><span>Pages</span><strong id="cadQuotePages">${quote.pageCount}</strong></div>
-              <div class="quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
-              <div class="quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
-              <div class="quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
-              <div class="quiz-summary-total"><span>Total</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
-            </div>
+                <div class="quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
+                <div class="quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
+                <div class="quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
+                <div class="quiz-summary-row"><span>Prix par impression</span><strong id="cadQuoteUnitPrice">${this.formatPrice(quote.printUnitPrice)}</strong></div>
+                <div class="quiz-summary-row"><span>Nombre d impressions</span><strong id="cadQuoteCopies">${quote.copies}</strong></div>
+                <div class="quiz-summary-total"><span>Total</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+              </div>
             ${this.config.notes ? `<div class="quiz-note">${this.escape(this.config.notes)}</div>` : ''}
             <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="2">Modifier mes choix</button><button type="button" class="quiz-btn secondary" id="openCartFromCad">Ouvrir le panier</button><button type="button" class="quiz-btn primary" id="submitCadOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button><span id="cadSubmitStatus"></span></div>
           </section>` : ''}
@@ -252,8 +259,10 @@ class PrintingCadPage {
   restoreFormState() {
     const paperSelect = this.container.querySelector('#cadPaper');
     const dimensionSelect = this.container.querySelector('#cadDimension');
+    const copiesInput = this.container.querySelector('#cadCopies');
     if (paperSelect && this.formState.paperLabel) paperSelect.value = this.formState.paperLabel;
     if (dimensionSelect && this.formState.dimensionLabel) dimensionSelect.value = this.formState.dimensionLabel;
+    if (copiesInput) copiesInput.value = String(this.formState.copies || 1);
   }
 
   attachEvents() {
@@ -272,6 +281,7 @@ class PrintingCadPage {
       this.refreshQuote();
     });
     this.container.querySelector('#cadDimension')?.addEventListener('change', () => this.refreshQuote());
+    this.container.querySelector('#cadCopies')?.addEventListener('input', () => this.refreshQuote());
     this.container.querySelector('#submitCadOrder')?.addEventListener('click', async () => {
       await this.handleSubmit();
     });
@@ -304,10 +314,14 @@ class PrintingCadPage {
     const nextButton = this.container.querySelector('[data-next-step="3"]');
     const totalEl = this.container.querySelector('#cadQuoteTotal');
     const pagesEl = this.container.querySelector('#cadQuotePages');
+    const copiesEl = this.container.querySelector('#cadQuoteCopies');
+    const unitPriceEl = this.container.querySelector('#cadQuoteUnitPrice');
     const quote = this.calculateQuote();
     if (nextButton) nextButton.disabled = !this.getStepValidity(2) || this.config.enabled === false;
     if (totalEl) totalEl.textContent = this.formatPrice(quote.totalPrice);
     if (pagesEl) pagesEl.textContent = String(quote.pageCount || 0);
+    if (copiesEl) copiesEl.textContent = String(quote.copies || 1);
+    if (unitPriceEl) unitPriceEl.textContent = this.formatPrice(quote.printUnitPrice || 0);
   }
 
   async handleSubmit() {
@@ -315,13 +329,14 @@ class PrintingCadPage {
     this.syncFormState();
     const paperLabel = this.formState.paperLabel || '';
     const dimensionLabel = this.formState.dimensionLabel || '';
+    const copies = Math.max(1, Number.parseInt(String(this.formState.copies || 1), 10) || 1);
     const quote = this.calculateQuote();
     if (!this.file || !this.fileInfo?.pageCount) {
       if (statusEl) statusEl.textContent = 'Ajoutez un plan PDF valide.';
       return;
     }
-    if (!paperLabel || !dimensionLabel) {
-      if (statusEl) statusEl.textContent = 'Choisissez une dimension et un papier.';
+    if (!paperLabel || !dimensionLabel || copies < 1) {
+      if (statusEl) statusEl.textContent = 'Choisissez une dimension, un papier et un nombre d impressions valide.';
       return;
     }
     try {
@@ -340,6 +355,8 @@ class PrintingCadPage {
             { label: 'Dimension', value: dimensionLabel },
             { label: 'Pages', value: String(this.fileInfo?.pageCount || 0) },
             { label: 'Prix / page', value: this.formatPrice(quote.pricePerPage) },
+            { label: 'Prix par impression', value: this.formatPrice(quote.printUnitPrice) },
+            { label: 'Nombre d impressions', value: String(copies) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             { label: 'Dimension detectee', value: this.fileInfo?.suggestedDimension || '-' },
             { label: 'Fichier', value: this.file.name },
