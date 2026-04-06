@@ -177,7 +177,7 @@ class SierraHero {
         min-width: 100%;
         width: 100%;
         height: 100%;
-        padding: 0;
+        padding: 0.8rem;
         display: flex;
         align-items: stretch;
       }
@@ -187,10 +187,10 @@ class SierraHero {
         width: 100%;
         height: 100%;
         min-height: inherit;
-        border-radius: 0;
+        border-radius: 1.2rem;
         overflow: hidden;
-        border: none;
-        box-shadow: none;
+        border: 1px solid rgba(184, 155, 123, 0.14);
+        box-shadow: 0 18px 44px rgba(31, 30, 28, 0.08);
         background-color: #d8d2c8;
         background-repeat: no-repeat;
         background-position: center;
@@ -305,6 +305,7 @@ class SierraHero {
         .posterHeroPoster913 {
           min-height: clamp(360px, 52vh, 560px);
           background-image: var(--poster-desktop-image, var(--poster-mobile-image));
+          border-radius: 1.6rem;
         }
 
         .posterHeroFooter913 {

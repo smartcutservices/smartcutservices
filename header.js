@@ -36,7 +36,7 @@ class SierraHeaderNebula {
         --secondary-font: 'Manrope', sans-serif;
         --announce-height: 0px;
         --header-height: 118px;
-        --header-height-mobile: 164px;
+        --header-height-mobile: 92px;
       }
 
       #headerNebulaX92 {
@@ -288,18 +288,18 @@ class SierraHeaderNebula {
 
       .mobile-header-inner {
         display: none;
-        padding: 0.8rem 1rem 0.85rem;
+        padding: 0.65rem 0.9rem 0.6rem;
         position: relative;
         flex-direction: column;
         align-items: stretch;
-        gap: 0.8rem;
+        gap: 0.5rem;
       }
 
       .mobile-top-bar {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.6rem;
       }
 
       .mobile-left-group {
@@ -339,7 +339,7 @@ class SierraHeaderNebula {
       }
 
       .mobile-logo {
-        height: 42px;
+        height: 38px;
         width: auto;
         object-fit: contain;
       }
@@ -355,21 +355,23 @@ class SierraHeaderNebula {
       .mobile-right-group {
         display: flex;
         align-items: center;
-        gap: 0.55rem;
+        gap: 0.45rem;
         width: auto;
         justify-content: flex-end;
+        flex-shrink: 0;
       }
 
       .mobile-search-bar {
         width: 100%;
-        min-height: 42px;
+        min-height: 38px;
         justify-content: flex-start;
-        padding: 0 0.95rem;
-        border-radius: 12px;
+        padding: 0 0.8rem;
+        border-radius: 999px;
         background: #ffffff;
         box-shadow: inset 0 0 0 1px rgba(184, 155, 123, 0.18);
         color: #6f695f;
-        font-size: 0.95rem;
+        font-size: 0.88rem;
+        min-width: 0;
       }
 
       .mobile-nav-scroll {
@@ -738,6 +740,10 @@ class SierraHeaderNebula {
               <span id="mobileLogoText" class="mobile-logo-text">logo</span>
             </a>
           </div>
+          <div id="mobileSearchBarTrigger" class="header-search-trigger mobile-search-bar" role="search">
+            <i class="fas fa-search"></i>
+            <input id="mobileSearchInput" class="mobile-search-input" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher">
+          </div>
           <div class="mobile-right-group">
             <button id="mobileProfileIcon" class="mobile-icon-button" type="button" aria-label="Profil">
               <i class="fas fa-user mobile-icon"></i>
@@ -747,10 +753,6 @@ class SierraHeaderNebula {
               <span id="mobileCartBadge" class="cart-count-badge" aria-hidden="true">0</span>
             </span>
           </div>
-          </div>
-          <div id="mobileSearchBarTrigger" class="header-search-trigger mobile-search-bar" role="search">
-            <i class="fas fa-search"></i>
-            <input id="mobileSearchInput" class="mobile-search-input" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher">
           </div>
           <div class="mobile-nav-scroll">
             <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Toutes les catégories">
