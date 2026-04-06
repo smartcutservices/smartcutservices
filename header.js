@@ -35,7 +35,7 @@ class SierraHeaderNebula {
         --brand-font: 'Playfair Display', 'Cormorant Garamond', serif;
         --secondary-font: 'Manrope', sans-serif;
         --announce-height: 0px;
-        --header-height: 118px;
+        --header-height: 156px;
         --header-height-mobile: 92px;
       }
 
@@ -71,7 +71,7 @@ class SierraHeaderNebula {
       .desktop-header-inner {
         max-width: 1440px;
         margin: 0 auto;
-        padding: 0.9rem 2rem 0.75rem;
+        padding: 1.15rem 2rem 1rem;
         height: auto;
         display: grid;
         gap: 0.9rem;
