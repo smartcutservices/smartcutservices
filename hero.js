@@ -316,6 +316,10 @@ class SierraHero {
       }
 
       @media (min-width: 1024px) {
+        .posterHeroRoot913 {
+          margin-top: 4rem;
+        }
+
         .posterHeroViewport913 {
           min-height: clamp(360px, 48vh, 560px);
         }
