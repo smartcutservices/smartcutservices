@@ -177,7 +177,7 @@ class SierraHero {
         min-width: 100%;
         width: 100%;
         height: 100%;
-        padding: 0.8rem;
+        padding: 0.8rem 0.8rem 0;
         display: flex;
         align-items: stretch;
       }
@@ -194,7 +194,7 @@ class SierraHero {
         background-color: #d8d2c8;
         background-repeat: no-repeat;
         background-position: center;
-        background-size: cover;
+        background-size: contain;
         background-image: var(--poster-mobile-image);
         isolation: isolate;
       }
@@ -317,7 +317,7 @@ class SierraHero {
 
       @media (min-width: 1024px) {
         .posterHeroRoot913 {
-          margin-top: 6rem;
+          margin-top: 0;
         }
 
         .posterHeroViewport913 {
