@@ -145,7 +145,7 @@ class SierraHero {
         width: 100%;
         background: var(--poster-hero-bg);
         overflow: hidden;
-        margin-top: .85rem;
+        margin-top: 2rem;
       }
 
       .posterHeroViewport913 {
@@ -299,7 +299,7 @@ class SierraHero {
 
       @media (min-width: 768px) {
         .posterHeroRoot913 {
-          margin-top: 1rem;
+          margin-top: 2.4rem;
         }
 
         .posterHeroPoster913 {
