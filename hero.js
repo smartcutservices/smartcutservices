@@ -118,7 +118,7 @@ class SierraHero {
         --poster-hero-accent: ${accent};
         --poster-hero-heading: ${headingFont};
         --poster-hero-body: ${bodyFont};
-        --poster-hero-bg: #0f0d0b;
+        --poster-hero-bg: #e9e4db;
         --poster-hero-surface: rgba(255,255,255,0.08);
         --poster-hero-text: #f8f5ef;
         --poster-hero-muted: rgba(248,245,239,0.7);
@@ -128,9 +128,7 @@ class SierraHero {
       .posterHeroRoot913 {
         position: relative;
         width: 100%;
-        background:
-          radial-gradient(circle at top right, rgba(198, 167, 94, 0.22), transparent 32%),
-          linear-gradient(180deg, #151210 0%, #0f0d0b 100%);
+        background: var(--poster-hero-bg);
         overflow: hidden;
       }
 
@@ -144,9 +142,7 @@ class SierraHero {
       .posterHeroBackdrop913 {
         position: absolute;
         inset: 0;
-        background:
-          linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.38)),
-          radial-gradient(circle at 16% 18%, rgba(198,167,94,0.12), transparent 28%);
+        background: transparent;
         pointer-events: none;
         z-index: 0;
       }
@@ -164,7 +160,8 @@ class SierraHero {
       .posterHeroSlide913 {
         min-width: 100%;
         width: 100%;
-        padding: 5rem 1rem 1.2rem;
+        height: 100%;
+        padding: 0;
         display: flex;
         align-items: stretch;
       }
@@ -172,12 +169,13 @@ class SierraHero {
       .posterHeroPoster913 {
         position: relative;
         width: 100%;
-        min-height: 360px;
-        border-radius: 1.6rem;
+        height: 100%;
+        min-height: inherit;
+        border-radius: 0;
         overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.1);
-        box-shadow: 0 26px 80px rgba(0,0,0,0.32);
-        background-color: #2d241b;
+        border: none;
+        box-shadow: none;
+        background-color: #d8d2c8;
         background-repeat: no-repeat;
         background-position: center;
         background-size: cover;
@@ -188,30 +186,19 @@ class SierraHero {
         content: "";
         position: absolute;
         inset: 0;
-        background:
-          linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.16)),
-          linear-gradient(0deg, rgba(7,7,7,0.58), rgba(7,7,7,0.04) 42%, rgba(7,7,7,0.14));
+        background: transparent;
         z-index: 0;
       }
 
       .posterHeroPoster913::after {
-        content: "";
-        position: absolute;
-        inset: auto -10% -28% auto;
-        width: 66%;
-        height: 60%;
-        border-radius: 999px;
-        background: radial-gradient(circle, rgba(198,167,94,0.22), transparent 70%);
-        filter: blur(24px);
-        pointer-events: none;
-        z-index: 0;
+        content: none;
       }
 
       .posterHeroFooter913 {
         position: absolute;
-        left: 1rem;
-        right: 1rem;
-        bottom: 1rem;
+        left: 1.25rem;
+        right: 1.25rem;
+        bottom: 1.25rem;
         z-index: 3;
         display: flex;
         align-items: center;
@@ -294,13 +281,8 @@ class SierraHero {
       }
 
       @media (min-width: 768px) {
-        .posterHeroSlide913 {
-          padding: 5.6rem 1.8rem 1.6rem;
-        }
-
         .posterHeroPoster913 {
           min-height: clamp(480px, 76vh, 720px);
-          border-radius: 2rem;
         }
 
         .posterHeroFooter913 {
