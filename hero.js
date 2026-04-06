@@ -317,7 +317,7 @@ class SierraHero {
 
       @media (min-width: 1024px) {
         .posterHeroRoot913 {
-          margin-top: 4rem;
+          margin-top: 6rem;
         }
 
         .posterHeroViewport913 {
