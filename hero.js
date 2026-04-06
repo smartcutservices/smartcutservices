@@ -150,7 +150,7 @@ class SierraHero {
 
       .posterHeroViewport913 {
         position: relative;
-        min-height: clamp(420px, 72vh, 780px);
+        min-height: clamp(280px, 44vh, 560px);
         display: grid;
         grid-template-columns: 1fr;
       }
@@ -303,7 +303,7 @@ class SierraHero {
         }
 
         .posterHeroPoster913 {
-          min-height: clamp(480px, 76vh, 720px);
+          min-height: clamp(360px, 52vh, 560px);
           background-image: var(--poster-desktop-image, var(--poster-mobile-image));
         }
 
@@ -315,6 +315,10 @@ class SierraHero {
       }
 
       @media (min-width: 1024px) {
+        .posterHeroViewport913 {
+          min-height: clamp(360px, 48vh, 560px);
+        }
+
         .posterHeroArrows913 {
           display: inline-flex;
         }
