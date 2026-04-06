@@ -151,35 +151,6 @@ class SierraHero {
         z-index: 0;
       }
 
-      .posterHeroTopline913 {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        z-index: 3;
-        display: inline-flex;
-        align-items: center;
-        gap: .6rem;
-        padding: .65rem .9rem;
-        border-radius: 999px;
-        border: 1px solid var(--poster-hero-border);
-        background: rgba(8, 8, 8, 0.34);
-        backdrop-filter: blur(12px);
-        color: var(--poster-hero-text);
-        font-family: var(--poster-hero-body);
-        font-size: .73rem;
-        letter-spacing: .16em;
-        text-transform: uppercase;
-      }
-
-      .posterHeroTopline913::before {
-        content: "";
-        width: .55rem;
-        height: .55rem;
-        border-radius: 999px;
-        background: var(--poster-hero-accent);
-        box-shadow: 0 0 0 6px rgba(198,167,94,0.14);
-      }
-
       .posterHeroTrack913 {
         position: relative;
         z-index: 1;
@@ -234,86 +205,6 @@ class SierraHero {
         filter: blur(24px);
         pointer-events: none;
         z-index: 0;
-      }
-
-      .posterHeroCaption913 {
-        position: absolute;
-        left: 1rem;
-        right: 1rem;
-        bottom: 1rem;
-        z-index: 1;
-        display: flex;
-        justify-content: space-between;
-        align-items: end;
-        gap: 1rem;
-      }
-
-      .posterHeroCaptionCopy913 {
-        max-width: min(100%, 520px);
-      }
-
-      .posterHeroEyebrow913 {
-        display: inline-flex;
-        align-items: center;
-        gap: .55rem;
-        color: var(--poster-hero-accent);
-        font-family: var(--poster-hero-body);
-        font-size: .72rem;
-        font-weight: 700;
-        letter-spacing: .18em;
-        text-transform: uppercase;
-        margin-bottom: .8rem;
-      }
-
-      .posterHeroEyebrow913::before {
-        content: "";
-        width: 1.9rem;
-        height: 1px;
-        background: currentColor;
-      }
-
-      .posterHeroTitle913 {
-        margin: 0;
-        color: var(--poster-hero-text);
-        font-family: var(--poster-hero-heading);
-        font-size: clamp(2rem, 7vw, 4.9rem);
-        line-height: .94;
-        text-wrap: balance;
-        max-width: 10ch;
-      }
-
-      .posterHeroMeta913 {
-        color: var(--poster-hero-muted);
-        font-family: var(--poster-hero-body);
-        font-size: .95rem;
-        margin-top: .9rem;
-        max-width: 38ch;
-        line-height: 1.6;
-      }
-
-      .posterHeroCounter913 {
-        flex-shrink: 0;
-        display: inline-flex;
-        align-items: center;
-        gap: .7rem;
-        padding: .75rem .9rem;
-        border-radius: 999px;
-        border: 1px solid var(--poster-hero-border);
-        background: rgba(8,8,8,0.42);
-        backdrop-filter: blur(14px);
-        color: var(--poster-hero-text);
-        font-family: var(--poster-hero-body);
-      }
-
-      .posterHeroCounter913 strong {
-        font-size: 1rem;
-      }
-
-      .posterHeroCounter913 span {
-        color: var(--poster-hero-muted);
-        font-size: .78rem;
-        text-transform: uppercase;
-        letter-spacing: .14em;
       }
 
       .posterHeroFooter913 {
@@ -383,26 +274,6 @@ class SierraHero {
         background: rgba(18,18,18,0.55);
       }
 
-      .posterHeroScrollHint913 {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        z-index: 3;
-        display: inline-flex;
-        align-items: center;
-        gap: .55rem;
-        padding: .6rem .85rem;
-        border-radius: 999px;
-        color: var(--poster-hero-muted);
-        border: 1px solid var(--poster-hero-border);
-        background: rgba(8,8,8,0.34);
-        font-family: var(--poster-hero-body);
-        font-size: .72rem;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        backdrop-filter: blur(12px);
-      }
-
       .posterHeroEmpty913 {
         min-height: 420px;
         display: grid;
@@ -432,23 +303,6 @@ class SierraHero {
           border-radius: 2rem;
         }
 
-        .posterHeroTopline913 {
-          top: 1.4rem;
-          left: 1.5rem;
-          padding: .7rem 1rem;
-        }
-
-        .posterHeroScrollHint913 {
-          top: 1.4rem;
-          right: 1.5rem;
-        }
-
-        .posterHeroCaption913 {
-          left: 1.6rem;
-          right: 1.6rem;
-          bottom: 1.5rem;
-        }
-
         .posterHeroFooter913 {
           left: 1.5rem;
           right: 1.5rem;
@@ -459,14 +313,6 @@ class SierraHero {
       @media (min-width: 1024px) {
         .posterHeroArrows913 {
           display: inline-flex;
-        }
-
-        .posterHeroScrollHint913 {
-          display: none;
-        }
-
-        .posterHeroTitle913 {
-          max-width: 12ch;
         }
       }
     `;
@@ -535,8 +381,6 @@ class SierraHero {
       <section class="posterHeroRoot913" aria-label="Affiches Smart Cut Services">
         <div class="posterHeroViewport913">
           <div class="posterHeroBackdrop913"></div>
-          <div class="posterHeroTopline913">Smart Cut Services</div>
-          <div class="posterHeroScrollHint913">Glisser pour voir</div>
 
           <div class="posterHeroTrack913" data-hero-track>
             ${slides.map((slide, index) => {
@@ -544,19 +388,7 @@ class SierraHero {
               const safeUrl = String(url).replace(/"/g, '&quot;');
               return `
                 <article class="posterHeroSlide913" data-hero-slide="${index}" aria-hidden="${index === this.currentIndex ? 'false' : 'true'}">
-                  <div class="posterHeroPoster913" role="img" aria-label="${this.escape(slide.altText)}" style="background-image:url('${safeUrl}')">
-                    <div class="posterHeroCaption913">
-                      <div class="posterHeroCaptionCopy913">
-                        <span class="posterHeroEyebrow913">Affiche ${String(index + 1).padStart(2, '0')}</span>
-                        <h2 class="posterHeroTitle913">Notre collection</h2>
-                        <p class="posterHeroMeta913">Des affiches premium pilotées depuis votre dashboard, pensées pour mettre en avant vos temps forts et vos nouveautés.</p>
-                      </div>
-                      <div class="posterHeroCounter913">
-                        <strong>${String(index + 1).padStart(2, '0')}</strong>
-                        <span>sur ${String(total).padStart(2, '0')}</span>
-                      </div>
-                    </div>
-                  </div>
+                  <div class="posterHeroPoster913" role="img" aria-label="${this.escape(slide.altText)}" style="background-image:url('${safeUrl}')"></div>
                 </article>
               `;
             }).join('')}
