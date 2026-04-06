@@ -594,6 +594,171 @@ function createPayoutReportNumber(seed = '') {
   return `DEC-${y}${m}${d}-${suffix}`;
 }
 
+const VENDOR_PAYOUT_REQUEST_COOLDOWN_DAYS = 30;
+
+function buildVendorPayoutProfile(profile = {}) {
+  const fullName = String(
+    profile?.applicantName ||
+    [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') ||
+    profile?.displayName ||
+    profile?.name ||
+    ''
+  ).trim();
+
+  return {
+    vendorName: String(profile?.vendorName || profile?.shopName || 'Vendeur').trim(),
+    shopName: String(profile?.shopName || profile?.vendorName || '').trim(),
+    fullName,
+    firstName: String(profile?.firstName || '').trim(),
+    lastName: String(profile?.lastName || '').trim(),
+    gender: String(profile?.gender || profile?.sexe || '').trim(),
+    phone: String(profile?.phone || profile?.telephone || '').trim(),
+    address: String(profile?.address || '').trim(),
+    city: String(profile?.city || '').trim(),
+    email: String(profile?.email || '').trim()
+  };
+}
+
+function normalizePayoutStatus(status = '') {
+  return String(status || '').trim().toLowerCase();
+}
+
+function isPaidVendorPayout(payout = {}) {
+  return normalizePayoutStatus(payout?.status) === 'paid';
+}
+
+function isOpenVendorPayoutRequest(payout = {}) {
+  return ['requested', 'pending', 'approved'].includes(normalizePayoutStatus(payout?.status));
+}
+
+function getVendorPayoutEventMs(payout = {}) {
+  return toDateMs(
+    payout?.paidAt ||
+    payout?.requestedAt ||
+    payout?.reviewedAt ||
+    payout?.updatedAt ||
+    payout?.createdAt
+  );
+}
+
+function getPayoutPeriodBounds(orders = []) {
+  const validMs = orders
+    .map((order) => toDateMs(order?.createdAt))
+    .filter((value) => value > 0)
+    .sort((a, b) => a - b);
+
+  if (!validMs.length) {
+    return { periodStart: '', periodEnd: '' };
+  }
+
+  return {
+    periodStart: new Date(validMs[0]).toISOString(),
+    periodEnd: new Date(validMs[validMs.length - 1]).toISOString()
+  };
+}
+
+function mapVendorPayoutSummary(id, payout = {}) {
+  return {
+    id,
+    reportNumber: String(payout?.reportNumber || '').trim(),
+    status: normalizePayoutStatus(payout?.status),
+    grossAmount: Math.max(0, toNumber(payout?.grossAmount)),
+    commissionAmount: Math.max(0, toNumber(payout?.commissionAmount)),
+    netAmount: Math.max(0, toNumber(payout?.netAmount)),
+    orderCount: Math.max(0, toNumber(payout?.orderCount)),
+    itemCount: Math.max(0, toNumber(payout?.itemCount)),
+    requestedAt: payout?.requestedAt || '',
+    reviewedAt: payout?.reviewedAt || '',
+    paidAt: payout?.paidAt || '',
+    createdAt: payout?.createdAt || '',
+    updatedAt: payout?.updatedAt || '',
+    periodStart: payout?.periodStart || '',
+    periodEnd: payout?.periodEnd || '',
+    vendorId: String(payout?.vendorId || '').trim(),
+    vendorName: String(payout?.vendorName || '').trim(),
+    shopName: String(payout?.shopName || '').trim(),
+    fullName: String(payout?.fullName || '').trim(),
+    firstName: String(payout?.firstName || '').trim(),
+    lastName: String(payout?.lastName || '').trim(),
+    gender: String(payout?.gender || '').trim(),
+    phone: String(payout?.phone || '').trim(),
+    address: String(payout?.address || '').trim(),
+    email: String(payout?.email || '').trim(),
+    coveredOrderIds: Array.isArray(payout?.coveredOrderIds) ? payout.coveredOrderIds : [],
+    coveredOrderRefs: Array.isArray(payout?.coveredOrderRefs) ? payout.coveredOrderRefs : [],
+    coveredVendorRefs: Array.isArray(payout?.coveredVendorRefs) ? payout.coveredVendorRefs : []
+  };
+}
+
+function createVendorCoveredRef(refPath = '', vendorId = '') {
+  const normalizedPath = String(refPath || '').trim();
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedPath) return '';
+  if (!normalizedVendorId) return normalizedPath;
+  return `${normalizedPath}::${normalizedVendorId}`;
+}
+
+function buildVendorPayoutDateRange(body = {}) {
+  const dateFromMs = toDateMs(body?.dateFrom || body?.fromDate || '');
+  const dateToMs = toDateMs(body?.dateTo || body?.toDate || '');
+  return {
+    dateFromMs,
+    dateToMs
+  };
+}
+
+function isWithinVendorPayoutRange(createdAtMs, dateFromMs, dateToMs) {
+  if (dateFromMs > 0 && createdAtMs < dateFromMs) return false;
+  if (dateToMs > 0 && createdAtMs > dateToMs) return false;
+  return true;
+}
+
+function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds, settledVendorRefs, dateFromMs = 0, dateToMs = 0 }) {
+  const outstandingOrders = [];
+  let grossAmount = 0;
+  let commissionAmount = 0;
+  let netAmount = 0;
+  let itemCount = 0;
+
+  ordersSnap.docs.forEach((snap) => {
+    const order = { id: snap.id, ...(snap.data() || {}) };
+    const vendorRef = createVendorCoveredRef(snap.ref.path, vendorId);
+    if (!isConfirmedOrder(order) || settledVendorRefs.has(vendorRef) || settledVendorRefs.has(snap.ref.path)) return;
+
+    const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path);
+    if (!context) return;
+
+    const createdAtMs = toDateMs(context.paidAt || context.updatedAt || context.createdAt);
+    if (!isWithinVendorPayoutRange(createdAtMs, dateFromMs, dateToMs)) return;
+
+    grossAmount += context.grossAmount;
+    commissionAmount += context.commissionAmount;
+    netAmount += context.vendorNetAmount;
+    itemCount += context.itemCount;
+
+    outstandingOrders.push({
+      refPath: snap.ref.path,
+      vendorRef,
+      orderId: snap.id,
+      uniqueCode: context.uniqueCode,
+      createdAt: context.paidAt || context.updatedAt || context.createdAt || '',
+      grossAmount: context.grossAmount,
+      commissionAmount: context.commissionAmount,
+      netAmount: context.vendorNetAmount,
+      itemCount: context.itemCount
+    });
+  });
+
+  return {
+    outstandingOrders,
+    grossAmount,
+    commissionAmount,
+    netAmount,
+    itemCount,
+    ...getPayoutPeriodBounds(outstandingOrders)
+  };
+}
+
 function buildOrderTotals(items, delivery) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shippingAmount = Math.max(0, toNumber(delivery?.totalFee || delivery?.shippingAmount));
@@ -1532,18 +1697,38 @@ exports.getVendorDashboardAnalytics = onRequest(
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
       const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', decodedUser.uid).get();
-      const settledOrderRefs = new Set();
+      const settledVendorRefs = new Set();
       let settledNetAmount = 0;
+      const payoutSummaries = [];
+      let lastBlockingRequestMs = 0;
+      let activeRequest = null;
 
       payoutsSnap.docs.forEach((snap) => {
         const payout = snap.data() || {};
-        settledNetAmount += Math.max(0, toNumber(payout?.netAmount));
-        const refs = Array.isArray(payout?.coveredOrderRefs) ? payout.coveredOrderRefs : [];
-        refs.forEach((refPath) => {
-          const normalized = String(refPath || '').trim();
-          if (normalized) settledOrderRefs.add(normalized);
-        });
+        const summary = mapVendorPayoutSummary(snap.id, payout);
+        payoutSummaries.push(summary);
+
+        if (isPaidVendorPayout(summary)) {
+          settledNetAmount += summary.netAmount;
+          const coveredRefs = summary.coveredVendorRefs.length ? summary.coveredVendorRefs : summary.coveredOrderRefs;
+          coveredRefs.forEach((refPath) => {
+            const normalized = String(refPath || '').trim();
+            if (normalized) settledVendorRefs.add(normalized);
+          });
+        }
+
+        if (isOpenVendorPayoutRequest(summary) && !activeRequest) {
+          activeRequest = summary;
+        }
+
+        const eventMs = getVendorPayoutEventMs(summary);
+        if (eventMs > lastBlockingRequestMs && ['requested', 'pending', 'approved', 'paid'].includes(summary.status)) {
+          lastBlockingRequestMs = eventMs;
+        }
       });
+
+      payoutSummaries.sort((a, b) => getVendorPayoutEventMs(b) - getVendorPayoutEventMs(a));
+      activeRequest = payoutSummaries.find((entry) => isOpenVendorPayoutRequest(entry)) || null;
 
       const ordersSnap = await db.collectionGroup('orders').get();
       const monthBuckets = createMonthBuckets(6);
@@ -1603,7 +1788,8 @@ exports.getVendorDashboardAnalytics = onRequest(
         commissionAmount += orderContext.commissionAmount;
         vendorNetAmount += orderContext.vendorNetAmount;
         itemCount += orderContext.itemCount;
-        if (!settledOrderRefs.has(snap.ref.path)) {
+        const vendorRef = createVendorCoveredRef(snap.ref.path, decodedUser.uid);
+        if (!settledVendorRefs.has(vendorRef) && !settledVendorRefs.has(snap.ref.path)) {
           pendingPayoutAmount += orderContext.vendorNetAmount;
         }
 
@@ -1630,6 +1816,10 @@ exports.getVendorDashboardAnalytics = onRequest(
         .slice(0, 5);
 
       recentOrders.sort((a, b) => toDateMs(b.createdAt) - toDateMs(a.createdAt));
+      const nextRequestAtMs = lastBlockingRequestMs > 0
+        ? lastBlockingRequestMs + (VENDOR_PAYOUT_REQUEST_COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+        : 0;
+      const canRequestPayout = !activeRequest && pendingPayoutAmount > 0 && (!nextRequestAtMs || Date.now() >= nextRequestAtMs);
 
       sendJson(res, 200, {
         ok: true,
@@ -1645,7 +1835,13 @@ exports.getVendorDashboardAnalytics = onRequest(
           timeline: monthBuckets,
           statusBreakdown,
           topProducts: topSellingProducts,
-          recentOrders: recentOrders.slice(0, 6)
+          recentOrders: recentOrders.slice(0, 6),
+          payoutHistory: payoutSummaries.slice(0, 12),
+          activePayoutRequest: activeRequest,
+          paidPayoutsCount: payoutSummaries.filter((entry) => entry.status === 'paid').length,
+          canRequestPayout,
+          nextRequestAt: nextRequestAtMs ? new Date(nextRequestAtMs).toISOString() : '',
+          cooldownDays: VENDOR_PAYOUT_REQUEST_COOLDOWN_DAYS
         }
       });
     } catch (error) {
@@ -1654,6 +1850,142 @@ exports.getVendorDashboardAnalytics = onRequest(
         ok: false,
         error: 'vendor-analytics-failed',
         message: error?.message || 'Unable to load vendor analytics'
+      });
+    }
+  }
+);
+
+exports.requestVendorPayout = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(decodedUser.uid);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
+        return;
+      }
+
+      const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', decodedUser.uid).get();
+      let latestBlockingRequestMs = 0;
+      let openRequest = null;
+      const settledVendorRefs = new Set();
+
+      payoutsSnap.docs.forEach((snap) => {
+        const summary = mapVendorPayoutSummary(snap.id, snap.data() || {});
+        if (isPaidVendorPayout(summary)) {
+          const coveredRefs = summary.coveredVendorRefs.length ? summary.coveredVendorRefs : summary.coveredOrderRefs;
+          coveredRefs.forEach((refPath) => {
+            const normalized = String(refPath || '').trim();
+            if (normalized) settledVendorRefs.add(normalized);
+          });
+        }
+        if (isOpenVendorPayoutRequest(summary) && !openRequest) {
+          openRequest = summary;
+        }
+        const eventMs = getVendorPayoutEventMs(summary);
+        if (eventMs > latestBlockingRequestMs && ['requested', 'pending', 'approved', 'paid'].includes(summary.status)) {
+          latestBlockingRequestMs = eventMs;
+        }
+      });
+
+      if (openRequest) {
+        sendJson(res, 400, {
+          ok: false,
+          error: 'open-payout-request',
+          message: 'Une demande de decaissement est deja en cours pour ce vendeur.',
+          request: openRequest
+        });
+        return;
+      }
+
+      const nextRequestAtMs = latestBlockingRequestMs + (VENDOR_PAYOUT_REQUEST_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
+      if (latestBlockingRequestMs > 0 && Date.now() < nextRequestAtMs) {
+        sendJson(res, 400, {
+          ok: false,
+          error: 'payout-request-cooldown',
+          message: 'Une nouvelle demande de decaissement est possible apres le delai de 30 jours.',
+          nextRequestAt: new Date(nextRequestAtMs).toISOString()
+        });
+        return;
+      }
+
+      const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
+      const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const ordersSnap = await db.collectionGroup('orders').get();
+      const payoutMetrics = collectVendorOutstandingOrders({
+        ordersSnap,
+        vendorId: decodedUser.uid,
+        vendorProductIds,
+        settledVendorRefs
+      });
+
+      if (!payoutMetrics.outstandingOrders.length || payoutMetrics.netAmount <= 0) {
+        sendJson(res, 400, {
+          ok: false,
+          error: 'no-outstanding-balance',
+          message: 'Aucun solde vendeur disponible pour un decaissement.'
+        });
+        return;
+      }
+
+      const payoutIdentity = buildVendorPayoutProfile(vendorProfile);
+      const payoutRef = db.collection('vendorPayouts').doc();
+      const now = new Date().toISOString();
+      const requestPayload = {
+        vendorId: decodedUser.uid,
+        ...payoutIdentity,
+        reportNumber: createPayoutReportNumber(payoutRef.id),
+        grossAmount: payoutMetrics.grossAmount,
+        commissionAmount: payoutMetrics.commissionAmount,
+        netAmount: payoutMetrics.netAmount,
+        itemCount: payoutMetrics.itemCount,
+        orderCount: payoutMetrics.outstandingOrders.length,
+        coveredOrderRefs: [],
+        coveredVendorRefs: [],
+        coveredOrderIds: [],
+        coveredOrders: [],
+        availableOrderRefs: payoutMetrics.outstandingOrders.map((item) => item.refPath),
+        availableVendorRefs: payoutMetrics.outstandingOrders.map((item) => item.vendorRef),
+        availableOrderIds: payoutMetrics.outstandingOrders.map((item) => item.orderId),
+        availableOrders: payoutMetrics.outstandingOrders,
+        periodStart: payoutMetrics.periodStart,
+        periodEnd: payoutMetrics.periodEnd,
+        requestedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        requestedBy: decodedUser.uid,
+        status: 'requested',
+        cooldownDays: VENDOR_PAYOUT_REQUEST_COOLDOWN_DAYS
+      };
+
+      await payoutRef.set(requestPayload, { merge: true });
+
+      sendJson(res, 200, {
+        ok: true,
+        request: {
+          id: payoutRef.id,
+          ...requestPayload
+        }
+      });
+    } catch (error) {
+      logger.error('Vendor payout request failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-payout-request-failed',
+        message: error?.message || 'Unable to create vendor payout request'
       });
     }
   }
@@ -1748,6 +2080,7 @@ exports.createVendorPayout = onRequest(
 
       const body = parseBody(req);
       const vendorId = String(body?.vendorId || '').trim();
+      const requestId = String(body?.requestId || '').trim();
       if (!vendorId) {
         sendJson(res, 400, { ok: false, error: 'missing-vendor-id' });
         return;
@@ -1762,47 +2095,47 @@ exports.createVendorPayout = onRequest(
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', vendorId).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
       const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', vendorId).get();
-      const settledOrderRefs = new Set();
+      const settledVendorRefs = new Set();
       payoutsSnap.docs.forEach((snap) => {
-        const payout = snap.data() || {};
-        const refs = Array.isArray(payout?.coveredOrderRefs) ? payout.coveredOrderRefs : [];
-        refs.forEach((refPath) => {
+        const payout = mapVendorPayoutSummary(snap.id, snap.data() || {});
+        if (!isPaidVendorPayout(payout)) return;
+        const coveredRefs = payout.coveredVendorRefs.length ? payout.coveredVendorRefs : payout.coveredOrderRefs;
+        coveredRefs.forEach((refPath) => {
           const normalized = String(refPath || '').trim();
-          if (normalized) settledOrderRefs.add(normalized);
+          if (normalized) settledVendorRefs.add(normalized);
         });
       });
+
+      let existingRequest = null;
+      if (requestId) {
+        const requestSnap = await db.collection('vendorPayouts').doc(requestId).get();
+        if (!requestSnap.exists) {
+          sendJson(res, 404, { ok: false, error: 'payout-request-not-found' });
+          return;
+        }
+        existingRequest = { id: requestSnap.id, ...(requestSnap.data() || {}) };
+        if (String(existingRequest?.vendorId || '').trim() !== vendorId) {
+          sendJson(res, 400, { ok: false, error: 'vendor-request-mismatch' });
+          return;
+        }
+        if (isPaidVendorPayout(existingRequest)) {
+          sendJson(res, 400, { ok: false, error: 'payout-request-already-paid' });
+          return;
+        }
+      }
 
       const ordersSnap = await db.collectionGroup('orders').get();
-      const outstandingOrders = [];
-      let grossAmount = 0;
-      let commissionAmount = 0;
-      let netAmount = 0;
-      let itemCount = 0;
-
-      ordersSnap.docs.forEach((snap) => {
-        const order = { id: snap.id, ...(snap.data() || {}) };
-        if (!isConfirmedOrder(order) || settledOrderRefs.has(snap.ref.path)) return;
-        const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path);
-        if (!context) return;
-
-        grossAmount += context.grossAmount;
-        commissionAmount += context.commissionAmount;
-        netAmount += context.vendorNetAmount;
-        itemCount += context.itemCount;
-
-        outstandingOrders.push({
-          refPath: snap.ref.path,
-          orderId: snap.id,
-          uniqueCode: context.uniqueCode,
-          createdAt: context.paidAt || context.updatedAt || context.createdAt || '',
-          grossAmount: context.grossAmount,
-          commissionAmount: context.commissionAmount,
-          netAmount: context.vendorNetAmount,
-          itemCount: context.itemCount
-        });
+      const { dateFromMs, dateToMs } = buildVendorPayoutDateRange(body);
+      const payoutMetrics = collectVendorOutstandingOrders({
+        ordersSnap,
+        vendorId,
+        vendorProductIds,
+        settledVendorRefs,
+        dateFromMs,
+        dateToMs
       });
 
-      if (!outstandingOrders.length || netAmount <= 0) {
+      if (!payoutMetrics.outstandingOrders.length || payoutMetrics.netAmount <= 0) {
         sendJson(res, 400, {
           ok: false,
           error: 'no-outstanding-balance',
@@ -1812,22 +2145,38 @@ exports.createVendorPayout = onRequest(
       }
 
       const now = new Date().toISOString();
-      const payoutRef = db.collection('vendorPayouts').doc();
+      const payoutIdentity = buildVendorPayoutProfile(vendorProfile);
+      const payoutRef = requestId
+        ? db.collection('vendorPayouts').doc(requestId)
+        : db.collection('vendorPayouts').doc();
       const payout = {
         vendorId,
-        vendorName: String(vendorProfile?.vendorName || vendorProfile?.shopName || 'Vendeur').trim(),
-        reportNumber: createPayoutReportNumber(payoutRef.id),
-        grossAmount,
-        commissionAmount,
-        netAmount,
-        itemCount,
-        orderCount: outstandingOrders.length,
-        coveredOrderRefs: outstandingOrders.map((item) => item.refPath),
-        coveredOrderIds: outstandingOrders.map((item) => item.orderId),
-        coveredOrders: outstandingOrders,
+        ...payoutIdentity,
+        reportNumber: String(existingRequest?.reportNumber || '').trim() || createPayoutReportNumber(payoutRef.id),
+        grossAmount: payoutMetrics.grossAmount,
+        commissionAmount: payoutMetrics.commissionAmount,
+        netAmount: payoutMetrics.netAmount,
+        itemCount: payoutMetrics.itemCount,
+        orderCount: payoutMetrics.outstandingOrders.length,
+        coveredOrderRefs: payoutMetrics.outstandingOrders.map((item) => item.refPath),
+        coveredVendorRefs: payoutMetrics.outstandingOrders.map((item) => item.vendorRef),
+        coveredOrderIds: payoutMetrics.outstandingOrders.map((item) => item.orderId),
+        coveredOrders: payoutMetrics.outstandingOrders,
+        availableOrderRefs: [],
+        availableVendorRefs: [],
+        availableOrderIds: [],
+        availableOrders: [],
+        periodStart: payoutMetrics.periodStart,
+        periodEnd: payoutMetrics.periodEnd,
         status: 'paid',
-        createdAt: now,
-        createdBy: decodedUser.uid
+        requestedAt: existingRequest?.requestedAt || now,
+        reviewedAt: now,
+        paidAt: now,
+        createdAt: existingRequest?.createdAt || now,
+        updatedAt: now,
+        createdBy: existingRequest?.createdBy || decodedUser.uid,
+        requestedBy: existingRequest?.requestedBy || '',
+        approvedBy: decodedUser.uid
       };
 
       await payoutRef.set(payout, { merge: true });
