@@ -38,10 +38,25 @@ function extractLegacyFileName(value = '') {
 
 function normalizeSlide(slide = {}, index = 0) {
   const fileName = normalizePosterFileName(slide.fileName || slide.imageName || slide.posterName || slide.image || '');
+  const desktopFileName = normalizePosterFileName(
+    slide.desktopFileName ||
+    slide.desktopImageName ||
+    slide.desktopImage ||
+    fileName
+  );
+  const mobileFileName = normalizePosterFileName(
+    slide.mobileFileName ||
+    slide.mobileImageName ||
+    slide.mobileImage ||
+    fileName ||
+    desktopFileName
+  );
   const altText = String(slide.altText || slide.alt || `Affiche Smart Cut ${index + 1}`).trim();
   return {
     id: String(slide.id || `poster-${index + 1}`).trim(),
     fileName,
+    desktopFileName,
+    mobileFileName,
     altText,
     isActive: slide.isActive !== false
   };
@@ -51,7 +66,7 @@ function getSlidesFromData(data = {}) {
   const explicitSlides = Array.isArray(data.posterSlides)
     ? data.posterSlides.map((slide, index) => normalizeSlide(slide, index))
     : [];
-  const filteredExplicit = explicitSlides.filter((slide) => slide.isActive !== false && slide.fileName);
+  const filteredExplicit = explicitSlides.filter((slide) => slide.isActive !== false && (slide.desktopFileName || slide.mobileFileName || slide.fileName));
   if (filteredExplicit.length) return filteredExplicit;
 
   const legacyNames = Array.isArray(data.heroPosterImageNames)
@@ -180,6 +195,7 @@ class SierraHero {
         background-repeat: no-repeat;
         background-position: center;
         background-size: cover;
+        background-image: var(--poster-mobile-image);
         isolation: isolate;
       }
 
@@ -288,6 +304,7 @@ class SierraHero {
 
         .posterHeroPoster913 {
           min-height: clamp(480px, 76vh, 720px);
+          background-image: var(--poster-desktop-image, var(--poster-mobile-image));
         }
 
         .posterHeroFooter913 {
@@ -371,11 +388,13 @@ class SierraHero {
 
           <div class="posterHeroTrack913" data-hero-track>
             ${slides.map((slide, index) => {
-              const url = buildPosterUrl(slide.fileName);
-              const safeUrl = String(url).replace(/"/g, '&quot;');
+              const desktopUrl = buildPosterUrl(slide.desktopFileName || slide.fileName || slide.mobileFileName);
+              const mobileUrl = buildPosterUrl(slide.mobileFileName || slide.fileName || slide.desktopFileName);
+              const safeDesktopUrl = String(desktopUrl).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+              const safeMobileUrl = String(mobileUrl).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
               return `
                 <article class="posterHeroSlide913" data-hero-slide="${index}" aria-hidden="${index === this.currentIndex ? 'false' : 'true'}">
-                  <div class="posterHeroPoster913" role="img" aria-label="${this.escape(slide.altText)}" style="background-image:url('${safeUrl}')"></div>
+                  <div class="posterHeroPoster913" role="img" aria-label="${this.escape(slide.altText)}" style="--poster-desktop-image:url('${safeDesktopUrl}');--poster-mobile-image:url('${safeMobileUrl}')"></div>
                 </article>
               `;
             }).join('')}
