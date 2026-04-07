@@ -150,9 +150,7 @@ class SierraHero {
 
       .posterHeroViewport913 {
         position: relative;
-        min-height: clamp(280px, 44vh, 560px);
-        display: grid;
-        grid-template-columns: 1fr;
+        min-height: 0;
       }
 
       .posterHeroBackdrop913 {
@@ -168,7 +166,6 @@ class SierraHero {
         z-index: 1;
         display: flex;
         width: 100%;
-        height: 100%;
         transform: translate3d(0,0,0);
         transition: transform .78s cubic-bezier(.22, 1, .36, 1);
       }
@@ -176,39 +173,33 @@ class SierraHero {
       .posterHeroSlide913 {
         min-width: 100%;
         width: 100%;
-        height: 100%;
         padding: 0.8rem 0.8rem 0;
         display: flex;
-        align-items: stretch;
+        align-items: flex-start;
+        box-sizing: border-box;
       }
 
       .posterHeroPoster913 {
         position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 100%;
-        height: 100%;
-        min-height: inherit;
         border-radius: 1.2rem;
         overflow: hidden;
         border: 1px solid rgba(184, 155, 123, 0.14);
         box-shadow: 0 18px 44px rgba(31, 30, 28, 0.08);
-        background-color: #d8d2c8;
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: contain;
-        background-image: var(--poster-mobile-image);
-        isolation: isolate;
+        background: #d8d2c8;
       }
 
-      .posterHeroPoster913::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: transparent;
-        z-index: 0;
-      }
-
-      .posterHeroPoster913::after {
-        content: none;
+      .posterHeroPosterImage913 {
+        display: block;
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        object-fit: contain;
+        object-position: center;
+        border-radius: inherit;
       }
 
       .posterHeroFooter913 {
@@ -303,8 +294,6 @@ class SierraHero {
         }
 
         .posterHeroPoster913 {
-          min-height: clamp(360px, 52vh, 560px);
-          background-image: var(--poster-desktop-image, var(--poster-mobile-image));
           border-radius: 1.6rem;
         }
 
@@ -318,10 +307,6 @@ class SierraHero {
       @media (min-width: 1024px) {
         .posterHeroRoot913 {
           margin-top: 0;
-        }
-
-        .posterHeroViewport913 {
-          min-height: clamp(360px, 48vh, 560px);
         }
 
         .posterHeroArrows913 {
@@ -399,11 +384,14 @@ class SierraHero {
             ${slides.map((slide, index) => {
               const desktopUrl = buildPosterUrl(slide.desktopFileName || slide.fileName || slide.mobileFileName);
               const mobileUrl = buildPosterUrl(slide.mobileFileName || slide.fileName || slide.desktopFileName);
-              const safeDesktopUrl = String(desktopUrl).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-              const safeMobileUrl = String(mobileUrl).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+              const safeDesktopUrl = this.escape(String(desktopUrl || ''));
+              const safeMobileUrl = this.escape(String(mobileUrl || desktopUrl || ''));
               return `
                 <article class="posterHeroSlide913" data-hero-slide="${index}" aria-hidden="${index === this.currentIndex ? 'false' : 'true'}">
-                  <div class="posterHeroPoster913" role="img" aria-label="${this.escape(slide.altText)}" style="--poster-desktop-image:url('${safeDesktopUrl}');--poster-mobile-image:url('${safeMobileUrl}')"></div>
+                  <picture class="posterHeroPoster913">
+                    <source media="(min-width: 768px)" srcset="${safeDesktopUrl}">
+                    <img class="posterHeroPosterImage913" src="${safeMobileUrl}" alt="${this.escape(slide.altText)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">
+                  </picture>
                 </article>
               `;
             }).join('')}

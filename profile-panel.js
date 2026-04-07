@@ -1,6 +1,9 @@
+import { db } from './firebase-init.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
 import { getCartManager } from './cart.js?v=20260331-2';
 import { getLikeManager } from './like.js';
+import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
 class ProfilePanel {
   constructor() {
@@ -9,6 +12,13 @@ class ProfilePanel {
     this.authManager = getAuthManager();
     this.cartManager = getCartManager();
     this.likeManager = getLikeManager();
+    this.isBootstrapping = false;
+    this.vendorAccess = {
+      uid: '',
+      checked: false,
+      approved: false,
+      shopName: ''
+    };
     this.handleStateChange = () => {
       if (this.modal) this.render();
     };
@@ -69,16 +79,85 @@ class ProfilePanel {
     }
   }
 
+  inferVendorAccessFromClient() {
+    const client = this.cartManager.currentClient || {};
+    const role = String(client?.role || client?.accountType || '').toLowerCase();
+    const vendorStatus = String(client?.vendorStatus || client?.status || '').toLowerCase();
+    const approved = role === 'vendor' || vendorStatus === 'approved' || client?.isVendorApproved === true;
+    return {
+      approved,
+      shopName: String(client?.shopName || client?.vendorName || '').trim()
+    };
+  }
+
+  async ensureVendorAccessLoaded() {
+    if (!this.authManager.isAuthenticated()) {
+      this.vendorAccess = { uid: '', checked: false, approved: false, shopName: '' };
+      return;
+    }
+
+    const user = this.authManager.getCurrentUser();
+    if (!user?.uid) return;
+    if (this.vendorAccess.checked && this.vendorAccess.uid === user.uid) return;
+
+    const inferred = this.inferVendorAccessFromClient();
+    if (inferred.approved) {
+      this.vendorAccess = {
+        uid: user.uid,
+        checked: true,
+        approved: true,
+        shopName: inferred.shopName
+      };
+      return;
+    }
+
+    try {
+      const vendorSnap = await getDoc(doc(db, 'vendorApplications', user.uid));
+      const data = vendorSnap.exists() ? (vendorSnap.data() || {}) : {};
+      this.vendorAccess = {
+        uid: user.uid,
+        checked: true,
+        approved: String(data?.status || '').toLowerCase() === 'approved',
+        shopName: String(data?.shopName || inferred.shopName || '').trim()
+      };
+    } catch (error) {
+      console.error('Erreur chargement acces vendeur profil:', error);
+      this.vendorAccess = {
+        uid: user.uid,
+        checked: true,
+        approved: inferred.approved,
+        shopName: inferred.shopName
+      };
+    }
+  }
+
+  async preloadPanelData() {
+    this.isBootstrapping = true;
+    if (this.modal) this.render();
+
+    try {
+      await Promise.all([
+        this.ensureAuthenticatedOrdersLoaded(),
+        this.ensureGuestOrdersLoaded(),
+        this.ensureVendorAccessLoaded()
+      ]);
+    } finally {
+      this.isBootstrapping = false;
+      if (this.modal) this.render();
+    }
+  }
+
   async open() {
     if (this.modal) return;
-
-    await this.ensureAuthenticatedOrdersLoaded();
-    await this.ensureGuestOrdersLoaded();
 
     this.modal = document.createElement('div');
     this.modal.className = `profile-panel-${this.uniqueId}`;
     this.render();
     document.body.appendChild(this.modal);
+
+    this.preloadPanelData().catch((error) => {
+      console.error('Erreur chargement panneau profil:', error);
+    });
 
     setTimeout(() => {
       const overlay = this.modal?.querySelector('.profile-overlay');
@@ -205,6 +284,44 @@ class ProfilePanel {
           </div>
         `).join('')}
       </div>
+    `;
+  }
+
+  renderVendorQuickAccess(colors) {
+    if (!this.vendorAccess?.approved) return '';
+
+    const shopName = this.vendorAccess.shopName || 'Votre boutique';
+    return `
+      <a class="profile-vendor-dashboard-btn" href="${VENDOR_DASHBOARD_URL}" style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:0.9rem;
+        padding:1rem 1.05rem;
+        border-radius:1rem;
+        text-decoration:none;
+        background:linear-gradient(135deg, ${colors.background.button}, ${colors.icon.hover});
+        color:${colors.text.button};
+        box-shadow:0 18px 34px rgba(31,30,28,0.12);
+        margin-bottom:1rem;
+      ">
+        <div style="min-width:0;">
+          <div style="font-size:0.75rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;opacity:0.88;">Dashboard vendeur</div>
+          <div style="font-size:1rem;font-weight:800;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${shopName}</div>
+        </div>
+        <span style="
+          width:2.4rem;
+          height:2.4rem;
+          min-width:2.4rem;
+          border-radius:999px;
+          background:rgba(255,255,255,0.18);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+        ">
+          <i class="fas fa-store"></i>
+        </span>
+      </a>
     `;
   }
 
@@ -387,6 +504,19 @@ class ProfilePanel {
 
         <div style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
           ${isAuthenticated ? `
+            ${this.renderVendorQuickAccess(colors)}
+            ${this.isBootstrapping ? `
+              <div style="
+                margin-bottom:1rem;
+                border-radius:1rem;
+                border:1px solid ${colors.background.button}22;
+                background:${colors.background.card};
+                padding:0.9rem 1rem;
+                color:${colors.text.body};
+              ">
+                Chargement de votre profil, commandes et favoris...
+              </div>
+            ` : ''}
             ${this.renderSummaryCards(colors)}
             ${this.cartManager.renderLikedSection(colors, fonts)}
             ${this.cartManager.renderOrdersSection(colors, fonts)}

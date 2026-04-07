@@ -312,22 +312,19 @@ class Navbar {
   setupCartEvents() {
     const desktopCart = document.getElementById('desktopCartIcon');
     const mobileCart = document.getElementById('mobileCartIcon');
+    const desktopCartButton = document.getElementById('desktopCartButton');
+    const mobileCartButton = document.getElementById('mobileCartButton');
     
-    if (desktopCart) {
-      desktopCart.addEventListener('click', (e) => {
+    const handleOpenCart = (e) => {
         e.preventDefault();
         e.stopPropagation();
         this.openCart();
-      });
-    }
-    
-    if (mobileCart) {
-      mobileCart.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.openCart();
-      });
-    }
+    };
+
+    [desktopCart, mobileCart, desktopCartButton, mobileCartButton].forEach((target) => {
+      if (!target) return;
+      target.addEventListener('click', handleOpenCart);
+    });
   }
   
   openCart() {

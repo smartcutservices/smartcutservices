@@ -465,6 +465,8 @@ class PrintingDocumentsPage {
         size: file.size,
         pageCount: analysis.pageCount
       };
+      this.render();
+      this.attachEvents();
       if (statusEl) {
         statusEl.textContent = `${file.name} · ${analysis.pageCount} page(s) detectee(s)`;
         statusEl.style.color = '#0f9f6e';

@@ -259,6 +259,9 @@ class SierraHeaderNebula {
         height: 44px;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.1);
+        border: none;
+        cursor: pointer;
+        padding: 0;
       }
 
       .cart-count-badge {
@@ -717,10 +720,10 @@ class SierraHeaderNebula {
             <button id="desktopProfileIcon" class="desktop-icon-button" type="button" aria-label="Profil">
               <i class="fas fa-user desktop-icon"></i>
             </button>
-            <span class="cart-icon-shell">
+            <button id="desktopCartButton" class="cart-icon-shell" type="button" aria-label="Panier">
               <i id="desktopCartIcon" class="fas fa-shopping-bag desktop-icon"></i>
               <span id="desktopCartBadge" class="cart-count-badge" aria-hidden="true">0</span>
-            </span>
+            </button>
           </div>
         </div>
         <div class="desktop-nav-row">
@@ -748,10 +751,10 @@ class SierraHeaderNebula {
             <button id="mobileProfileIcon" class="mobile-icon-button" type="button" aria-label="Profil">
               <i class="fas fa-user mobile-icon"></i>
             </button>
-            <span class="cart-icon-shell">
+            <button id="mobileCartButton" class="cart-icon-shell" type="button" aria-label="Panier">
               <i id="mobileCartIcon" class="fas fa-shopping-bag mobile-icon"></i>
               <span id="mobileCartBadge" class="cart-count-badge" aria-hidden="true">0</span>
-            </span>
+            </button>
           </div>
           </div>
           <div class="mobile-nav-scroll">
@@ -837,6 +840,8 @@ class SierraHeaderNebula {
     console.info('[HEADER] Cart manager initialise', {
       hasCartManager: Boolean(this.cartManager)
     });
+
+    getProfilePanel();
 
     await this.applyHeaderConfig();
     await this.loadMobileFooterLinks();
