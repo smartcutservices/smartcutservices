@@ -14,6 +14,8 @@ class SierraHeaderNebula {
     this.authManager = null;
     this.handleCartUpdated = null;
     this.handleStorageSync = null;
+    this.handleWindowResize = null;
+    this.headerResizeObserver = null;
 
     this.injectStyles();
     this.render();
@@ -849,6 +851,42 @@ class SierraHeaderNebula {
     this.setupSearchBarInputs();
     this.setupScrollBehavior();
     this.setupCartBadge();
+    this.setupHeaderLayoutSync();
+    this.syncHeaderLayout();
+  }
+
+  setupHeaderLayoutSync() {
+    const header = document.getElementById('headerNebulaX92');
+    if (!header) return;
+
+    this.handleWindowResize = () => this.syncHeaderLayout();
+    window.addEventListener('resize', this.handleWindowResize);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      this.headerResizeObserver?.disconnect?.();
+      this.headerResizeObserver = new ResizeObserver(() => {
+        this.syncHeaderLayout();
+      });
+      this.headerResizeObserver.observe(header);
+    }
+
+    window.requestAnimationFrame(() => this.syncHeaderLayout());
+    window.setTimeout(() => this.syncHeaderLayout(), 120);
+    window.setTimeout(() => this.syncHeaderLayout(), 420);
+  }
+
+  syncHeaderLayout() {
+    const root = document.getElementById(this.containerId);
+    const header = document.getElementById('headerNebulaX92');
+    if (!root || !header) return;
+
+    const measuredHeight = Math.ceil(header.getBoundingClientRect().height || header.offsetHeight || 0);
+    if (!measuredHeight) return;
+
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    document.documentElement.style.setProperty('--header-height', `${measuredHeight}px`);
+    document.documentElement.style.setProperty('--header-height-mobile', `${measuredHeight}px`);
+    root.style.height = isDesktop ? `${measuredHeight}px` : '0px';
   }
 
   async loadMobileFooterLinks() {
@@ -1114,6 +1152,12 @@ class SierraHeaderNebula {
     }
     if (this.handleStorageSync) {
       window.removeEventListener('storage', this.handleStorageSync);
+    }
+    if (this.handleWindowResize) {
+      window.removeEventListener('resize', this.handleWindowResize);
+    }
+    if (this.headerResizeObserver) {
+      this.headerResizeObserver.disconnect();
     }
   }
 }
