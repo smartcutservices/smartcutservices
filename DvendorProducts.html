@@ -1541,6 +1541,11 @@
         const statusLabel = ['approved', 'active'].includes(status)
           ? 'Compte approuve'
           : 'Compte vendeur';
+        const activeSince = this.formatDateTime(
+          this.vendorContext?.sellerActivatedAt ||
+          this.vendorContext?.approvedAt ||
+          this.vendorContext?.updatedAt
+        );
 
         this.elements.vendorHeaderName.innerHTML = `
           <i class="fas fa-user-circle"></i>
@@ -1548,7 +1553,7 @@
         `;
         this.elements.vendorHeaderStatus.innerHTML = `
           <i class="fas fa-circle-check"></i>
-          <span>${this.escape(statusLabel)}</span>
+          <span>${this.escape(statusLabel)}${activeSince !== '-' ? ` · depuis ${this.escape(activeSince)}` : ''}</span>
         `;
       }
 
@@ -2365,6 +2370,10 @@
                   <button class="view-likes btn-icon" data-id="${product.id}" title="Voir qui a liké">
                     <i class="fas fa-users"></i>
                   </button>
+                </div>
+                <div class="mt-3 pt-3 border-t border-border text-xs text-text-secondary space-y-1">
+                  <p>Upload: ${this.formatDateTime(product.submittedAt || product.createdAt)}</p>
+                  <p>Mise a jour: ${this.formatDateTime(product.updatedAt || product.createdAt)}</p>
                 </div>
                 <div class="flex justify-end gap-2 mt-3 pt-3 border-t border-border">
                   <button class="edit-product btn-icon" data-id="${product.id}">

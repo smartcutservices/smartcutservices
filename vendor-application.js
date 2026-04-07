@@ -103,6 +103,9 @@ class VendorApplicationPage {
       pending: { label: 'En attente', tone: '#92400E', bg: 'rgba(146, 64, 14, 0.12)' }
     };
     const statusMeta = statusMap[status] || statusMap.pending;
+    const submittedAt = this.formatDateTime(this.application?.createdAt);
+    const reviewedAt = this.formatDateTime(this.application?.reviewedAt);
+    const activeAt = this.formatDateTime(this.application?.sellerActivatedAt || this.clientProfile?.sellerActivatedAt || this.clientProfile?.approvedAt);
 
     this.container.innerHTML = `
       <section style="max-width:980px;margin:0 auto;padding:1.2rem 1rem 0;">
@@ -115,6 +118,22 @@ class VendorApplicationPage {
               <div style="margin-top:1rem;display:inline-flex;align-items:center;gap:.55rem;padding:.65rem .95rem;border-radius:999px;background:${statusMeta.bg};color:${statusMeta.tone};font-size:.82rem;font-weight:800;">
                 <i class="fas fa-circle"></i>
                 <span>Statut: ${statusMeta.label}</span>
+              </div>
+            ` : ''}
+            ${this.application ? `
+              <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;max-width:760px;">
+                <div style="border-radius:1rem;border:1px solid rgba(31,30,28,0.08);background:rgba(255,255,255,0.72);padding:.85rem 1rem;">
+                  <strong style="display:block;color:#1F1E1C;font-size:.85rem;">Soumise le</strong>
+                  <span style="display:block;margin-top:.25rem;color:#6E6557;">${this.escape(submittedAt)}</span>
+                </div>
+                <div style="border-radius:1rem;border:1px solid rgba(31,30,28,0.08);background:rgba(255,255,255,0.72);padding:.85rem 1rem;">
+                  <strong style="display:block;color:#1F1E1C;font-size:.85rem;">Derniere revue</strong>
+                  <span style="display:block;margin-top:.25rem;color:#6E6557;">${this.escape(reviewedAt)}</span>
+                </div>
+                <div style="border-radius:1rem;border:1px solid rgba(31,30,28,0.08);background:rgba(255,255,255,0.72);padding:.85rem 1rem;">
+                  <strong style="display:block;color:#1F1E1C;font-size:.85rem;">Actif comme vendeur depuis</strong>
+                  <span style="display:block;margin-top:.25rem;color:#6E6557;">${this.escape(activeAt)}</span>
+                </div>
               </div>
             ` : ''}
           </div>
@@ -246,6 +265,13 @@ class VendorApplicationPage {
         </div>
       `;
     }).join('');
+  }
+
+  formatDateTime(value) {
+    if (!value) return '-';
+    const date = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString('fr-FR');
   }
 
   renderField(field) {
