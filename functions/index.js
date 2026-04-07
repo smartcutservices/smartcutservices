@@ -479,20 +479,33 @@ function getCommissionRate(rule = null) {
 function buildVendorItemMetrics(item = {}) {
   const quantity = Math.max(1, Number(item?.quantity || 1));
   const unitPrice = Number(item?.price || 0);
-  const grossAmount = unitPrice * quantity;
+  const productGrossAmount = unitPrice * quantity;
   const commissionRate = getCommissionRate(item?.commissionRule);
-  const commissionAmount = grossAmount * (commissionRate / 100);
-  const vendorNetAmount = Math.max(0, grossAmount - commissionAmount);
+  const commissionAmount = productGrossAmount * (commissionRate / 100);
+  const vendorNetAmount = Math.max(0, productGrossAmount - commissionAmount);
 
   return {
     ...item,
     quantity,
     unitPrice,
-    grossAmount,
+    productGrossAmount,
+    grossAmount: productGrossAmount,
     commissionRate,
     commissionAmount,
     vendorNetAmount
   };
+}
+
+function getOrderDeliveryAmount(order = {}) {
+  return Math.max(0, toNumber(order?.delivery?.totalFee ?? order?.delivery?.shippingAmount));
+}
+
+function isVendorExclusiveOrder(order = {}, vendorUid = '') {
+  const normalizedVendorId = String(vendorUid || '').trim();
+  const items = Array.isArray(order?.items) ? order.items : [];
+  if (!normalizedVendorId || !items.length) return false;
+
+  return items.every((item) => String(item?.vendorId || '').trim() === normalizedVendorId);
 }
 
 function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '') {
@@ -503,6 +516,14 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
   const vendorManagedDelivery =
     deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode)) &&
     !deliveryModes.some((mode) => smartCutHandlesDeliveryMode(mode));
+  const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
+  const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
+  const productNetAmount = relevantItems.reduce((sum, item) => sum + item.vendorNetAmount, 0);
+  const deliveryAmount = vendorManagedDelivery && isVendorExclusiveOrder(order, vendorUid)
+    ? getOrderDeliveryAmount(order)
+    : 0;
+  const grossAmount = productGrossAmount + deliveryAmount;
+  const vendorNetAmount = productNetAmount + deliveryAmount;
 
   return {
     refPath,
@@ -517,9 +538,12 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
     vendorManagedDelivery,
     deliveryModeLabel: deliveryModes[0] || '',
     items: relevantItems,
-    grossAmount: relevantItems.reduce((sum, item) => sum + item.grossAmount, 0),
-    commissionAmount: relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0),
-    vendorNetAmount: relevantItems.reduce((sum, item) => sum + item.vendorNetAmount, 0),
+    productGrossAmount,
+    deliveryAmount,
+    grossAmount,
+    commissionAmount,
+    productNetAmount,
+    vendorNetAmount,
     itemCount: relevantItems.reduce((sum, item) => sum + item.quantity, 0),
     customer: vendorManagedDelivery
       ? {
@@ -662,6 +686,8 @@ function mapVendorPayoutSummary(id, payout = {}) {
     id,
     reportNumber: String(payout?.reportNumber || '').trim(),
     status: normalizePayoutStatus(payout?.status),
+    productGrossAmount: Math.max(0, toNumber(payout?.productGrossAmount)),
+    deliveryAmount: Math.max(0, toNumber(payout?.deliveryAmount)),
     grossAmount: Math.max(0, toNumber(payout?.grossAmount)),
     commissionAmount: Math.max(0, toNumber(payout?.commissionAmount)),
     netAmount: Math.max(0, toNumber(payout?.netAmount)),
@@ -715,6 +741,8 @@ function isWithinVendorPayoutRange(createdAtMs, dateFromMs, dateToMs) {
 
 function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds, settledVendorRefs, dateFromMs = 0, dateToMs = 0 }) {
   const outstandingOrders = [];
+  let productGrossAmount = 0;
+  let deliveryAmount = 0;
   let grossAmount = 0;
   let commissionAmount = 0;
   let netAmount = 0;
@@ -731,6 +759,8 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
     const createdAtMs = toDateMs(context.paidAt || context.updatedAt || context.createdAt);
     if (!isWithinVendorPayoutRange(createdAtMs, dateFromMs, dateToMs)) return;
 
+    productGrossAmount += context.productGrossAmount;
+    deliveryAmount += context.deliveryAmount;
     grossAmount += context.grossAmount;
     commissionAmount += context.commissionAmount;
     netAmount += context.vendorNetAmount;
@@ -742,6 +772,8 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
       orderId: snap.id,
       uniqueCode: context.uniqueCode,
       createdAt: context.paidAt || context.updatedAt || context.createdAt || '',
+      productGrossAmount: context.productGrossAmount,
+      deliveryAmount: context.deliveryAmount,
       grossAmount: context.grossAmount,
       commissionAmount: context.commissionAmount,
       netAmount: context.vendorNetAmount,
@@ -751,6 +783,8 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
 
   return {
     outstandingOrders,
+    productGrossAmount,
+    deliveryAmount,
     grossAmount,
     commissionAmount,
     netAmount,
@@ -1743,6 +1777,8 @@ exports.getVendorDashboardAnalytics = onRequest(
       const recentOrders = [];
 
       let totalOrders = 0;
+      let productGrossAmount = 0;
+      let deliveryAmount = 0;
       let grossAmount = 0;
       let commissionAmount = 0;
       let vendorNetAmount = 0;
@@ -1784,6 +1820,8 @@ exports.getVendorDashboardAnalytics = onRequest(
           topProducts.set(productId, existingProduct);
         });
 
+        productGrossAmount += orderContext.productGrossAmount;
+        deliveryAmount += orderContext.deliveryAmount;
         grossAmount += orderContext.grossAmount;
         commissionAmount += orderContext.commissionAmount;
         vendorNetAmount += orderContext.vendorNetAmount;
@@ -1803,6 +1841,8 @@ exports.getVendorDashboardAnalytics = onRequest(
           uniqueCode: order?.uniqueCode || '',
           customerName: order?.customerName || '',
           createdAt: order?.paidAt || order?.updatedAt || order?.createdAt || '',
+          productGrossAmount: orderContext.productGrossAmount,
+          deliveryAmount: orderContext.deliveryAmount,
           amount: orderContext.grossAmount,
           items: orderContext.itemCount,
           status,
@@ -1826,6 +1866,8 @@ exports.getVendorDashboardAnalytics = onRequest(
         analytics: {
           totalOrders,
           itemCount,
+          productGrossAmount,
+          deliveryAmount,
           grossAmount,
           commissionAmount,
           vendorNetAmount,
@@ -1948,6 +1990,8 @@ exports.requestVendorPayout = onRequest(
         vendorId: decodedUser.uid,
         ...payoutIdentity,
         reportNumber: createPayoutReportNumber(payoutRef.id),
+        productGrossAmount: payoutMetrics.productGrossAmount,
+        deliveryAmount: payoutMetrics.deliveryAmount,
         grossAmount: payoutMetrics.grossAmount,
         commissionAmount: payoutMetrics.commissionAmount,
         netAmount: payoutMetrics.netAmount,
@@ -2031,6 +2075,8 @@ exports.getVendorDashboardOrders = onRequest(
           createdAt: context.paidAt || context.updatedAt || context.createdAt || '',
           paymentStatus: context.paymentStatus,
           fulfillmentStatus: context.fulfillmentStatus,
+          productGrossAmount: context.productGrossAmount,
+          deliveryAmount: context.deliveryAmount,
           grossAmount: context.grossAmount,
           commissionAmount: context.commissionAmount,
           vendorNetAmount: context.vendorNetAmount,
@@ -2153,6 +2199,8 @@ exports.createVendorPayout = onRequest(
         vendorId,
         ...payoutIdentity,
         reportNumber: String(existingRequest?.reportNumber || '').trim() || createPayoutReportNumber(payoutRef.id),
+        productGrossAmount: payoutMetrics.productGrossAmount,
+        deliveryAmount: payoutMetrics.deliveryAmount,
         grossAmount: payoutMetrics.grossAmount,
         commissionAmount: payoutMetrics.commissionAmount,
         netAmount: payoutMetrics.netAmount,
