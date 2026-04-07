@@ -306,7 +306,7 @@ class SierraHero {
 
       @media (min-width: 1024px) {
         .posterHeroRoot913 {
-          margin-top: 0;
+          margin-top: calc(var(--header-height, 156px) + 0.5rem);
         }
 
         .posterHeroArrows913 {
