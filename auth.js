@@ -27,6 +27,8 @@ class AuthManager {
     this.modal = null;
     this.uniqueId = 'auth_' + Math.random().toString(36).substr(2, 9);
     this.isModalOpen = false;
+    this.isModalClosing = false;
+    this.modalOpenedAt = 0;
     
     this.init();
   }
@@ -77,6 +79,8 @@ class AuthManager {
     }
     
     this.isModalOpen = true;
+    this.isModalClosing = false;
+    this.modalOpenedAt = Date.now();
     
     if (this.modal) {
       this.modal.remove();
@@ -108,10 +112,14 @@ class AuthManager {
   
   // Fermer le modal
   closeAuthModal() {
+    if (this.isModalClosing) {
+      return;
+    }
     if (!this.modal) {
       this.isModalOpen = false;
       return;
     }
+    this.isModalClosing = true;
     
     const overlay = this.modal.querySelector('.auth-overlay');
     const container = this.modal.querySelector('.auth-container');
@@ -128,6 +136,7 @@ class AuthManager {
         this.modal = null;
       }
       this.isModalOpen = false;
+      this.isModalClosing = false;
       document.body.style.overflow = '';
     }, 300);
   }
@@ -460,28 +469,40 @@ class AuthManager {
   attachAuthEvents(mode) {
     const closeBtn = this.modal.querySelector('.close-auth');
     const overlay = this.modal.querySelector('.auth-overlay');
+    const container = this.modal.querySelector('.auth-container');
     const switchBtn = this.modal.querySelector('#switchMode');
     const form = this.modal.querySelector('#authForm');
     const forgotBtn = this.modal.querySelector('#forgotPassword');
     const googleBtn = this.modal.querySelector('#googleSignIn');
+
+    container?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    container?.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+    });
     
     closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
       this.closeAuthModal();
     });
     
     overlay.addEventListener('click', (e) => {
+      if (Date.now() - this.modalOpenedAt < 250) {
+        return;
+      }
       if (e.target === overlay) {
         this.closeAuthModal();
       }
     });
     
     switchBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      this.closeAuthModal();
-      setTimeout(() => {
-        this.openAuthModal(mode === 'login' ? 'register' : 'login');
-      }, 300);
+      this.renderAuthModal(mode === 'login' ? 'register' : 'login');
+      this.modalOpenedAt = Date.now();
     });
     
     if (forgotBtn) {
