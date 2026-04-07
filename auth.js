@@ -93,6 +93,7 @@ class AuthManager {
     
     // Forcer le style display: flex sur l'overlay
     const overlay = this.modal.querySelector('.auth-overlay');
+    const container = this.modal.querySelector('.auth-container');
     if (overlay) {
       overlay.style.display = 'flex';
     }
@@ -474,7 +475,7 @@ class AuthManager {
     const form = this.modal.querySelector('#authForm');
     const forgotBtn = this.modal.querySelector('#forgotPassword');
     const googleBtn = this.modal.querySelector('#googleSignIn');
-
+    
     container?.addEventListener('click', (e) => {
       e.stopPropagation();
     });
@@ -482,7 +483,7 @@ class AuthManager {
     container?.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
     });
-    
+
     closeBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
