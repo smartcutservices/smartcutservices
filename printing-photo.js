@@ -1,5 +1,5 @@
 import { db } from './firebase-init.js';
-import { uploadPdfFile } from './firebase-storage.js';
+import { uploadImageFile } from './firebase-storage.js';
 import { getCartManager } from './cart.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import {
@@ -112,24 +112,6 @@ class PrintingPhotoPage {
       .replace(/'/g, '&#39;');
   }
 
-  getPdfLib() {
-    const lib = window.pdfjsLib;
-    if (!lib) {
-      throw new Error('Le lecteur PDF n est pas disponible pour le moment.');
-    }
-    if (!lib.GlobalWorkerOptions.workerSrc) {
-      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-    return lib;
-  }
-
-  async analyzePdf(file) {
-    const pdfjsLib = this.getPdfLib();
-    const bytes = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-    return { pageCount: pdf.numPages || 0 };
-  }
-
   getCurrentSelections() {
     return {
       paperLabel: this.container.querySelector('#photoPaper')?.value || this.formState.paperLabel || '',
@@ -156,17 +138,18 @@ class PrintingPhotoPage {
 
   calculateQuote() {
     const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
-    const pageCount = this.fileInfo?.pageCount || 0;
+    const imageCount = this.fileInfo?.imageCount || 0;
     const paper = findPaperByLabel(this.config.papers || [], paperLabel);
     const dimension = findDimensionByLabel(this.config.papers || [], paperLabel, dimensionLabel);
-    const pricePerPage = Number(dimension?.price) || 0;
-    const printUnitPrice = pricePerPage * pageCount;
+    const pricePerImage = Number(dimension?.price) || 0;
+    const printUnitPrice = pricePerImage * imageCount;
+
     return {
       paper,
       dimension,
       copies,
-      pageCount,
-      pricePerPage,
+      imageCount,
+      pricePerImage,
       printUnitPrice,
       totalPrice: printUnitPrice * copies
     };
@@ -174,7 +157,7 @@ class PrintingPhotoPage {
 
   getStepValidity(step = this.currentStep) {
     const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
-    if (step === 1) return Boolean(this.file && this.fileInfo?.pageCount);
+    if (step === 1) return Boolean(this.file && this.fileInfo?.imageCount);
     if (step === 2) return Boolean(paperLabel && dimensionLabel && copies >= 1);
     return this.getStepValidity(1) && this.getStepValidity(2);
   }
@@ -205,15 +188,15 @@ class PrintingPhotoPage {
       <section class="printing-quiz-panel">
         <div class="printing-quiz-panel-head">
           <small>Etape 1</small>
-          <h2>Chargez votre PDF photo</h2>
-          <p>Tout fichier photo doit etre envoye en PDF. Le site utilisera le nombre de pages du PDF pour calculer automatiquement votre tarif.</p>
+          <h2>Chargez votre image</h2>
+          <p>Choisissez l image que vous souhaitez imprimer. Le tarif se calcule ensuite selon la dimension et le nombre de tirages.</p>
         </div>
         <label class="printing-quiz-field">
-          <span>Fichier PDF</span>
+          <span>Fichier image</span>
           <div class="printing-quiz-upload">
-            <input id="photoPdfFile" class="printing-quiz-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}>
+            <input id="photoImageFile" class="printing-quiz-input" type="file" accept="image/*" ${this.config.enabled === false ? 'disabled' : ''}>
             <div id="photoFileStatus" class="printing-quiz-upload-status" style="color:${this.fileInfo ? '#0f9f6e' : '#6E6557'};">
-              ${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.pageCount} page(s)` : 'Choisissez un PDF photo pour commencer.'}
+              ${this.fileInfo ? `${this.escape(this.fileInfo.name)} - ${this.fileInfo.imageCount} image` : 'Choisissez une image JPG, PNG, WEBP ou GIF pour commencer.'}
             </div>
           </div>
         </label>
@@ -246,7 +229,7 @@ class PrintingPhotoPage {
             <span>Dimension</span>
             <select id="photoDimension" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}>
               <option value="">Choisir une dimension</option>
-              ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}">${this.escape(dimension.label)} · ${this.formatPrice(dimension.price || 0)} / page</option>`).join('')}
+              ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}">${this.escape(dimension.label)} - ${this.formatPrice(dimension.price || 0)} / image</option>`).join('')}
             </select>
           </label>
         </div>
@@ -268,13 +251,13 @@ class PrintingPhotoPage {
         <div class="printing-quiz-panel-head">
           <small>Etape 3</small>
           <h2>Votre tarif est pret</h2>
-          <p>Le total se base sur les pages du PDF, le prix de la dimension choisie et le nombre de tirages.</p>
+          <p>Le total se base sur le prix de la dimension choisie, votre image et le nombre de tirages.</p>
         </div>
         <div class="printing-quiz-summary">
           <div class="printing-quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
           <div class="printing-quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Pages PDF</span><strong>${quote.pageCount}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Images</span><strong>${quote.imageCount}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Prix par image</span><strong>${this.formatPrice(quote.pricePerImage)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Prix par tirage</span><strong id="photoQuoteUnit">${this.formatPrice(quote.printUnitPrice)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Tirages</span><strong id="photoQuoteCopies">${quote.copies}</strong></div>
           <div class="printing-quiz-summary-total"><span>Total</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
@@ -334,12 +317,12 @@ class PrintingPhotoPage {
         <header class="printing-quiz-topbar">
           <div class="printing-quiz-heading">
             <small>Impression photo</small>
-            <h1>Commandez vos tirages photo a partir d un PDF</h1>
-            <p>Choisissez le papier, la dimension et le nombre de tirages. Le prix final suit automatiquement le nombre de pages du PDF charge.</p>
+            <h1>Commandez vos tirages photo a partir d une image</h1>
+            <p>Choisissez votre image, puis le papier, la dimension et le nombre de tirages. Le prix final suit automatiquement vos choix.</p>
           </div>
           ${this.config.enabled === false ? `<div class="printing-quiz-note is-error">Le module photo est temporairement indisponible.</div>` : ''}
           <div class="printing-quiz-steps">
-            ${this.renderStepChip(1, 'Votre PDF')}
+            ${this.renderStepChip(1, 'Votre image')}
             ${this.renderStepChip(2, 'Vos options')}
             ${this.renderStepChip(3, 'Votre tarif')}
           </div>
@@ -362,7 +345,7 @@ class PrintingPhotoPage {
     if (dimensionSelect && this.formState.dimensionLabel) dimensionSelect.value = this.formState.dimensionLabel;
     if (copiesInput) copiesInput.value = String(this.formState.copies || 1);
     if (fileStatus && this.fileInfo) {
-      fileStatus.textContent = `${this.fileInfo.name} · ${this.fileInfo.pageCount} page(s)`;
+      fileStatus.textContent = `${this.fileInfo.name} - ${this.fileInfo.imageCount} image`;
       fileStatus.style.color = '#0f9f6e';
     }
   }
@@ -371,8 +354,8 @@ class PrintingPhotoPage {
     this.container.querySelectorAll('[data-go-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.goStep))));
     this.container.querySelectorAll('[data-next-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.nextStep))));
     this.container.querySelectorAll('[data-prev-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.prevStep))));
-    this.container.querySelector('#photoPdfFile')?.addEventListener('change', async (event) => {
-      await this.handlePdfSelection(event.target.files?.[0]);
+    this.container.querySelector('#photoImageFile')?.addEventListener('change', async (event) => {
+      await this.handleImageSelection(event.target.files?.[0]);
     });
     this.container.querySelector('#photoPaper')?.addEventListener('change', () => {
       this.syncFormState();
@@ -390,31 +373,36 @@ class PrintingPhotoPage {
     this.container.querySelector('#openCartFromPhoto')?.addEventListener('click', () => document.dispatchEvent(new CustomEvent('openCart')));
   }
 
-  async handlePdfSelection(file) {
+  async handleImageSelection(file) {
     const statusEl = this.container.querySelector('#photoFileStatus');
     this.file = null;
     this.fileInfo = null;
+
     if (!file) {
       if (statusEl) {
-        statusEl.textContent = 'Choisissez un PDF photo pour commencer.';
+        statusEl.textContent = 'Choisissez une image pour commencer.';
         statusEl.style.color = '#6E6557';
       }
       return;
     }
+
     try {
       if (statusEl) {
-        statusEl.textContent = 'Analyse du PDF en cours...';
+        statusEl.textContent = 'Preparation de l image...';
         statusEl.style.color = '#6E6557';
       }
-      const analysis = await this.analyzePdf(file);
       this.file = file;
-      this.fileInfo = { name: file.name, pageCount: analysis.pageCount };
+      this.fileInfo = {
+        name: file.name,
+        imageCount: 1,
+        type: file.type || 'image/*'
+      };
       this.render();
       this.attachEvents();
     } catch (error) {
-      console.error('Erreur lecture PDF photo:', error);
+      console.error('Erreur lecture image photo:', error);
       if (statusEl) {
-        statusEl.textContent = error.message || 'Impossible de lire ce PDF.';
+        statusEl.textContent = error.message || 'Impossible de lire cette image.';
         statusEl.style.color = '#b91c1c';
       }
     }
@@ -439,18 +427,20 @@ class PrintingPhotoPage {
     const paperLabel = this.formState.paperLabel || '';
     const dimensionLabel = this.formState.dimensionLabel || '';
     const quote = this.calculateQuote();
-    if (!this.file || !this.fileInfo?.pageCount) {
-      if (statusEl) statusEl.textContent = 'Ajoutez un PDF photo valide.';
+
+    if (!this.file || !this.fileInfo?.imageCount) {
+      if (statusEl) statusEl.textContent = 'Ajoutez une image valide.';
       return;
     }
     if (!paperLabel || !dimensionLabel) {
       if (statusEl) statusEl.textContent = 'Choisissez une dimension et un papier.';
       return;
     }
+
     try {
       this.isBusy = true;
-      if (statusEl) statusEl.textContent = 'Upload PDF et ajout au panier...';
-      const uploaded = await uploadPdfFile(this.file, 'printing-photo', { maxSizeMb: 20 });
+      if (statusEl) statusEl.textContent = 'Upload image et ajout au panier...';
+      const uploaded = await uploadImageFile(this.file, 'printing-photo', { maxSizeMb: 20 });
       document.dispatchEvent(new CustomEvent('addToCart', {
         detail: {
           productId: 'printing-photo',
@@ -462,9 +452,9 @@ class PrintingPhotoPage {
           selectedOptions: [
             { label: 'Type de papier', value: paperLabel },
             { label: 'Dimension', value: dimensionLabel },
-            { label: 'Pages', value: String(this.fileInfo.pageCount) },
+            { label: 'Images', value: String(this.fileInfo.imageCount) },
             { label: 'Tirages', value: String(quote.copies) },
-            { label: 'Prix / page', value: this.formatPrice(quote.pricePerPage) },
+            { label: 'Prix / image', value: this.formatPrice(quote.pricePerImage) },
             { label: 'Prix par tirage', value: this.formatPrice(quote.printUnitPrice) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             { label: 'Fichier', value: this.file.name },
