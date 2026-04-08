@@ -36,6 +36,7 @@ class CartManager {
     this.likesVisible = true;
     this.likedPreviewModal = null;
     this.guestClient = null;
+    this.preloadPromise = null;
     
     
     // S'abonner aux changements de thème
@@ -412,6 +413,44 @@ class CartManager {
     } catch (error) {
       console.error('❌ Erreur chargement commandes:', error);
     }
+  }
+
+  warmUpClientContext() {
+    if (this.preloadPromise) return this.preloadPromise;
+
+    this.preloadPromise = (async () => {
+      if (this.auth?.isAuthenticated?.()) {
+        const user = this.auth?.getCurrentUser?.();
+        if (user && !this.currentClient) {
+          await this.loadOrCreateClient(user);
+        }
+        if (this.currentClient?.id && !this.ordersListener) {
+          await this.loadCustomerOrders(this.currentClient.id);
+        }
+      } else {
+        const guestId = this.guestClient?.id || this.getStoredGuestId?.();
+        if (guestId) {
+          if (!this.guestClient || this.guestClient.id !== guestId) {
+            this.guestClient = this.createGuestClientPayload(guestId);
+          }
+          this.currentClient = this.guestClient;
+          this.loadHiddenOrders();
+          if (!this.ordersListener && !this.orders.length) {
+            await this.loadCustomerOrders(guestId);
+          }
+        }
+      }
+    })()
+      .catch((error) => {
+        this.preloadPromise = null;
+        throw error;
+      })
+      .then((result) => {
+        this.preloadPromise = null;
+        return result;
+      });
+
+    return this.preloadPromise;
   }
   
   calculateTimeLeft(expiresAt) {
@@ -1535,18 +1574,9 @@ class CartManager {
       return;
     }
 
-    if (this.auth?.isAuthenticated?.()) {
-      const user = this.auth?.getCurrentUser?.();
-      if (!this.currentClient && user) {
-        this.loadOrCreateClient(user).then(() => {
-          if (this.currentClient?.id && !this.ordersListener) {
-            this.loadCustomerOrders(this.currentClient.id);
-          }
-        });
-      } else if (this.currentClient?.id && !this.ordersListener) {
-        this.loadCustomerOrders(this.currentClient.id);
-      }
-    }
+    this.warmUpClientContext().catch((error) => {
+      console.error('❌ Erreur prechargement panier:', error);
+    });
     
     this.modal = document.createElement('div');
     this.modal.className = `cart-modal-${this.uniqueId}`;

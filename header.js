@@ -193,6 +193,8 @@ class SierraHeaderNebula {
         justify-content: center;
         cursor: pointer;
         transition: transform 0.2s ease, background 0.2s ease;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .desktop-icon-button:hover,
@@ -264,6 +266,8 @@ class SierraHeaderNebula {
         border: none;
         cursor: pointer;
         padding: 0;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
 
       .cart-count-badge {
@@ -853,6 +857,7 @@ class SierraHeaderNebula {
     this.setupCartBadge();
     this.setupHeaderLayoutSync();
     this.syncHeaderLayout();
+    this.prewarmInteractivePanels();
   }
 
   setupHeaderLayoutSync() {
@@ -991,6 +996,40 @@ class SierraHeaderNebula {
     }
   }
 
+  prewarmInteractivePanels() {
+    const scheduleWarmup = () => {
+      const profilePanel = getProfilePanel();
+      profilePanel?.prime?.().catch((error) => {
+        console.error('Erreur prechargement profil:', error);
+      });
+      this.cartManager?.warmUpClientContext?.().catch((error) => {
+        console.error('Erreur prechargement panier:', error);
+      });
+    };
+
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(scheduleWarmup, { timeout: 1200 });
+      return;
+    }
+
+    window.setTimeout(scheduleWarmup, 400);
+  }
+
+  bindResponsivePress(target, handler) {
+    if (!target) return;
+
+    let lastTriggerAt = 0;
+    const invoke = (event) => {
+      const now = Date.now();
+      if (now - lastTriggerAt < 260) return;
+      lastTriggerAt = now;
+      handler(event);
+    };
+
+    target.addEventListener('pointerup', invoke);
+    target.addEventListener('click', invoke);
+  }
+
   setupProfileActions() {
     const handleProfileClick = (event) => {
       event.preventDefault();
@@ -1002,7 +1041,7 @@ class SierraHeaderNebula {
     ['desktopProfileIcon', 'mobileProfileIcon'].forEach((id) => {
       const button = document.getElementById(id);
       if (!button) return;
-      button.addEventListener('click', handleProfileClick);
+      this.bindResponsivePress(button, handleProfileClick);
     });
   }
 

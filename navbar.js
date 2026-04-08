@@ -321,9 +321,22 @@ class Navbar {
         this.openCart();
     };
 
+    const bindResponsivePress = (target, handler) => {
+      if (!target) return;
+      let lastTriggerAt = 0;
+      const invoke = (event) => {
+        const now = Date.now();
+        if (now - lastTriggerAt < 260) return;
+        lastTriggerAt = now;
+        handler(event);
+      };
+      target.addEventListener('pointerup', invoke);
+      target.addEventListener('click', invoke);
+    };
+
     [desktopCart, mobileCart, desktopCartButton, mobileCartButton].forEach((target) => {
       if (!target) return;
-      target.addEventListener('click', handleOpenCart);
+      bindResponsivePress(target, handleOpenCart);
     });
   }
   

@@ -19,6 +19,7 @@ class ProfilePanel {
       approved: false,
       shopName: ''
     };
+    this.preloadPromise = null;
     this.handleStateChange = () => {
       if (this.modal) this.render();
     };
@@ -147,6 +148,20 @@ class ProfilePanel {
     }
   }
 
+  prime() {
+    if (this.preloadPromise) return this.preloadPromise;
+    this.preloadPromise = this.preloadPanelData()
+      .catch((error) => {
+        this.preloadPromise = null;
+        throw error;
+      })
+      .then((result) => {
+        this.preloadPromise = null;
+        return result;
+      });
+    return this.preloadPromise;
+  }
+
   async open() {
     if (this.modal) return;
 
@@ -155,7 +170,7 @@ class ProfilePanel {
     this.render();
     document.body.appendChild(this.modal);
 
-    this.preloadPanelData().catch((error) => {
+    this.prime().catch((error) => {
       console.error('Erreur chargement panneau profil:', error);
     });
 
