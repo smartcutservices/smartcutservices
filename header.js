@@ -1018,16 +1018,21 @@ class SierraHeaderNebula {
   bindResponsivePress(target, handler) {
     if (!target) return;
 
-    let lastTriggerAt = 0;
-    const invoke = (event) => {
-      const now = Date.now();
-      if (now - lastTriggerAt < 260) return;
-      lastTriggerAt = now;
-      handler(event);
-    };
+    let lastPointerUpAt = 0;
 
-    target.addEventListener('pointerup', invoke);
-    target.addEventListener('click', invoke);
+    target.addEventListener('pointerup', (event) => {
+      lastPointerUpAt = Date.now();
+      handler(event);
+    });
+
+    target.addEventListener('click', (event) => {
+      if (Date.now() - lastPointerUpAt < 350) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      handler(event);
+    });
   }
 
   setupProfileActions() {

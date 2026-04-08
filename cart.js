@@ -37,6 +37,7 @@ class CartManager {
     this.likedPreviewModal = null;
     this.guestClient = null;
     this.preloadPromise = null;
+    this.modalOpenedAt = 0;
     
     
     // S'abonner aux changements de thème
@@ -1578,6 +1579,7 @@ class CartManager {
       console.error('❌ Erreur prechargement panier:', error);
     });
     
+    this.modalOpenedAt = Date.now();
     this.modal = document.createElement('div');
     this.modal.className = `cart-modal-${this.uniqueId}`;
     this.renderCartModal();
@@ -2448,6 +2450,11 @@ class CartManager {
     
     if (overlay) {
       overlay.addEventListener('click', (e) => {
+        if (Date.now() - this.modalOpenedAt < 350) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         if (e.target === overlay) {
           this.closeCartModal();
         }

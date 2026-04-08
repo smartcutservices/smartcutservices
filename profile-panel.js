@@ -20,6 +20,7 @@ class ProfilePanel {
       shopName: ''
     };
     this.preloadPromise = null;
+    this.openedAt = 0;
     this.handleStateChange = () => {
       if (this.modal) this.render();
     };
@@ -165,6 +166,7 @@ class ProfilePanel {
   async open() {
     if (this.modal) return;
 
+    this.openedAt = Date.now();
     this.modal = document.createElement('div');
     this.modal.className = `profile-panel-${this.uniqueId}`;
     this.render();
@@ -559,6 +561,11 @@ class ProfilePanel {
     });
 
     overlay?.addEventListener('click', (event) => {
+      if (Date.now() - this.openedAt < 350) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       if (event.target === overlay) this.close();
     });
 
