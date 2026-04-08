@@ -90,6 +90,7 @@ class AuthManager {
     this.modal.className = `auth-modal-${this.uniqueId}`;
     this.renderAuthModal(mode);
     document.body.appendChild(this.modal);
+    this.revealAuthModal();
     
     // Forcer le style display: flex sur l'overlay
     const overlay = this.modal.querySelector('.auth-overlay');
@@ -140,6 +141,35 @@ class AuthManager {
       this.isModalClosing = false;
       document.body.style.overflow = '';
     }, 300);
+  }
+
+  revealAuthModal(options = {}) {
+    if (!this.modal) return;
+
+    const { immediate = false } = options;
+    const overlay = this.modal.querySelector('.auth-overlay');
+    const container = this.modal.querySelector('.auth-container');
+
+    if (overlay) {
+      overlay.style.display = 'flex';
+    }
+
+    const show = () => {
+      if (overlay) overlay.style.opacity = '1';
+      if (container) {
+        container.style.opacity = '1';
+        container.style.transform = 'translateY(0)';
+      }
+    };
+
+    if (immediate) {
+      show();
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(show);
+    });
   }
   
   // Rendre le modal d'authentification
@@ -504,6 +534,7 @@ class AuthManager {
       e.stopPropagation();
       this.renderAuthModal(mode === 'login' ? 'register' : 'login');
       this.modalOpenedAt = Date.now();
+      this.revealAuthModal({ immediate: true });
     });
     
     if (forgotBtn) {
