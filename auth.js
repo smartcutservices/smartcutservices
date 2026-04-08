@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db } from './firebase-init.js';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -7,7 +7,9 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   updateProfile,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import {
   doc,
@@ -29,11 +31,20 @@ class AuthManager {
     this.isModalOpen = false;
     this.isModalClosing = false;
     this.modalOpenedAt = 0;
+    this.isAuthReady = false;
+    this.pendingGoogleRedirect = false;
     
     this.init();
   }
   
   init() {
+    authReadyPromise
+      .catch(() => {})
+      .finally(async () => {
+        this.isAuthReady = true;
+        await this.handleRedirectResult();
+      });
+
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, (user) => {
       const previousUser = this.currentUser;
@@ -170,6 +181,45 @@ class AuthManager {
     requestAnimationFrame(() => {
       requestAnimationFrame(show);
     });
+  }
+
+  async waitForAuthReady() {
+    try {
+      await authReadyPromise;
+    } catch (error) {
+      console.warn('⚠️ Auth Firebase pas totalement prête:', error);
+    }
+    this.isAuthReady = true;
+  }
+
+  shouldUseGoogleRedirect() {
+    if (typeof window === 'undefined') return false;
+    const touchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.matchMedia('(max-width: 1024px)').matches;
+    return touchCapable || isSmallScreen;
+  }
+
+  async handleRedirectResult() {
+    if (!auth) return;
+
+    try {
+      const result = await getRedirectResult(auth);
+      if (!result?.user) return;
+
+      this.pendingGoogleRedirect = false;
+      await this.ensureClientProfileForGoogle(result.user);
+      this.closeAuthModal();
+    } catch (error) {
+      this.pendingGoogleRedirect = false;
+      console.error('❌ Erreur retour Google redirect:', error);
+      if (this.modal) {
+        const errorDiv = this.modal.querySelector('#authError');
+        if (errorDiv) {
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = this.getErrorMessage(error.code);
+        }
+      }
+    }
   }
   
   // Rendre le modal d'authentification
@@ -564,9 +614,16 @@ class AuthManager {
   
   // Gérer la connexion
   async handleLogin() {
+    await this.waitForAuthReady();
     const email = this.modal.querySelector('#email').value;
     const password = this.modal.querySelector('#password').value;
     const errorDiv = this.modal.querySelector('#authError');
+
+    if (!auth) {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = 'Firebase Auth n est pas disponible pour le moment.';
+      return;
+    }
     
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -580,6 +637,7 @@ class AuthManager {
   
   // Gérer l'inscription
   async handleRegister() {
+    await this.waitForAuthReady();
     const email = this.modal.querySelector('#email').value;
     const password = this.modal.querySelector('#password').value;
     const displayName = this.modal.querySelector('#displayName')?.value?.trim();
@@ -589,6 +647,11 @@ class AuthManager {
     const errorDiv = this.modal.querySelector('#authError');
 
     const age = parseInt(ageRaw, 10);
+    if (!auth) {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = 'Firebase Auth n est pas disponible pour le moment.';
+      return;
+    }
     if (!Number.isInteger(age) || age < 1 || age > 120) {
       errorDiv.style.display = 'block';
       errorDiv.textContent = 'Veuillez saisir un âge valide (1-120).';
@@ -662,13 +725,40 @@ class AuthManager {
   // Gérer la connexion avec Google
   async handleGoogleSignIn() {
     const errorDiv = this.modal.querySelector('#authError');
+    await this.waitForAuthReady();
+
+    if (!auth || !googleProvider) {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = 'Connexion Google indisponible pour le moment.';
+      return;
+    }
     
     try {
+      if (this.shouldUseGoogleRedirect()) {
+        this.pendingGoogleRedirect = true;
+        this.showToast('Redirection vers Google...', 'info');
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, googleProvider);
       await this.ensureClientProfileForGoogle(result.user);
       this.closeAuthModal();
     } catch (error) {
       console.error('❌ Erreur Google:', error);
+      if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
+        try {
+          this.pendingGoogleRedirect = true;
+          this.showToast('Popup Google bloquee. Redirection en cours...', 'info');
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectError) {
+          console.error('❌ Erreur fallback Google redirect:', redirectError);
+          errorDiv.style.display = 'block';
+          errorDiv.textContent = this.getErrorMessage(redirectError.code);
+          return;
+        }
+      }
       errorDiv.style.display = 'block';
       if (error?.message === 'profile_incomplete') {
         errorDiv.textContent = 'Profil incomplet. Connexion annulée.';
@@ -849,6 +939,8 @@ class AuthManager {
       'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion',
       'auth/operation-not-allowed': 'La méthode email/mot de passe ou Google n est pas active dans Firebase Auth.',
       'auth/invalid-credential': 'Identifiants invalides ou compte inexistant.',
+      'auth/unauthorized-domain': 'Ce domaine n est pas autorise dans Firebase Auth. Ajoutez-le dans les domaines autorises.',
+      'auth/account-exists-with-different-credential': 'Un compte existe deja avec cet email via une autre methode de connexion.',
       'auth/popup-closed-by-user': 'Fenêtre de connexion fermée',
       'auth/cancelled-popup-request': 'Connexion annulée',
       'auth/popup-blocked': 'La popup a été bloquée par le navigateur',
