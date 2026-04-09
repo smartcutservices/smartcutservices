@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 const { defineSecret } = require('firebase-functions/params');
 const { onRequest } = require('firebase-functions/v2/https');
@@ -35,6 +36,136 @@ const CONFIRMED_ORDER_STATUSES = new Set(['approved', 'paid']);
 
 function normalizeBaseUrl(value) {
   return String(value || '').replace(/\/+$/, '');
+}
+
+function clampNumber(value, min, max, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function sanitizeText(value, maxLength = 240) {
+  return String(value || '').trim().slice(0, maxLength);
+}
+
+function sanitizePath(value = '') {
+  const text = sanitizeText(value, 320);
+  if (!text) return '/';
+  return text.startsWith('/') ? text : `/${text}`;
+}
+
+function sanitizeAnalyticsEventName(value = '') {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_:-]/g, '_');
+  return normalized || 'page_view';
+}
+
+function parseLanguageRegion(value = '') {
+  const match = String(value || '').trim().match(/-([A-Za-z]{2})$/);
+  return match ? match[1].toUpperCase() : '';
+}
+
+function getClientIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const fallback = String(req.ip || req.connection?.remoteAddress || '').trim();
+  return forwarded || fallback;
+}
+
+function hashValue(value = '') {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 24);
+}
+
+function detectBrowserFromUserAgent(userAgent = '') {
+  const ua = String(userAgent || '');
+  if (/Edg\//i.test(ua)) return 'Edge';
+  if (/OPR\//i.test(ua) || /Opera/i.test(ua)) return 'Opera';
+  if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return 'Chrome';
+  if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) return 'Safari';
+  if (/Firefox\//i.test(ua)) return 'Firefox';
+  if (/MSIE|Trident\//i.test(ua)) return 'Internet Explorer';
+  return 'Autre';
+}
+
+function detectOsFromUserAgent(userAgent = '') {
+  const ua = String(userAgent || '');
+  if (/Windows/i.test(ua)) return 'Windows';
+  if (/Android/i.test(ua)) return 'Android';
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS';
+  if (/Mac OS X|Macintosh/i.test(ua)) return 'macOS';
+  if (/Linux/i.test(ua)) return 'Linux';
+  return 'Autre';
+}
+
+function detectDeviceType({ userAgent = '', viewport = '' } = {}) {
+  const ua = String(userAgent || '');
+  const width = Number(String(viewport || '').split('x')[0]) || 0;
+  if (/iPad|Tablet|PlayBook|Silk/i.test(ua)) return 'tablet';
+  if (/Mobi|Android|iPhone|iPod/i.test(ua)) return width >= 768 ? 'tablet' : 'mobile';
+  return 'desktop';
+}
+
+function inferTrafficSource(referrer = '', source = '') {
+  const directSource = String(source || '').trim().toLowerCase();
+  if (directSource) return directSource;
+
+  const ref = String(referrer || '').trim();
+  if (!ref) return 'direct';
+
+  try {
+    const host = new URL(ref).hostname.toLowerCase();
+    if (host.includes('google')) return 'google';
+    if (host.includes('facebook') || host.includes('fb.')) return 'facebook';
+    if (host.includes('instagram')) return 'instagram';
+    if (host.includes('whatsapp')) return 'whatsapp';
+    if (host.includes('tiktok')) return 'tiktok';
+    if (host.includes('youtube')) return 'youtube';
+    if (host.includes('bing')) return 'bing';
+    if (host.includes('mail')) return 'email';
+    return host.replace(/^www\./, '');
+  } catch (_) {
+    return 'referral';
+  }
+}
+
+function createAnalyticsBuckets(days = 30) {
+  const buckets = [];
+  const now = new Date();
+  const formatter = new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'America/Port-au-Prince'
+  });
+
+  for (let index = days - 1; index >= 0; index -= 1) {
+    const date = new Date(now);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - index);
+    const key = date.toISOString().slice(0, 10);
+    buckets.push({
+      key,
+      label: formatter.format(date).replace('.', ''),
+      pageViews: 0,
+      uniqueVisitors: 0,
+      _sessions: new Set()
+    });
+  }
+
+  return buckets;
+}
+
+function incrementCounter(map, key, payloadFactory = null) {
+  const normalizedKey = String(key || '').trim() || 'inconnu';
+  if (!map.has(normalizedKey)) {
+    map.set(normalizedKey, payloadFactory ? payloadFactory() : { label: normalizedKey, value: 0 });
+  }
+  map.get(normalizedKey).value += 1;
+}
+
+function finalizeCounterMap(map, { limit = 8 } = {}) {
+  return Array.from(map.values())
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit);
 }
 
 function applyCors(res) {
@@ -2242,6 +2373,283 @@ exports.createVendorPayout = onRequest(
         ok: false,
         error: 'vendor-payout-failed',
         message: error?.message || 'Unable to create vendor payout'
+      });
+    }
+  }
+);
+
+function buildWebsiteAnalyticsResponse({ sessions = [], events = [], days = 30 } = {}) {
+  const safeDays = clampNumber(days, 7, 90, 30);
+  const timeline = createAnalyticsBuckets(safeDays);
+  const bucketMap = new Map(timeline.map((entry) => [entry.key, entry]));
+  const pageMap = new Map();
+  const sourceMap = new Map();
+  const deviceMap = new Map();
+  const browserMap = new Map();
+  const osMap = new Map();
+  const languageMap = new Map();
+  const timeZoneMap = new Map();
+  const eventMap = new Map();
+
+  const nowMs = Date.now();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfTodayMs = startOfToday.getTime();
+
+  sessions.forEach((session) => {
+    incrementCounter(sourceMap, session.source, () => ({
+      label: session.source || 'direct',
+      value: 0
+    }));
+    incrementCounter(deviceMap, session.deviceType, () => ({
+      label: session.deviceType || 'desktop',
+      value: 0
+    }));
+    incrementCounter(browserMap, session.browser, () => ({
+      label: session.browser || 'Autre',
+      value: 0
+    }));
+    incrementCounter(osMap, session.os, () => ({
+      label: session.os || 'Autre',
+      value: 0
+    }));
+    incrementCounter(languageMap, session.language, () => ({
+      label: session.language || 'Inconnue',
+      value: 0
+    }));
+    incrementCounter(timeZoneMap, session.timeZone, () => ({
+      label: session.timeZone || 'Inconnu',
+      value: 0
+    }));
+  });
+
+  let pageViews = 0;
+  events.forEach((event) => {
+    incrementCounter(eventMap, event.eventName, () => ({
+      label: event.eventName || 'event',
+      value: 0
+    }));
+
+    const bucketKey = new Date(event.createdAtMs || 0).toISOString().slice(0, 10);
+    const bucket = bucketMap.get(bucketKey);
+    if (bucket && event.eventName === 'page_view') {
+      bucket.pageViews += 1;
+      if (event.sessionId) bucket._sessions.add(event.sessionId);
+    }
+
+    if (event.eventName !== 'page_view') return;
+    pageViews += 1;
+
+    const pagePath = sanitizePath(event.pagePath || '/');
+    if (!pageMap.has(pagePath)) {
+      pageMap.set(pagePath, {
+        path: pagePath,
+        title: sanitizeText(event.pageTitle || pagePath, 120) || pagePath,
+        value: 0
+      });
+    }
+    pageMap.get(pagePath).value += 1;
+  });
+
+  const uniqueVisitors = sessions.length;
+  const activeToday = sessions.filter((session) => Number(session.lastSeenAtMs || 0) >= startOfTodayMs).length;
+  const newVisitors = sessions.filter((session) => Number(session.firstSeenAtMs || 0) >= (nowMs - safeDays * 86400000)).length;
+
+  const finalizedTimeline = timeline.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    pageViews: entry.pageViews,
+    uniqueVisitors: entry._sessions.size
+  }));
+
+  const recentSessions = sessions
+    .slice()
+    .sort((a, b) => Number(b.lastSeenAtMs || 0) - Number(a.lastSeenAtMs || 0))
+    .slice(0, 20)
+    .map((session) => ({
+      sessionId: session.sessionId,
+      firstSeenAt: session.firstSeenAt || '',
+      lastSeenAt: session.lastSeenAt || '',
+      pageViews: Number(session.pageViews || 0),
+      landingPath: session.landingPath || '/',
+      landingTitle: session.landingTitle || '',
+      source: session.source || 'direct',
+      deviceType: session.deviceType || 'desktop',
+      browser: session.browser || 'Autre',
+      os: session.os || 'Autre',
+      language: session.language || '',
+      timeZone: session.timeZone || '',
+      regionHint: session.regionHint || ''
+    }));
+
+  return {
+    summary: {
+      uniqueVisitors,
+      newVisitors,
+      activeToday,
+      pageViews,
+      averagePagesPerSession: uniqueVisitors ? Number((pageViews / uniqueVisitors).toFixed(2)) : 0,
+      checkoutStarts: eventMap.get('begin_checkout')?.value || 0,
+      cartAdds: eventMap.get('add_to_cart')?.value || 0
+    },
+    timeline: finalizedTimeline,
+    topPages: Array.from(pageMap.values()).sort((a, b) => b.value - a.value).slice(0, 10),
+    sources: finalizeCounterMap(sourceMap),
+    devices: finalizeCounterMap(deviceMap),
+    browsers: finalizeCounterMap(browserMap),
+    operatingSystems: finalizeCounterMap(osMap),
+    languages: finalizeCounterMap(languageMap),
+    timeZones: finalizeCounterMap(timeZoneMap),
+    events: finalizeCounterMap(eventMap, { limit: 12 }),
+    recentSessions
+  };
+}
+
+exports.trackWebsiteVisit = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const body = parseBody(req);
+      const now = new Date();
+      const nowMs = now.getTime();
+      const userAgent = sanitizeText(req.headers['user-agent'] || body.userAgent || '', 400);
+      const sessionId = sanitizeText(body.sessionId || '', 120);
+      const visitorId = sanitizeText(body.visitorId || '', 120);
+
+      if (!sessionId || !visitorId) {
+        sendJson(res, 400, { ok: false, error: 'missing-session' });
+        return;
+      }
+
+      const eventName = sanitizeAnalyticsEventName(body.eventName || 'page_view');
+      const pagePath = sanitizePath(body.pagePath || '/');
+      const pageTitle = sanitizeText(body.pageTitle || pagePath, 160);
+      const referrer = sanitizeText(body.referrer || req.headers.referer || '', 320);
+      const language = sanitizeText(body.language || req.headers['accept-language'] || '', 64);
+      const timeZone = sanitizeText(body.timeZone || '', 80);
+      const source = inferTrafficSource(referrer, body.source || '');
+      const deviceType = sanitizeText(body.deviceType || detectDeviceType({ userAgent, viewport: body.viewport }), 32);
+      const browser = sanitizeText(body.browser || detectBrowserFromUserAgent(userAgent), 64);
+      const os = sanitizeText(body.os || detectOsFromUserAgent(userAgent), 64);
+      const viewport = sanitizeText(body.viewport || '', 40);
+      const screen = sanitizeText(body.screen || '', 40);
+      const regionHint = sanitizeText(body.regionHint || parseLanguageRegion(language), 12);
+      const ipHash = hashValue(getClientIp(req));
+
+      const sessionRef = db.collection('websiteAnalyticsSessions').doc(sessionId);
+      const sessionSnap = await sessionRef.get();
+      const existing = sessionSnap.exists ? (sessionSnap.data() || {}) : {};
+      const pageViews = Number(existing.pageViews || 0) + (eventName === 'page_view' ? 1 : 0);
+
+      await sessionRef.set({
+        sessionId,
+        visitorId,
+        firstSeenAt: existing.firstSeenAt || now.toISOString(),
+        firstSeenAtMs: Number(existing.firstSeenAtMs || nowMs),
+        lastSeenAt: now.toISOString(),
+        lastSeenAtMs: nowMs,
+        landingPath: existing.landingPath || pagePath,
+        landingTitle: existing.landingTitle || pageTitle,
+        latestPath: pagePath,
+        latestTitle: pageTitle,
+        source,
+        deviceType,
+        browser,
+        os,
+        language,
+        regionHint,
+        timeZone,
+        viewport,
+        screen,
+        referrer: existing.referrer || referrer,
+        pageViews,
+        ipHash
+      }, { merge: true });
+
+      await db.collection('websiteAnalyticsEvents').add({
+        sessionId,
+        visitorId,
+        eventName,
+        pagePath,
+        pageTitle,
+        referrer,
+        source,
+        deviceType,
+        browser,
+        os,
+        language,
+        regionHint,
+        timeZone,
+        viewport,
+        screen,
+        ipHash,
+        createdAt: now.toISOString(),
+        createdAtMs: nowMs
+      });
+
+      sendJson(res, 200, {
+        ok: true,
+        tracked: eventName,
+        sessionId
+      });
+    } catch (error) {
+      logger.error('Website analytics tracking failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'analytics-track-failed',
+        message: error?.message || 'Unable to track website visit'
+      });
+    }
+  }
+);
+
+exports.getWebsiteAnalytics = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const days = clampNumber(req.query.days, 7, 90, 30);
+      const cutoffMs = Date.now() - (days * 86400000);
+
+      const [sessionsSnap, eventsSnap] = await Promise.all([
+        db.collection('websiteAnalyticsSessions').where('lastSeenAtMs', '>=', cutoffMs).get(),
+        db.collection('websiteAnalyticsEvents').where('createdAtMs', '>=', cutoffMs).get()
+      ]);
+
+      const sessions = sessionsSnap.docs.map((item) => ({ id: item.id, ...(item.data() || {}) }));
+      const events = eventsSnap.docs.map((item) => ({ id: item.id, ...(item.data() || {}) }));
+      const analytics = buildWebsiteAnalyticsResponse({ sessions, events, days });
+
+      sendJson(res, 200, {
+        ok: true,
+        rangeDays: days,
+        analytics
+      });
+    } catch (error) {
+      logger.error('Website analytics failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'website-analytics-failed',
+        message: error?.message || 'Unable to load website analytics'
       });
     }
   }

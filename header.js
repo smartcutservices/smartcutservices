@@ -5,6 +5,7 @@ import Navbar from './navbar.js';
 import { getCartManager } from './cart.js?v=20260331-2';
 import { getAuthManager } from './auth.js';
 import { getProfilePanel } from './profile-panel.js';
+import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 
 class SierraHeaderNebula {
   constructor(containerId = 'sierra-header-root') {
@@ -838,6 +839,7 @@ class SierraHeaderNebula {
     });
 
     this.authManager = getAuthManager();
+    getWebsiteAnalyticsTracker().init();
 
     // Singleton: n'instancie qu'une seule fois le gestionnaire panier.
     this.cartManager = getCartManager({
