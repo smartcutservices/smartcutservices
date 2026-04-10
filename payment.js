@@ -1,7 +1,7 @@
 // ============= PAYMENT COMPONENT - PROCESSUS DE PAIEMENT =============
 import { db } from './firebase-init.js';
 import { 
-  collection, getDocs, addDoc, doc
+  collection, getDocs, addDoc, doc, query
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class PaymentModal {
@@ -1071,6 +1071,7 @@ class PaymentModal {
         methodName: this.selectedMethod?.name || 'MonCash',
         items: this.options.cart || [],
         delivery: this.options.delivery || null,
+        promo: this.options.promo || null,
         customerName: customer.customerName,
         customerEmail: customer.customerEmail,
         customerPhone: customer.customerPhone,
@@ -1080,6 +1081,19 @@ class PaymentModal {
 
       if (!response?.checkoutUrl) {
         throw new Error('MonCash n’a pas renvoyé d’URL de paiement.');
+      }
+
+      try {
+        localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
+          sessionId: response?.sessionId || '',
+          orderId: response?.orderId || '',
+          amount: this.options.amount || 0,
+          customerName: customer.customerName,
+          customerEmail: customer.customerEmail,
+          startedAt: new Date().toISOString()
+        }));
+      } catch (_) {
+        // Ignore localStorage errors and continue to payment.
       }
 
       window.location.assign(response.checkoutUrl);

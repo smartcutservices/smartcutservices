@@ -2,6 +2,24 @@
 import { db } from './firebase-init.js';
 import { collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
+function normalizeSelectedOptionLabel(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function isCustomerVisibleOption(option) {
+  if (!option || typeof option === 'string') return true;
+  const label = normalizeSelectedOptionLabel(option?.label || option?.name || option?.key || option?.type || '');
+  return !['url fichier', 'lien fichier', 'chemin storage', 'storage path'].includes(label);
+}
+
+function getCustomerVisibleOptions(options) {
+  return (Array.isArray(options) ? options : []).filter(isCustomerVisibleOption);
+}
+
 class CheckoutModal {
   constructor(options = {}) {
     this.options = {
@@ -19,8 +37,10 @@ class CheckoutModal {
     this.cart = this.options.cart || [];
     this.client = this.options.client;
     this.subtotal = 0;
+    this.discountAmount = 0;
     this.shipping = 0;
     this.total = 0;
+    this.appliedPromo = null;
     this.uniqueId = 'checkout_' + Math.random().toString(36).substr(2, 9);
     this.modal = null;
     this.paymentModal = null;
@@ -71,8 +91,9 @@ class CheckoutModal {
   
   calculateTotals() {
     this.subtotal = this.cart.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+    this.discountAmount = Math.max(0, Number(this.appliedPromo?.discountAmount || 0));
     this.shipping = Number(this.shipping) || 0;
-    this.total = this.subtotal + this.shipping;
+    this.total = Math.max(0, this.subtotal - this.discountAmount) + this.shipping;
   }
   
   getImagePath(filename) {
@@ -391,6 +412,21 @@ class CheckoutModal {
             Appliquer
           </button>
         </div>
+        <div style="
+          margin: -0.8rem 0 1rem;
+          color: #8B7E6B;
+          font-size: 0.85rem;
+          line-height: 1.55;
+        ">
+          Les codes promo Smart Cut Services s appliquent uniquement aux produits Smart Cut eligibles de votre panier.
+        </div>
+        <div class="promo-feedback" style="
+          display: ${this.appliedPromo ? 'block' : 'none'};
+          margin: -0.8rem 0 1.2rem;
+          color: #2E5D3A;
+          font-size: 0.9rem;
+          line-height: 1.5;
+        ">${this.appliedPromo ? this.escapeHtml(this.buildPromoFeedback()) : ''}</div>
         
         <!-- Totaux -->
         <div style="
@@ -405,6 +441,16 @@ class CheckoutModal {
           ">
             <span style="color: #8B7E6B;">Sous-total</span>
             <span style="font-weight: 500;">${this.formatPrice(this.subtotal)}</span>
+          </div>
+
+          <div class="promo-discount-row" style="
+            display: ${this.discountAmount > 0 ? 'flex' : 'none'};
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+          ">
+            <span style="color: #2E5D3A;">Code promo</span>
+            <span style="font-weight: 600; color: #2E5D3A;">- ${this.formatPrice(this.discountAmount)}</span>
           </div>
           
           <div style="
@@ -613,7 +659,7 @@ class CheckoutModal {
   }
   
   renderDesktopRow(item, index) {
-    const options = item.selectedOptions || [];
+    const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
     
@@ -677,7 +723,7 @@ class CheckoutModal {
   }
   
   renderMobileCard(item, index) {
-    const options = item.selectedOptions || [];
+    const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
     
@@ -1013,26 +1059,7 @@ class CheckoutModal {
   }
 
   updateTotalsUI() {
-    const shippingEl = this.modal.querySelector('[data-shipping-amount]');
-    if (shippingEl) {
-      const baseFee = Number(this.deliveryFees.base || 0);
-      const weightFee = Number(this.deliveryFees.weightExtra || 0);
-      shippingEl.textContent = baseFee === 0 && weightFee === 0 ? 'Gratuite' : this.formatPrice(baseFee);
-    }
-    const weightRow = this.modal.querySelector('[data-weight-row]');
-    const weightFeeEl = this.modal.querySelector('[data-weight-fee]');
-    if (weightRow && weightFeeEl) {
-      if (this.deliveryFees.weightExtra > 0) {
-        weightRow.style.display = 'flex';
-        weightFeeEl.textContent = this.formatPrice(this.deliveryFees.weightExtra);
-      } else {
-        weightRow.style.display = 'none';
-      }
-    }
-    const totalEl = this.modal.querySelector('[data-total-amount]');
-    if (totalEl) {
-      totalEl.textContent = this.formatPrice(this.total);
-    }
+    this.refreshPromoUI();
   }
 
   isValidPhone(value) {
@@ -1126,13 +1153,11 @@ class CheckoutModal {
     const promoInput = this.modal.querySelector('.promo-code');
     
     if (applyPromo && promoInput) {
-      applyPromo.addEventListener('click', () => {
-        const code = promoInput.value.trim().toUpperCase();
-        if (code === 'SIERRA10' || code === 'VITCHSTUDIO10') {
-          this.applyDiscount(0.1);
-          this.showMessage('Code promo appliqué : 10% de réduction !', 'success');
-        } else {
-          this.showMessage('Code promo invalide', 'error');
+      applyPromo.addEventListener('click', () => this.applyPromoCode(promoInput.value));
+      promoInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          this.applyPromoCode(promoInput.value);
         }
       });
     }
@@ -1199,6 +1224,110 @@ class CheckoutModal {
       setTimeout(() => notification.remove(), 300);
     }, 3000);
   }
+
+  escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  buildPromoFeedback() {
+    if (!this.appliedPromo) return '';
+    return `${this.appliedPromo.code || ''} - ${this.appliedPromo.label || 'Reduction appliquee'} (${this.formatPrice(this.appliedPromo.discountAmount || 0)})`;
+  }
+
+  refreshPromoUI() {
+    this.calculateTotals();
+
+    const feedback = this.modal?.querySelector('.promo-feedback');
+    if (feedback) {
+      feedback.style.display = this.appliedPromo ? 'block' : 'none';
+      feedback.innerHTML = this.appliedPromo ? this.escapeHtml(this.buildPromoFeedback()) : '';
+    }
+
+    const discountRow = this.modal?.querySelector('.promo-discount-row');
+    if (discountRow) {
+      discountRow.style.display = this.discountAmount > 0 ? 'flex' : 'none';
+      const amountEl = discountRow.querySelector('span:last-child');
+      if (amountEl) amountEl.textContent = `- ${this.formatPrice(this.discountAmount)}`;
+    }
+
+    const totalEl = this.modal?.querySelector('[data-total-amount]');
+    if (totalEl) totalEl.textContent = this.formatPrice(this.total);
+
+    const shippingEl = this.modal?.querySelector('[data-shipping-amount]');
+    if (shippingEl) {
+      const baseFee = Number(this.deliveryFees.base || 0);
+      const weightFee = Number(this.deliveryFees.weightExtra || 0);
+      shippingEl.textContent = baseFee === 0 && weightFee === 0 ? 'Gratuite' : this.formatPrice(baseFee);
+    }
+
+    const weightRow = this.modal?.querySelector('[data-weight-row]');
+    const weightFeeEl = this.modal?.querySelector('[data-weight-fee]');
+    if (weightRow) weightRow.style.display = Number(this.deliveryFees.weightExtra || 0) > 0 ? 'flex' : 'none';
+    if (weightFeeEl) weightFeeEl.textContent = this.formatPrice(Number(this.deliveryFees.weightExtra || 0));
+
+    const payBtn = this.modal?.querySelector('.pay-now-btn');
+    if (payBtn) {
+      payBtn.innerHTML = `
+        <i class="fas fa-lock" style="margin-right: 0.5rem;"></i>
+        Payer ${this.formatPrice(this.total)}
+      `;
+    }
+  }
+
+  async applyPromoCode(code) {
+    const normalizedCode = String(code || '').trim().toUpperCase();
+
+    if (!normalizedCode) {
+      this.appliedPromo = null;
+      this.refreshPromoUI();
+      this.showMessage('Code promo retire', 'success');
+      return;
+    }
+
+    const applyBtn = this.modal?.querySelector('.apply-promo');
+    if (applyBtn) {
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Verification...';
+    }
+
+    try {
+      const { previewPromoCode } = await import('./promo-client.js');
+      const response = await previewPromoCode({
+        code: normalizedCode,
+        clientId: this.client?.id || '',
+        clientUid: this.client?.uid || '',
+        items: this.cart
+      });
+
+      this.appliedPromo = {
+        code: response.code || normalizedCode,
+        promoId: response.promoId || '',
+        label: response.label || 'Reduction appliquee',
+        discountAmount: Number(response.discountAmount || 0),
+        discountedSubtotal: Number(response.discountedSubtotal || 0),
+        eligibleSubtotal: Number(response.eligibleSubtotal || 0),
+        type: response.type || '',
+        value: Number(response.value || 0),
+        categoryIds: Array.isArray(response.categoryIds) ? response.categoryIds : []
+      };
+      this.refreshPromoUI();
+      this.showMessage(response.message || 'Code promo applique', 'success');
+    } catch (error) {
+      this.appliedPromo = null;
+      this.refreshPromoUI();
+      this.showMessage(error?.message || 'Code promo invalide', 'error');
+    } finally {
+      if (applyBtn) {
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Appliquer';
+      }
+    }
+  }
   
   async openPaymentModal() {
     try {
@@ -1209,7 +1338,7 @@ class CheckoutModal {
       if (!this.validateDelivery()) {
         return;
       }
-      const module = await import('./payment.js');
+      const module = await import('./payment.js?v=20260331-3');
       const PaymentModal = module.default;
       
       await this.close();
@@ -1219,6 +1348,7 @@ class CheckoutModal {
         client: this.client,
         cart: this.cart,
         delivery: this.getDeliveryPayload(),
+        promo: this.appliedPromo,
         onClose: () => {
           this.paymentModal = null;
         },
