@@ -1010,6 +1010,11 @@ async function findPromoByCode(code = '') {
   const normalizedCode = normalizePromoCode(code);
   if (!normalizedCode) return null;
 
+  const directSnap = await db.collection('promoCodes').doc(normalizedCode).get();
+  if (directSnap.exists) {
+    return { id: directSnap.id, ref: directSnap.ref, data: directSnap.data() || {} };
+  }
+
   const snap = await db
     .collection('promoCodes')
     .where('code', '==', normalizedCode)
