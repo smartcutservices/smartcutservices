@@ -953,6 +953,15 @@ function normalizePromoLookupValue(value = '') {
   return normalizePromoCode(value).replace(/[^A-Z0-9]/g, '');
 }
 
+function normalizeCategoryToken(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
 function buildPromoUsageId(promoId = '', clientKey = '') {
   return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
 }
@@ -984,12 +993,18 @@ function getPromoEligibleItems(items = [], promo = {}) {
   const allowedCategoryIds = Array.isArray(promo?.categoryIds)
     ? promo.categoryIds.map((value) => String(value || '').trim()).filter(Boolean)
     : [];
+  const allowedCategoryNames = Array.isArray(promo?.categoryNames)
+    ? promo.categoryNames.map((value) => normalizeCategoryToken(value)).filter(Boolean)
+    : [];
 
   return items.filter((item) => {
     if (!isSmartCutCartItem(item)) return false;
-    if (!allowedCategoryIds.length) return true;
+    if (!allowedCategoryIds.length && !allowedCategoryNames.length) return true;
     const itemCategoryId = String(item?.categoryId || '').trim();
-    return Boolean(itemCategoryId) && allowedCategoryIds.includes(itemCategoryId);
+    const itemCategoryName = normalizeCategoryToken(item?.category || item?.categoryName || '');
+    if (Boolean(itemCategoryId) && allowedCategoryIds.includes(itemCategoryId)) return true;
+    if (itemCategoryName && allowedCategoryNames.includes(itemCategoryName)) return true;
+    return false;
   });
 }
 
@@ -1031,7 +1046,7 @@ async function findPromoByCode(code = '') {
     return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
   }
 
-  const fallbackSnap = await db.collection('promoCodes').limit(200).get();
+  const fallbackSnap = await db.collection('promoCodes').get();
   const fallbackDoc = fallbackSnap.docs.find((docSnap) => {
     const data = docSnap.data() || {};
     return (

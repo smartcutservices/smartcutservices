@@ -2,6 +2,7 @@
 import { db } from './firebase-init.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
+import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { loadPublicProducts, isPublicProductVisible } from './catalog-products.js';
 import { 
   collection, query, getDocs, limit 
@@ -129,8 +130,10 @@ class SierraProducts {
   
   getVariationEffectivePrice(product, variation) {
     const variationPrice = this.toNumber(variation?.price, NaN);
-    if (Number.isFinite(variationPrice) && variationPrice > 0) return variationPrice;
-    return this.toNumber(product?.price, 0);
+    const basePrice = Number.isFinite(variationPrice) && variationPrice > 0
+      ? variationPrice
+      : this.toNumber(product?.price, 0);
+    return getProductPricing(product, basePrice).currentPrice;
   }
   
   formatPrice(price) {
@@ -154,7 +157,7 @@ class SierraProducts {
   // Obtenir le prix minimum d'un produit (toutes variations)
   getMinPrice(product) {
     if (!product.variations || product.variations.length === 0) {
-      return this.toNumber(product.price, 0);
+      return getProductPricing(product, this.toNumber(product.price, 0)).currentPrice;
     }
     
     return Math.min(...product.variations.map(v => this.getVariationEffectivePrice(product, v)));
@@ -163,7 +166,7 @@ class SierraProducts {
   // Obtenir le prix maximum d'un produit (toutes variations)
   getMaxPrice(product) {
     if (!product.variations || product.variations.length === 0) {
-      return this.toNumber(product.price, 0);
+      return getProductPricing(product, this.toNumber(product.price, 0)).currentPrice;
     }
     
     return Math.max(...product.variations.map(v => this.getVariationEffectivePrice(product, v)));
@@ -171,8 +174,17 @@ class SierraProducts {
   
   // Formater la plage de prix
   formatPriceRange(product) {
-    const minPrice = this.getMinPrice(product);
-    const maxPrice = this.getMaxPrice(product);
+    const prices = Array.isArray(product?.variations) && product.variations.length > 0
+      ? product.variations.map((variation) => {
+        const variationPrice = this.toNumber(variation?.price, NaN);
+        return Number.isFinite(variationPrice) && variationPrice > 0
+          ? variationPrice
+          : this.toNumber(product?.price, 0);
+      })
+      : [this.toNumber(product?.price, 0)];
+    const range = getProductPriceRange(product, prices);
+    const minPrice = range.minPrice;
+    const maxPrice = range.maxPrice;
     
     if (minPrice === maxPrice) {
       return this.formatPrice(minPrice);
@@ -224,7 +236,11 @@ class SierraProducts {
     const variation = Array.isArray(product?.variations) ? product.variations[variationIndex] || null : null;
     const fallbackImage = this.getVariationImages(product, variationIndex)[0] || '';
     const finalImage = variation?.images?.[0] || fallbackImage;
-    const finalPrice = this.getVariationEffectivePrice(product, variation);
+    const variationPrice = this.toNumber(variation?.price, NaN);
+    const basePrice = Number.isFinite(variationPrice) && variationPrice > 0
+      ? variationPrice
+      : this.toNumber(product?.price, 0);
+    const finalPrice = getProductPricing(product, basePrice).currentPrice;
     const stockLimit = variation
       ? this.toStockLimit(variation?.stock)
       : this.toStockLimit(product?.stock);
@@ -250,7 +266,9 @@ class SierraProducts {
       vendorId: String(product?.vendorId || '').trim(),
       vendorName: String(product?.vendorName || product?.shopName || '').trim(),
       commissionRule: product?.commissionRule || null,
-      sourceType: String(product?.sourceType || (product?.vendorId ? 'vendor' : '')).trim(),
+      sourceType: String(product?.sourceType || (product?.vendorId ? 'vendor' : 'smartcut')).trim(),
+      sourceCollection: String(product?.sourceCollection || (product?.vendorId ? 'vendorProducts' : 'products')).trim(),
+      categoryId: String(product?.categoryId || '').trim(),
       category: String(product?.category || product?.categoryName || '').trim(),
       deliveryMode: String(product?.deliveryMode || '').trim(),
       selectedOptions,
@@ -635,13 +653,37 @@ class SierraProducts {
     const mainImage = images[currentImageIndex] || '';
     const hasMultipleImages = images.length > 1;
     const hasMultipleVariations = hasVariations && product.variations.length > 1;
+    const storeMeta = getProductStoreMeta(product);
+    const singlePricing = hasVariations
+      ? null
+      : getProductPricing(product, this.toNumber(product?.price, 0));
+    const rangePricing = hasVariations
+      ? getProductPriceRange(
+        product,
+        product.variations.map((variation) => {
+          const variationPrice = this.toNumber(variation?.price, NaN);
+          return Number.isFinite(variationPrice) && variationPrice > 0
+            ? variationPrice
+            : this.toNumber(product?.price, 0);
+        })
+      )
+      : null;
     
     // Prix
     let priceDisplay = '';
+    let comparePriceDisplay = '';
     if (hasVariations) {
       priceDisplay = this.formatPriceRange(product);
+      if (rangePricing?.hasDiscount && rangePricing.maxComparePrice > 0) {
+        comparePriceDisplay = rangePricing.minComparePrice === rangePricing.maxComparePrice
+          ? this.formatPrice(rangePricing.minComparePrice)
+          : `${this.formatPrice(rangePricing.minComparePrice)} - ${this.formatPrice(rangePricing.maxComparePrice)}`;
+      }
     } else {
-      priceDisplay = this.formatPrice(product.price || 0);
+      priceDisplay = this.formatPrice(singlePricing?.currentPrice || 0);
+      comparePriceDisplay = singlePricing?.comparePrice
+        ? this.formatPrice(singlePricing.comparePrice)
+        : '';
     }
     
     return `
@@ -695,6 +737,10 @@ class SierraProducts {
             <h3 class="font-medium text-luxury text-lg mb-1 line-clamp-2">
               ${product.name || 'Produit sans nom'}
             </h3>
+
+            <a href="${storeMeta.url}" class="product-store-link text-[0.78rem] font-semibold uppercase tracking-[0.12em] text-accent/90 mb-2 line-clamp-1 block" onclick="event.stopPropagation();">
+              <i class="fas fa-store mr-1 text-[0.72rem]"></i>${storeMeta.storeName}
+            </a>
             
             <p class="text-accent text-sm mb-2 line-clamp-2">
               ${product.shortDescription || ''}
@@ -704,9 +750,9 @@ class SierraProducts {
               <span class="text-xl font-bold text-luxury">
                 ${priceDisplay}
               </span>
-              ${!hasVariations && product.comparePrice ? `
+              ${comparePriceDisplay ? `
                 <span class="price-barre ml-2">
-                  ${this.formatPrice(product.comparePrice)}
+                  ${comparePriceDisplay}
                 </span>
               ` : ''}
             </div>

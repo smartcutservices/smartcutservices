@@ -1165,6 +1165,14 @@ class CartManager {
       return;
     }
     
+    item = {
+      ...item,
+      sourceType: String(item?.sourceType || (item?.vendorId ? 'vendor' : 'smartcut')).trim(),
+      sourceCollection: String(item?.sourceCollection || (item?.vendorId ? 'vendorProducts' : 'products')).trim(),
+      categoryId: String(item?.categoryId || '').trim(),
+      category: String(item?.category || '').trim()
+    };
+
     const itemKey = this.getCartItemKey(item);
     const existingIndex = this.cart.findIndex(cartItem => this.getCartItemKey(cartItem) === itemKey);
     const incomingQty = Math.max(0, Number(item.quantity) || 1);
@@ -1185,6 +1193,18 @@ class CartManager {
       this.cart[existingIndex].stockLimit = Number.isFinite(stockLimit) ? stockLimit : this.cart[existingIndex].stockLimit;
       if (item.weightGrams && !this.cart[existingIndex].weightGrams) {
         this.cart[existingIndex].weightGrams = item.weightGrams;
+      }
+      if (!this.cart[existingIndex].sourceCollection && item.sourceCollection) {
+        this.cart[existingIndex].sourceCollection = item.sourceCollection;
+      }
+      if (!this.cart[existingIndex].sourceType && item.sourceType) {
+        this.cart[existingIndex].sourceType = item.sourceType;
+      }
+      if (!this.cart[existingIndex].categoryId && item.categoryId) {
+        this.cart[existingIndex].categoryId = item.categoryId;
+      }
+      if (!this.cart[existingIndex].category && item.category) {
+        this.cart[existingIndex].category = item.category;
       }
       this.showNotification(
         nextQty < currentQty + incomingQty

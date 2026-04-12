@@ -4,6 +4,7 @@ import { findPublicProductById, loadPublicProducts } from './catalog-products.js
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { buildProductPageUrl, buildProductShareUrl } from './product-links.js';
+import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { 
   doc, getDoc, collection, query, getDocs, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -154,8 +155,10 @@ class ProductModal {
   
   getVariationEffectivePrice(variation, product = this.product) {
     const variationPrice = this.toNumber(variation?.price, NaN);
-    if (Number.isFinite(variationPrice) && variationPrice > 0) return variationPrice;
-    return this.toNumber(product?.price, 0);
+    const basePrice = Number.isFinite(variationPrice) && variationPrice > 0
+      ? variationPrice
+      : this.toNumber(product?.price, 0);
+    return getProductPricing(product, basePrice).currentPrice;
   }
   
   getProductImages(product = this.product) {
@@ -170,15 +173,36 @@ class ProductModal {
   getProductDisplayPrice(product = this.product) {
     const variations = Array.isArray(product?.variations) ? product.variations : [];
     if (variations.length === 0) {
-      const price = this.toNumber(product?.price, 0);
-      return { text: this.formatPrice(price), value: price };
+      const pricing = getProductPricing(product, this.toNumber(product?.price, 0));
+      return {
+        text: this.formatPrice(pricing.currentPrice),
+        value: pricing.currentPrice,
+        comparePrice: pricing.comparePrice,
+        hasDiscount: pricing.hasDiscount
+      };
     }
     
-    const prices = variations.map(v => this.getVariationEffectivePrice(v, product));
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    if (min === max) return { text: this.formatPrice(min), value: min };
-    return { text: `${this.formatPrice(min)} - ${this.formatPrice(max)}`, value: min };
+    const rawPrices = variations.map((variation) => {
+      const variationPrice = this.toNumber(variation?.price, NaN);
+      return Number.isFinite(variationPrice) && variationPrice > 0
+        ? variationPrice
+        : this.toNumber(product?.price, 0);
+    });
+    const range = getProductPriceRange(product, rawPrices);
+    if (range.minPrice === range.maxPrice) {
+      return {
+        text: this.formatPrice(range.minPrice),
+        value: range.minPrice,
+        comparePrice: range.maxComparePrice,
+        hasDiscount: range.hasDiscount
+      };
+    }
+    return {
+      text: `${this.formatPrice(range.minPrice)} - ${this.formatPrice(range.maxPrice)}`,
+      value: range.minPrice,
+      comparePrice: range.maxComparePrice,
+      hasDiscount: range.hasDiscount
+    };
   }
   
   getCurrentDisplayImages() {
@@ -977,6 +1001,7 @@ class ProductModal {
   renderProductInfo() {
     const product = this.product;
     const displayPrice = this.getProductDisplayPrice(product);
+    const storeMeta = getProductStoreMeta(product);
     const variationsCount = Array.isArray(product.variations) ? product.variations.length : 0;
     
     return `
@@ -985,6 +1010,11 @@ class ProductModal {
         <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2rem; color: #1F1E1C; margin: 0;">
           ${product.name || 'Produit sans nom'}
         </h1>
+
+        <a href="${storeMeta.url}" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:0.45rem;color:#8B7E6B;text-decoration:none;font-size:0.78rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;max-width:100%;">
+          <i class="fas fa-store" style="color:#C6A75E;"></i>
+          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeMeta.storeName}</span>
+        </a>
         
         <!-- Description courte -->
         <p style="color: #8B7E6B; margin: 0;">
@@ -996,9 +1026,9 @@ class ProductModal {
           <span class="product-current-price" style="font-size: 2rem; font-weight: bold; color: #1F1E1C;">
             ${displayPrice.text}
           </span>
-          ${product.comparePrice && variationsCount <= 1 ? `
+          ${displayPrice.comparePrice && variationsCount <= 1 ? `
             <span class="product-compare-price" style="font-size: 1.25rem; color: #8B7E6B; text-decoration: line-through;">
-              ${this.formatPrice(product.comparePrice)}
+              ${this.formatPrice(displayPrice.comparePrice)}
             </span>
           ` : ''}
         </div>
@@ -1303,10 +1333,14 @@ class ProductModal {
                      onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;&quot;><i class=&quot;fas fa-image&quot;></i></div>';">
               </div>
               <h4 style="font-weight: 500; font-size: 0.875rem; margin: 0 0 0.25rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${product.name || ''}</h4>
+              <a href="${getProductStoreMeta(product).url}" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:0.35rem;max-width:100%;margin:0 0 0.3rem 0;color:#8B7E6B;text-decoration:none;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+                <i class="fas fa-store" style="color:#C6A75E;"></i>
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${getProductStoreMeta(product).storeName}</span>
+              </a>
               <div style="display: flex; align-items: baseline; gap: 0.5rem;">
                 <span style="font-weight: bold;">${this.getProductDisplayPrice(product).text}</span>
-                ${product.comparePrice ? `
-                  <span style="font-size: 0.75rem; color: #8B7E6B; text-decoration: line-through;">${this.formatPrice(product.comparePrice)}</span>
+                ${this.getProductDisplayPrice(product).comparePrice ? `
+                  <span style="font-size: 0.75rem; color: #8B7E6B; text-decoration: line-through;">${this.formatPrice(this.getProductDisplayPrice(product).comparePrice)}</span>
                 ` : ''}
               </div>
             </div>
@@ -1789,7 +1823,9 @@ class ProductModal {
     vendorId,
     vendorName: String(product?.vendorName || product?.shopName || '').trim(),
     commissionRule: product?.commissionRule || null,
-    sourceType: String(product?.sourceType || (vendorId ? 'vendor' : '')).trim(),
+    sourceType: String(product?.sourceType || (vendorId ? 'vendor' : 'smartcut')).trim(),
+    sourceCollection: String(product?.sourceCollection || (vendorId ? 'vendorProducts' : 'products')).trim(),
+    categoryId: String(product?.categoryId || '').trim(),
     category: String(product?.category || product?.categoryName || '').trim(),
     deliveryMode: String(product?.deliveryMode || '').trim()
   };
