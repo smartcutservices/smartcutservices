@@ -509,6 +509,8 @@ function normalizeItems(items) {
           vendorName: item?.vendorName || '',
           commissionRule: item?.commissionRule || null,
           sourceType: item?.sourceType || '',
+          sourceCollection: item?.sourceCollection || '',
+          categoryId: item?.categoryId || '',
           category: item?.category || '',
           deliveryMode: item?.deliveryMode || ''
         };
@@ -557,19 +559,23 @@ async function enrichMarketplaceItems(items = []) {
     const isVendorItem = itemVendorId || String(item?.sourceType || '').toLowerCase().includes('vendor');
     const productId = String(item?.productId || '').trim();
 
-    if (!isVendorItem || !productId) {
-      return {
-        ...item,
-        commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
-      };
-    }
-
     try {
-      const productSnap = await db.collection('vendorProducts').doc(productId).get();
+      if (!productId) {
+        return {
+          ...item,
+          sourceCollection: isVendorItem ? 'vendorProducts' : 'products',
+          sourceType: isVendorItem ? 'vendor' : (item?.sourceType || 'smartcut'),
+          commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+        };
+      }
+
+      const collectionName = isVendorItem ? 'vendorProducts' : 'products';
+      const productSnap = await db.collection(collectionName).doc(productId).get();
       if (!productSnap.exists) {
         return {
           ...item,
-          sourceType: 'vendor',
+          sourceCollection: collectionName,
+          sourceType: isVendorItem ? 'vendor' : 'smartcut',
           commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
         };
       }
@@ -584,7 +590,9 @@ async function enrichMarketplaceItems(items = []) {
         vendorId: itemVendorId || String(productData?.vendorId || '').trim(),
         vendorName: item?.vendorName || String(productData?.vendorName || productData?.shopName || '').trim(),
         commissionRule: sanitizeCommissionRule(item?.commissionRule || productData?.commissionRule, resolvedCategory),
-        sourceType: 'vendor',
+        sourceCollection: collectionName,
+        sourceType: isVendorItem ? 'vendor' : 'smartcut',
+        categoryId: String(item?.categoryId || productData?.categoryId || '').trim(),
         category: resolvedCategory,
         deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim()
       };
@@ -595,7 +603,8 @@ async function enrichMarketplaceItems(items = []) {
       });
       return {
         ...item,
-        sourceType: 'vendor',
+        sourceCollection: isVendorItem ? 'vendorProducts' : 'products',
+        sourceType: isVendorItem ? 'vendor' : 'smartcut',
         commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
       };
     }
@@ -933,6 +942,226 @@ function buildOrderTotals(items, delivery) {
     shippingAmount,
     weightFee,
     total: subtotal + shippingAmount
+  };
+}
+
+function normalizePromoCode(value = '') {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function normalizePromoLookupValue(value = '') {
+  return normalizePromoCode(value).replace(/[^A-Z0-9]/g, '');
+}
+
+function buildPromoUsageId(promoId = '', clientKey = '') {
+  return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function isPromoActive(promo = {}, now = Date.now()) {
+  if (promo?.active === false) return false;
+  const startAt = toDateMs(promo?.startAt || promo?.startsAt || promo?.validFrom || '');
+  const endAt = toDateMs(promo?.endAt || promo?.endsAt || promo?.validUntil || '');
+  if (startAt && now < startAt) return false;
+  if (endAt && now > endAt) return false;
+  return true;
+}
+
+function normalizePromoType(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['amount', 'fixed', 'montant'].includes(normalized)) return 'amount';
+  if (['fixed_price', 'prix', 'price'].includes(normalized)) return 'fixed_price';
+  return 'percentage';
+}
+
+function isSmartCutCartItem(item = {}) {
+  const sourceCollection = String(item?.sourceCollection || '').trim().toLowerCase();
+  const sourceType = String(item?.sourceType || '').trim().toLowerCase();
+  const vendorId = String(item?.vendorId || '').trim();
+  return !vendorId && sourceCollection !== 'vendorproducts' && !sourceType.includes('vendor');
+}
+
+function getPromoEligibleItems(items = [], promo = {}) {
+  const allowedCategoryIds = Array.isArray(promo?.categoryIds)
+    ? promo.categoryIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : [];
+
+  return items.filter((item) => {
+    if (!isSmartCutCartItem(item)) return false;
+    if (!allowedCategoryIds.length) return true;
+    const itemCategoryId = String(item?.categoryId || '').trim();
+    return Boolean(itemCategoryId) && allowedCategoryIds.includes(itemCategoryId);
+  });
+}
+
+function calculatePromoDiscount(promo = {}, eligibleSubtotal = 0) {
+  const subtotal = Math.max(0, toNumber(eligibleSubtotal));
+  const value = Math.max(0, toNumber(promo?.value ?? promo?.amount ?? promo?.rate));
+  const type = normalizePromoType(promo?.type);
+  if (subtotal <= 0 || value <= 0) return 0;
+
+  if (type === 'amount') {
+    return Math.min(subtotal, value);
+  }
+
+  if (type === 'fixed_price') {
+    return Math.max(0, Math.min(subtotal, subtotal - value));
+  }
+
+  return Math.min(subtotal, subtotal * (Math.min(value, 100) / 100));
+}
+
+async function findPromoByCode(code = '') {
+  const normalizedCode = normalizePromoCode(code);
+  if (!normalizedCode) return null;
+  const normalizedLookup = normalizePromoLookupValue(code);
+
+  const directSnap = await db.collection('promoCodes').doc(normalizedCode).get();
+  if (directSnap.exists) {
+    return { id: directSnap.id, ref: directSnap.ref, data: directSnap.data() || {} };
+  }
+
+  const snap = await db
+    .collection('promoCodes')
+    .where('code', '==', normalizedCode)
+    .limit(1)
+    .get();
+
+  if (!snap.empty) {
+    const docSnap = snap.docs[0];
+    return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
+  }
+
+  const fallbackSnap = await db.collection('promoCodes').limit(200).get();
+  const fallbackDoc = fallbackSnap.docs.find((docSnap) => {
+    const data = docSnap.data() || {};
+    return (
+      normalizePromoLookupValue(docSnap.id) === normalizedLookup ||
+      normalizePromoLookupValue(data.code || '') === normalizedLookup
+    );
+  });
+
+  if (!fallbackDoc) return null;
+  return { id: fallbackDoc.id, ref: fallbackDoc.ref, data: fallbackDoc.data() || {} };
+}
+
+async function previewPromoForCart({ code = '', clientId = '', clientUid = '', items = [] } = {}) {
+  const normalizedCode = normalizePromoCode(code);
+  logger.info('PROMO_DEBUG preview:start', {
+    code,
+    normalizedCode,
+    clientId: String(clientId || '').trim(),
+    clientUid: String(clientUid || '').trim(),
+    itemCount: Array.isArray(items) ? items.length : 0,
+    items: (Array.isArray(items) ? items : []).map((item) => ({
+      productId: String(item?.productId || '').trim(),
+      name: String(item?.name || '').trim(),
+      categoryId: String(item?.categoryId || '').trim(),
+      category: String(item?.category || '').trim(),
+      sourceType: String(item?.sourceType || '').trim(),
+      sourceCollection: String(item?.sourceCollection || '').trim(),
+      vendorId: String(item?.vendorId || '').trim(),
+      quantity: Math.max(1, toNumber(item?.quantity) || 1),
+      price: Math.max(0, toNumber(item?.price))
+    }))
+  });
+  if (!normalizedCode) {
+    logger.warn('PROMO_DEBUG preview:missing-code');
+    throw new Error('Veuillez saisir un code promo.');
+  }
+
+  const promoRecord = await findPromoByCode(normalizedCode);
+  if (!promoRecord) {
+    logger.warn('PROMO_DEBUG preview:not-found', { normalizedCode });
+    throw new Error('Code promo invalide.');
+  }
+
+  const promo = promoRecord.data || {};
+  logger.info('PROMO_DEBUG preview:promo-found', {
+    promoId: promoRecord.id,
+    promoCode: String(promo?.code || '').trim(),
+    promoActive: promo?.active !== false,
+    categoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds : [],
+    startAt: promo?.startAt || '',
+    endAt: promo?.endAt || ''
+  });
+  if (!isPromoActive(promo)) {
+    logger.warn('PROMO_DEBUG preview:inactive', {
+      promoId: promoRecord.id,
+      startAt: promo?.startAt || '',
+      endAt: promo?.endAt || '',
+      now: new Date().toISOString()
+    });
+    throw new Error('Ce code promo n est pas actif pour le moment.');
+  }
+
+  const clientKey = String(clientUid || clientId || '').trim();
+  if (!clientKey) {
+    logger.warn('PROMO_DEBUG preview:missing-client-key');
+    throw new Error('Client manquant pour verifier ce code promo.');
+  }
+
+  const usageRef = db.collection('promoCodeUsages').doc(buildPromoUsageId(promoRecord.id, clientKey));
+  const usageSnap = await usageRef.get();
+  if (usageSnap.exists) {
+    logger.warn('PROMO_DEBUG preview:already-used', {
+      promoId: promoRecord.id,
+      clientKey
+    });
+    throw new Error('Ce code promo a deja ete utilise avec ce compte.');
+  }
+
+  const eligibleItems = getPromoEligibleItems(items, promo);
+  const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + (toNumber(item?.price) * Math.max(1, toNumber(item?.quantity) || 1)), 0);
+  logger.info('PROMO_DEBUG preview:eligibility', {
+    promoId: promoRecord.id,
+    allowedCategoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds : [],
+    eligibleItemCount: eligibleItems.length,
+    eligibleSubtotal,
+    eligibleItems: eligibleItems.map((item) => ({
+      productId: String(item?.productId || '').trim(),
+      name: String(item?.name || '').trim(),
+      categoryId: String(item?.categoryId || '').trim(),
+      vendorId: String(item?.vendorId || '').trim(),
+      sourceType: String(item?.sourceType || '').trim(),
+      sourceCollection: String(item?.sourceCollection || '').trim()
+    }))
+  });
+  if (eligibleSubtotal <= 0) {
+    logger.warn('PROMO_DEBUG preview:no-eligible-items', {
+      promoId: promoRecord.id,
+      allowedCategoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds : []
+    });
+    throw new Error('Ce code promo ne s applique a aucun produit Smart Cut valide dans votre panier.');
+  }
+
+  const discountAmount = calculatePromoDiscount(promo, eligibleSubtotal);
+  if (discountAmount <= 0) {
+    logger.warn('PROMO_DEBUG preview:zero-discount', {
+      promoId: promoRecord.id,
+      eligibleSubtotal,
+      type: normalizePromoType(promo?.type),
+      value: Math.max(0, toNumber(promo?.value ?? promo?.amount ?? promo?.rate))
+    });
+    throw new Error('Ce code promo ne peut pas etre applique a ce panier.');
+  }
+
+  logger.info('PROMO_DEBUG preview:success', {
+    promoId: promoRecord.id,
+    normalizedCode,
+    eligibleSubtotal,
+    discountAmount
+  });
+  return {
+    promoId: promoRecord.id,
+    code: normalizedCode,
+    label: String(promo?.label || promo?.name || 'Code promo').trim(),
+    type: normalizePromoType(promo?.type),
+    value: Math.max(0, toNumber(promo?.value ?? promo?.amount ?? promo?.rate)),
+    categoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    eligibleSubtotal,
+    discountAmount: Math.min(eligibleSubtotal, discountAmount),
+    discountedSubtotal: Math.max(0, eligibleSubtotal - discountAmount),
+    clientKey
   };
 }
 
@@ -1357,9 +1586,50 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       const orderData = orderSnap.data() || {};
       const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
       const vendorNotifications = !alreadyApplied ? buildVendorOrderNotifications(orderData, session.id) : [];
+      const promoCode = freshSessionData.promoCode && typeof freshSessionData.promoCode === 'object'
+        ? freshSessionData.promoCode
+        : orderData?.promoCode && typeof orderData.promoCode === 'object'
+          ? orderData.promoCode
+          : null;
+      const clientPromoKey = String(sessionData.clientUid || clientId || '').trim();
+      const promoUsageId = promoCode?.promoId && clientPromoKey
+        ? buildPromoUsageId(promoCode.promoId, clientPromoKey)
+        : '';
+      const promoUsageRef = promoUsageId ? db.collection('promoCodeUsages').doc(promoUsageId) : null;
+      const shouldRecordPromoUsage = Boolean(
+        promoUsageRef &&
+        promoCode?.applied &&
+        promoCode?.discountAmount > 0 &&
+        !freshSessionData.promoUsageRecordedAt
+      );
 
       if (!alreadyApplied) {
         await decrementInventoryForItems(transaction, orderData.items || []);
+      }
+
+      if (shouldRecordPromoUsage) {
+        const existingUsageSnap = await transaction.get(promoUsageRef);
+        if (!existingUsageSnap.exists) {
+          transaction.set(promoUsageRef, {
+            promoId: promoCode.promoId,
+            code: String(promoCode.code || '').trim(),
+            clientId,
+            clientUid: sessionData.clientUid || '',
+            orderId,
+            sessionId: session.id,
+            discountAmount: Math.max(0, toNumber(promoCode.discountAmount)),
+            usedAt: now
+          }, { merge: true });
+
+          if (promoCode.promoId) {
+            const promoRef = db.collection('promoCodes').doc(String(promoCode.promoId).trim());
+            transaction.set(promoRef, {
+              usageCount: admin.firestore.FieldValue.increment(1),
+              lastUsedAt: now,
+              updatedAt: now
+            }, { merge: true });
+          }
+        }
       }
 
       transaction.set(session.ref, {
@@ -1371,7 +1641,8 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         providerResponse: details.providerResponse || null,
         updatedAt: now,
         paidAt: now,
-        inventoryAppliedAt: alreadyApplied ? freshSessionData.inventoryAppliedAt || null : now
+        inventoryAppliedAt: alreadyApplied ? freshSessionData.inventoryAppliedAt || null : now,
+        promoUsageRecordedAt: shouldRecordPromoUsage ? now : freshSessionData.promoUsageRecordedAt || null
       }, { merge: true });
 
       transaction.set(orderRef, orderPatch, { merge: true });
@@ -1495,6 +1766,7 @@ exports.createMoncashPayment = onRequest(
     const customerCity = String(body.customerCity || '').trim();
     const delivery = body.delivery && typeof body.delivery === 'object' ? body.delivery : null;
     const items = await enrichMarketplaceItems(body.items);
+    const requestedPromo = body.promo && typeof body.promo === 'object' ? body.promo : null;
 
     if (!localClientId) {
       sendJson(res, 400, { ok: false, error: 'missing-client-id' });
@@ -1512,7 +1784,18 @@ exports.createMoncashPayment = onRequest(
     }
 
     const totals = buildOrderTotals(items, delivery);
-    if (totals.total <= 0) {
+    let promoSummary = null;
+    if (requestedPromo?.code) {
+      promoSummary = await previewPromoForCart({
+        code: requestedPromo.code,
+        clientId: localClientId,
+        clientUid,
+        items
+      });
+    }
+    const discountAmount = Math.max(0, Number(promoSummary?.discountAmount || 0));
+    const finalTotal = Math.max(0, totals.total - discountAmount);
+    if (finalTotal <= 0) {
       sendJson(res, 400, { ok: false, error: 'invalid-total' });
       return;
     }
@@ -1527,13 +1810,25 @@ exports.createMoncashPayment = onRequest(
     const orderDraft = {
       clientId: localClientId,
       clientUid,
-      amount: totals.total,
+      amount: finalTotal,
       subtotal: totals.subtotal,
+      discountAmount,
       shippingAmount: totals.shippingAmount,
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
       items,
       delivery,
+      promoCode: promoSummary ? {
+        promoId: promoSummary.promoId,
+        code: promoSummary.code,
+        label: promoSummary.label,
+        type: promoSummary.type,
+        value: promoSummary.value,
+        categoryIds: promoSummary.categoryIds,
+        eligibleSubtotal: promoSummary.eligibleSubtotal,
+        discountAmount: promoSummary.discountAmount,
+        applied: true
+      } : null,
       status: 'payment_initiated',
       paymentStatus: 'initiated',
       fulfillmentStatus: 'awaiting_payment',
@@ -1561,14 +1856,26 @@ exports.createMoncashPayment = onRequest(
       orderId,
       provider: 'moncash',
       status: 'initiated',
-      amount: totals.total,
+      amount: finalTotal,
       subtotal: totals.subtotal,
+      discountAmount,
       shippingAmount: totals.shippingAmount,
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
       customerName,
       customerEmail,
       customerPhone,
+      promoCode: promoSummary ? {
+        promoId: promoSummary.promoId,
+        code: promoSummary.code,
+        label: promoSummary.label,
+        type: promoSummary.type,
+        value: promoSummary.value,
+        categoryIds: promoSummary.categoryIds,
+        eligibleSubtotal: promoSummary.eligibleSubtotal,
+        discountAmount: promoSummary.discountAmount,
+        applied: true
+      } : null,
       returnUrl: DEFAULT_RETURN_URL,
       alertUrl: DEFAULT_ALERT_URL,
       uniqueCode,
@@ -1582,7 +1889,7 @@ exports.createMoncashPayment = onRequest(
         sessionRef.set(sessionData, { merge: true })
       ]);
 
-      const redirect = await createMoncashRedirect(orderId, totals.total);
+      const redirect = await createMoncashRedirect(orderId, finalTotal);
 
       await Promise.all([
         sessionRef.set(
@@ -1607,6 +1914,7 @@ exports.createMoncashPayment = onRequest(
         ok: true,
         sessionId,
         orderId,
+        discountAmount,
         checkoutUrl: redirect.checkoutUrl,
         returnUrl: DEFAULT_RETURN_URL,
         alertUrl: DEFAULT_ALERT_URL
@@ -1635,6 +1943,51 @@ exports.createMoncashPayment = onRequest(
         ok: false,
         error: 'server-error',
         message: error?.message || 'Unexpected server error'
+      });
+    }
+  }
+);
+
+exports.previewPromoCode = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const body = parseBody(req);
+      const items = await enrichMarketplaceItems(body.items);
+      logger.info('PROMO_DEBUG endpoint:request', {
+        code: body.code || '',
+        clientId: body.clientId || '',
+        clientUid: body.clientUid || '',
+        itemCount: Array.isArray(items) ? items.length : 0
+      });
+      const preview = await previewPromoForCart({
+        code: body.code,
+        clientId: body.clientId,
+        clientUid: body.clientUid,
+        items
+      });
+
+      sendJson(res, 200, {
+        ok: true,
+        ...preview,
+        message: 'Code promo applique uniquement aux produits Smart Cut eligibles.'
+      });
+    } catch (error) {
+      logger.error('PROMO_DEBUG endpoint:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 400, {
+        ok: false,
+        error: 'promo-preview-failed',
+        message: error?.message || 'Impossible de verifier ce code promo.'
       });
     }
   }

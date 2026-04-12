@@ -1071,6 +1071,7 @@ class PaymentModal {
         methodName: this.selectedMethod?.name || 'MonCash',
         items: this.options.cart || [],
         delivery: this.options.delivery || null,
+        promo: this.options.promo || null,
         customerName: customer.customerName,
         customerEmail: customer.customerEmail,
         customerPhone: customer.customerPhone,

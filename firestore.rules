@@ -137,6 +137,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /promoCodes/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /promoCodeUsages/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /productLikes/{docId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
@@ -193,6 +203,11 @@ service cloud.firestore {
 
     match /vendorCommissionRules/{docId} {
       allow read: if isAdmin() || isApprovedVendor();
+      allow write: if isAdmin();
+    }
+
+    match /vendorPayouts/{docId} {
+      allow read: if isAdmin() || (isApprovedVendor() && resource.data.vendorId == request.auth.uid);
       allow write: if isAdmin();
     }
 
