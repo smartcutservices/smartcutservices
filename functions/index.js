@@ -949,6 +949,10 @@ function normalizePromoCode(value = '') {
   return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
+function normalizePromoLookupValue(value = '') {
+  return normalizePromoCode(value).replace(/[^A-Z0-9]/g, '');
+}
+
 function buildPromoUsageId(promoId = '', clientKey = '') {
   return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
 }
@@ -1009,6 +1013,7 @@ function calculatePromoDiscount(promo = {}, eligibleSubtotal = 0) {
 async function findPromoByCode(code = '') {
   const normalizedCode = normalizePromoCode(code);
   if (!normalizedCode) return null;
+  const normalizedLookup = normalizePromoLookupValue(code);
 
   const directSnap = await db.collection('promoCodes').doc(normalizedCode).get();
   if (directSnap.exists) {
@@ -1021,9 +1026,22 @@ async function findPromoByCode(code = '') {
     .limit(1)
     .get();
 
-  if (snap.empty) return null;
-  const docSnap = snap.docs[0];
-  return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
+  if (!snap.empty) {
+    const docSnap = snap.docs[0];
+    return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
+  }
+
+  const fallbackSnap = await db.collection('promoCodes').limit(200).get();
+  const fallbackDoc = fallbackSnap.docs.find((docSnap) => {
+    const data = docSnap.data() || {};
+    return (
+      normalizePromoLookupValue(docSnap.id) === normalizedLookup ||
+      normalizePromoLookupValue(data.code || '') === normalizedLookup
+    );
+  });
+
+  if (!fallbackDoc) return null;
+  return { id: fallbackDoc.id, ref: fallbackDoc.ref, data: fallbackDoc.data() || {} };
 }
 
 async function previewPromoForCart({ code = '', clientId = '', clientUid = '', items = [] } = {}) {
