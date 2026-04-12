@@ -1046,42 +1046,111 @@ async function findPromoByCode(code = '') {
 
 async function previewPromoForCart({ code = '', clientId = '', clientUid = '', items = [] } = {}) {
   const normalizedCode = normalizePromoCode(code);
+  logger.info('PROMO_DEBUG preview:start', {
+    code,
+    normalizedCode,
+    clientId: String(clientId || '').trim(),
+    clientUid: String(clientUid || '').trim(),
+    itemCount: Array.isArray(items) ? items.length : 0,
+    items: (Array.isArray(items) ? items : []).map((item) => ({
+      productId: String(item?.productId || '').trim(),
+      name: String(item?.name || '').trim(),
+      categoryId: String(item?.categoryId || '').trim(),
+      category: String(item?.category || '').trim(),
+      sourceType: String(item?.sourceType || '').trim(),
+      sourceCollection: String(item?.sourceCollection || '').trim(),
+      vendorId: String(item?.vendorId || '').trim(),
+      quantity: Math.max(1, toNumber(item?.quantity) || 1),
+      price: Math.max(0, toNumber(item?.price))
+    }))
+  });
   if (!normalizedCode) {
+    logger.warn('PROMO_DEBUG preview:missing-code');
     throw new Error('Veuillez saisir un code promo.');
   }
 
   const promoRecord = await findPromoByCode(normalizedCode);
   if (!promoRecord) {
+    logger.warn('PROMO_DEBUG preview:not-found', { normalizedCode });
     throw new Error('Code promo invalide.');
   }
 
   const promo = promoRecord.data || {};
+  logger.info('PROMO_DEBUG preview:promo-found', {
+    promoId: promoRecord.id,
+    promoCode: String(promo?.code || '').trim(),
+    promoActive: promo?.active !== false,
+    categoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds : [],
+    startAt: promo?.startAt || '',
+    endAt: promo?.endAt || ''
+  });
   if (!isPromoActive(promo)) {
+    logger.warn('PROMO_DEBUG preview:inactive', {
+      promoId: promoRecord.id,
+      startAt: promo?.startAt || '',
+      endAt: promo?.endAt || '',
+      now: new Date().toISOString()
+    });
     throw new Error('Ce code promo n est pas actif pour le moment.');
   }
 
   const clientKey = String(clientUid || clientId || '').trim();
   if (!clientKey) {
+    logger.warn('PROMO_DEBUG preview:missing-client-key');
     throw new Error('Client manquant pour verifier ce code promo.');
   }
 
   const usageRef = db.collection('promoCodeUsages').doc(buildPromoUsageId(promoRecord.id, clientKey));
   const usageSnap = await usageRef.get();
   if (usageSnap.exists) {
+    logger.warn('PROMO_DEBUG preview:already-used', {
+      promoId: promoRecord.id,
+      clientKey
+    });
     throw new Error('Ce code promo a deja ete utilise avec ce compte.');
   }
 
   const eligibleItems = getPromoEligibleItems(items, promo);
   const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + (toNumber(item?.price) * Math.max(1, toNumber(item?.quantity) || 1)), 0);
+  logger.info('PROMO_DEBUG preview:eligibility', {
+    promoId: promoRecord.id,
+    allowedCategoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds : [],
+    eligibleItemCount: eligibleItems.length,
+    eligibleSubtotal,
+    eligibleItems: eligibleItems.map((item) => ({
+      productId: String(item?.productId || '').trim(),
+      name: String(item?.name || '').trim(),
+      categoryId: String(item?.categoryId || '').trim(),
+      vendorId: String(item?.vendorId || '').trim(),
+      sourceType: String(item?.sourceType || '').trim(),
+      sourceCollection: String(item?.sourceCollection || '').trim()
+    }))
+  });
   if (eligibleSubtotal <= 0) {
+    logger.warn('PROMO_DEBUG preview:no-eligible-items', {
+      promoId: promoRecord.id,
+      allowedCategoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds : []
+    });
     throw new Error('Ce code promo ne s applique a aucun produit Smart Cut valide dans votre panier.');
   }
 
   const discountAmount = calculatePromoDiscount(promo, eligibleSubtotal);
   if (discountAmount <= 0) {
+    logger.warn('PROMO_DEBUG preview:zero-discount', {
+      promoId: promoRecord.id,
+      eligibleSubtotal,
+      type: normalizePromoType(promo?.type),
+      value: Math.max(0, toNumber(promo?.value ?? promo?.amount ?? promo?.rate))
+    });
     throw new Error('Ce code promo ne peut pas etre applique a ce panier.');
   }
 
+  logger.info('PROMO_DEBUG preview:success', {
+    promoId: promoRecord.id,
+    normalizedCode,
+    eligibleSubtotal,
+    discountAmount
+  });
   return {
     promoId: promoRecord.id,
     code: normalizedCode,
@@ -1892,6 +1961,12 @@ exports.previewPromoCode = onRequest(
     try {
       const body = parseBody(req);
       const items = await enrichMarketplaceItems(body.items);
+      logger.info('PROMO_DEBUG endpoint:request', {
+        code: body.code || '',
+        clientId: body.clientId || '',
+        clientUid: body.clientUid || '',
+        itemCount: Array.isArray(items) ? items.length : 0
+      });
       const preview = await previewPromoForCart({
         code: body.code,
         clientId: body.clientId,
@@ -1905,6 +1980,10 @@ exports.previewPromoCode = onRequest(
         message: 'Code promo applique uniquement aux produits Smart Cut eligibles.'
       });
     } catch (error) {
+      logger.error('PROMO_DEBUG endpoint:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
       sendJson(res, 400, {
         ok: false,
         error: 'promo-preview-failed',

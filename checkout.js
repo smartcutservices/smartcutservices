@@ -1281,10 +1281,29 @@ class CheckoutModal {
 
   async applyPromoCode(code) {
     const normalizedCode = String(code || '').trim().toUpperCase();
+    console.log('[PROMO_DEBUG][CHECKOUT] apply:start', {
+      enteredCode: code,
+      normalizedCode,
+      clientId: this.client?.id || '',
+      clientUid: this.client?.uid || '',
+      cartCount: Array.isArray(this.cart) ? this.cart.length : 0,
+      cart: (Array.isArray(this.cart) ? this.cart : []).map((item) => ({
+        productId: item?.productId || '',
+        name: item?.name || '',
+        price: Number(item?.price || 0),
+        quantity: Number(item?.quantity || 0),
+        categoryId: item?.categoryId || '',
+        category: item?.category || '',
+        sourceType: item?.sourceType || '',
+        sourceCollection: item?.sourceCollection || '',
+        vendorId: item?.vendorId || ''
+      }))
+    });
 
     if (!normalizedCode) {
       this.appliedPromo = null;
       this.refreshPromoUI();
+      console.log('[PROMO_DEBUG][CHECKOUT] apply:cleared');
       this.showMessage('Code promo retire', 'success');
       return;
     }
@@ -1303,6 +1322,7 @@ class CheckoutModal {
         clientUid: this.client?.uid || '',
         items: this.cart
       });
+      console.log('[PROMO_DEBUG][CHECKOUT] apply:success', response);
 
       this.appliedPromo = {
         code: response.code || normalizedCode,
@@ -1318,6 +1338,10 @@ class CheckoutModal {
       this.refreshPromoUI();
       this.showMessage(response.message || 'Code promo applique', 'success');
     } catch (error) {
+      console.error('[PROMO_DEBUG][CHECKOUT] apply:error', {
+        message: error?.message || '',
+        stack: error?.stack || ''
+      });
       this.appliedPromo = null;
       this.refreshPromoUI();
       this.showMessage(error?.message || 'Code promo invalide', 'error');
