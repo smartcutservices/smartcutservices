@@ -2,6 +2,7 @@
 import { db } from './firebase-init.js';
 import { isPublicProductVisible } from './catalog-products.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
+import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { 
   collection, query, where, getDocs, orderBy, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -328,6 +329,26 @@ class SearchComponent {
         overflow: hidden;
         text-overflow: ellipsis;
         font-family: ${primaryFont};
+      }
+
+      .search-card-store-${this.uniqueId} {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        margin-bottom: 0.25rem;
+        color: ${subtitleColor};
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .search-card-store-${this.uniqueId}:hover {
+        color: ${iconHover};
       }
       
       .search-card-subtitle-${this.uniqueId} {
@@ -816,9 +837,10 @@ class SearchComponent {
     const productImages = getResolvedProductImages(product, this.options.imageBasePath);
     const imageUrl = productImages[0] || getFallbackProductImage(product, this.options.imageBasePath);
     const fallbackImage = getFallbackProductImage(product, this.options.imageBasePath);
-    
-    const productPrice = this.formatPriceHTG(product.price || 0);
-    const oldPrice = product.comparePrice ? this.formatPriceHTG(product.comparePrice) : null;
+    const pricing = getProductPricing(product, product.price || 0);
+    const storeMeta = getProductStoreMeta(product);
+    const productPrice = this.formatPriceHTG(pricing.currentPrice || 0);
+    const oldPrice = pricing.comparePrice ? this.formatPriceHTG(pricing.comparePrice) : null;
 
     return `
       <div class="search-card-${this.uniqueId}" data-type="product" data-id="${product.id}">
@@ -830,6 +852,7 @@ class SearchComponent {
         </div>
         <div class="search-card-content-${this.uniqueId}">
           <div class="search-card-title-${this.uniqueId}">${product.name || 'Produit sans nom'}</div>
+          <a href="${storeMeta.url}" class="search-card-store-${this.uniqueId}" onclick="event.stopPropagation();">${storeMeta.storeName}</a>
           ${product.shortDescription ? `<div class="search-card-subtitle-${this.uniqueId}">${product.shortDescription.substring(0, 60)}${product.shortDescription.length > 60 ? '...' : ''}</div>` : ''}
           <div>
             <span class="search-card-price-${this.uniqueId}">${productPrice}</span>

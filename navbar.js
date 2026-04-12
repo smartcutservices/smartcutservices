@@ -232,6 +232,7 @@ class Navbar {
         
         
         this.renderDesktopCategories();
+        this.renderMobileNav();
         this.mobileMenu.setCategories(this.mobileCategories);
       }, (error) => {
         console.error("❌ Erreur chargement catégories depuis categories_list:", error);
@@ -282,26 +283,67 @@ class Navbar {
       container.appendChild(catEl);
     });
   }
+
+  buildCategoryUrl(category) {
+    const params = new URLSearchParams();
+    params.set('category', category?.name || category?.id || '');
+    return `./catalogue.html?${params.toString()}`;
+  }
+
+  renderMobileNav() {
+    const container = document.getElementById(this.options.mobileContainerId);
+    if (!container) return;
+
+    if (this.mobileCategories.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    container.innerHTML = '';
+    this.mobileCategories.forEach((cat) => {
+      const link = document.createElement('a');
+      link.className = 'mobile-nav-item';
+      link.href = this.buildCategoryUrl(cat);
+      link.textContent = cat.name;
+      container.appendChild(link);
+    });
+  }
   
   setupCartEvents() {
     const desktopCart = document.getElementById('desktopCartIcon');
     const mobileCart = document.getElementById('mobileCartIcon');
+    const desktopCartButton = document.getElementById('desktopCartButton');
+    const mobileCartButton = document.getElementById('mobileCartButton');
     
-    if (desktopCart) {
-      desktopCart.addEventListener('click', (e) => {
+    const handleOpenCart = (e) => {
         e.preventDefault();
         e.stopPropagation();
         this.openCart();
+    };
+
+    const bindResponsivePress = (target, handler) => {
+      if (!target) return;
+      let lastPointerUpAt = 0;
+
+      target.addEventListener('pointerup', (event) => {
+        lastPointerUpAt = Date.now();
+        handler(event);
       });
-    }
-    
-    if (mobileCart) {
-      mobileCart.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.openCart();
+
+      target.addEventListener('click', (event) => {
+        if (Date.now() - lastPointerUpAt < 350) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        handler(event);
       });
-    }
+    };
+
+    [desktopCart, mobileCart, desktopCartButton, mobileCartButton].forEach((target) => {
+      if (!target) return;
+      bindResponsivePress(target, handleOpenCart);
+    });
   }
   
   openCart() {

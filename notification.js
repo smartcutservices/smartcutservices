@@ -5,7 +5,6 @@ import {
   collection,
   collectionGroup,
   query,
-  where,
   orderBy,
   limit,
   addDoc,
@@ -111,6 +110,14 @@ export class NotificationComponent {
     } else {
       new Notification(String(title || this.options.appName), payload);
     }
+
+    window.dispatchEvent(new CustomEvent('smartcut-notification', {
+      detail: {
+        title: String(title || this.options.appName),
+        body: String(body || ''),
+        data: payload.data || {}
+      }
+    }));
   }
 
   isEnabled() {
@@ -219,8 +226,9 @@ export class NotificationComponent {
         try { this.ordersUnsub(); } catch (_) {}
         this.ordersUnsub = null;
       }
-      if (!user || this.options.mode !== 'client') return;
+      if (!user) return;
       await this.consumePendingUserBroadcasts(user.uid);
+      if (this.options.mode !== 'client') return;
       this.currentClientId = await this.findClientIdByUid(user.uid);
       if (this.currentClientId) this.listenOwnOrders(this.currentClientId);
     });
@@ -237,7 +245,13 @@ export class NotificationComponent {
         const data = docSnap.data() || {};
         if (data.target === 'user' && data.targetUid === uid) {
           this.seenBroadcastIds.add(id);
-          this.notify(data.title || 'Notification', data.body || '', { url: data.url || this.options.defaultUrl, tag: `broadcast_${id}` });
+          this.notify(data.title || 'Notification', data.body || '', {
+            url: data.url || this.options.defaultUrl,
+            tag: `broadcast_${id}`,
+            broadcastType: data.type || '',
+            notificationId: id,
+            target: data.target || 'all'
+          });
         }
       });
       this.saveSeenState();
@@ -248,10 +262,7 @@ export class NotificationComponent {
 
   async findClientIdByUid(uid) {
     try {
-      const q = query(collection(db, 'clients'), where('uid', '==', uid), limit(1));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
-      return snapshot.docs[0].id;
+      return uid || null;
     } catch (error) {
       console.error('❌ Erreur client notification:', error);
       return null;
@@ -290,7 +301,11 @@ export class NotificationComponent {
     const q = query(collection(db, 'notificationBroadcasts'), orderBy('createdAt', 'desc'), limit(50));
     const unsub = onSnapshot(q, (snapshot) => {
       if (!this.isBroadcastInitDone) {
-        snapshot.docs.forEach((d) => this.seenBroadcastIds.add(d.id));
+        snapshot.docs.forEach((d) => {
+          const data = d.data() || {};
+          if (data.target === 'user') return;
+          this.seenBroadcastIds.add(d.id);
+        });
         this.isBroadcastInitDone = true;
         this.saveSeenState();
         return;
@@ -309,7 +324,13 @@ export class NotificationComponent {
         }
         this.seenBroadcastIds.add(id);
         this.saveSeenState();
-        this.notify(data.title || 'Notification', data.body || '', { url: data.url || this.options.defaultUrl, tag: `broadcast_${id}` });
+        this.notify(data.title || 'Notification', data.body || '', {
+          url: data.url || this.options.defaultUrl,
+          tag: `broadcast_${id}`,
+          broadcastType: data.type || '',
+          notificationId: id,
+          target: data.target || 'all'
+        });
       });
     });
     this.unsubscribers.push(unsub);

@@ -2,32 +2,53 @@ import { db } from './firebase-init.js';
 import { uploadPdfFile } from './firebase-storage.js';
 import { getCartManager } from './cart.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import {
+  normalizePrintingConfig,
+  getEnabledPapers,
+  getEnabledDimensionsForPaper,
+  findPaperByLabel,
+  findDimensionByLabel,
+  ensureValidPaperSelection,
+  ensureValidDimensionSelection
+} from './printing-config-utils.js';
+
+const CAD_DIMENSIONS = [
+  { label: '8.5x11', enabled: true, price: 15 },
+  { label: '8.5x14', enabled: true, price: 17 },
+  { label: '11x17', enabled: true, price: 28 },
+  { label: '13x19', enabled: true, price: 47 },
+  { label: '24x36', enabled: true, price: 110 },
+  { label: '24x24', enabled: true, price: 89 }
+];
+
+function buildPaper(label) {
+  return {
+    label,
+    enabled: true,
+    dimensions: CAD_DIMENSIONS.map((dimension) => ({ ...dimension }))
+  };
+}
 
 const DEFAULT_CONFIG = {
   enabled: true,
-  dimensions: [
-    { label: '17x24', enabled: true, price: 0 },
-    { label: '24x36', enabled: true, price: 0 },
-    { label: '24x24', enabled: true, price: 0 },
-    { label: '24x48', enabled: true, price: 0 },
-    { label: '36x48', enabled: true, price: 0 },
-    { label: '8.5x11', enabled: true, price: 0 },
-    { label: '8.5x14', enabled: true, price: 0 },
-    { label: '11x17', enabled: true, price: 0 }
-  ],
-  papers: [{ label: 'Papier plan standard', enabled: true, price: 0 }],
-  pricing: { basePrice: 0, perSheetPrice: 0, oversizedPrice: 0 },
+  papers: [buildPaper('Bond')],
   notes: ''
 };
+
+const PRODUCT_IMAGE = 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 viewBox=%220 0 240 240%22%3E%3Crect width=%22240%22 height=%22240%22 rx=%2236%22 fill=%22%23F2E9DA%22/%3E%3Cpath d=%22M48 180h144M70 148l32-40 22 26 40-48 22 28%22 stroke=%22%231F1E1C%22 stroke-width=%228%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 fill=%22none%22/%3E%3C/svg%3E';
+
+function mergeConfig(data = {}) {
+  return normalizePrintingConfig(DEFAULT_CONFIG, data);
+}
 
 class PrintingCadPage {
   constructor(containerId = 'printing-cad-root') {
     this.container = document.getElementById(containerId);
-    this.config = { ...DEFAULT_CONFIG };
+    this.config = mergeConfig();
     this.file = null;
     this.fileInfo = null;
     this.currentStep = 1;
-    this.formState = { dimensionLabel: '', paperLabel: '' };
+    this.formState = { paperLabel: '', dimensionLabel: '', copies: 1 };
     this.cart = getCartManager({ imageBasePath: './' });
     if (!this.container) return;
     this.init();
@@ -42,16 +63,10 @@ class PrintingCadPage {
   async loadConfig() {
     try {
       const snapshot = await getDoc(doc(db, 'printingSettings', 'cad'));
-      this.config = snapshot.exists() ? {
-        ...DEFAULT_CONFIG,
-        ...snapshot.data(),
-        dimensions: Array.isArray(snapshot.data().dimensions) ? snapshot.data().dimensions : DEFAULT_CONFIG.dimensions,
-        papers: Array.isArray(snapshot.data().papers) ? snapshot.data().papers : DEFAULT_CONFIG.papers,
-        pricing: { ...DEFAULT_CONFIG.pricing, ...(snapshot.data().pricing || {}) }
-      } : { ...DEFAULT_CONFIG };
+      this.config = snapshot.exists() ? mergeConfig(snapshot.data()) : mergeConfig();
     } catch (error) {
       console.error('Erreur chargement config CAD:', error);
-      this.config = { ...DEFAULT_CONFIG };
+      this.config = mergeConfig();
     }
   }
 
@@ -82,26 +97,30 @@ class PrintingCadPage {
     const targetB = Math.max(widthInches, heightInches);
     let best = '';
     let bestDelta = Infinity;
-    this.getEnabledDimensions().forEach((item) => {
-      const [a, b] = String(item.label).split('x').map((value) => Number.parseFloat(value));
-      if (!Number.isFinite(a) || !Number.isFinite(b)) return;
-      const low = Math.min(a, b);
-      const high = Math.max(a, b);
-      const delta = Math.abs(targetA - low) + Math.abs(targetB - high);
-      if (delta < bestDelta) {
-        bestDelta = delta;
-        best = item.label;
-      }
+
+    this.getEnabledPapers().forEach((paper) => {
+      this.getEnabledDimensions(paper.label).forEach((item) => {
+        const [a, b] = String(item.label).split('x').map((value) => Number.parseFloat(value));
+        if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+        const low = Math.min(a, b);
+        const high = Math.max(a, b);
+        const delta = Math.abs(targetA - low) + Math.abs(targetB - high);
+        if (delta < bestDelta) {
+          bestDelta = delta;
+          best = item.label;
+        }
+      });
     });
+
     return best;
   }
 
-  getEnabledDimensions() {
-    return (this.config.dimensions || []).filter((item) => item?.enabled !== false && item?.label);
+  getEnabledPapers() {
+    return getEnabledPapers(this.config.papers || []);
   }
 
-  getEnabledPapers() {
-    return (this.config.papers || []).filter((item) => item?.enabled !== false && item?.label);
+  getEnabledDimensions(paperLabel = '') {
+    return getEnabledDimensionsForPaper(this.config.papers || [], paperLabel);
   }
 
   formatPrice(value) {
@@ -114,8 +133,9 @@ class PrintingCadPage {
 
   getCurrentSelections() {
     return {
+      paperLabel: this.container.querySelector('#cadPaper')?.value || this.formState.paperLabel || '',
       dimensionLabel: this.container.querySelector('#cadDimension')?.value || this.formState.dimensionLabel || '',
-      paperLabel: this.container.querySelector('#cadPaper')?.value || this.formState.paperLabel || ''
+      copies: Math.max(1, Number.parseInt(this.container.querySelector('#cadCopies')?.value || String(this.formState.copies || 1), 10) || 1)
     };
   }
 
@@ -123,21 +143,38 @@ class PrintingCadPage {
     this.formState = { ...this.formState, ...this.getCurrentSelections() };
   }
 
+  ensureValidSelections() {
+    this.formState.paperLabel = ensureValidPaperSelection(this.config.papers || [], this.formState.paperLabel);
+    this.formState.dimensionLabel = ensureValidDimensionSelection(
+      this.config.papers || [],
+      this.formState.paperLabel,
+      this.formState.dimensionLabel,
+      this.fileInfo?.suggestedDimension || ''
+    );
+  }
+
   calculateQuote() {
-    const { dimensionLabel, paperLabel } = this.getCurrentSelections();
-    const dimension = this.getEnabledDimensions().find((item) => item.label === dimensionLabel);
-    const paper = this.getEnabledPapers().find((item) => item.label === paperLabel);
+    const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
     const pageCount = this.fileInfo?.pageCount || 0;
-    const oversized = /24x|36x|48/.test(String(dimensionLabel || ''));
-    const pricing = this.config.pricing || {};
-    const unitPrice = (Number(pricing.basePrice) || 0) + ((Number(pricing.perSheetPrice) || 0) * pageCount) + (Number(dimension?.price) || 0) + (Number(paper?.price) || 0) + (oversized ? (Number(pricing.oversizedPrice) || 0) : 0);
-    return { pageCount, unitPrice, totalPrice: unitPrice, dimension, paper };
+    const paper = findPaperByLabel(this.config.papers || [], paperLabel);
+    const dimension = findDimensionByLabel(this.config.papers || [], paperLabel, dimensionLabel);
+    const pricePerPage = Number(dimension?.price) || 0;
+    const printUnitPrice = pricePerPage * pageCount;
+    return {
+      pageCount,
+      copies,
+      paper,
+      dimension,
+      pricePerPage,
+      printUnitPrice,
+      totalPrice: printUnitPrice * copies
+    };
   }
 
   getStepValidity(step = this.currentStep) {
-    const { dimensionLabel, paperLabel } = this.getCurrentSelections();
-    if (step === 1) return Boolean(this.file);
-    if (step === 2) return Boolean(dimensionLabel && paperLabel);
+    const { paperLabel, dimensionLabel, copies } = this.getCurrentSelections();
+    if (step === 1) return Boolean(this.file && this.fileInfo?.pageCount);
+    if (step === 2) return Boolean(paperLabel && dimensionLabel && copies >= 1);
     return this.getStepValidity(1) && this.getStepValidity(2);
   }
 
@@ -158,8 +195,8 @@ class PrintingCadPage {
   }
 
   render() {
-    const dimensions = this.getEnabledDimensions();
     const papers = this.getEnabledPapers();
+    const dimensions = this.getEnabledDimensions(this.formState.paperLabel);
     const quote = this.calculateQuote();
 
     this.container.innerHTML = `
@@ -177,36 +214,40 @@ class PrintingCadPage {
       <section class="quiz-shell">
         <header class="quiz-heading">
           <small>Plans CAD</small>
-          <h1>Chargez votre plan, confirmez le format et voyez votre tarif.</h1>
-          <p>Le parcours vous guide et peut meme suggerer la dimension la plus proche a partir de votre PDF.</p>
+          <h1>Chargez votre plan PDF, confirmez le papier et voyez votre tarif.</h1>
+          <p>Le parcours suggere la dimension la plus proche, puis le site calcule le total selon le nombre de pages et le prix configure pour cette dimension dans le papier choisi.</p>
         </header>
         ${this.config.enabled === false ? `<div class="quiz-note is-error">Le module CAD est temporairement indisponible.</div>` : ''}
         <div class="quiz-steps">${this.renderStep(1, 'Votre plan')}${this.renderStep(2, 'Vos options')}${this.renderStep(3, 'Votre tarif')}</div>
         ${this.currentStep === 1 ? `
           <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 1</small><h2>Chargez votre plan</h2><p>Ajoutez votre PDF pour analyser le plan et proposer automatiquement le format le plus proche.</p></div>
+            <div class="quiz-head"><small>Etape 1</small><h2>Chargez votre plan PDF</h2><p>Ajoutez votre PDF pour lire le nombre de pages et proposer la dimension la plus proche.</p></div>
             <label class="quiz-field"><span>Fichier PDF</span><div class="quiz-upload"><input id="cadPdfFile" class="quiz-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}><div id="cadPdfStatus" style="color:${this.fileInfo ? '#0f9f6e' : '#6E6557'};">${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.pageCount} page(s)` : 'Choisissez un plan PDF pour analyse automatique.'}</div></div></label>
             ${this.fileInfo?.suggestedDimension ? `<div class="quiz-note">Dimension suggeree automatiquement : <strong>${this.escape(this.fileInfo.suggestedDimension)}</strong></div>` : ''}
             <div class="quiz-actions"><button type="button" class="quiz-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
           </section>` : ''}
         ${this.currentStep === 2 ? `
           <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 2</small><h2>Confirmez vos options</h2><p>Choisissez la dimension finale et le papier utilise pour votre impression technique.</p></div>
+            <div class="quiz-head"><small>Etape 2</small><h2>Confirmez vos options</h2><p>Choisissez d abord le papier, puis la dimension disponible pour ce papier.</p></div>
             <div class="quiz-grid">
-              <label class="quiz-field"><span>Dimension</span><select id="cadDimension" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''}><option value="">Choisir un format</option>${dimensions.map((item) => `<option value="${this.escape(item.label)}" ${this.fileInfo?.suggestedDimension === item.label ? 'selected' : ''}>${this.escape(item.label)} · ${this.formatPrice(item.price || 0)}</option>`).join('')}</select></label>
-              <label class="quiz-field"><span>Papier</span><select id="cadPaper" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''}><option value="">Choisir un papier</option>${papers.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)}</option>`).join('')}</select></label>
-            </div>
-            <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button></div>
-          </section>` : ''}
+              <label class="quiz-field"><span>Papier</span><select id="cadPaper" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''}><option value="">Choisir un papier</option>${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}</select></label>
+              <label class="quiz-field"><span>Dimension</span><select id="cadDimension" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}><option value="">Choisir un format</option>${dimensions.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)} / page</option>`).join('')}</select></label>
+              </div>
+              <label class="quiz-field"><span>Nombre d impressions</span><input id="cadCopies" class="quiz-input" type="number" min="1" step="1" value="${this.formState.copies || 1}" ${this.config.enabled === false ? 'disabled' : ''}></label>
+              <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button></div>
+            </section>` : ''}
         ${this.currentStep === 3 ? `
           <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 3</small><h2>Votre tarif est pret</h2><p>Verifiez le recapitulatif de votre impression CAD avant de l ajouter au panier.</p></div>
+            <div class="quiz-head"><small>Etape 3</small><h2>Votre tarif est pret</h2><p>Le total suit directement le prix de la dimension choisie et le nombre de pages du PDF.</p></div>
             <div class="quiz-summary">
               <div class="quiz-summary-row"><span>Pages</span><strong id="cadQuotePages">${quote.pageCount}</strong></div>
-              <div class="quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
-              <div class="quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
-              <div class="quiz-summary-total"><span>Total</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
-            </div>
+                <div class="quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
+                <div class="quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
+                <div class="quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
+                <div class="quiz-summary-row"><span>Prix par impression</span><strong id="cadQuoteUnitPrice">${this.formatPrice(quote.printUnitPrice)}</strong></div>
+                <div class="quiz-summary-row"><span>Nombre d impressions</span><strong id="cadQuoteCopies">${quote.copies}</strong></div>
+                <div class="quiz-summary-total"><span>Total</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+              </div>
             ${this.config.notes ? `<div class="quiz-note">${this.escape(this.config.notes)}</div>` : ''}
             <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="2">Modifier mes choix</button><button type="button" class="quiz-btn secondary" id="openCartFromCad">Ouvrir le panier</button><button type="button" class="quiz-btn primary" id="submitCadOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button><span id="cadSubmitStatus"></span></div>
           </section>` : ''}
@@ -216,10 +257,12 @@ class PrintingCadPage {
   }
 
   restoreFormState() {
-    const dimensionSelect = this.container.querySelector('#cadDimension');
     const paperSelect = this.container.querySelector('#cadPaper');
-    if (dimensionSelect && this.formState.dimensionLabel) dimensionSelect.value = this.formState.dimensionLabel;
+    const dimensionSelect = this.container.querySelector('#cadDimension');
+    const copiesInput = this.container.querySelector('#cadCopies');
     if (paperSelect && this.formState.paperLabel) paperSelect.value = this.formState.paperLabel;
+    if (dimensionSelect && this.formState.dimensionLabel) dimensionSelect.value = this.formState.dimensionLabel;
+    if (copiesInput) copiesInput.value = String(this.formState.copies || 1);
   }
 
   attachEvents() {
@@ -229,8 +272,16 @@ class PrintingCadPage {
     this.container.querySelector('#cadPdfFile')?.addEventListener('change', async (event) => {
       await this.handlePdfSelection(event.target.files?.[0]);
     });
+    this.container.querySelector('#cadPaper')?.addEventListener('change', () => {
+      this.syncFormState();
+      this.formState.dimensionLabel = '';
+      this.ensureValidSelections();
+      this.render();
+      this.attachEvents();
+      this.refreshQuote();
+    });
     this.container.querySelector('#cadDimension')?.addEventListener('change', () => this.refreshQuote());
-    this.container.querySelector('#cadPaper')?.addEventListener('change', () => this.refreshQuote());
+    this.container.querySelector('#cadCopies')?.addEventListener('input', () => this.refreshQuote());
     this.container.querySelector('#submitCadOrder')?.addEventListener('click', async () => {
       await this.handleSubmit();
     });
@@ -249,7 +300,7 @@ class PrintingCadPage {
       const analysis = await this.analyzePdf(file);
       this.file = file;
       this.fileInfo = { name: file.name, ...analysis };
-      this.formState.dimensionLabel = analysis.suggestedDimension || this.formState.dimensionLabel || '';
+      this.formState.dimensionLabel = analysis.suggestedDimension || '';
       this.render();
       this.attachEvents();
     } catch (error) {
@@ -261,21 +312,31 @@ class PrintingCadPage {
   refreshQuote() {
     this.syncFormState();
     const nextButton = this.container.querySelector('[data-next-step="3"]');
+    const totalEl = this.container.querySelector('#cadQuoteTotal');
+    const pagesEl = this.container.querySelector('#cadQuotePages');
+    const copiesEl = this.container.querySelector('#cadQuoteCopies');
+    const unitPriceEl = this.container.querySelector('#cadQuoteUnitPrice');
+    const quote = this.calculateQuote();
     if (nextButton) nextButton.disabled = !this.getStepValidity(2) || this.config.enabled === false;
+    if (totalEl) totalEl.textContent = this.formatPrice(quote.totalPrice);
+    if (pagesEl) pagesEl.textContent = String(quote.pageCount || 0);
+    if (copiesEl) copiesEl.textContent = String(quote.copies || 1);
+    if (unitPriceEl) unitPriceEl.textContent = this.formatPrice(quote.printUnitPrice || 0);
   }
 
   async handleSubmit() {
     const statusEl = this.container.querySelector('#cadSubmitStatus');
     this.syncFormState();
-    const dimensionLabel = this.container.querySelector('#cadDimension')?.value || this.formState.dimensionLabel || '';
-    const paperLabel = this.container.querySelector('#cadPaper')?.value || this.formState.paperLabel || '';
+    const paperLabel = this.formState.paperLabel || '';
+    const dimensionLabel = this.formState.dimensionLabel || '';
+    const copies = Math.max(1, Number.parseInt(String(this.formState.copies || 1), 10) || 1);
     const quote = this.calculateQuote();
-    if (!this.file) {
+    if (!this.file || !this.fileInfo?.pageCount) {
       if (statusEl) statusEl.textContent = 'Ajoutez un plan PDF valide.';
       return;
     }
-    if (!dimensionLabel || !paperLabel) {
-      if (statusEl) statusEl.textContent = 'Choisissez une dimension et un papier.';
+    if (!paperLabel || !dimensionLabel || copies < 1) {
+      if (statusEl) statusEl.textContent = 'Choisissez une dimension, un papier et un nombre d impressions valide.';
       return;
     }
     try {
@@ -285,14 +346,18 @@ class PrintingCadPage {
         detail: {
           productId: 'printing-cad',
           name: `Impression plan CAD ${dimensionLabel}`,
-          price: quote.unitPrice,
+          price: quote.totalPrice,
           quantity: 1,
           sku: `CAD-${Date.now()}`,
-          image: 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22240%22 height=%22240%22 viewBox=%220 0 240 240%22%3E%3Crect width=%22240%22 height=%22240%22 rx=%2236%22 fill=%22%23F2E9DA%22/%3E%3Cpath d=%22M48 180h144M70 148l32-40 22 26 40-48 22 28%22 stroke=%22%231F1E1C%22 stroke-width=%228%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 fill=%22none%22/%3E%3C/svg%3E',
+          image: PRODUCT_IMAGE,
           selectedOptions: [
+            { label: 'Type de papier', value: paperLabel },
             { label: 'Dimension', value: dimensionLabel },
-            { label: 'Papier', value: paperLabel },
             { label: 'Pages', value: String(this.fileInfo?.pageCount || 0) },
+            { label: 'Prix / page', value: this.formatPrice(quote.pricePerPage) },
+            { label: 'Prix par impression', value: this.formatPrice(quote.printUnitPrice) },
+            { label: 'Nombre d impressions', value: String(copies) },
+            { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             { label: 'Dimension detectee', value: this.fileInfo?.suggestedDimension || '-' },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },

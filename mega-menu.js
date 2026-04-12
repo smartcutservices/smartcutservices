@@ -3,6 +3,7 @@ import { db } from './firebase-init.js';
 import { collection, getDocs, query, orderBy, where, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import { buildProductPageUrl } from './product-links.js';
+import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 
 class MegaMenu {
   constructor() {
@@ -401,7 +402,7 @@ class MegaMenu {
       const productImages = product.images || [];
       const firstImage = productImages.length > 0 ? productImages[0] : null;
       
-      let imageUrl = 'https://via.placeholder.com/80?text=Produit';
+      let imageUrl = './logo.png';
       if (firstImage) {
         if (firstImage.startsWith('http')) {
           imageUrl = firstImage;
@@ -410,8 +411,10 @@ class MegaMenu {
         }
       }
       
-      const productPrice = this.formatPriceHTG(product.price || 0);
-      const oldPrice = product.comparePrice ? this.formatPriceHTG(product.comparePrice) : null;
+      const pricing = getProductPricing(product, product.price || 0);
+      const storeMeta = getProductStoreMeta(product);
+      const productPrice = this.formatPriceHTG(pricing.currentPrice || 0);
+      const oldPrice = pricing.comparePrice ? this.formatPriceHTG(pricing.comparePrice) : null;
       const productId = product.id;
       
       return `
@@ -419,7 +422,7 @@ class MegaMenu {
           ${oldPrice ? '<span class="featured-chip">OFFRE</span>' : ''}
           <img src="${imageUrl}" alt="${product.name || 'Produit'}" 
                class="featured-media"
-               onerror="this.src='https://via.placeholder.com/80?text=img'; this.onerror=null;">
+               onerror="this.onerror=null; this.src='./logo.png';">
           <div class="featured-content">
             <h4 style="font-family: ${theme.getTypography().family || theme.getFonts().primary || 'Cormorant Garamond, serif'}; 
                        font-weight: 600; 
@@ -429,6 +432,9 @@ class MegaMenu {
                        color: ${colors?.text?.title || '#1F1E1C'};">
               ${product.name || 'Produit sans nom'}
             </h4>
+            <p style="margin:0.35rem 0 0;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:${colors?.text?.subtitle || '#8B7E6B'};">
+              ${storeMeta.storeName}
+            </p>
             <p class="featured-desc">
               ${product.shortDescription || product.description || ''}
             </p>

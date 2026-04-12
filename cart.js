@@ -4,6 +4,7 @@ import { getAuthManager } from './auth.js';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
+import { downloadOrderPdfReceipt } from './order-pdf.js';
 import { 
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -35,6 +36,8 @@ class CartManager {
     this.likesVisible = true;
     this.likedPreviewModal = null;
     this.guestClient = null;
+    this.preloadPromise = null;
+    this.modalOpenedAt = 0;
     
     
     // S'abonner aux changements de thème
@@ -127,12 +130,14 @@ class CartManager {
     const storedId = localStorage.getItem(this.getGuestStorageKey());
     if (storedId) {
       this.guestClient = this.createGuestClientPayload(storedId);
+      console.info('[CART] Client invite charge depuis localStorage', { guestId: storedId });
       return this.guestClient;
     }
 
     const guestId = doc(collection(db, 'clients')).id;
     this.guestClient = this.createGuestClientPayload(guestId);
     localStorage.setItem(this.getGuestStorageKey(), guestId);
+    console.info('[CART] Nouveau client invite cree', { guestId });
     return this.guestClient;
   }
 
@@ -234,10 +239,19 @@ class CartManager {
   }
   
   async handleAuthChange(user) {
+    console.info('[CART] handleAuthChange', {
+      isAuthenticated: Boolean(user),
+      uid: user?.uid || null,
+      currentClientId: this.currentClient?.id || null
+    });
     
     if (user) {
       await this.loadOrCreateClient(user);
       if (this.currentClient) {
+        console.info('[CART] Client pret apres auth', {
+          clientId: this.currentClient.id,
+          email: this.currentClient.email || null
+        });
         this.loadCustomerOrders(this.currentClient.id);
       }
     } else {
@@ -269,9 +283,17 @@ class CartManager {
     }
     
     try {
+      console.info('[CART] loadOrCreateClient:start', {
+        uid: user?.uid || null,
+        email: user?.email || null
+      });
       const clientRef = doc(db, 'clients', user.uid);
       const snapshot = await getDoc(clientRef);
       const now = new Date().toISOString();
+      console.info('[CART] loadOrCreateClient:snapshot', {
+        uid: user.uid,
+        exists: snapshot.exists()
+      });
 
       if (!snapshot.exists()) {
         const clientData = {
@@ -287,6 +309,10 @@ class CartManager {
 
         await setDoc(clientRef, clientData, { merge: true });
         this.currentClient = { id: user.uid, ...clientData };
+        console.info('[CART] Client cree en base', {
+          clientId: this.currentClient.id,
+          email: this.currentClient.email || null
+        });
       } else {
         const existing = snapshot.data() || {};
         const mergedData = {
@@ -302,6 +328,10 @@ class CartManager {
 
         await setDoc(clientRef, mergedData, { merge: true });
         this.currentClient = { id: user.uid, ...mergedData };
+        console.info('[CART] Client charge depuis base', {
+          clientId: this.currentClient.id,
+          email: this.currentClient.email || null
+        });
       }
 
       this.loadHiddenOrders();
@@ -313,6 +343,24 @@ class CartManager {
       
     } catch (error) {
       console.error('❌ Erreur lors de la gestion du client:', error);
+      this.currentClient = {
+        id: user.uid,
+        uid: user.uid,
+        name: user.displayName || '',
+        email: user.email || '',
+        phone: '',
+        address: '',
+        city: ''
+      };
+      const event = new CustomEvent('clientReady', {
+        detail: { client: this.currentClient }
+      });
+      document.dispatchEvent(event);
+      console.info('[CART] Fallback client local active', {
+        clientId: this.currentClient.id,
+        uid: this.currentClient.uid,
+        email: this.currentClient.email || null
+      });
     }
   }
   
@@ -366,6 +414,44 @@ class CartManager {
     } catch (error) {
       console.error('❌ Erreur chargement commandes:', error);
     }
+  }
+
+  warmUpClientContext() {
+    if (this.preloadPromise) return this.preloadPromise;
+
+    this.preloadPromise = (async () => {
+      if (this.auth?.isAuthenticated?.()) {
+        const user = this.auth?.getCurrentUser?.();
+        if (user && !this.currentClient) {
+          await this.loadOrCreateClient(user);
+        }
+        if (this.currentClient?.id && !this.ordersListener) {
+          await this.loadCustomerOrders(this.currentClient.id);
+        }
+      } else {
+        const guestId = this.guestClient?.id || this.getStoredGuestId?.();
+        if (guestId) {
+          if (!this.guestClient || this.guestClient.id !== guestId) {
+            this.guestClient = this.createGuestClientPayload(guestId);
+          }
+          this.currentClient = this.guestClient;
+          this.loadHiddenOrders();
+          if (!this.ordersListener && !this.orders.length) {
+            await this.loadCustomerOrders(guestId);
+          }
+        }
+      }
+    })()
+      .catch((error) => {
+        this.preloadPromise = null;
+        throw error;
+      })
+      .then((result) => {
+        this.preloadPromise = null;
+        return result;
+      });
+
+    return this.preloadPromise;
   }
   
   calculateTimeLeft(expiresAt) {
@@ -480,7 +566,7 @@ class CartManager {
   }
   
   generateUniqueCode() {
-    return 'VLX-' + Math.random().toString(36).substr(2, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+    return `SCS-${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`;
   }
   
   emitOrdersUpdate() {
@@ -490,7 +576,7 @@ class CartManager {
         count: this.orders.length,
         pending: this.orders.filter(o => o.status === 'pending').length,
         review: this.orders.filter(o => o.status === 'review').length,
-        approved: this.orders.filter(o => o.status === 'approved').length,
+        approved: this.orders.filter(o => o.status === 'approved' || o.status === 'paid').length,
         rejected: this.orders.filter(o => o.status === 'rejected').length
       }
     });
@@ -527,12 +613,12 @@ class CartManager {
 
   hideOrderFromClient(orderId) {
     const order = this.orders.find((o) => o.id === orderId);
-    if (!order || (order.status !== 'approved' && order.status !== 'rejected')) {
+    if (!order || (!['approved', 'paid', 'rejected'].includes(order.status))) {
       this.showNotification('❌ Seules les commandes approuvées ou rejetées peuvent être masquées', 'error');
       return;
     }
 
-    const warningMessage = order.status === 'approved'
+    const warningMessage = ['approved', 'paid'].includes(order.status)
       ? (
         '⚠️ Attention: si vous supprimez cette commande sans télécharger le PDF, vous pouvez perdre le colis.\n\n' +
         'Téléchargez d’abord le reçu PDF avec votre code de retrait.\n\n' +
@@ -566,11 +652,18 @@ class CartManager {
     }
     
     this.updateTimeout = requestAnimationFrame(() => {
+      const count = this.getTotalItems();
+      const total = this.getTotalPrice();
+      console.info('[CART] Emission cartUpdated', {
+        items: this.cart.length,
+        count,
+        total
+      });
       const event = new CustomEvent('cartUpdated', { 
         detail: {
           cart: this.cart,
-          count: this.getTotalItems(),
-          total: this.getTotalPrice()
+          count,
+          total
         }
       });
       document.dispatchEvent(event);
@@ -610,29 +703,46 @@ class CartManager {
   async openCheckout(cartData) {
     let checkoutClient = null;
     const isGuestMode = cartData?.mode === 'guest';
+    console.info('[CART] openCheckout:start', {
+      mode: cartData?.mode || 'authenticated',
+      cartItems: (cartData?.cart || this.cart || []).length,
+      currentClientId: this.currentClient?.id || null,
+      isAuthenticated: Boolean(this.auth?.isAuthenticated?.())
+    });
 
     if (isGuestMode) {
       checkoutClient = await this.getOrCreateGuestClient();
     } else {
       if (!this.auth || !this.auth.isAuthenticated()) {
+        console.warn('[CART] openCheckout: auth requise, ouverture du choix checkout');
         this.showCheckoutChoice();
         return;
       }
 
       const user = this.auth?.getCurrentUser?.();
       if (!this.currentClient && user) {
+        console.info('[CART] openCheckout: loadOrCreateClient avant checkout', { uid: user.uid });
         await this.loadOrCreateClient(user);
       }
       checkoutClient = this.currentClient;
     }
 
     if (!checkoutClient) {
+      console.error('[CART] openCheckout: aucun client resolu', {
+        mode: cartData?.mode || 'authenticated',
+        currentClient: this.currentClient || null
+      });
       this.showNotification('❌ Impossible de charger le client. Réessayez.');
       return;
     }
+    console.info('[CART] openCheckout: client resolu', {
+      clientId: checkoutClient.id || null,
+      uid: checkoutClient.uid || null,
+      email: checkoutClient.email || null
+    });
     
     try {
-      const module = await import('./checkout.js');
+      const module = await import('./checkout.js?v=20260331-3');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -747,7 +857,7 @@ class CartManager {
         return;
       }
       
-      if (order.status !== 'approved') {
+      if (!['approved', 'paid'].includes(order.status)) {
         this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
@@ -759,6 +869,26 @@ class CartManager {
       
       this.showNotification('📄 Génération du PDF en cours...', 'info');
       
+      this.showNotification('Generation du PDF en cours...', 'info');
+      await downloadOrderPdfReceipt(
+        {
+          ...order,
+          items: this.getOrderItems(order),
+          amount: this.getOrderAmount(order)
+        },
+        {
+          companyName: this.pdfConfig?.companyName || 'Smart Cut Services',
+          companyAddress: this.pdfConfig?.companyAddress || 'smartcutservices.com',
+          thankYouMessage: this.pdfConfig?.thankYouMessage || 'Merci pour votre confiance !',
+          primaryColor: this.hexToRgb(this.getThemeColors().background.button || '#C6A75E')
+        }
+      );
+      this.showNotification('PDF telecharge avec succes !', 'success');
+      setTimeout(() => {
+        this.showNotification('Conservez ce PDF precieusement : il contient votre code unique.', 'warning');
+      }, 1000);
+      return;
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       const orderItems = this.getOrderItems(order);
@@ -972,7 +1102,7 @@ class CartManager {
         return;
       }
       
-      if (order.status !== 'approved') {
+      if (!['approved', 'paid'].includes(order.status)) {
         this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
@@ -1186,11 +1316,30 @@ class CartManager {
       maximumFractionDigits: 0
     }).format(price || 0);
   }
+
+  normalizeSelectedOptionLabel(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  isCustomerVisibleOption(option) {
+    if (!option || typeof option === 'string') return true;
+    const label = this.normalizeSelectedOptionLabel(option?.label || option?.name || option?.key || option?.type || '');
+    return !['url fichier', 'lien fichier', 'chemin storage', 'storage path'].includes(label);
+  }
+
+  getCustomerVisibleOptions(options) {
+    return (Array.isArray(options) ? options : []).filter((option) => this.isCustomerVisibleOption(option));
+  }
   
   getStatusText(status) {
     const texts = {
       pending: 'En attente',
-      review: 'En examen',
+        review: 'En examen',
+        paid: 'Paiement confirme',
       approved: '✅ Approuvé',
       rejected: '❌ Rejeté',
       expired: '⏰ Expiré'
@@ -1201,7 +1350,8 @@ class CartManager {
   getStatusColor(status) {
     const colors = {
       pending: '#F59E0B',
-      review: '#3B82F6',
+        review: '#3B82F6',
+        paid: '#10B981',
       approved: '#10B981',
       rejected: '#EF4444',
       expired: '#6B7280'
@@ -1325,7 +1475,7 @@ class CartManager {
           color: ${colors.text.body};
           line-height: 1.5;
         ">
-          ${order.status === 'approved'
+          ${['approved', 'paid'].includes(order.status)
             ? 'Paiement confirme. Votre commande avance maintenant selon le suivi de livraison.'
             : order.status === 'pending' || order.status === 'review'
               ? 'Votre commande est bien enregistree. Le suivi de livraison se mettra a jour apres validation.'
@@ -1336,49 +1486,81 @@ class CartManager {
   }
   
   showNotification(message, type = 'success') {
+    const existing = document.querySelector(`.cart-notification-${this.uniqueId}`);
+    if (existing) {
+      existing.remove();
+    }
+
+    const normalizedMessage = String(message || '')
+      .replace(/^[^\p{L}\p{N}]+/u, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 110);
+
+    const palette = {
+      success: { accent: '#C6A75E', border: 'rgba(198, 167, 94, 0.32)' },
+      warning: { accent: '#C88A2B', border: 'rgba(200, 138, 43, 0.28)' },
+      error: { accent: '#B14B4B', border: 'rgba(177, 75, 75, 0.28)' },
+      info: { accent: '#6F675C', border: 'rgba(111, 103, 92, 0.24)' }
+    };
+
+    const theme = palette[type] || palette.info;
     const notification = document.createElement('div');
     notification.className = `cart-notification-${this.uniqueId}`;
     notification.style.cssText = `
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${type === 'success' ? '#10B981' : type === 'warning' ? '#F59E0B' : type === 'error' ? '#EF4444' : '#3B82F6'};
-      color: white;
-      padding: 1rem 2rem;
-      border-radius: 0.5rem;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-      z-index: 1000001;
-      transform: translateX(120%);
-      transition: transform 0.3s ease;
-      font-size: 0.95rem;
+      left: 1rem;
+      bottom: 1rem;
+      width: min(320px, calc(100vw - 2rem));
+      background: rgba(245, 241, 232, 0.98);
+      color: #1F1E1C;
+      border: 1px solid ${theme.border};
+      border-left: 4px solid ${theme.accent};
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+      z-index: 999995;
+      transform: translateY(24px);
+      opacity: 0;
+      transition: transform 0.22s ease, opacity 0.22s ease;
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      max-width: 350px;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.9rem 1rem;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
     `;
-    
+
     const icons = {
-      success: 'fa-check-circle',
-      warning: 'fa-exclamation-triangle',
-      error: 'fa-times-circle',
-      info: 'fa-info-circle'
+      success: 'fa-bag-shopping',
+      warning: 'fa-circle-exclamation',
+      error: 'fa-circle-xmark',
+      info: 'fa-circle-info'
     };
-    
+
     notification.innerHTML = `
-      <i class="fas ${icons[type] || 'fa-info-circle'}"></i>
-      <span>${message}</span>
+      <div style="width: 2rem; height: 2rem; flex: 0 0 2rem; border-radius: 999px; background: ${theme.accent}16; color: ${theme.accent}; display: flex; align-items: center; justify-content: center; margin-top: 0.05rem;">
+        <i class="fas ${icons[type] || 'fa-circle-info'}"></i>
+      </div>
+      <div style="min-width: 0; flex: 1;">
+        <div style="font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: ${theme.accent}; font-weight: 800; margin-bottom: 0.22rem;">Panier</div>
+        <div style="font-size: 0.92rem; line-height: 1.45; color: #1F1E1C; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+          ${normalizedMessage}
+        </div>
+      </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
+    requestAnimationFrame(() => {
+      notification.style.transform = 'translateY(0)';
+      notification.style.opacity = '1';
+    });
+
     setTimeout(() => {
-      notification.style.transform = 'translateX(0)';
-    }, 100);
-    
-    setTimeout(() => {
-      notification.style.transform = 'translateX(120%)';
-      setTimeout(() => notification.remove(), 300);
-    }, 5000);
+      notification.style.transform = 'translateY(16px)';
+      notification.style.opacity = '0';
+      setTimeout(() => notification.remove(), 220);
+    }, 2200);
   }
   
   toggleOrdersVisibility() {
@@ -1393,19 +1575,11 @@ class CartManager {
       return;
     }
 
-    if (this.auth?.isAuthenticated?.()) {
-      const user = this.auth?.getCurrentUser?.();
-      if (!this.currentClient && user) {
-        this.loadOrCreateClient(user).then(() => {
-          if (this.currentClient?.id && !this.ordersListener) {
-            this.loadCustomerOrders(this.currentClient.id);
-          }
-        });
-      } else if (this.currentClient?.id && !this.ordersListener) {
-        this.loadCustomerOrders(this.currentClient.id);
-      }
-    }
+    this.warmUpClientContext().catch((error) => {
+      console.error('❌ Erreur prechargement panier:', error);
+    });
     
+    this.modalOpenedAt = Date.now();
     this.modal = document.createElement('div');
     this.modal.className = `cart-modal-${this.uniqueId}`;
     this.renderCartModal();
@@ -1451,12 +1625,7 @@ class CartManager {
     const colors = this.getThemeColors();
     const fonts = this.getThemeFonts();
     
-    const totalItems = this.getTotalItems();
     const totalPrice = this.getTotalPrice();
-    const hasOrders = this.orders.length > 0;
-    const isAuthenticated = this.auth ? this.auth.isAuthenticated() : false;
-    const user = this.auth ? this.auth.getCurrentUser() : null;
-    const likedProducts = this.likeManager ? this.likeManager.getLikedProducts() : [];
     
     this.modal.innerHTML = `
       <div class="cart-overlay" style="
@@ -1491,7 +1660,6 @@ class CartManager {
         display: flex;
         flex-direction: column;
       ">
-        <!-- Header -->
         <div style="
           padding: 1.5rem;
           border-bottom: 1px solid rgba(198, 167, 94, 0.2);
@@ -1508,88 +1676,11 @@ class CartManager {
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.65rem;
           ">
             <i class="fas fa-shopping-bag" style="color: ${colors.icon.hover};"></i>
+            <span>Panier</span>
           </h2>
-
-          <button class="toggle-likes-btn" title="Produits favoris" style="
-            background: none;
-            border: 1px solid ${colors.background.button}55;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            color: #DC2626;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-          ">
-            <i class="fas fa-heart"></i>
-            ${likedProducts.length > 0 ? `
-              <span style="
-                position: absolute;
-                top: -5px;
-                right: -5px;
-                min-width: 18px;
-                height: 18px;
-                border-radius: 999px;
-                background: #DC2626;
-                color: white;
-                font-size: 0.65rem;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                padding: 0 4px;
-                border: 2px solid ${colors.background.general};
-              ">${likedProducts.length}</span>
-            ` : ''}
-          </button>
-          
-          ${isAuthenticated ? `
-            <div style="display:flex;align-items:center;gap:0.45rem;min-width:0;max-width:min(46vw,260px);">
-              <span title="${user?.email || ''}" style="
-                font-size: 0.78rem;
-                color: ${colors.text.body};
-                max-width: min(30vw, 180px);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                display: inline-block;
-                padding: 0.28rem 0.55rem;
-                border-radius: 999px;
-                border: 1px solid ${colors.background.button}55;
-                background: ${colors.background.general};
-              ">${user?.email || ''}</span>
-              <button class="logout-btn" style="
-                background: none;
-                border: 1px solid ${colors.background.button};
-                padding: 0.25rem 0.75rem;
-                border-radius: 2rem;
-                font-size: 0.75rem;
-                cursor: pointer;
-                color: ${colors.text.body};
-                transition: all 0.2s;
-                flex-shrink: 0;
-              " onmouseover="this.style.background='${colors.background.button}'; this.style.color='${colors.text.button}'" onmouseout="this.style.background='transparent'; this.style.color='${colors.text.body}'">
-                Déconnexion
-              </button>
-            </div>
-          ` : `
-            <button class="login-btn" style="
-              background: none;
-              border: 1px solid ${colors.background.button};
-              padding: 0.25rem 1rem;
-              border-radius: 2rem;
-              font-size: 0.85rem;
-              cursor: pointer;
-              color: ${colors.text.body};
-              transition: all 0.2s;
-            " onmouseover="this.style.background='${colors.background.button}'; this.style.color='${colors.text.button}'" onmouseout="this.style.background='transparent'; this.style.color='${colors.text.body}'">
-              Se connecter
-            </button>
-          `}
           
           <button class="close-cart-btn" style="
             background: none;
@@ -1610,23 +1701,10 @@ class CartManager {
           </button>
         </div>
         
-        <!-- Contenu avec scroll -->
         <div style="flex: 1; overflow-y: auto; padding: 1.5rem;">
-          ${this.renderLikedSection(colors, fonts)}
-          ${isAuthenticated ? this.renderOrdersSection(colors, fonts) : this.renderLoginPrompt(colors, fonts)}
-          
-          ${isAuthenticated && hasOrders && this.cart.length > 0 ? `
-            <div style="
-              height: 1px;
-              background: rgba(198, 167, 94, 0.2);
-              margin: 1.5rem 0;
-            "></div>
-          ` : ''}
-          
           ${this.renderCartSection(colors, fonts)}
         </div>
         
-        <!-- Footer Panier -->
         ${this.cart.length > 0 ? `
           <div style="
             padding: 1.5rem;
@@ -1997,7 +2075,7 @@ class CartManager {
         ">
           <span>${order.methodName || 'Paiement mobile'}</span>
           <span>•</span>
-          <span>Code: ${order.uniqueCode?.substr(0, 8)}...</span>
+          <span>Code: ${order.uniqueCode || order.id || 'N/A'}</span>
         </div>
 
         ${this.renderFulfillmentTracker(order, colors)}
@@ -2023,7 +2101,7 @@ class CartManager {
           </div>
         ` : ''}
         
-        ${(order.status === 'approved' || order.status === 'rejected') ? `
+        ${(['approved', 'paid', 'rejected'].includes(order.status)) ? `
           <div style="display:flex; justify-content:flex-end; margin-top:0.5rem;">
             <button class="hide-order-btn" data-order-id="${order.id}" title="Masquer cette commande" style="
               background: transparent;
@@ -2044,7 +2122,7 @@ class CartManager {
           </div>
         ` : ''}
 
-        ${order.status === 'approved' ? `
+        ${(['approved', 'paid'].includes(order.status)) ? `
           <div style="
             margin-top: 0.5rem;
             padding: 0.5rem;
@@ -2197,7 +2275,7 @@ class CartManager {
   renderCartItems(colors, fonts) {
     return this.cart.map((item, index) => {
       const itemTotal = (item.price || 0) * (item.quantity || 1);
-      const options = item.selectedOptions || [];
+      const options = this.getCustomerVisibleOptions(item.selectedOptions || []);
       const imagePath = this.getImagePath(item.image || '');
       
       return `
@@ -2372,6 +2450,11 @@ class CartManager {
     
     if (overlay) {
       overlay.addEventListener('click', (e) => {
+        if (Date.now() - this.modalOpenedAt < 350) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         if (e.target === overlay) {
           this.closeCartModal();
         }

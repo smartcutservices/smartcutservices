@@ -3,6 +3,7 @@ import { db } from './firebase-init.js';
 import { collection, getDocs, query, orderBy, where, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import { buildProductPageUrl } from './product-links.js';
+import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 
 class MobileMenu {
   constructor() {
@@ -147,11 +148,16 @@ class MobileMenu {
   
   setupEvents() {
     const hamburger = document.getElementById('mobileHamburgerBtn');
+    const navAllBtn = document.getElementById('mobileNavAllBtn');
     const closeBtn = document.getElementById('closeMobileMenuBtn');
     const footerCloseBtn = document.getElementById('mobileMenuFooterCloseBtn');
     
     if (hamburger) {
       hamburger.addEventListener('click', () => this.open());
+    }
+
+    if (navAllBtn) {
+      navAllBtn.addEventListener('click', () => this.open());
     }
     
     if (closeBtn) {
@@ -209,10 +215,10 @@ class MobileMenu {
       card.setAttribute('data-category-id', cat.id);
       
       // Utiliser l'image de la catégorie si disponible
-      const imageUrl = cat.image || 'https://via.placeholder.com/90';
+      const imageUrl = cat.image || './logo.png';
       
       card.innerHTML = `
-        <img src="${imageUrl}" class="mobile-category-image" alt="${cat.name}" onerror="this.src='https://via.placeholder.com/90?text='+encodeURIComponent('${cat.name?.charAt(0)}');">
+        <img src="${imageUrl}" class="mobile-category-image" alt="${cat.name}" onerror="this.onerror=null; this.src='./logo.png';">
         <span class="mobile-category-name">${cat.name}</span>
       `;
       
@@ -418,7 +424,7 @@ class MobileMenu {
         const productImages = product.images || [];
         const firstImage = productImages.length > 0 ? productImages[0] : null;
         
-        let imageUrl = 'https://via.placeholder.com/70?text=Produit';
+        let imageUrl = './logo.png';
         if (firstImage) {
           if (firstImage.startsWith('http')) {
             imageUrl = firstImage;
@@ -427,15 +433,18 @@ class MobileMenu {
           }
         }
         
-        const productPrice = this.formatPriceHTG(product.price || 0);
-        const oldPrice = product.comparePrice ? this.formatPriceHTG(product.comparePrice) : null;
+        const pricing = getProductPricing(product, product.price || 0);
+        const storeMeta = getProductStoreMeta(product);
+        const productPrice = this.formatPriceHTG(pricing.currentPrice || 0);
+        const oldPrice = pricing.comparePrice ? this.formatPriceHTG(pricing.comparePrice) : null;
         
         return `
           <div class="mobile-featured-card" data-product-id="${product.id}" data-product-link="${product.link || '#'}">
             <img src="${imageUrl}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 12px;" 
-                 onerror="this.src='https://via.placeholder.com/70?text=img'; this.onerror=null;">
+                 onerror="this.onerror=null; this.src='./logo.png';">
             <div style="flex: 1;">
               <h4 style="font-family: var(--primary-font); font-weight: 600; margin-bottom: 0.2rem;">${product.name || 'Produit'}</h4>
+              <div style="font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#8B7E6B;margin-bottom:0.22rem;">${storeMeta.storeName}</div>
               <p style="font-size: 0.75rem; margin-bottom: 0.3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                 ${product.shortDescription || product.description || ''}
               </p>

@@ -30,6 +30,7 @@ let db = null;
 let auth = null;
 let googleProvider = null;
 let storage = null;
+let authReadyPromise = Promise.resolve();
 
 try {
   app = initializeApp(firebaseConfig);
@@ -42,9 +43,11 @@ try {
   googleProvider.setCustomParameters({
     prompt: 'select_account'
   });
+  googleProvider.addScope('email');
+  googleProvider.addScope('profile');
   
   // Persistance de session
-  setPersistence(auth, browserLocalPersistence)
+  authReadyPromise = setPersistence(auth, browserLocalPersistence)
     .then(() => {})
     .catch(err => console.warn("⚠️ Persistance auth non activée:", err.code));
   
@@ -63,4 +66,4 @@ try {
   console.error("❌ Firebase initialization error:", error);
 }
 
-export { app, db, auth, googleProvider, storage, STORAGE_BUCKET_URL };
+export { app, db, auth, googleProvider, storage, STORAGE_BUCKET_URL, authReadyPromise };
