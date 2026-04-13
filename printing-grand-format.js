@@ -129,14 +129,39 @@ class PrintingGrandFormatPage {
     `;
   }
 
+  updateStepActions() {
+    const nextToStep3 = this.container.querySelector('[data-next-step="3"]');
+    if (nextToStep3) {
+      nextToStep3.disabled = !this.getStepValidity(2) || this.config.enabled === false;
+    }
+
+    const whatsappBtn = this.container.querySelector('#grandFormatWhatsappBtn');
+    const status = this.container.querySelector('#grandFormatStatus');
+    if (whatsappBtn && status) {
+      const message = `${this.config.whatsappMessage}\n\nType: ${this.formState.type}\nLargeur: ${this.formState.width}\nHauteur: ${this.formState.height}${this.formState.notes ? `\nDetails: ${this.formState.notes}` : ''}`;
+      const link = this.buildWhatsAppUrl(message);
+      whatsappBtn.href = link || '#';
+      whatsappBtn.classList.toggle('is-disabled', !link);
+      status.textContent = link ? 'Le message WhatsApp est pret.' : 'Ajoutez un numero WhatsApp dans le dashboard Impression.';
+      status.style.color = link ? '#0f9f6e' : '#b91c1c';
+    }
+  }
+
   attachEvents() {
     this.container.querySelectorAll('[data-go-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.goStep))));
     this.container.querySelectorAll('[data-next-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.nextStep))));
     this.container.querySelectorAll('[data-prev-step]').forEach((button) => button.addEventListener('click', () => this.goToStep(Number(button.dataset.prevStep))));
     ['#grandFormatType', '#grandFormatWidth', '#grandFormatHeight', '#grandFormatNotes'].forEach((selector) => {
-      this.container.querySelector(selector)?.addEventListener('input', () => this.syncFormState());
-      this.container.querySelector(selector)?.addEventListener('change', () => this.syncFormState());
+      this.container.querySelector(selector)?.addEventListener('input', () => {
+        this.syncFormState();
+        this.updateStepActions();
+      });
+      this.container.querySelector(selector)?.addEventListener('change', () => {
+        this.syncFormState();
+        this.updateStepActions();
+      });
     });
+    this.updateStepActions();
   }
 }
 
