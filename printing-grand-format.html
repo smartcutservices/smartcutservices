@@ -20,7 +20,8 @@
   <main id="printing-grand-format-root"></main>
   <div id="sierra-footer-root"></div>
   <script type="module">
-    import './firebase-init.js';
+    const ASSET_VERSION = '20260413-1';
+    await import(`./firebase-init.js?v=${ASSET_VERSION}`);
     const mount = async (rootId, loader, options = {}) => {
       const root = document.getElementById(rootId);
       if (!root) return;
@@ -31,9 +32,9 @@
         console.error(`Erreur composant ${rootId}:`, error);
       }
     };
-    mount('sierra-header-root', () => import('./header.js'));
-    mount('printing-grand-format-root', () => import('./printing-grand-format.js'));
-    mount('sierra-footer-root', () => import('./footer.js'), {
+    mount('sierra-header-root', () => import(`./header.js?v=${ASSET_VERSION}`));
+    mount('printing-grand-format-root', () => import(`./printing-grand-format.js?v=${ASSET_VERSION}`));
+    mount('sierra-footer-root', () => import(`./footer.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',
       showSocial: true,
       showContact: true,
