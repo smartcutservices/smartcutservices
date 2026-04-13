@@ -1,6 +1,7 @@
 import { getProductStoreMeta } from './product-display-utils.js';
 
 const SITE_BASE_URL = 'https://smartcutservices.com';
+const SHARE_BASE_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/productSharePage';
 
 export function buildProductPageUrl(productId) {
   const params = new URLSearchParams();
@@ -9,9 +10,8 @@ export function buildProductPageUrl(productId) {
 }
 
 export function buildProductShareUrl(productId, sourceCollection = '') {
-  const cleanProductId = String(productId || '').trim();
-  const path = cleanProductId ? `/p/${encodeURIComponent(cleanProductId)}` : '/p';
-  const url = new URL(path, `${SITE_BASE_URL}/`);
+  const url = new URL(SHARE_BASE_URL);
+  if (productId) url.searchParams.set('product', String(productId).trim());
   if (sourceCollection) url.searchParams.set('source', sourceCollection);
   return url.toString();
 }
