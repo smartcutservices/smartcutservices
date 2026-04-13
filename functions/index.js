@@ -318,6 +318,20 @@ function buildProductPageAbsoluteUrl(productId = '') {
   return url.toString();
 }
 
+function extractSharedProductId(req) {
+  const fromQuery = String(req.query.product || req.query.id || '').trim();
+  if (fromQuery) return fromQuery;
+
+  const path = String(req.path || req.originalUrl || '').split('?')[0];
+  const segments = path.split('/').filter(Boolean);
+  const pIndex = segments.findIndex((segment) => segment === 'p');
+  if (pIndex >= 0 && segments[pIndex + 1]) {
+    return decodeURIComponent(String(segments[pIndex + 1] || '').trim());
+  }
+
+  return '';
+}
+
 async function findPublicProductDocument(productId = '', preferredCollection = '') {
   const trimmedId = String(productId || '').trim();
   if (!trimmedId) return null;
@@ -3209,7 +3223,7 @@ exports.productSharePage = onRequest(
   { region: REGION },
   async (req, res) => {
     try {
-      const productId = String(req.query.product || req.query.id || '').trim();
+      const productId = extractSharedProductId(req);
       const preferredCollection = String(req.query.source || '').trim();
       const productUrl = buildProductPageAbsoluteUrl(productId);
 
@@ -3231,7 +3245,7 @@ exports.productSharePage = onRequest(
       res.status(200).send(buildProductShareHtml(product, productUrl));
     } catch (error) {
       logger.error('productSharePage failed', error);
-      const fallbackUrl = buildProductPageAbsoluteUrl(String(req.query.product || req.query.id || '').trim());
+      const fallbackUrl = buildProductPageAbsoluteUrl(extractSharedProductId(req));
       res.set('Cache-Control', 'public, max-age=120');
       res.status(302).redirect(fallbackUrl);
     }

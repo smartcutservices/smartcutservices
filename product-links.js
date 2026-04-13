@@ -9,8 +9,9 @@ export function buildProductPageUrl(productId) {
 }
 
 export function buildProductShareUrl(productId, sourceCollection = '') {
-  const url = new URL('/product.html', `${SITE_BASE_URL}/`);
-  if (productId) url.searchParams.set('product', productId);
+  const cleanProductId = String(productId || '').trim();
+  const path = cleanProductId ? `/p/${encodeURIComponent(cleanProductId)}` : '/p';
+  const url = new URL(path, `${SITE_BASE_URL}/`);
   if (sourceCollection) url.searchParams.set('source', sourceCollection);
   return url.toString();
 }

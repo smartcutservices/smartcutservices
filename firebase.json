@@ -1,4 +1,27 @@
 {
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**",
+      ".tmp-main-sync/**",
+      ".tmp-dashboard-sync/**",
+      ".tmp-main-hero-sync/**",
+      ".tmp-main-hero-sync2/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/p",
+        "function": "productSharePage"
+      },
+      {
+        "source": "/p/**",
+        "function": "productSharePage"
+      }
+    ]
+  },
   "functions": {
     "source": "functions"
   },
