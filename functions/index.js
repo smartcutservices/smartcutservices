@@ -358,22 +358,33 @@ async function findPublicProductDocument(productId = '', preferredCollection = '
 }
 
 function getPrimaryProductImage(product = {}) {
+  const normalizeImageUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('//')) return `https:${raw}`;
+    if (raw.startsWith('/')) {
+      return new URL(raw, `${SITE_BASE_URL}/`).toString();
+    }
+    return new URL(`/${raw.replace(/^\.?\//, '')}`, `${SITE_BASE_URL}/`).toString();
+  };
+
   if (Array.isArray(product.images) && product.images[0]) {
-    return String(product.images[0]).trim();
+    return normalizeImageUrl(product.images[0]);
   }
 
   if (Array.isArray(product.variations)) {
     for (const variation of product.variations) {
       if (Array.isArray(variation?.images) && variation.images[0]) {
-        return String(variation.images[0]).trim();
+        return normalizeImageUrl(variation.images[0]);
       }
       if (variation?.image) {
-        return String(variation.image).trim();
+        return normalizeImageUrl(variation.image);
       }
     }
   }
 
-  return `${SITE_BASE_URL}/logo.png`;
+  return normalizeImageUrl('/logo.png');
 }
 
 function buildProductShareHtml(product = {}, productUrl = '') {
