@@ -1315,7 +1315,7 @@ class CheckoutModal {
     }
 
     try {
-      const { previewPromoCode } = await import('./promo-client.js');
+      const { previewPromoCode } = await import('./promo-client.js?v=20260413-2');
       const response = await previewPromoCode({
         code: normalizedCode,
         clientId: this.client?.id || '',
@@ -1362,7 +1362,7 @@ class CheckoutModal {
       if (!this.validateDelivery()) {
         return;
       }
-      const module = await import('./payment.js?v=20260331-3');
+      const module = await import('./payment.js?v=20260413-2');
       const PaymentModal = module.default;
       
       await this.close();
