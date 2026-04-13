@@ -966,6 +966,25 @@ function buildPromoUsageId(promoId = '', clientKey = '') {
   return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
 }
 
+async function resolvePromoCategoryNames(categoryIds = []) {
+  const uniqueIds = Array.from(new Set((Array.isArray(categoryIds) ? categoryIds : []).map((value) => String(value || '').trim()).filter(Boolean)));
+  if (!uniqueIds.length) return [];
+
+  const docs = await Promise.all(
+    uniqueIds.map(async (categoryId) => {
+      try {
+        const snap = await db.collection('categories_list').doc(categoryId).get();
+        if (!snap.exists) return '';
+        return String(snap.data()?.name || '').trim();
+      } catch (_) {
+        return '';
+      }
+    })
+  );
+
+  return Array.from(new Set(docs.filter(Boolean)));
+}
+
 function isPromoActive(promo = {}, now = Date.now()) {
   if (promo?.active === false) return false;
   const startAt = toDateMs(promo?.startAt || promo?.startsAt || promo?.validFrom || '');
@@ -2004,6 +2023,169 @@ exports.previewPromoCode = onRequest(
         error: 'promo-preview-failed',
         message: error?.message || 'Impossible de verifier ce code promo.'
       });
+    }
+  }
+);
+
+exports.listPromoCodes = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const snapshot = await db.collection('promoCodes').orderBy('updatedAt', 'desc').limit(200).get();
+      sendJson(res, 200, {
+        ok: true,
+        promos: snapshot.docs.map((entry) => ({ id: entry.id, ...(entry.data() || {}) }))
+      });
+    } catch (error) {
+      logger.error('PROMO_ADMIN list:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'promo-list-failed', message: 'Impossible de charger les codes promo.' });
+    }
+  }
+);
+
+exports.savePromoCode = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const code = normalizePromoCode(body?.code);
+      const label = sanitizeText(body?.label || body?.name || '', 160);
+      const type = normalizePromoType(body?.type);
+      const value = Math.max(0, toNumber(body?.value ?? body?.amount ?? body?.rate));
+      const startAt = String(body?.startAt || '').trim();
+      const endAt = String(body?.endAt || '').trim();
+      const categoryIds = Array.from(new Set((Array.isArray(body?.categoryIds) ? body.categoryIds : []).map((value) => String(value || '').trim()).filter(Boolean)));
+      const now = new Date().toISOString();
+      const previousId = normalizePromoCode(body?.previousCode || body?.currentPromoId || '');
+
+      if (!code) {
+        sendJson(res, 400, { ok: false, error: 'missing-code', message: 'Le code promo est requis.' });
+        return;
+      }
+      if (!label) {
+        sendJson(res, 400, { ok: false, error: 'missing-label', message: 'Le libelle du code promo est requis.' });
+        return;
+      }
+      if (!Number.isFinite(value) || value <= 0) {
+        sendJson(res, 400, { ok: false, error: 'invalid-value', message: 'La valeur de la remise doit etre superieure a 0.' });
+        return;
+      }
+      if (startAt && endAt && toDateMs(endAt) <= toDateMs(startAt)) {
+        sendJson(res, 400, { ok: false, error: 'invalid-range', message: 'La date de fin doit etre apres la date de debut.' });
+        return;
+      }
+
+      const targetRef = db.collection('promoCodes').doc(code);
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists && code !== previousId) {
+        sendJson(res, 400, { ok: false, error: 'duplicate-code', message: 'Ce code promo existe deja.' });
+        return;
+      }
+
+      const duplicateSnapshot = await db.collection('promoCodes').where('code', '==', code).limit(5).get();
+      const duplicate = duplicateSnapshot.docs.find((entry) => entry.id !== previousId && entry.id !== code);
+      if (duplicate) {
+        sendJson(res, 400, { ok: false, error: 'duplicate-code', message: 'Ce code promo existe deja.' });
+        return;
+      }
+
+      const existingData = targetSnap.exists ? (targetSnap.data() || {}) : {};
+      const categoryNames = await resolvePromoCategoryNames(categoryIds);
+      const payload = {
+        code,
+        label,
+        name: label,
+        type,
+        value,
+        active: body?.active !== false,
+        startAt,
+        endAt,
+        description: sanitizeText(body?.description || '', 500),
+        categoryIds,
+        categoryNames,
+        usageCount: Number(existingData?.usageCount || 0),
+        createdAt: existingData?.createdAt || now,
+        updatedAt: now
+      };
+
+      await targetRef.set(payload, { merge: true });
+
+      if (previousId && previousId !== code) {
+        await db.collection('promoCodes').doc(previousId).delete().catch(() => null);
+      }
+
+      sendJson(res, 200, { ok: true, promo: { id: code, ...payload } });
+    } catch (error) {
+      logger.error('PROMO_ADMIN save:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'promo-save-failed', message: 'Impossible d enregistrer ce code promo.' });
+    }
+  }
+);
+
+exports.deletePromoCode = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (!['POST', 'DELETE'].includes(req.method)) {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const code = normalizePromoCode(body?.code || req.query.code || '');
+      if (!code) {
+        sendJson(res, 400, { ok: false, error: 'missing-code', message: 'Le code promo est requis.' });
+        return;
+      }
+
+      await db.collection('promoCodes').doc(code).delete();
+      sendJson(res, 200, { ok: true, code });
+    } catch (error) {
+      logger.error('PROMO_ADMIN delete:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'promo-delete-failed', message: 'Impossible de supprimer ce code promo.' });
     }
   }
 );
