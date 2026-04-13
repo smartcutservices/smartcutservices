@@ -1145,6 +1145,35 @@
                       <input type="number" id="totalStock" class="form-input" readonly>
                     </div>
                   </div>
+
+                  <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-[rgba(198,167,94,0.06)] p-4 space-y-4">
+                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <h4 class="font-semibold text-text-primary">Discount produit</h4>
+                        <p class="text-sm text-text-secondary mt-1">Applique une remise simple sur ce produit seulement. Le prix normal reviendra automatiquement apres la date de fin.</p>
+                      </div>
+                      <span class="inline-flex items-center rounded-full bg-white border border-[rgba(198,167,94,0.2)] px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase text-[#8a6e2f]">
+                        Pourcentage uniquement
+                      </span>
+                    </div>
+
+                    <input type="hidden" id="discountType" value="percentage">
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Discount (%)</label>
+                        <input type="number" id="discountValue" step="0.01" min="0" max="100" class="form-input" placeholder="Ex: 24">
+                      </div>
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Date debut</label>
+                        <input type="datetime-local" id="discountStartAt" class="form-input">
+                      </div>
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Date fin</label>
+                        <input type="datetime-local" id="discountEndAt" class="form-input">
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1824,6 +1853,10 @@
           longDescription: document.getElementById('longDescription'),
           basePrice: document.getElementById('basePrice'),
           comparePrice: document.getElementById('comparePrice'),
+          discountType: document.getElementById('discountType'),
+          discountValue: document.getElementById('discountValue'),
+          discountStartAt: document.getElementById('discountStartAt'),
+          discountEndAt: document.getElementById('discountEndAt'),
           totalStock: document.getElementById('totalStock'),
           productStatus: document.getElementById('productStatus'),
           
@@ -3323,6 +3356,7 @@
           this.elements.longDescription.value = this.currentProduct.longDescription || '';
           this.elements.basePrice.value = this.currentProduct.price || '';
           this.elements.comparePrice.value = this.currentProduct.comparePrice || '';
+          this.populateDiscountFields(this.currentProduct);
           this.elements.productStatus.checked = this.currentProduct.status !== 'draft';
           
           if (this.currentProduct.categoryId) {
@@ -3352,6 +3386,7 @@
         this.elements.longDescription.value = '';
         this.elements.basePrice.value = '';
         this.elements.comparePrice.value = '';
+        this.populateDiscountFields(null);
         this.elements.totalStock.value = '0';
         this.elements.productStatus.checked = true;
         this.elements.categorySelect.value = '';
@@ -3366,6 +3401,11 @@
       async saveProduct() {
         const now = new Date().toISOString();
         const nextStatus = this.elements.productStatus.checked ? 'pending_review' : 'draft';
+        const discount = this.collectScheduledDiscount();
+        if (discount?.__error) {
+          this.showToast(discount.__error, 'error');
+          return;
+        }
         const selectedCategory = this.getSelectedCategory();
         const selectedCategoryName = String(
           selectedCategory?.name ||
@@ -3379,6 +3419,12 @@
           longDescription: this.elements.longDescription.value.trim(),
           price: parseFloat(this.elements.basePrice.value) || 0,
           comparePrice: parseFloat(this.elements.comparePrice.value) || null,
+          discount,
+          discountEnabled: Boolean(discount?.enabled),
+          discountType: discount?.type || '',
+          discountValue: Number(discount?.value || 0),
+          discountStartAt: discount?.startAt || '',
+          discountEndAt: discount?.endAt || '',
           status: nextStatus,
           requestedStatus: this.elements.productStatus.checked ? 'active' : 'draft',
           categoryId: this.elements.categorySelect.value || null,
@@ -3408,6 +3454,15 @@
         if (!productData.name) {
           this.showToast('Le nom du produit est requis', 'error');
           return;
+        }
+
+        if (discount?.enabled && discount.startAt && discount.endAt) {
+          const start = new Date(discount.startAt).getTime();
+          const end = new Date(discount.endAt).getTime();
+          if (Number.isFinite(start) && Number.isFinite(end) && end <= start) {
+            this.showToast('La date de fin de remise doit etre apres la date de debut', 'error');
+            return;
+          }
         }
 
         try {
@@ -3761,6 +3816,64 @@
         return `./${filename}`;
       }
       
+      formatDateTimeLocalValue(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return '';
+        const pad = (number) => String(number).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      }
+
+      populateDiscountFields(product) {
+        const discount = product?.discount && typeof product.discount === 'object' ? product.discount : {};
+        const enabled = Boolean(discount.enabled ?? product?.discountEnabled);
+        const type = String(discount.type || product?.discountType || '');
+        const value = discount.value ?? product?.discountValue ?? '';
+        const startAt = discount.startAt || product?.discountStartAt || '';
+        const endAt = discount.endAt || product?.discountEndAt || '';
+
+        this.elements.discountType.value = enabled ? type : '';
+        this.elements.discountValue.value = enabled && value !== '' ? value : '';
+        this.elements.discountStartAt.value = this.formatDateTimeLocalValue(startAt);
+        this.elements.discountEndAt.value = this.formatDateTimeLocalValue(endAt);
+      }
+
+      collectScheduledDiscount() {
+        const type = 'percentage';
+        const value = parseFloat(this.elements.discountValue.value);
+        const startAt = this.elements.discountStartAt.value ? new Date(this.elements.discountStartAt.value).toISOString() : '';
+        const endAt = this.elements.discountEndAt.value ? new Date(this.elements.discountEndAt.value).toISOString() : '';
+
+        if (!Number.isFinite(value) || value <= 0) {
+          return {
+            enabled: false,
+            type: '',
+            value: 0,
+            startAt: '',
+            endAt: ''
+          };
+        }
+
+        if (value > 100) {
+          return {
+            enabled: false,
+            type: '',
+            value: 0,
+            startAt: '',
+            endAt: '',
+            __error: 'Le discount doit etre compris entre 0 et 100%.'
+          };
+        }
+
+        return {
+          enabled: true,
+          type,
+          value,
+          startAt,
+          endAt
+        };
+      }
+
       // ========== UTILITAIRES ==========
       
       closeAllModals() {

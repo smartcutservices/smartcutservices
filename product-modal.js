@@ -147,6 +147,13 @@ class ProductModal {
       minimumFractionDigits: 2
     }).format(price || 0);
   }
+
+  getDiscountPercent(currentPrice, comparePrice) {
+    const current = this.toNumber(currentPrice, 0);
+    const compare = this.toNumber(comparePrice, 0);
+    if (!(compare > current && current >= 0)) return 0;
+    return Math.max(0, Math.round(((compare - current) / compare) * 100));
+  }
   
   toNumber(value, fallback = 0) {
     const num = Number(value);
@@ -1003,6 +1010,7 @@ class ProductModal {
     const displayPrice = this.getProductDisplayPrice(product);
     const storeMeta = getProductStoreMeta(product);
     const variationsCount = Array.isArray(product.variations) ? product.variations.length : 0;
+    const discountPercent = this.getDiscountPercent(displayPrice.value, displayPrice.comparePrice);
     
     return `
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
@@ -1023,6 +1031,11 @@ class ProductModal {
         
         <!-- Prix -->
         <div style="display: flex; align-items: baseline; gap: 1rem;">
+          ${discountPercent > 0 ? `
+            <span style="display:inline-flex;align-items:center;padding:0.35rem 0.7rem;border-radius:999px;background:rgba(185,28,28,0.08);color:#B91C1C;font-size:0.95rem;font-weight:700;">
+              -${discountPercent}%
+            </span>
+          ` : ''}
           <span class="product-current-price" style="font-size: 2rem; font-weight: bold; color: #1F1E1C;">
             ${displayPrice.text}
           </span>

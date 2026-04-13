@@ -143,6 +143,13 @@ class SierraProducts {
       minimumFractionDigits: 2
     }).format(price || 0);
   }
+
+  getDiscountPercent(currentPrice, comparePrice) {
+    const current = this.toNumber(currentPrice, 0);
+    const compare = this.toNumber(comparePrice, 0);
+    if (!(compare > current && current >= 0)) return 0;
+    return Math.max(0, Math.round(((compare - current) / compare) * 100));
+  }
   
   // Obtenir la variation active d'un produit
   getActiveVariation(product) {
@@ -672,18 +679,27 @@ class SierraProducts {
     // Prix
     let priceDisplay = '';
     let comparePriceDisplay = '';
+    let discountBadgeDisplay = '';
     if (hasVariations) {
       priceDisplay = this.formatPriceRange(product);
       if (rangePricing?.hasDiscount && rangePricing.maxComparePrice > 0) {
         comparePriceDisplay = rangePricing.minComparePrice === rangePricing.maxComparePrice
           ? this.formatPrice(rangePricing.minComparePrice)
           : `${this.formatPrice(rangePricing.minComparePrice)} - ${this.formatPrice(rangePricing.maxComparePrice)}`;
+        const badgePercent = this.getDiscountPercent(rangePricing.minPrice, rangePricing.minComparePrice);
+        if (badgePercent > 0) {
+          discountBadgeDisplay = `-${badgePercent}%`;
+        }
       }
     } else {
       priceDisplay = this.formatPrice(singlePricing?.currentPrice || 0);
       comparePriceDisplay = singlePricing?.comparePrice
         ? this.formatPrice(singlePricing.comparePrice)
         : '';
+      const badgePercent = this.getDiscountPercent(singlePricing?.currentPrice, singlePricing?.comparePrice);
+      if (badgePercent > 0) {
+        discountBadgeDisplay = `-${badgePercent}%`;
+      }
     }
     
     return `
@@ -747,6 +763,11 @@ class SierraProducts {
             </p>
             
             <div class="flex items-baseline flex-wrap">
+              ${discountBadgeDisplay ? `
+                <span class="inline-flex items-center rounded-full bg-[#B91C1C]/10 text-[#B91C1C] text-[0.72rem] font-bold px-2.5 py-1 mr-2 mb-1">
+                  ${discountBadgeDisplay}
+                </span>
+              ` : ''}
               <span class="text-xl font-bold text-luxury">
                 ${priceDisplay}
               </span>
