@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasContentType(pattern) {
+      return request.resource != null
+        && request.resource.contentType != null
+        && request.resource.contentType.matches(pattern);
+    }
+
+    function isImage() {
+      return hasContentType('image/.*');
+    }
+
+    function isPdf() {
+      return hasContentType('application/pdf');
+    }
+
+    function maxSize(megabytes) {
+      return request.resource != null
+        && request.resource.size <= megabytes * 1024 * 1024;
+    }
+
+    allow read: if true;
+
+    match /products/{productId}/{allPaths=**} {
+      allow create: if isSignedIn() && isImage() && maxSize(20);
+    }
+
+    match /printing-documents/{fileName} {
+      allow create: if isPdf() && maxSize(20);
+    }
+
+    match /printing-cad/{fileName} {
+      allow create: if isPdf() && maxSize(25);
+    }
+
+    match /printing-photo/{fileName} {
+      allow create: if isImage() && maxSize(20);
+    }
+
+    match /{allPaths=**} {
+      allow write: if false;
+    }
+  }
+}

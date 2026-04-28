@@ -1,13 +1,9 @@
 // ============= FIREBASE INIT - MODULAR V9 =============
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-import { 
-  getFirestore, 
-  enableIndexedDbPersistence, 
-  CACHE_SIZE_UNLIMITED 
-} from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { 
-  getAuth, 
-  setPersistence, 
+import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import {
+  getAuth,
+  setPersistence,
   browserLocalPersistence,
   GoogleAuthProvider
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
@@ -38,32 +34,18 @@ try {
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
   storage = getStorage(app, STORAGE_BUCKET_URL);
-  
-  // Configuration du provider Google
+
   googleProvider.setCustomParameters({
     prompt: 'select_account'
   });
   googleProvider.addScope('email');
   googleProvider.addScope('profile');
-  
-  // Persistance de session
+
   authReadyPromise = setPersistence(auth, browserLocalPersistence)
     .then(() => {})
-    .catch(err => console.warn("⚠️ Persistance auth non activée:", err.code));
-  
-  // Persistance offline Firestore
-  enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED })
-    .then(() => {})
-    .catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.warn("⚠️ Persistance offline non disponible (onglets multiples)");
-      } else if (err.code === 'unimplemented') {
-        console.warn("⚠️ Persistance offline non supportée");
-      }
-    });
-  
+    .catch((err) => console.warn('Persistance auth non activee:', err.code));
 } catch (error) {
-  console.error("❌ Firebase initialization error:", error);
+  console.error('Firebase initialization error:', error);
 }
 
 export { app, db, auth, googleProvider, storage, STORAGE_BUCKET_URL, authReadyPromise };
