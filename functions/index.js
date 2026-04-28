@@ -12,6 +12,9 @@ const db = admin.firestore();
 const PROJECT_ID = 'smartcutservices-9ce54';
 const REGION = process.env.FUNCTION_REGION || 'us-central1';
 const SITE_BASE_URL = normalizeBaseUrl(process.env.PUBLIC_SITE_URL || 'https://smartcutservices.com');
+const REPO_CDN_BASE_URL = normalizeBaseUrl(
+  process.env.PRODUCT_ASSET_CDN_BASE || 'https://cdn.jsdelivr.net/gh/smartcutservices/smartcutservices@main'
+);
 const MONCASH_API_BASE = normalizeBaseUrl(
   process.env.MONCASH_API_BASE || 'https://moncashbutton.digicelgroup.com/Api'
 );
@@ -363,10 +366,9 @@ function getPrimaryProductImage(product = {}) {
     if (!raw) return '';
     if (/^https?:\/\//i.test(raw)) return raw;
     if (raw.startsWith('//')) return `https:${raw}`;
-    if (raw.startsWith('/')) {
-      return new URL(raw, `${SITE_BASE_URL}/`).toString();
-    }
-    return new URL(`/${raw.replace(/^\.?\//, '')}`, `${SITE_BASE_URL}/`).toString();
+    const normalizedPath = raw.replace(/^\.?\//, '');
+    if (!normalizedPath) return '';
+    return new URL(`/${normalizedPath}`, `${REPO_CDN_BASE_URL}/`).toString();
   };
 
   if (Array.isArray(product.images) && product.images[0]) {
@@ -2070,6 +2072,22 @@ exports.listPromoCodes = onRequest(
       }
 
       const snapshot = await db.collection('promoCodes').orderBy('updatedAt', 'desc').limit(200).get();
+      logger.info('PROMO_ADMIN_DEBUG list:success', {
+        adminUid: decodedUser.uid,
+        count: snapshot.size,
+        ids: snapshot.docs.map((entry) => entry.id),
+        promos: snapshot.docs.map((entry) => {
+          const data = entry.data() || {};
+          return {
+            id: entry.id,
+            code: data.code || '',
+            label: data.label || data.name || '',
+            updatedAt: data.updatedAt || '',
+            createdAt: data.createdAt || '',
+            active: data.active !== false
+          };
+        })
+      });
       sendJson(res, 200, {
         ok: true,
         promos: snapshot.docs.map((entry) => ({ id: entry.id, ...(entry.data() || {}) }))
@@ -2111,6 +2129,18 @@ exports.savePromoCode = onRequest(
       const categoryIds = Array.from(new Set((Array.isArray(body?.categoryIds) ? body.categoryIds : []).map((value) => String(value || '').trim()).filter(Boolean)));
       const now = new Date().toISOString();
       const previousId = normalizePromoCode(body?.previousCode || body?.currentPromoId || '');
+      logger.info('PROMO_ADMIN_DEBUG save:start', {
+        adminUid: decodedUser.uid,
+        previousId,
+        code,
+        label,
+        type,
+        value,
+        startAt,
+        endAt,
+        categoryIds,
+        active: body?.active !== false
+      });
 
       if (!code) {
         sendJson(res, 400, { ok: false, error: 'missing-code', message: 'Le code promo est requis.' });
@@ -2132,6 +2162,11 @@ exports.savePromoCode = onRequest(
       const targetRef = db.collection('promoCodes').doc(code);
       const targetSnap = await targetRef.get();
       if (targetSnap.exists && code !== previousId) {
+        logger.warn('PROMO_ADMIN_DEBUG save:duplicate-doc-id', {
+          adminUid: decodedUser.uid,
+          previousId,
+          code
+        });
         sendJson(res, 400, { ok: false, error: 'duplicate-code', message: 'Ce code promo existe deja.' });
         return;
       }
@@ -2139,6 +2174,12 @@ exports.savePromoCode = onRequest(
       const duplicateSnapshot = await db.collection('promoCodes').where('code', '==', code).limit(5).get();
       const duplicate = duplicateSnapshot.docs.find((entry) => entry.id !== previousId && entry.id !== code);
       if (duplicate) {
+        logger.warn('PROMO_ADMIN_DEBUG save:duplicate-field', {
+          adminUid: decodedUser.uid,
+          previousId,
+          code,
+          duplicateId: duplicate.id
+        });
         sendJson(res, 400, { ok: false, error: 'duplicate-code', message: 'Ce code promo existe deja.' });
         return;
       }
@@ -2163,10 +2204,19 @@ exports.savePromoCode = onRequest(
       };
 
       await targetRef.set(payload, { merge: true });
+      const savedSnap = await targetRef.get();
 
       if (previousId && previousId !== code) {
         await db.collection('promoCodes').doc(previousId).delete().catch(() => null);
       }
+
+      logger.info('PROMO_ADMIN_DEBUG save:success', {
+        adminUid: decodedUser.uid,
+        previousId,
+        code,
+        existsAfterSave: savedSnap.exists,
+        savedData: savedSnap.exists ? (savedSnap.data() || {}) : null
+      });
 
       sendJson(res, 200, { ok: true, promo: { id: code, ...payload } });
     } catch (error) {
@@ -2203,7 +2253,15 @@ exports.deletePromoCode = onRequest(
         return;
       }
 
+      logger.info('PROMO_ADMIN_DEBUG delete:start', {
+        adminUid: decodedUser.uid,
+        code
+      });
       await db.collection('promoCodes').doc(code).delete();
+      logger.info('PROMO_ADMIN_DEBUG delete:success', {
+        adminUid: decodedUser.uid,
+        code
+      });
       sendJson(res, 200, { ok: true, code });
     } catch (error) {
       logger.error('PROMO_ADMIN delete:error', {
