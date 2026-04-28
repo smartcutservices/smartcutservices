@@ -993,6 +993,98 @@ function buildPromoUsageId(promoId = '', clientKey = '') {
   return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
 }
 
+function normalizeAffiliateMemberId(value = '') {
+  return sanitizeText(value, 80).toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9_-]/g, '');
+}
+
+function normalizeAffiliateMemberStatus(value = '') {
+  return String(value || '').trim().toLowerCase() === 'inactive' ? 'inactive' : 'active';
+}
+
+function normalizeAffiliateSex(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['m', 'male', 'masculin', 'homme'].includes(normalized)) return 'Masculin';
+  if (['f', 'female', 'feminin', 'feminin', 'femme'].includes(normalized)) return 'Feminin';
+  if (['other', 'autre'].includes(normalized)) return 'Autre';
+  return sanitizeText(value, 32);
+}
+
+function buildAffiliateMemberDocId(promoCode = '') {
+  return normalizePromoCode(promoCode);
+}
+
+function buildAffiliateEarningId(promoUsageId = '') {
+  return String(promoUsageId || '').trim().replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function createAffiliatePayoutReportNumber(seed = '') {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const suffix = createUniqueCode(seed).replace('SCS-', '');
+  return `AFF-${y}${m}${d}-${suffix}`;
+}
+
+function buildAffiliateMemberSnapshot(member = {}) {
+  const firstName = String(member?.firstName || '').trim();
+  const lastName = String(member?.lastName || '').trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  return {
+    memberId: String(member?.memberId || '').trim(),
+    firstName,
+    lastName,
+    fullName: fullName || String(member?.fullName || '').trim() || 'Membre affiliation',
+    sex: String(member?.sex || '').trim(),
+    phone: String(member?.phone || '').trim(),
+    promoCode: String(member?.promoCode || '').trim(),
+    status: normalizeAffiliateMemberStatus(member?.status)
+  };
+}
+
+function normalizeAffiliatePayoutStatus(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['paid', 'completed', 'complete'].includes(normalized)) return 'paid';
+  return 'paid';
+}
+
+function getAffiliatePayoutEventMs(payout = {}) {
+  return toDateMs(
+    payout?.paidAt ||
+    payout?.updatedAt ||
+    payout?.createdAt
+  );
+}
+
+function mapAffiliatePayoutSummary(id, payout = {}) {
+  return {
+    id,
+    reportNumber: String(payout?.reportNumber || '').trim(),
+    status: normalizeAffiliatePayoutStatus(payout?.status),
+    promoCode: String(payout?.promoCode || '').trim(),
+    memberId: String(payout?.memberId || '').trim(),
+    firstName: String(payout?.firstName || '').trim(),
+    lastName: String(payout?.lastName || '').trim(),
+    fullName: String(payout?.fullName || '').trim(),
+    sex: String(payout?.sex || '').trim(),
+    phone: String(payout?.phone || '').trim(),
+    affiliateRate: Math.max(0, toNumber(payout?.affiliateRate)),
+    ratesUsed: Array.isArray(payout?.ratesUsed) ? payout.ratesUsed.map((value) => Math.max(0, toNumber(value))).filter((value) => value > 0) : [],
+    eligibleSubtotalAmount: Math.max(0, toNumber(payout?.eligibleSubtotalAmount)),
+    discountAmount: Math.max(0, toNumber(payout?.discountAmount)),
+    amount: Math.max(0, toNumber(payout?.amount ?? payout?.netAmount)),
+    usageCount: Math.max(0, toNumber(payout?.usageCount)),
+    periodStart: String(payout?.periodStart || '').trim(),
+    periodEnd: String(payout?.periodEnd || '').trim(),
+    paidAt: String(payout?.paidAt || '').trim(),
+    createdAt: String(payout?.createdAt || '').trim(),
+    updatedAt: String(payout?.updatedAt || '').trim(),
+    orderIds: Array.isArray(payout?.orderIds) ? payout.orderIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    earningIds: Array.isArray(payout?.earningIds) ? payout.earningIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    paidBy: String(payout?.paidBy || '').trim()
+  };
+}
+
 async function resolvePromoCategoryNames(categoryIds = []) {
   const uniqueIds = Array.from(new Set((Array.isArray(categoryIds) ? categoryIds : []).map((value) => String(value || '').trim()).filter(Boolean)));
   if (!uniqueIds.length) return [];
@@ -1657,6 +1749,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         ? buildPromoUsageId(promoCode.promoId, clientPromoKey)
         : '';
       const promoUsageRef = promoUsageId ? db.collection('promoCodeUsages').doc(promoUsageId) : null;
+      const affiliateMemberDocId = buildAffiliateMemberDocId(promoCode?.code || '');
+      const affiliateMemberRef = affiliateMemberDocId ? db.collection('affiliateMembers').doc(affiliateMemberDocId) : null;
+      const affiliateEarningRef = promoUsageId ? db.collection('affiliateEarnings').doc(buildAffiliateEarningId(promoUsageId)) : null;
       const shouldRecordPromoUsage = Boolean(
         promoUsageRef &&
         promoCode?.applied &&
@@ -1678,7 +1773,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
             clientUid: sessionData.clientUid || '',
             orderId,
             sessionId: session.id,
+            eligibleSubtotal: Math.max(0, toNumber(promoCode.eligibleSubtotal)),
             discountAmount: Math.max(0, toNumber(promoCode.discountAmount)),
+            discountedSubtotal: Math.max(0, toNumber(promoCode.discountedSubtotal)),
             usedAt: now
           }, { merge: true });
 
@@ -1689,6 +1786,67 @@ async function syncMoncashPayment({ session, details, source = '' }) {
               lastUsedAt: now,
               updatedAt: now
             }, { merge: true });
+          }
+
+          if (affiliateMemberRef && affiliateEarningRef) {
+            const affiliateMemberSnap = await transaction.get(affiliateMemberRef);
+            if (affiliateMemberSnap.exists) {
+              const affiliateMember = affiliateMemberSnap.data() || {};
+              const affiliateStatus = normalizeAffiliateMemberStatus(affiliateMember?.status);
+              const affiliateRate = Math.max(
+                0,
+                toNumber(affiliateMember?.affiliateRate || promoCode?.value)
+              );
+              const eligibleSubtotal = Math.max(0, toNumber(promoCode?.eligibleSubtotal));
+              const discountAmount = Math.max(0, toNumber(promoCode?.discountAmount));
+              const promoType = normalizePromoType(promoCode?.type);
+
+              if (affiliateStatus === 'active' && promoType === 'percentage' && affiliateRate > 0 && eligibleSubtotal > 0) {
+                const existingAffiliateEarningSnap = await transaction.get(affiliateEarningRef);
+                if (!existingAffiliateEarningSnap.exists) {
+                  const affiliateSnapshot = buildAffiliateMemberSnapshot({
+                    ...affiliateMember,
+                    promoCode: String(promoCode.code || '').trim()
+                  });
+                  const affiliateAmount = Math.max(0, eligibleSubtotal * (affiliateRate / 100));
+
+                  transaction.set(affiliateEarningRef, {
+                    memberRef: affiliateMemberRef.path,
+                    promoId: String(promoCode.promoId || '').trim(),
+                    promoCode: affiliateSnapshot.promoCode,
+                    memberId: affiliateSnapshot.memberId,
+                    firstName: affiliateSnapshot.firstName,
+                    lastName: affiliateSnapshot.lastName,
+                    fullName: affiliateSnapshot.fullName,
+                    sex: affiliateSnapshot.sex,
+                    phone: affiliateSnapshot.phone,
+                    clientId,
+                    clientUid: sessionData.clientUid || '',
+                    orderId,
+                    sessionId: session.id,
+                    affiliateRate,
+                    eligibleSubtotal,
+                    discountAmount,
+                    amount: affiliateAmount,
+                    status: 'pending',
+                    createdAt: now,
+                    updatedAt: now,
+                    paidAt: '',
+                    payoutId: ''
+                  }, { merge: true });
+
+                  transaction.set(affiliateMemberRef, {
+                    promoCode: affiliateSnapshot.promoCode,
+                    affiliateRate,
+                    lastUsedAt: now,
+                    lastOrderId: orderId,
+                    totalUses: admin.firestore.FieldValue.increment(1),
+                    pendingAmount: admin.firestore.FieldValue.increment(affiliateAmount),
+                    updatedAt: now
+                  }, { merge: true });
+                }
+              }
+            }
           }
         }
       }
@@ -2269,6 +2427,473 @@ exports.deletePromoCode = onRequest(
         stack: error?.stack || ''
       });
       sendJson(res, 500, { ok: false, error: 'promo-delete-failed', message: 'Impossible de supprimer ce code promo.' });
+    }
+  }
+);
+
+exports.getAffiliateDashboardData = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const [membersSnap, earningsSnap, payoutsSnap] = await Promise.all([
+        db.collection('affiliateMembers').get(),
+        db.collection('affiliateEarnings').get(),
+        db.collection('affiliatePayouts').get()
+      ]);
+
+      const memberMetrics = new Map();
+      membersSnap.docs.forEach((snap) => {
+        const data = snap.data() || {};
+        memberMetrics.set(snap.id, {
+          id: snap.id,
+          ...buildAffiliateMemberSnapshot({ ...data, promoCode: snap.id }),
+          affiliateRate: Math.max(0, toNumber(data?.affiliateRate)),
+          promoId: String(data?.promoId || '').trim(),
+          promoLabel: String(data?.promoLabel || '').trim(),
+          promoType: normalizePromoType(data?.promoType),
+          status: normalizeAffiliateMemberStatus(data?.status),
+          createdAt: String(data?.createdAt || '').trim(),
+          updatedAt: String(data?.updatedAt || '').trim(),
+          lastUsedAt: String(data?.lastUsedAt || '').trim(),
+          lastPaidAt: String(data?.lastPaidAt || '').trim(),
+          pendingAmount: 0,
+          pendingUses: 0,
+          totalEarnedAmount: 0,
+          totalPaidAmount: 0,
+          totalUses: 0,
+          nextSuggestedPayoutAt: ''
+        });
+      });
+
+      const earnings = earningsSnap.docs.map((snap) => {
+        const data = snap.data() || {};
+        const promoCode = String(data?.promoCode || '').trim();
+        return {
+          id: snap.id,
+          promoCode,
+          memberId: String(data?.memberId || '').trim(),
+          firstName: String(data?.firstName || '').trim(),
+          lastName: String(data?.lastName || '').trim(),
+          fullName: String(data?.fullName || '').trim(),
+          sex: String(data?.sex || '').trim(),
+          phone: String(data?.phone || '').trim(),
+          clientId: String(data?.clientId || '').trim(),
+          clientUid: String(data?.clientUid || '').trim(),
+          orderId: String(data?.orderId || '').trim(),
+          sessionId: String(data?.sessionId || '').trim(),
+          promoId: String(data?.promoId || '').trim(),
+          affiliateRate: Math.max(0, toNumber(data?.affiliateRate)),
+          eligibleSubtotal: Math.max(0, toNumber(data?.eligibleSubtotal)),
+          discountAmount: Math.max(0, toNumber(data?.discountAmount)),
+          amount: Math.max(0, toNumber(data?.amount)),
+          status: String(data?.status || 'pending').trim().toLowerCase() === 'paid' ? 'paid' : 'pending',
+          createdAt: String(data?.createdAt || '').trim(),
+          updatedAt: String(data?.updatedAt || '').trim(),
+          paidAt: String(data?.paidAt || '').trim(),
+          payoutId: String(data?.payoutId || '').trim()
+        };
+      }).sort((a, b) => toDateMs(b.createdAt) - toDateMs(a.createdAt));
+
+      earnings.forEach((earning) => {
+        const metrics = memberMetrics.get(earning.promoCode);
+        if (!metrics) return;
+        metrics.totalEarnedAmount += earning.amount;
+        metrics.totalUses += 1;
+        if (earning.status === 'paid') {
+          metrics.totalPaidAmount += earning.amount;
+        } else {
+          metrics.pendingAmount += earning.amount;
+          metrics.pendingUses += 1;
+        }
+        if (!metrics.lastUsedAt || toDateMs(earning.createdAt) > toDateMs(metrics.lastUsedAt)) {
+          metrics.lastUsedAt = earning.createdAt;
+        }
+      });
+
+      const payouts = payoutsSnap.docs
+        .map((snap) => mapAffiliatePayoutSummary(snap.id, snap.data() || {}))
+        .sort((a, b) => getAffiliatePayoutEventMs(b) - getAffiliatePayoutEventMs(a));
+
+      payouts.forEach((payout) => {
+        const metrics = memberMetrics.get(payout.promoCode);
+        if (!metrics) return;
+        if (!metrics.lastPaidAt || toDateMs(payout.paidAt) > toDateMs(metrics.lastPaidAt)) {
+          metrics.lastPaidAt = payout.paidAt;
+        }
+      });
+
+      const members = Array.from(memberMetrics.values())
+        .map((member) => {
+          const nextSuggestedPayoutAt = member.lastPaidAt
+            ? new Date(toDateMs(member.lastPaidAt) + (30 * 24 * 60 * 60 * 1000)).toISOString()
+            : '';
+          return {
+            ...member,
+            pendingAmount: Math.max(0, member.pendingAmount),
+            totalEarnedAmount: Math.max(0, member.totalEarnedAmount),
+            totalPaidAmount: Math.max(0, member.totalPaidAmount),
+            nextSuggestedPayoutAt
+          };
+        })
+        .sort((a, b) => {
+          const pendingDiff = b.pendingAmount - a.pendingAmount;
+          if (pendingDiff !== 0) return pendingDiff;
+          return toDateMs(b.updatedAt || b.createdAt) - toDateMs(a.updatedAt || a.createdAt);
+        });
+
+      sendJson(res, 200, {
+        ok: true,
+        members,
+        earnings: earnings.slice(0, 300),
+        payouts: payouts.slice(0, 200)
+      });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN list:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-dashboard-failed', message: 'Impossible de charger le module affiliation.' });
+    }
+  }
+);
+
+exports.saveAffiliateMember = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const promoCode = buildAffiliateMemberDocId(body?.promoCode);
+      const previousPromoCode = buildAffiliateMemberDocId(body?.previousPromoCode || body?.currentPromoId || '');
+      const memberId = normalizeAffiliateMemberId(body?.memberId);
+      const firstName = sanitizeText(body?.firstName, 120);
+      const lastName = sanitizeText(body?.lastName, 120);
+      const sex = normalizeAffiliateSex(body?.sex);
+      const phone = sanitizeText(body?.phone, 40);
+      const status = normalizeAffiliateMemberStatus(body?.status);
+      const now = new Date().toISOString();
+
+      if (!promoCode) {
+        sendJson(res, 400, { ok: false, error: 'missing-promo-code', message: 'Le code promo du membre est requis.' });
+        return;
+      }
+      if (!memberId) {
+        sendJson(res, 400, { ok: false, error: 'missing-member-id', message: 'L ID membre est requis.' });
+        return;
+      }
+      if (!firstName || !lastName) {
+        sendJson(res, 400, { ok: false, error: 'missing-member-name', message: 'Le nom et le prenom du membre sont requis.' });
+        return;
+      }
+
+      const promoRef = db.collection('promoCodes').doc(promoCode);
+      const promoSnap = await promoRef.get();
+      if (!promoSnap.exists) {
+        sendJson(res, 400, { ok: false, error: 'promo-not-found', message: 'Le code promo associe a ce membre est introuvable.' });
+        return;
+      }
+
+      const promoData = promoSnap.data() || {};
+      const promoType = normalizePromoType(promoData?.type);
+      const affiliateRate = Math.max(0, toNumber(promoData?.value ?? promoData?.amount ?? promoData?.rate));
+      if (promoType !== 'percentage' || affiliateRate <= 0) {
+        sendJson(res, 400, { ok: false, error: 'invalid-affiliate-promo', message: 'Le code promo affiliation doit etre un pourcentage actif et superieur a 0.' });
+        return;
+      }
+
+      const duplicateMemberSnap = await db.collection('affiliateMembers').where('memberId', '==', memberId).limit(5).get();
+      const duplicateMember = duplicateMemberSnap.docs.find((entry) => entry.id !== promoCode && entry.id !== previousPromoCode);
+      if (duplicateMember) {
+        sendJson(res, 400, { ok: false, error: 'duplicate-member-id', message: 'Cet ID membre est deja utilise.' });
+        return;
+      }
+
+      const targetRef = db.collection('affiliateMembers').doc(promoCode);
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists && promoCode !== previousPromoCode) {
+        sendJson(res, 400, { ok: false, error: 'duplicate-promo-code', message: 'Ce code promo est deja rattache a un autre membre.' });
+        return;
+      }
+
+      const existingData = targetSnap.exists ? (targetSnap.data() || {}) : {};
+      const payload = {
+        promoCode,
+        memberId,
+        firstName,
+        lastName,
+        sex,
+        phone,
+        status,
+        promoId: String(promoData?.code || promoCode).trim(),
+        promoLabel: sanitizeText(promoData?.label || promoData?.name || 'Code promo', 160),
+        promoType,
+        affiliateRate,
+        createdAt: existingData?.createdAt || now,
+        updatedAt: now,
+        lastUsedAt: existingData?.lastUsedAt || '',
+        lastPaidAt: existingData?.lastPaidAt || '',
+        pendingAmount: Math.max(0, toNumber(existingData?.pendingAmount)),
+        totalUses: Math.max(0, toNumber(existingData?.totalUses))
+      };
+
+      await targetRef.set(payload, { merge: true });
+      await promoRef.set({
+        affiliateEnabled: true,
+        affiliateMemberId: memberId,
+        affiliateMemberName: `${firstName} ${lastName}`.trim(),
+        affiliatePhone: phone,
+        updatedAt: now
+      }, { merge: true });
+
+      if (previousPromoCode && previousPromoCode !== promoCode) {
+        const previousEarningsSnap = await db.collection('affiliateEarnings').where('promoCode', '==', previousPromoCode).get();
+        if (!previousEarningsSnap.empty) {
+          const batch = db.batch();
+          previousEarningsSnap.docs.forEach((entry) => {
+            batch.set(entry.ref, {
+              promoCode,
+              memberId,
+              firstName,
+              lastName,
+              fullName: `${firstName} ${lastName}`.trim(),
+              sex,
+              phone,
+              affiliateRate,
+              updatedAt: now
+            }, { merge: true });
+          });
+          await batch.commit();
+        }
+
+        await db.collection('affiliateMembers').doc(previousPromoCode).delete().catch(() => null);
+        await db.collection('promoCodes').doc(previousPromoCode).set({
+          affiliateEnabled: false,
+          affiliateMemberId: '',
+          affiliateMemberName: '',
+          affiliatePhone: '',
+          updatedAt: now
+        }, { merge: true }).catch(() => null);
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        member: {
+          id: promoCode,
+          ...buildAffiliateMemberSnapshot(payload),
+          affiliateRate,
+          promoId: payload.promoId,
+          promoLabel: payload.promoLabel,
+          promoType,
+          createdAt: payload.createdAt,
+          updatedAt: payload.updatedAt,
+          status
+        }
+      });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN save:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-save-failed', message: 'Impossible d enregistrer ce membre affiliation.' });
+    }
+  }
+);
+
+exports.deleteAffiliateMember = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (!['POST', 'DELETE'].includes(req.method)) {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const promoCode = buildAffiliateMemberDocId(body?.promoCode || req.query.promoCode || '');
+      if (!promoCode) {
+        sendJson(res, 400, { ok: false, error: 'missing-promo-code', message: 'Le code promo du membre est requis.' });
+        return;
+      }
+
+      await db.collection('affiliateMembers').doc(promoCode).delete();
+      await db.collection('promoCodes').doc(promoCode).set({
+        affiliateEnabled: false,
+        affiliateMemberId: '',
+        affiliateMemberName: '',
+        affiliatePhone: '',
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(() => null);
+
+      sendJson(res, 200, { ok: true, promoCode });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN delete:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-delete-failed', message: 'Impossible de supprimer ce membre affiliation.' });
+    }
+  }
+);
+
+exports.createAffiliatePayout = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const promoCode = buildAffiliateMemberDocId(body?.promoCode);
+      const rawDateFrom = String(body?.dateFrom || body?.fromDate || '').trim();
+      const rawDateTo = String(body?.dateTo || body?.toDate || '').trim();
+      const dateFromMs = rawDateFrom
+        ? toDateMs(rawDateFrom.includes('T') ? rawDateFrom : `${rawDateFrom}T00:00:00.000Z`)
+        : 0;
+      const dateToMs = rawDateTo
+        ? toDateMs(rawDateTo.includes('T') ? rawDateTo : `${rawDateTo}T23:59:59.999Z`)
+        : 0;
+
+      if (!promoCode) {
+        sendJson(res, 400, { ok: false, error: 'missing-promo-code', message: 'Le code promo du membre est requis.' });
+        return;
+      }
+
+      const memberRef = db.collection('affiliateMembers').doc(promoCode);
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'affiliate-member-not-found', message: 'Le membre affiliation est introuvable.' });
+        return;
+      }
+
+      const memberData = memberSnap.data() || {};
+      const memberSnapshot = buildAffiliateMemberSnapshot({ ...memberData, promoCode });
+      const earningsSnap = await db.collection('affiliateEarnings').where('promoCode', '==', promoCode).get();
+      const pendingEarnings = earningsSnap.docs
+        .map((snap) => ({ id: snap.id, ...(snap.data() || {}) }))
+        .filter((entry) => String(entry?.status || 'pending').trim().toLowerCase() !== 'paid')
+        .filter((entry) => {
+          const createdAtMs = toDateMs(entry?.createdAt);
+          if (dateFromMs && createdAtMs < dateFromMs) return false;
+          if (dateToMs && createdAtMs > dateToMs) return false;
+          return true;
+        })
+        .sort((a, b) => toDateMs(a?.createdAt) - toDateMs(b?.createdAt));
+
+      if (!pendingEarnings.length) {
+        sendJson(res, 400, {
+          ok: false,
+          error: 'no-affiliate-balance',
+          message: 'Aucun gain affiliation en attente pour cette periode.'
+        });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const amount = pendingEarnings.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.amount)), 0);
+      const eligibleSubtotalAmount = pendingEarnings.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.eligibleSubtotal)), 0);
+      const discountAmount = pendingEarnings.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.discountAmount)), 0);
+      const ratesUsed = Array.from(new Set(pendingEarnings.map((entry) => Math.max(0, toNumber(entry?.affiliateRate))).filter((value) => value > 0)));
+      const allRemainingPendingAmount = earningsSnap.docs
+        .map((snap) => ({ id: snap.id, ...(snap.data() || {}) }))
+        .filter((entry) => String(entry?.status || 'pending').trim().toLowerCase() !== 'paid')
+        .filter((entry) => !pendingEarnings.some((selected) => selected.id === entry.id))
+        .reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.amount)), 0);
+
+      const payoutRef = db.collection('affiliatePayouts').doc();
+      const payout = {
+        promoCode,
+        ...memberSnapshot,
+        reportNumber: createAffiliatePayoutReportNumber(payoutRef.id),
+        affiliateRate: ratesUsed.length === 1 ? ratesUsed[0] : Math.max(0, toNumber(memberData?.affiliateRate)),
+        ratesUsed,
+        eligibleSubtotalAmount,
+        discountAmount,
+        amount,
+        usageCount: pendingEarnings.length,
+        earningIds: pendingEarnings.map((entry) => entry.id),
+        orderIds: Array.from(new Set(pendingEarnings.map((entry) => String(entry?.orderId || '').trim()).filter(Boolean))),
+        periodStart: pendingEarnings[0]?.createdAt || now,
+        periodEnd: pendingEarnings[pendingEarnings.length - 1]?.createdAt || now,
+        paidAt: now,
+        createdAt: now,
+        updatedAt: now,
+        paidBy: decodedUser.uid,
+        status: 'paid'
+      };
+
+      const batch = db.batch();
+      batch.set(payoutRef, payout, { merge: true });
+      pendingEarnings.forEach((entry) => {
+        batch.set(db.collection('affiliateEarnings').doc(entry.id), {
+          status: 'paid',
+          paidAt: now,
+          updatedAt: now,
+          payoutId: payoutRef.id
+        }, { merge: true });
+      });
+      batch.set(memberRef, {
+        pendingAmount: Math.max(0, allRemainingPendingAmount),
+        lastPaidAt: now,
+        updatedAt: now
+      }, { merge: true });
+      await batch.commit();
+
+      sendJson(res, 200, {
+        ok: true,
+        payout: {
+          id: payoutRef.id,
+          ...payout
+        }
+      });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN payout:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-payout-failed', message: 'Impossible de payer ce membre affiliation.' });
     }
   }
 );

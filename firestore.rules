@@ -147,6 +147,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /affiliateMembers/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /affiliateEarnings/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /affiliatePayouts/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     match /productLikes/{docId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
