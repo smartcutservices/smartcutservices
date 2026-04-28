@@ -94,6 +94,30 @@ function buildPdfFilename(order) {
   return `recu-${raw || 'commande'}.pdf`;
 }
 
+function buildPromoLines(order) {
+  const promo = order?.promoCode && typeof order.promoCode === 'object' ? order.promoCode : null;
+  const discountAmount = Number(order?.discountAmount || promo?.discountAmount || 0);
+  if (!promo && discountAmount <= 0) return [];
+
+  const lines = [];
+  const code = String(promo?.code || '').trim();
+  const label = String(promo?.label || '').trim();
+
+  if (code && label) {
+    lines.push(`Code promo: ${code} - ${label}`);
+  } else if (code) {
+    lines.push(`Code promo: ${code}`);
+  } else if (label) {
+    lines.push(`Promotion: ${label}`);
+  }
+
+  if (discountAmount > 0) {
+    lines.push(`Reduction appliquee: - ${formatPrice(discountAmount)}`);
+  }
+
+  return lines;
+}
+
 function triggerPdfDownload(doc, filename) {
   const blob = doc.output('blob');
   const blobUrl = URL.createObjectURL(blob);
@@ -201,6 +225,39 @@ export async function downloadOrderPdfReceipt(order, config = {}) {
   doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
   doc.text(`Montant: ${formatPrice(order?.amount || 0)}`, 18, y);
   y += 12;
+
+  const promoLines = buildPromoLines(order);
+  const hasTotalsBlock = Number(order?.subtotal || 0) > 0 || Number(order?.shippingAmount || 0) > 0 || Number(order?.discountAmount || 0) > 0;
+  if (promoLines.length || hasTotalsBlock) {
+    doc.setTextColor(31, 30, 28);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Resume du montant', 18, y);
+    y += 10;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+
+    if (Number(order?.subtotal || 0) > 0) {
+      doc.text(`Sous-total produits: ${formatPrice(order.subtotal)}`, 18, y);
+      y += 8;
+    }
+
+    promoLines.forEach((line) => {
+      const wrapped = doc.splitTextToSize(line, 170);
+      doc.text(wrapped, 18, y);
+      y += wrapped.length * 6 + 2;
+    });
+
+    if (Number(order?.shippingAmount || 0) > 0) {
+      doc.text(`Livraison: ${formatPrice(order.shippingAmount)}`, 18, y);
+      y += 8;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(primaryColor.r, primaryColor.g, primaryColor.b);
+    doc.text(`Total paye: ${formatPrice(order?.amount || 0)}`, 18, y);
+    y += 12;
+  }
 
   doc.setTextColor(31, 30, 28);
   doc.setFont('helvetica', 'bold');
