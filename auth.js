@@ -49,11 +49,11 @@ class AuthManager {
     onAuthStateChanged(auth, (user) => {
       const previousUser = this.currentUser;
       this.currentUser = user;
+      const wasAuthenticated = !!previousUser && !previousUser.isAnonymous;
+      const isAuthenticated = !!user && !user.isAnonymous;
+      const isAnonymous = !!user?.isAnonymous;
 
       if (this.hasAuthInitialized) {
-        const wasAuthenticated = !!previousUser;
-        const isAuthenticated = !!user;
-
         if (!wasAuthenticated && isAuthenticated) {
           const label = user?.displayName || user?.email || 'utilisateur';
           this.showToast(`Connexion réussie. Bienvenue ${label}.`, 'success');
@@ -68,7 +68,8 @@ class AuthManager {
       const event = new CustomEvent('authChanged', { 
         detail: { 
           user: user,
-          isAuthenticated: !!user,
+          isAuthenticated,
+          isAnonymous,
           email: user?.email,
           displayName: user?.displayName,
           uid: user?.uid
@@ -966,7 +967,7 @@ class AuthManager {
   
   // Vérifier si l'utilisateur est connecté
   isAuthenticated() {
-    return !!this.currentUser;
+    return !!this.currentUser && !this.currentUser.isAnonymous;
   }
 
   showToast(message, type = 'success') {

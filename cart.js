@@ -1,10 +1,11 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { db } from './firebase-init.js';
+import { auth, authReadyPromise, db } from './firebase-init.js';
 import { getAuthManager } from './auth.js';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
 import { downloadOrderPdfReceipt } from './order-pdf.js';
+import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { 
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -111,7 +112,7 @@ class CartManager {
     const now = new Date().toISOString();
     return {
       id: guestId,
-      uid: '',
+      uid: guestId,
       name: 'Client invité',
       email: '',
       phone: '',
@@ -127,17 +128,46 @@ class CartManager {
   async getOrCreateGuestClient() {
     if (this.guestClient?.id) return this.guestClient;
 
-    const storedId = localStorage.getItem(this.getGuestStorageKey());
-    if (storedId) {
-      this.guestClient = this.createGuestClientPayload(storedId);
-      console.info('[CART] Client invite charge depuis localStorage', { guestId: storedId });
-      return this.guestClient;
+    await authReadyPromise.catch(() => {});
+
+    let guestUser = this.auth?.getCurrentUser?.() || auth?.currentUser || null;
+    if (!guestUser?.uid) {
+      const credential = await signInAnonymously(auth);
+      guestUser = credential?.user || auth?.currentUser || null;
     }
 
-    const guestId = doc(collection(db, 'clients')).id;
-    this.guestClient = this.createGuestClientPayload(guestId);
+    if (!guestUser?.uid) {
+      throw new Error('Impossible d\'initialiser la session invite');
+    }
+
+    const guestId = guestUser.uid;
+    const clientRef = doc(db, 'clients', guestId);
+    const snapshot = await getDoc(clientRef);
+    const payload = this.createGuestClientPayload(guestId);
+
+    if (!snapshot.exists()) {
+      await setDoc(clientRef, payload, { merge: true });
+      this.guestClient = payload;
+    } else {
+      const existing = snapshot.data() || {};
+      const mergedPayload = {
+        ...payload,
+        ...existing,
+        id: guestId,
+        uid: guestId,
+        role: existing.role || 'guest',
+        isGuest: existing.isGuest ?? true,
+        updatedAt: payload.updatedAt
+      };
+      await setDoc(clientRef, mergedPayload, { merge: true });
+      this.guestClient = mergedPayload;
+    }
+
     localStorage.setItem(this.getGuestStorageKey(), guestId);
-    console.info('[CART] Nouveau client invite cree', { guestId });
+    console.info('[CART] Session invite resolue', {
+      guestId,
+      isAnonymous: Boolean(guestUser?.isAnonymous)
+    });
     return this.guestClient;
   }
 
@@ -303,6 +333,8 @@ class CartManager {
           phone: '',
           address: '',
           city: '',
+          role: user.isAnonymous ? 'guest' : 'client',
+          isGuest: Boolean(user.isAnonymous),
           createdAt: now,
           updatedAt: now
         };
@@ -322,6 +354,8 @@ class CartManager {
           phone: existing.phone || '',
           address: existing.address || '',
           city: existing.city || '',
+          role: existing.role || (user.isAnonymous ? 'guest' : 'client'),
+          isGuest: existing.isGuest ?? Boolean(user.isAnonymous),
           createdAt: existing.createdAt || now,
           updatedAt: now
         };
