@@ -1,10 +1,11 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { db } from './firebase-init.js';
+import { auth, authReadyPromise, db } from './firebase-init.js';
 import { getAuthManager } from './auth.js';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
 import { downloadOrderPdfReceipt } from './order-pdf.js';
+import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { 
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -111,7 +112,7 @@ class CartManager {
     const now = new Date().toISOString();
     return {
       id: guestId,
-      uid: '',
+      uid: guestId,
       name: 'Client invité',
       email: '',
       phone: '',
@@ -127,17 +128,25 @@ class CartManager {
   async getOrCreateGuestClient() {
     if (this.guestClient?.id) return this.guestClient;
 
-    const storedId = localStorage.getItem(this.getGuestStorageKey());
-    if (storedId) {
-      this.guestClient = this.createGuestClientPayload(storedId);
-      console.info('[CART] Client invite charge depuis localStorage', { guestId: storedId });
-      return this.guestClient;
+    await authReadyPromise.catch(() => {});
+
+    let guestUser = this.auth?.getCurrentUser?.() || auth?.currentUser || null;
+    if (!guestUser?.uid) {
+      const credential = await signInAnonymously(auth);
+      guestUser = credential?.user || auth?.currentUser || null;
     }
 
-    const guestId = doc(collection(db, 'clients')).id;
+    if (!guestUser?.uid) {
+      throw new Error('Impossible d\'initialiser la session invite');
+    }
+
+    const guestId = guestUser.uid;
     this.guestClient = this.createGuestClientPayload(guestId);
     localStorage.setItem(this.getGuestStorageKey(), guestId);
-    console.info('[CART] Nouveau client invite cree', { guestId });
+    console.info('[CART] Session invite resolue', {
+      guestId,
+      isAnonymous: Boolean(guestUser?.isAnonymous)
+    });
     return this.guestClient;
   }
 
@@ -303,6 +312,8 @@ class CartManager {
           phone: '',
           address: '',
           city: '',
+          role: user.isAnonymous ? 'guest' : 'client',
+          isGuest: Boolean(user.isAnonymous),
           createdAt: now,
           updatedAt: now
         };
@@ -322,6 +333,8 @@ class CartManager {
           phone: existing.phone || '',
           address: existing.address || '',
           city: existing.city || '',
+          role: existing.role || (user.isAnonymous ? 'guest' : 'client'),
+          isGuest: existing.isGuest ?? Boolean(user.isAnonymous),
           createdAt: existing.createdAt || now,
           updatedAt: now
         };
@@ -742,7 +755,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260331-3');
+      const module = await import('./checkout.js?v=20260413-2');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -1165,6 +1178,14 @@ class CartManager {
       return;
     }
     
+    item = {
+      ...item,
+      sourceType: String(item?.sourceType || (item?.vendorId ? 'vendor' : 'smartcut')).trim(),
+      sourceCollection: String(item?.sourceCollection || (item?.vendorId ? 'vendorProducts' : 'products')).trim(),
+      categoryId: String(item?.categoryId || '').trim(),
+      category: String(item?.category || '').trim()
+    };
+
     const itemKey = this.getCartItemKey(item);
     const existingIndex = this.cart.findIndex(cartItem => this.getCartItemKey(cartItem) === itemKey);
     const incomingQty = Math.max(0, Number(item.quantity) || 1);
@@ -1185,6 +1206,18 @@ class CartManager {
       this.cart[existingIndex].stockLimit = Number.isFinite(stockLimit) ? stockLimit : this.cart[existingIndex].stockLimit;
       if (item.weightGrams && !this.cart[existingIndex].weightGrams) {
         this.cart[existingIndex].weightGrams = item.weightGrams;
+      }
+      if (!this.cart[existingIndex].sourceCollection && item.sourceCollection) {
+        this.cart[existingIndex].sourceCollection = item.sourceCollection;
+      }
+      if (!this.cart[existingIndex].sourceType && item.sourceType) {
+        this.cart[existingIndex].sourceType = item.sourceType;
+      }
+      if (!this.cart[existingIndex].categoryId && item.categoryId) {
+        this.cart[existingIndex].categoryId = item.categoryId;
+      }
+      if (!this.cart[existingIndex].category && item.category) {
+        this.cart[existingIndex].category = item.category;
       }
       this.showNotification(
         nextQty < currentQty + incomingQty
