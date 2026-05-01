@@ -31,6 +31,14 @@ service firebase.storage {
       allow create: if isSignedIn() && isImage() && maxSize(20);
     }
 
+    match /products-{productId}-variations/{allPaths=**} {
+      allow create: if isSignedIn() && isImage() && maxSize(20);
+    }
+
+    match /products-{productId}-gallery/{allPaths=**} {
+      allow create: if isSignedIn() && isImage() && maxSize(20);
+    }
+
     match /printing-documents/{fileName} {
       allow create: if isPdf() && maxSize(20);
     }
