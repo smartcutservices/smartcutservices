@@ -1395,7 +1395,7 @@
     // ========== CONFIGURATION FIREBASE ==========
     import { uploadImageFile } from './firebase-storage.js';
     import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+    import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
     import { NotificationComponent } from './notification.js';
     import { 
       getFirestore, 
@@ -1427,6 +1427,9 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
     const googleProvider = new GoogleAuthProvider();
+    const authReadyPromise = setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn('Persistence auth vendeur non activee:', error);
+    });
     const dashboardNotifier = new NotificationComponent({
       mode: 'dashboard',
       defaultUrl: './DvendorProducts.html',
@@ -1470,6 +1473,7 @@
       }
       
       async init() {
+        await authReadyPromise;
         await this.consumeVendorAccessToken();
         const vendorReady = await this.resolveVendorContext();
         if (!vendorReady) {
@@ -1674,6 +1678,7 @@
 
       async handleVendorLogin(event) {
         event.preventDefault();
+        await authReadyPromise;
 
         const emailInput = document.getElementById('vendor-gate-email');
         const passwordInput = document.getElementById('vendor-gate-password');
@@ -1741,6 +1746,7 @@
       }
 
       async handleVendorGoogleLogin() {
+        await authReadyPromise;
         const errorBox = document.getElementById('vendor-gate-error');
         const googleButton = document.getElementById('vendor-gate-google');
 
@@ -3742,6 +3748,15 @@
           : `products/${productId}/variations`;
       }
 
+      async ensureUploadAuthReady() {
+        await authReadyPromise;
+        const currentUser = auth.currentUser;
+        if (!currentUser?.uid) {
+          throw new Error('Session vendeur expiree. Reconnectez-vous puis reessayez.');
+        }
+        return currentUser;
+      }
+
       async uploadSelectedImages(type) {
         const fileInput = type === 'main' ? this.elements.mainImageFileInput : this.elements.varImageFileInput;
         const files = Array.from(fileInput?.files || []);
@@ -3760,6 +3775,7 @@
         }
 
         try {
+          await this.ensureUploadAuthReady();
           this.showToast('Upload en cours vers Firebase Storage...', 'info');
           const uploads = await Promise.all(
             files.map((file) => uploadImageFile(file, this.getStorageFolder(type)))
