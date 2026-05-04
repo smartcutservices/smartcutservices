@@ -2726,17 +2726,9 @@
         container.innerHTML = '';
         
         this.currentImages.main.forEach((filename, index) => {
-          const div = document.createElement('div');
-          div.className = 'image-item';
-          div.innerHTML = `
-            <img src="${this.getImagePath(filename)}" alt="Image produit" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\'fas fa-image text-2xl text-secondary\'></i>'">
-            <button class="remove-image" data-index="${index}">
-              <i class="fas fa-times"></i>
-            </button>
-            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs truncate px-1">${this.getImageLabel(filename)}</div>
-          `;
-          
-          div.querySelector('.remove-image').addEventListener('click', (e) => {
+          const div = this.createImagePreviewItem(filename, 'Image produit', 'main', index);
+
+          div.querySelector('.remove-image')?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.removeImage('main', index);
           });
@@ -2752,23 +2744,61 @@
         const images = this.currentImages.variations[variationIndex] || [];
         
         images.forEach((filename, index) => {
-          const div = document.createElement('div');
-          div.className = 'image-item';
-          div.innerHTML = `
-            <img src="${this.getImagePath(filename)}" alt="Image variation" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\'fas fa-image text-2xl text-secondary\'></i>'">
-            <button class="remove-image" data-index="${index}">
-              <i class="fas fa-times"></i>
-            </button>
-            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs truncate px-1">${this.getImageLabel(filename)}</div>
-          `;
-          
-          div.querySelector('.remove-image').addEventListener('click', (e) => {
+          const div = this.createImagePreviewItem(filename, 'Image variation', 'variation', index);
+
+          div.querySelector('.remove-image')?.addEventListener('click', (e) => {
             e.stopPropagation();
             this.removeImage('variation', index, variationIndex);
           });
           
           container.appendChild(div);
         });
+      }
+
+      createImagePreviewItem(filename, altText, type, index) {
+        const imagePath = this.getImagePath(filename);
+        const div = document.createElement('div');
+        div.className = 'image-item';
+
+        const img = document.createElement('img');
+        img.alt = altText;
+        img.loading = 'lazy';
+        img.referrerPolicy = 'no-referrer';
+        img.src = imagePath;
+        img.addEventListener('load', () => {
+          console.info('[VENDOR] image-preview:loaded', {
+            type,
+            index,
+            imagePath,
+            originalValue: filename
+          });
+        });
+        img.addEventListener('error', () => {
+          console.error('[VENDOR] image-preview:error', {
+            type,
+            index,
+            imagePath,
+            originalValue: filename
+          });
+          img.remove();
+          const fallback = document.createElement('i');
+          fallback.className = 'fas fa-image text-2xl text-secondary';
+          div.insertBefore(fallback, div.firstChild);
+        });
+
+        const removeButton = document.createElement('button');
+        removeButton.className = 'remove-image';
+        removeButton.dataset.index = String(index);
+        removeButton.innerHTML = '<i class="fas fa-times"></i>';
+
+        const label = document.createElement('div');
+        label.className = 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs truncate px-1';
+        label.textContent = this.getImageLabel(filename);
+
+        div.appendChild(img);
+        div.appendChild(removeButton);
+        div.appendChild(label);
+        return div;
       }
       
       updateTotalStock() {
