@@ -1,6 +1,5 @@
 (function () {
-  const STORAGE_KEY = 'smartcut:pwa-install-dismissed-at';
-  const INSTALL_COOLDOWN_DAYS = 7;
+  const CHOICE_KEY = 'smartcut:pwa-install-choice';
   let deferredPrompt = null;
   let promptShown = false;
 
@@ -8,13 +7,8 @@
   const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isMobileSafari = () => isIos() && /safari/i.test(navigator.userAgent) && !/crios|fxios|edgios/i.test(navigator.userAgent);
 
-  const dismissedRecently = () => {
-    const value = Number(localStorage.getItem(STORAGE_KEY) || 0);
-    if (!value) return false;
-    return Date.now() - value < INSTALL_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
-  };
-
-  const rememberDismiss = () => localStorage.setItem(STORAGE_KEY, String(Date.now()));
+  const hasFinalChoice = () => ['install-clicked', 'not-interested', 'installed'].includes(localStorage.getItem(CHOICE_KEY));
+  const rememberChoice = (choice) => localStorage.setItem(CHOICE_KEY, choice);
 
   const registerServiceWorker = () => {
     if (!('serviceWorker' in navigator)) return;
@@ -49,14 +43,14 @@
     document.head.appendChild(style);
   };
 
-  const closeCard = (card, remember = true) => {
-    if (remember) rememberDismiss();
+  const closeCard = (card, choice = null) => {
+    if (choice) rememberChoice(choice);
     card?.closest('.smartcut-pwa-layer')?.remove();
   };
 
-  const showInstallCard = ({ iosHelp = false } = {}) => {
-    if (promptShown || isStandalone() || dismissedRecently()) return;
-    if (!deferredPrompt && !iosHelp) return;
+  const showInstallCard = ({ iosHelp = false, manualHelp = false } = {}) => {
+    if (promptShown || isStandalone() || hasFinalChoice()) return;
+    if (!deferredPrompt && !iosHelp && !manualHelp) return;
     promptShown = true;
     injectStyles();
 
@@ -75,17 +69,18 @@
         </div>
         ${iosHelp ? iosHint : ''}
         <div class="smartcut-pwa-actions">
-          <button type="button" class="smartcut-pwa-btn smartcut-pwa-primary">${iosHelp ? 'Compris' : 'Installer'}</button>
-          <button type="button" class="smartcut-pwa-btn smartcut-pwa-secondary">Plus tard</button>
+          <button type="button" class="smartcut-pwa-btn smartcut-pwa-primary">Installer</button>
+          <button type="button" class="smartcut-pwa-btn smartcut-pwa-secondary">Je ne suis pas interesse</button>
         </div>
       </section>
     `;
     document.body.appendChild(layer);
 
     const card = layer.querySelector('.smartcut-pwa-card');
-    layer.querySelector('.smartcut-pwa-secondary').addEventListener('click', () => closeCard(card));
+    layer.querySelector('.smartcut-pwa-secondary').addEventListener('click', () => closeCard(card, 'not-interested'));
     layer.querySelector('.smartcut-pwa-primary').addEventListener('click', async () => {
-      if (iosHelp) {
+      rememberChoice('install-clicked');
+      if (iosHelp || manualHelp) {
         closeCard(card);
         return;
       }
@@ -94,8 +89,7 @@
       closeCard(card, false);
       if (!promptEvent) return;
       promptEvent.prompt();
-      const result = await promptEvent.userChoice.catch(() => null);
-      if (result?.outcome !== 'accepted') rememberDismiss();
+      await promptEvent.userChoice.catch(() => null);
     });
   };
 
@@ -108,13 +102,15 @@
   });
 
   window.addEventListener('appinstalled', () => {
-    localStorage.removeItem(STORAGE_KEY);
+    rememberChoice('installed');
     document.querySelector('.smartcut-pwa-layer')?.remove();
   });
 
   window.addEventListener('load', () => {
     if (isMobileSafari()) {
       setTimeout(() => showInstallCard({ iosHelp: true }), 2200);
+    } else {
+      setTimeout(() => showInstallCard({ manualHelp: true }), 3000);
     }
   });
 })();
