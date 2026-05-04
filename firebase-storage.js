@@ -54,6 +54,16 @@ function getFileExtension(file) {
   return 'jpg';
 }
 
+function getStorageBucketName() {
+  return storage?.app?.options?.storageBucket || '';
+}
+
+function buildMediaUrl(storagePath) {
+  const bucket = getStorageBucketName();
+  if (!bucket || !storagePath) return '';
+  return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(storagePath)}?alt=media`;
+}
+
 export function validateImageFile(file, { maxSizeMb = 8 } = {}) {
   validateStorageFile(file, {
     allowedTypes: IMAGE_TYPES,
@@ -114,7 +124,7 @@ export async function uploadStorageFile(file, folder = 'misc', options = {}) {
     extension,
     uniqueName,
     storagePath,
-    bucket: storage?.app?.options?.storageBucket || null
+    bucket: getStorageBucketName() || null
   });
 
   try {
@@ -123,10 +133,30 @@ export async function uploadStorageFile(file, folder = 'misc', options = {}) {
       cacheControl: 'public,max-age=31536000,immutable'
     });
 
-    const url = await getDownloadURL(storageRef);
+    let url = '';
+    let urlSource = 'firebase-download-url';
+    try {
+      url = await getDownloadURL(storageRef);
+    } catch (downloadError) {
+      url = buildMediaUrl(storagePath);
+      urlSource = 'direct-media-url-fallback';
+      console.warn('[STORAGE] uploadStorageFile:getDownloadURL:fallback', {
+        storagePath,
+        fallbackUrl: url,
+        code: downloadError?.code || null,
+        message: downloadError?.message || String(downloadError),
+        customData: downloadError?.customData || null
+      });
+    }
+
+    if (!url) {
+      throw new Error(`Upload reussi, mais URL image introuvable pour ${storagePath}.`);
+    }
+
     console.info('[STORAGE] uploadStorageFile:success', {
       storagePath,
-      url
+      url,
+      urlSource
     });
     return {
       url,
