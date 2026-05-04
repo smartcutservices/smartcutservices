@@ -1605,6 +1605,8 @@ function getSelectedSizeValue(item) {
 }
 
 async function decrementInventoryForItems(transaction, items = []) {
+  const inventoryEntries = [];
+
   for (const item of items) {
     const productId = String(item?.productId || '').trim();
     if (!productId) continue;
@@ -1613,6 +1615,11 @@ async function decrementInventoryForItems(transaction, items = []) {
     const collectionName = getProductCollectionName(item);
     const productRef = db.collection(collectionName).doc(productId);
     const productSnap = await transaction.get(productRef);
+    inventoryEntries.push({ item, quantity, productRef, productSnap });
+  }
+
+  for (const entry of inventoryEntries) {
+    const { item, quantity, productRef, productSnap } = entry;
     if (!productSnap.exists) continue;
 
     const productData = productSnap.data() || {};
@@ -1776,13 +1783,28 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         promoCode?.discountAmount > 0 &&
         !freshSessionData.promoUsageRecordedAt
       );
+      const existingUsageSnap = shouldRecordPromoUsage
+        ? await transaction.get(promoUsageRef)
+        : null;
+      const shouldCheckAffiliate = Boolean(
+        shouldRecordPromoUsage &&
+        existingUsageSnap &&
+        !existingUsageSnap.exists &&
+        affiliateMemberRef &&
+        affiliateEarningRef
+      );
+      const affiliateMemberSnap = shouldCheckAffiliate
+        ? await transaction.get(affiliateMemberRef)
+        : null;
+      const existingAffiliateEarningSnap = shouldCheckAffiliate
+        ? await transaction.get(affiliateEarningRef)
+        : null;
 
       if (!alreadyApplied) {
         await decrementInventoryForItems(transaction, orderData.items || []);
       }
 
       if (shouldRecordPromoUsage) {
-        const existingUsageSnap = await transaction.get(promoUsageRef);
         if (!existingUsageSnap.exists) {
           transaction.set(promoUsageRef, {
             promoId: promoCode.promoId,
@@ -1807,7 +1829,6 @@ async function syncMoncashPayment({ session, details, source = '' }) {
           }
 
           if (affiliateMemberRef && affiliateEarningRef) {
-            const affiliateMemberSnap = await transaction.get(affiliateMemberRef);
             if (affiliateMemberSnap.exists) {
               const affiliateMember = affiliateMemberSnap.data() || {};
               const affiliateStatus = normalizeAffiliateMemberStatus(affiliateMember?.status);
@@ -1820,7 +1841,6 @@ async function syncMoncashPayment({ session, details, source = '' }) {
               const promoType = normalizePromoType(promoCode?.type);
 
               if (affiliateStatus === 'active' && promoType === 'percentage' && affiliateRate > 0 && eligibleSubtotal > 0) {
-                const existingAffiliateEarningSnap = await transaction.get(affiliateEarningRef);
                 if (!existingAffiliateEarningSnap.exists) {
                   const affiliateSnapshot = buildAffiliateMemberSnapshot({
                     ...affiliateMember,
