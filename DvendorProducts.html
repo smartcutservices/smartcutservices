@@ -1349,8 +1349,14 @@
             <input type="number" id="varStock" class="form-input" required min="0" value="0">
           </div>
           <div>
-            <label class="block text-sm text-text-secondary mb-1">Poids (g)</label>
-            <input type="number" id="varWeightGrams" class="form-input" min="0" step="1" value="0" placeholder="Ex: 1500">
+            <label class="block text-sm text-text-secondary mb-1">Poids</label>
+            <div class="flex gap-2">
+              <input type="number" id="varWeightGrams" class="form-input" min="0" step="0.001" value="0" placeholder="Ex: 15 ou 1.5">
+              <select id="varWeightUnit" class="form-input" style="max-width:90px;">
+                <option value="g">g</option>
+                <option value="kg">kg</option>
+              </select>
+            </div>
           </div>
         </div>
         
@@ -1895,6 +1901,7 @@
           varPrice: document.getElementById('varPrice'),
           varStock: document.getElementById('varStock'),
           varWeightGrams: document.getElementById('varWeightGrams'),
+          varWeightUnit: document.getElementById('varWeightUnit'),
           varImagesContainer: document.getElementById('varImagesContainer'),
           varImageFileInput: document.getElementById('varImageFileInput'),
           uploadVarImageBtn: document.getElementById('uploadVarImageBtn'),
@@ -2818,6 +2825,24 @@
         this.elements.totalStock.value = total;
       }
       
+      setWeightInputs(weightGrams) {
+        const grams = Number(weightGrams || 0);
+        if (grams >= 1000 && grams % 1000 === 0) {
+          this.elements.varWeightGrams.value = String(grams / 1000);
+          if (this.elements.varWeightUnit) this.elements.varWeightUnit.value = 'kg';
+          return;
+        }
+        this.elements.varWeightGrams.value = String(grams || 0);
+        if (this.elements.varWeightUnit) this.elements.varWeightUnit.value = 'g';
+      }
+
+      collectWeightGrams() {
+        const value = Math.max(0, Number(this.elements.varWeightGrams.value || 0));
+        const unit = this.elements.varWeightUnit?.value || 'g';
+        if (!Number.isFinite(value) || value <= 0) return 0;
+        return Math.round(unit === 'kg' ? value * 1000 : value);
+      }
+
       updateCategorySelect() {
         const select = this.elements.categorySelect;
         select.innerHTML = '<option value="">Choisir une catégorie</option>';
@@ -3618,7 +3643,7 @@
             this.elements.varSku.value = varia.sku || '';
             this.elements.varPrice.value = varia.price || '';
             this.elements.varStock.value = varia.stock || 0;
-            this.elements.varWeightGrams.value = varia.weightGrams || 0;
+            this.setWeightInputs(varia.weightGrams || 0);
             this.elements.variationModalTitle.textContent = 'Modifier la variation';
             
             // Charger les images de la variation
@@ -3680,7 +3705,7 @@
           sku: this.elements.varSku.value.trim(),
           price: parseFloat(this.elements.varPrice.value) || null,
           stock: parseInt(this.elements.varStock.value) || 0,
-          weightGrams: parseInt(this.elements.varWeightGrams.value, 10) || 0,
+          weightGrams: this.collectWeightGrams(),
           customOptions: this.collectCustomOptions()
         };
 
@@ -3764,6 +3789,7 @@
         this.elements.varPrice.value = '';
         this.elements.varStock.value = '0';
         this.elements.varWeightGrams.value = '0';
+        if (this.elements.varWeightUnit) this.elements.varWeightUnit.value = 'g';
         this.elements.customOptionsContainer.innerHTML = '';
         this.elements.varImagesContainer.innerHTML = '';
         if (this.elements.varImageFileInput) this.elements.varImageFileInput.value = '';

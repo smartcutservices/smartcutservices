@@ -1034,7 +1034,7 @@ class CheckoutModal {
     }
     
     const weightGrams = this.getCartWeight();
-    const weightFee = this.getWeightFee(weightGrams);
+    const weightFee = this.getCartWeightFee();
     
     this.deliveryFees = {
       base: baseFee,
@@ -1056,6 +1056,16 @@ class CheckoutModal {
     if (!this.deliveryData.weightRules || this.deliveryData.weightRules.length === 0) return 0;
     const rule = this.deliveryData.weightRules.find(r => weightGrams >= r.minGrams && weightGrams <= r.maxGrams);
     return Number(rule?.fee || 0);
+  }
+
+  getCartWeightFee() {
+    if (!Array.isArray(this.cart) || !this.cart.length) return 0;
+    return this.cart.reduce((sum, item) => {
+      const unitWeight = Number(item?.weightGrams || item?.weight || 0);
+      const qty = Math.max(1, Number(item?.quantity) || 1);
+      if (!Number.isFinite(unitWeight) || unitWeight <= 0) return sum;
+      return sum + (this.getWeightFee(unitWeight) * qty);
+    }, 0);
   }
 
   updateTotalsUI() {
