@@ -1470,8 +1470,19 @@
       }
       
       async init() {
+        console.info('[VENDOR] init:start', {
+          href: window.location.href,
+          origin: window.location.origin,
+          userAgent: navigator.userAgent,
+          online: navigator.onLine
+        });
         await this.consumeVendorAccessToken();
         const vendorReady = await this.resolveVendorContext();
+        console.info('[VENDOR] init:vendorReady', {
+          vendorReady,
+          authUid: auth.currentUser?.uid || null,
+          hasSessionFlag: this.hasVendorSessionFlag()
+        });
         if (!vendorReady) {
           this.renderVendorLock();
           return;
@@ -1495,9 +1506,16 @@
         try {
           const url = new URL(window.location.href);
           const accessToken = String(url.searchParams.get('access_token') || '').trim();
+          console.info('[VENDOR] consumeVendorAccessToken', {
+            hasAccessToken: Boolean(accessToken),
+            authUidBefore: auth.currentUser?.uid || null
+          });
           if (!accessToken) return;
 
           await signInWithCustomToken(auth, accessToken);
+          console.info('[VENDOR] consumeVendorAccessToken:success', {
+            authUidAfter: auth.currentUser?.uid || null
+          });
           url.searchParams.delete('access_token');
           window.history.replaceState({}, document.title, url.toString());
         } catch (error) {
@@ -1509,13 +1527,23 @@
         const user = await new Promise((resolve) => {
           const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             unsubscribe();
+            console.info('[VENDOR] onAuthStateChanged:first', {
+              uid: currentUser?.uid || null,
+              email: currentUser?.email || null,
+              isAnonymous: Boolean(currentUser?.isAnonymous)
+            });
             resolve(currentUser || null);
           });
         });
 
+        console.info('[VENDOR] resolveVendorContext:user', {
+          uid: user?.uid || null,
+          email: user?.email || null
+        });
         if (!user?.uid) return false;
 
         const vendorProfile = await this.loadVendorProfile(user.uid);
+        console.info('[VENDOR] resolveVendorContext:profile', vendorProfile || null);
         if (!this.isApprovedVendorProfile(vendorProfile)) return false;
 
         this.vendorContext = {
@@ -1528,8 +1556,13 @@
 
       async loadVendorProfile(uid) {
         try {
+          console.info('[VENDOR] loadVendorProfile:vendors:start', { uid });
           const directSnap = await getDoc(doc(db, 'vendors', uid));
           if (directSnap.exists()) {
+            console.info('[VENDOR] loadVendorProfile:vendors:found', {
+              uid,
+              data: directSnap.data() || null
+            });
             return { id: directSnap.id, ...(directSnap.data() || {}) };
           }
         } catch (error) {
@@ -1537,8 +1570,13 @@
         }
 
         try {
+          console.info('[VENDOR] loadVendorProfile:clients:start', { uid });
           const clientSnap = await getDoc(doc(db, 'clients', uid));
           if (clientSnap.exists()) {
+            console.info('[VENDOR] loadVendorProfile:clients:found', {
+              uid,
+              data: clientSnap.data() || null
+            });
             return { id: clientSnap.id, ...(clientSnap.data() || {}) };
           }
         } catch (error) {
@@ -2295,8 +2333,19 @@
           collection(db, PRODUCTS_COLLECTION),
           where('vendorId', '==', this.vendorContext.uid)
         );
+        console.info('[VENDOR] setupRealtimeListener', {
+          vendorUid: this.vendorContext?.uid || null
+        });
         onSnapshot(productsQuery, () => {
+          console.info('[VENDOR] products realtime:update', {
+            vendorUid: this.vendorContext?.uid || null
+          });
           this.loadProducts();
+        }, (error) => {
+          console.error('[VENDOR] products realtime:error', {
+            code: error?.code || null,
+            message: error?.message || String(error)
+          });
         });
       }
 
@@ -3727,11 +3776,21 @@
 
       async ensureUploadAuthReady() {
         const currentUser = auth.currentUser;
+        console.info('[VENDOR] ensureUploadAuthReady:start', {
+          authUid: currentUser?.uid || null,
+          authEmail: currentUser?.email || null,
+          vendorUid: this.vendorContext?.uid || null,
+          sessionFlag: this.hasVendorSessionFlag()
+        });
         if (!currentUser?.uid) {
           throw new Error('Session vendeur introuvable. Reconnectez-vous puis reessayez.');
         }
 
-        await currentUser.getIdToken();
+        const token = await currentUser.getIdToken();
+        console.info('[VENDOR] ensureUploadAuthReady:token', {
+          authUid: currentUser.uid,
+          tokenLength: token?.length || 0
+        });
         return currentUser;
       }
 
@@ -3757,7 +3816,10 @@
           console.info('Upload vendeur autorise', {
             uid: currentUser.uid,
             folder: this.getStorageFolder(type),
-            files: files.length
+            files: files.length,
+            currentProductId: this.currentProduct?.id || null,
+            vendorUid: this.vendorContext?.uid || null,
+            fileNames: files.map((file) => file?.name || 'unknown')
           });
           this.showToast('Upload en cours vers Firebase Storage...', 'info');
           const uploads = await Promise.all(
@@ -3785,6 +3847,16 @@
           this.showToast(`${uploads.length} image(s) envoyee(s) dans Firebase Storage.`);
         } catch (error) {
           console.error('Erreur Erreur upload Storage:', error);
+          console.error('[VENDOR] uploadSelectedImages:error:details', {
+            code: error?.code || null,
+            message: error?.message || String(error),
+            customData: error?.customData || null,
+            serverResponse: error?.serverResponse || null,
+            authUid: auth.currentUser?.uid || null,
+            vendorUid: this.vendorContext?.uid || null,
+            folder: this.getStorageFolder(type),
+            currentProductId: this.currentProduct?.id || null
+          });
           this.showToast(error?.message || 'Erreur pendant l upload des images.', 'error');
         }
       }

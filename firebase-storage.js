@@ -87,6 +87,12 @@ export function validateStorageFile(file, {
 }
 
 export async function uploadImageFile(file, folder = 'misc', options = {}) {
+  console.info('[STORAGE] uploadImageFile:start', {
+    originalName: file?.name || null,
+    size: file?.size || 0,
+    type: file?.type || null,
+    folder
+  });
   validateImageFile(file, options);
   return uploadStorageFile(file, folder, options);
 }
@@ -101,17 +107,42 @@ export async function uploadStorageFile(file, folder = 'misc', options = {}) {
   const storagePath = `${folderPath}/${uniqueName}`;
   const storageRef = ref(storage, storagePath);
 
-  await uploadBytes(storageRef, file, {
-    contentType: file.type,
-    cacheControl: 'public,max-age=31536000,immutable'
+  console.info('[STORAGE] uploadStorageFile:prepared', {
+    folder,
+    folderPath,
+    baseName,
+    extension,
+    uniqueName,
+    storagePath,
+    bucket: storage?.app?.options?.storageBucket || null
   });
 
-  const url = await getDownloadURL(storageRef);
-  return {
-    url,
-    path: storagePath,
-    name: uniqueName
-  };
+  try {
+    await uploadBytes(storageRef, file, {
+      contentType: file.type,
+      cacheControl: 'public,max-age=31536000,immutable'
+    });
+
+    const url = await getDownloadURL(storageRef);
+    console.info('[STORAGE] uploadStorageFile:success', {
+      storagePath,
+      url
+    });
+    return {
+      url,
+      path: storagePath,
+      name: uniqueName
+    };
+  } catch (error) {
+    console.error('[STORAGE] uploadStorageFile:error', {
+      storagePath,
+      code: error?.code || null,
+      message: error?.message || String(error),
+      customData: error?.customData || null,
+      serverResponse: error?.serverResponse || null
+    });
+    throw error;
+  }
 }
 
 export async function uploadPdfFile(file, folder = 'documents', options = {}) {
