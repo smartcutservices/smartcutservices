@@ -28,7 +28,7 @@ service firebase.storage {
     allow read: if true;
 
     match /products/{productId}/{allPaths=**} {
-      allow create: if isSignedIn() && isImage() && maxSize(20);
+      allow write: if isSignedIn() && maxSize(20);
     }
 
     match /printing-documents/{fileName} {
