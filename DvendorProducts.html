@@ -1470,19 +1470,8 @@
       }
       
       async init() {
-        console.info('[VENDOR] init:start', {
-          href: window.location.href,
-          origin: window.location.origin,
-          userAgent: navigator.userAgent,
-          online: navigator.onLine
-        });
         await this.consumeVendorAccessToken();
         const vendorReady = await this.resolveVendorContext();
-        console.info('[VENDOR] init:vendorReady', {
-          vendorReady,
-          authUid: auth.currentUser?.uid || null,
-          hasSessionFlag: this.hasVendorSessionFlag()
-        });
         if (!vendorReady) {
           this.renderVendorLock();
           return;
@@ -1506,16 +1495,9 @@
         try {
           const url = new URL(window.location.href);
           const accessToken = String(url.searchParams.get('access_token') || '').trim();
-          console.info('[VENDOR] consumeVendorAccessToken', {
-            hasAccessToken: Boolean(accessToken),
-            authUidBefore: auth.currentUser?.uid || null
-          });
           if (!accessToken) return;
 
           await signInWithCustomToken(auth, accessToken);
-          console.info('[VENDOR] consumeVendorAccessToken:success', {
-            authUidAfter: auth.currentUser?.uid || null
-          });
           url.searchParams.delete('access_token');
           window.history.replaceState({}, document.title, url.toString());
         } catch (error) {
@@ -1527,23 +1509,13 @@
         const user = await new Promise((resolve) => {
           const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             unsubscribe();
-            console.info('[VENDOR] onAuthStateChanged:first', {
-              uid: currentUser?.uid || null,
-              email: currentUser?.email || null,
-              isAnonymous: Boolean(currentUser?.isAnonymous)
-            });
             resolve(currentUser || null);
           });
         });
 
-        console.info('[VENDOR] resolveVendorContext:user', {
-          uid: user?.uid || null,
-          email: user?.email || null
-        });
         if (!user?.uid) return false;
 
         const vendorProfile = await this.loadVendorProfile(user.uid);
-        console.info('[VENDOR] resolveVendorContext:profile', vendorProfile || null);
         if (!this.isApprovedVendorProfile(vendorProfile)) return false;
 
         this.vendorContext = {
@@ -1556,13 +1528,8 @@
 
       async loadVendorProfile(uid) {
         try {
-          console.info('[VENDOR] loadVendorProfile:vendors:start', { uid });
           const directSnap = await getDoc(doc(db, 'vendors', uid));
           if (directSnap.exists()) {
-            console.info('[VENDOR] loadVendorProfile:vendors:found', {
-              uid,
-              data: directSnap.data() || null
-            });
             return { id: directSnap.id, ...(directSnap.data() || {}) };
           }
         } catch (error) {
@@ -1570,13 +1537,8 @@
         }
 
         try {
-          console.info('[VENDOR] loadVendorProfile:clients:start', { uid });
           const clientSnap = await getDoc(doc(db, 'clients', uid));
           if (clientSnap.exists()) {
-            console.info('[VENDOR] loadVendorProfile:clients:found', {
-              uid,
-              data: clientSnap.data() || null
-            });
             return { id: clientSnap.id, ...(clientSnap.data() || {}) };
           }
         } catch (error) {
@@ -2333,13 +2295,7 @@
           collection(db, PRODUCTS_COLLECTION),
           where('vendorId', '==', this.vendorContext.uid)
         );
-        console.info('[VENDOR] setupRealtimeListener', {
-          vendorUid: this.vendorContext?.uid || null
-        });
         onSnapshot(productsQuery, () => {
-          console.info('[VENDOR] products realtime:update', {
-            vendorUid: this.vendorContext?.uid || null
-          });
           this.loadProducts();
         }, (error) => {
           console.error('[VENDOR] products realtime:error', {
@@ -2411,7 +2367,7 @@
             <div class="product-card" data-id="${product.id}">
               <div class="product-image">
                 ${imageUrl ? 
-                  `<img src="${imageUrl}" alt="${product.name}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\'fas fa-image text-3xl text-secondary\'></i>'">` : 
+                  `<img src="${this.escapeAttribute(imageUrl)}" alt="${this.escapeAttribute(product.name || 'Image produit')}" class="w-full h-full object-cover" data-image-debug="product-card" data-product-id="${this.escapeAttribute(product.id)}" data-image-url="${this.escapeAttribute(imageUrl)}">` : 
                   `<i class="fas fa-image text-3xl text-secondary"></i>`
                 }
               </div>
@@ -2454,6 +2410,8 @@
         }).join('');
 
         // Attacher événements
+        this.attachImageDebugListeners(this.elements.productsGrid);
+
         document.querySelectorAll('.edit-product').forEach(btn => {
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -2685,7 +2643,7 @@
                   <div class="flex gap-1 flex-wrap">
                     ${variationImages.map(img => `
                       <div class="w-8 h-8 rounded overflow-hidden border border-border">
-                        <img src="${this.getImagePath(img)}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.parentNode.innerHTML='<i class=\'fas fa-image text-xs\'></i>'">
+                        <img src="${this.escapeAttribute(this.getImagePath(img))}" class="w-full h-full object-cover" data-image-debug="variation-card" data-variation-index="${index}" data-image-url="${this.escapeAttribute(this.getImagePath(img))}">
                       </div>
                     `).join('')}
                   </div>
@@ -2710,6 +2668,8 @@
         }).join('');
         
         // Attacher événements
+        this.attachImageDebugListeners(this.elements.variationsContainer);
+
         document.querySelectorAll('.edit-variation').forEach(btn => {
           btn.addEventListener('click', () => this.editVariation(parseInt(btn.dataset.index)));
         });
@@ -2719,6 +2679,66 @@
         });
         
         this.updateTotalStock();
+      }
+
+      escapeAttribute(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      attachImageDebugListeners(scope) {
+        scope?.querySelectorAll('img[data-image-debug]').forEach((img) => {
+          if (img.dataset.debugAttached === 'true') return;
+          img.dataset.debugAttached = 'true';
+
+          console.info('[VENDOR_IMAGE_DEBUG] render', {
+            context: img.dataset.imageDebug,
+            productId: img.dataset.productId || null,
+            variationIndex: img.dataset.variationIndex || null,
+            url: img.dataset.imageUrl || img.currentSrc || img.src || null
+          });
+
+          img.addEventListener('load', () => {
+            console.info('[VENDOR_IMAGE_DEBUG] load', {
+              context: img.dataset.imageDebug,
+              productId: img.dataset.productId || null,
+              variationIndex: img.dataset.variationIndex || null,
+              url: img.currentSrc || img.src || null
+            });
+          });
+
+          img.addEventListener('error', () => {
+            console.error('[VENDOR_IMAGE_DEBUG] error', {
+              context: img.dataset.imageDebug,
+              productId: img.dataset.productId || null,
+              variationIndex: img.dataset.variationIndex || null,
+              url: img.currentSrc || img.src || img.dataset.imageUrl || null
+            });
+            img.style.display = 'none';
+            img.parentNode.innerHTML = '<i class="fas fa-image text-xs"></i>';
+          });
+
+          if (img.complete) {
+            if (img.naturalWidth > 0) {
+              console.info('[VENDOR_IMAGE_DEBUG] load-cached', {
+                context: img.dataset.imageDebug,
+                productId: img.dataset.productId || null,
+                variationIndex: img.dataset.variationIndex || null,
+                url: img.currentSrc || img.src || null
+              });
+            } else {
+              console.error('[VENDOR_IMAGE_DEBUG] error-cached', {
+                context: img.dataset.imageDebug,
+                productId: img.dataset.productId || null,
+                variationIndex: img.dataset.variationIndex || null,
+                url: img.currentSrc || img.src || img.dataset.imageUrl || null
+              });
+            }
+          }
+        });
       }
       
       renderMainImages() {
@@ -2765,16 +2785,8 @@
         img.loading = 'lazy';
         img.referrerPolicy = 'no-referrer';
         img.src = imagePath;
-        img.addEventListener('load', () => {
-          console.info('[VENDOR] image-preview:loaded', {
-            type,
-            index,
-            imagePath,
-            originalValue: filename
-          });
-        });
         img.addEventListener('error', () => {
-          console.error('[VENDOR] image-preview:error', {
+          console.error('[VENDOR_IMAGE_DEBUG] editor-preview-error', {
             type,
             index,
             imagePath,
@@ -3513,6 +3525,16 @@
           updatedAt: now
         };
 
+        console.info('[VENDOR_IMAGE_DEBUG] save-payload', {
+          productId: this.currentProduct?.id || null,
+          mainImages: productData.images,
+          variations: productData.variations.map((variation, index) => ({
+            index,
+            sku: variation.sku || null,
+            images: variation.images || []
+          }))
+        });
+
         if (!productData.name) {
           this.showToast('Le nom du produit est requis', 'error');
           return;
@@ -3806,21 +3828,11 @@
 
       async ensureUploadAuthReady() {
         const currentUser = auth.currentUser;
-        console.info('[VENDOR] ensureUploadAuthReady:start', {
-          authUid: currentUser?.uid || null,
-          authEmail: currentUser?.email || null,
-          vendorUid: this.vendorContext?.uid || null,
-          sessionFlag: this.hasVendorSessionFlag()
-        });
         if (!currentUser?.uid) {
           throw new Error('Session vendeur introuvable. Reconnectez-vous puis reessayez.');
         }
 
-        const token = await currentUser.getIdToken();
-        console.info('[VENDOR] ensureUploadAuthReady:token', {
-          authUid: currentUser.uid,
-          tokenLength: token?.length || 0
-        });
+        await currentUser.getIdToken();
         return currentUser;
       }
 
@@ -3842,19 +3854,19 @@
         }
 
         try {
-          const currentUser = await this.ensureUploadAuthReady();
-          console.info('Upload vendeur autorise', {
-            uid: currentUser.uid,
-            folder: this.getStorageFolder(type),
-            files: files.length,
-            currentProductId: this.currentProduct?.id || null,
-            vendorUid: this.vendorContext?.uid || null,
-            fileNames: files.map((file) => file?.name || 'unknown')
-          });
+          await this.ensureUploadAuthReady();
           this.showToast('Upload en cours vers Firebase Storage...', 'info');
           const uploads = await Promise.all(
             files.map((file) => uploadImageFile(file, this.getStorageFolder(type)))
           );
+
+          console.info('[VENDOR_IMAGE_DEBUG] upload-result', {
+            type,
+            folder: this.getStorageFolder(type),
+            productId: this.currentProduct?.id || null,
+            variationIndex: type === 'variation' ? parseInt(this.elements.variationIndex.value, 10) : null,
+            uploads
+          });
 
           if (type === 'main') {
             this.currentImages.main.push(...uploads.map((item) => item.url));

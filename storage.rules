@@ -25,9 +25,8 @@ service firebase.storage {
         && request.resource.size <= megabytes * 1024 * 1024;
     }
 
-    allow read: if true;
-
     match /products/{productId}/{allPaths=**} {
+      allow read: if true;
       allow write: if isSignedIn() && maxSize(20);
     }
 
@@ -44,6 +43,7 @@ service firebase.storage {
     }
 
     match /{allPaths=**} {
+      allow read: if true;
       allow write: if false;
     }
   }

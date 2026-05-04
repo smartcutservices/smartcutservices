@@ -97,12 +97,6 @@ export function validateStorageFile(file, {
 }
 
 export async function uploadImageFile(file, folder = 'misc', options = {}) {
-  console.info('[STORAGE] uploadImageFile:start', {
-    originalName: file?.name || null,
-    size: file?.size || 0,
-    type: file?.type || null,
-    folder
-  });
   validateImageFile(file, options);
   return uploadStorageFile(file, folder, options);
 }
@@ -116,16 +110,6 @@ export async function uploadStorageFile(file, folder = 'misc', options = {}) {
   const uniqueName = `${baseName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const storagePath = `${folderPath}/${uniqueName}`;
   const storageRef = ref(storage, storagePath);
-
-  console.info('[STORAGE] uploadStorageFile:prepared', {
-    folder,
-    folderPath,
-    baseName,
-    extension,
-    uniqueName,
-    storagePath,
-    bucket: getStorageBucketName() || null
-  });
 
   try {
     await uploadBytes(storageRef, file, {
@@ -153,11 +137,6 @@ export async function uploadStorageFile(file, folder = 'misc', options = {}) {
       throw new Error(`Upload reussi, mais URL image introuvable pour ${storagePath}.`);
     }
 
-    console.info('[STORAGE] uploadStorageFile:success', {
-      storagePath,
-      url,
-      urlSource
-    });
     return {
       url,
       path: storagePath,
