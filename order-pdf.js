@@ -111,6 +111,11 @@ function buildPromoLines(order) {
     lines.push(`Promotion: ${label}`);
   }
 
+  if (promo?.affiliateEnabled === true || promo?.affiliateMemberId || promo?.affiliateMemberName) {
+    const memberName = String(promo?.affiliateMemberName || '').trim();
+    lines.push(`Type: Code affilie${memberName ? ` - ${memberName}` : ''}`);
+  }
+
   if (discountAmount > 0) {
     lines.push(`Reduction appliquee: - ${formatPrice(discountAmount)}`);
   }

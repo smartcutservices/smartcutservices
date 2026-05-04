@@ -993,6 +993,15 @@ function buildPromoUsageId(promoId = '', clientKey = '') {
   return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
 }
 
+function isAffiliatePromoCode(promo = {}) {
+  return Boolean(
+    promo?.affiliateEnabled === true ||
+    promo?.affiliateMemberId ||
+    promo?.affiliateMemberName ||
+    promo?.affiliatePhone
+  );
+}
+
 function normalizeAffiliateMemberId(value = '') {
   return sanitizeText(value, 80).toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9_-]/g, '');
 }
@@ -1253,9 +1262,10 @@ async function previewPromoForCart({ code = '', clientId = '', clientUid = '', i
     throw new Error('Client manquant pour verifier ce code promo.');
   }
 
+  const affiliatePromo = isAffiliatePromoCode(promo);
   const usageRef = db.collection('promoCodeUsages').doc(buildPromoUsageId(promoRecord.id, clientKey));
   const usageSnap = await usageRef.get();
-  if (usageSnap.exists) {
+  if (usageSnap.exists && !affiliatePromo) {
     logger.warn('PROMO_DEBUG preview:already-used', {
       promoId: promoRecord.id,
       clientKey
@@ -1311,6 +1321,10 @@ async function previewPromoForCart({ code = '', clientId = '', clientUid = '', i
     type: normalizePromoType(promo?.type),
     value: Math.max(0, toNumber(promo?.value ?? promo?.amount ?? promo?.rate)),
     categoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    affiliateEnabled: affiliatePromo,
+    affiliateMemberId: String(promo?.affiliateMemberId || '').trim(),
+    affiliateMemberName: String(promo?.affiliateMemberName || '').trim(),
+    affiliatePhone: String(promo?.affiliatePhone || '').trim(),
     eligibleSubtotal,
     discountAmount: Math.min(eligibleSubtotal, discountAmount),
     discountedSubtotal: Math.max(0, eligibleSubtotal - discountAmount),
@@ -1745,8 +1759,12 @@ async function syncMoncashPayment({ session, details, source = '' }) {
           ? orderData.promoCode
           : null;
       const clientPromoKey = String(sessionData.clientUid || clientId || '').trim();
-      const promoUsageId = promoCode?.promoId && clientPromoKey
-        ? buildPromoUsageId(promoCode.promoId, clientPromoKey)
+      const affiliatePromo = isAffiliatePromoCode(promoCode || {});
+      const promoUsageClientKey = affiliatePromo
+        ? [clientPromoKey, orderId || session.id || Date.now()].filter(Boolean).join('__')
+        : clientPromoKey;
+      const promoUsageId = promoCode?.promoId && promoUsageClientKey
+        ? buildPromoUsageId(promoCode.promoId, promoUsageClientKey)
         : '';
       const promoUsageRef = promoUsageId ? db.collection('promoCodeUsages').doc(promoUsageId) : null;
       const affiliateMemberDocId = buildAffiliateMemberDocId(promoCode?.code || '');
@@ -2044,6 +2062,10 @@ exports.createMoncashPayment = onRequest(
         type: promoSummary.type,
         value: promoSummary.value,
         categoryIds: promoSummary.categoryIds,
+        affiliateEnabled: Boolean(promoSummary.affiliateEnabled),
+        affiliateMemberId: promoSummary.affiliateMemberId || '',
+        affiliateMemberName: promoSummary.affiliateMemberName || '',
+        affiliatePhone: promoSummary.affiliatePhone || '',
         eligibleSubtotal: promoSummary.eligibleSubtotal,
         discountAmount: promoSummary.discountAmount,
         applied: true
@@ -2091,6 +2113,10 @@ exports.createMoncashPayment = onRequest(
         type: promoSummary.type,
         value: promoSummary.value,
         categoryIds: promoSummary.categoryIds,
+        affiliateEnabled: Boolean(promoSummary.affiliateEnabled),
+        affiliateMemberId: promoSummary.affiliateMemberId || '',
+        affiliateMemberName: promoSummary.affiliateMemberName || '',
+        affiliatePhone: promoSummary.affiliatePhone || '',
         eligibleSubtotal: promoSummary.eligibleSubtotal,
         discountAmount: promoSummary.discountAmount,
         applied: true

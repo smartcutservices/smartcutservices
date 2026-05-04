@@ -1333,7 +1333,11 @@ class CheckoutModal {
         eligibleSubtotal: Number(response.eligibleSubtotal || 0),
         type: response.type || '',
         value: Number(response.value || 0),
-        categoryIds: Array.isArray(response.categoryIds) ? response.categoryIds : []
+        categoryIds: Array.isArray(response.categoryIds) ? response.categoryIds : [],
+        affiliateEnabled: Boolean(response.affiliateEnabled),
+        affiliateMemberId: response.affiliateMemberId || '',
+        affiliateMemberName: response.affiliateMemberName || '',
+        affiliatePhone: response.affiliatePhone || ''
       };
       this.refreshPromoUI();
       this.showMessage(response.message || 'Code promo applique', 'success');
