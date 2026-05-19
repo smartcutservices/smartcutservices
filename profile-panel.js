@@ -1,10 +1,23 @@
 import { auth, db } from './firebase-init.js';
-import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
 import { getCartManager } from './cart.js?v=20260331-2';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
+
+const HAITI_DEPARTMENTS = {
+  'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+  'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+  'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+  'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+  'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+  'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+  'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+  'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+  'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+  'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
+};
 
 class ProfilePanel {
   constructor() {
@@ -15,6 +28,8 @@ class ProfilePanel {
     this.likeManager = getLikeManager();
     this.isBootstrapping = false;
     this.activeView = 'account';
+    this.profileClient = null;
+    this.isEditingPersonalInfo = false;
     this.vendorAccess = {
       uid: '',
       checked: false,
@@ -83,6 +98,29 @@ class ProfilePanel {
     }
   }
 
+  async ensureProfileClientLoaded() {
+    if (!this.authManager.isAuthenticated()) {
+      this.profileClient = null;
+      return;
+    }
+
+    const user = this.authManager.getCurrentUser();
+    if (!user?.uid || !db) return;
+
+    try {
+      const clientSnap = await getDoc(doc(db, 'clients', user.uid));
+      if (clientSnap.exists()) {
+        this.profileClient = { id: user.uid, ...(clientSnap.data() || {}) };
+        this.cartManager.currentClient = {
+          ...(this.cartManager.currentClient || {}),
+          ...this.profileClient
+        };
+      }
+    } catch (error) {
+      console.error('Erreur chargement informations personnelles:', error);
+    }
+  }
+
   inferVendorAccessFromClient() {
     const client = this.cartManager.currentClient || {};
     const role = String(client?.role || client?.accountType || '').toLowerCase();
@@ -143,7 +181,8 @@ class ProfilePanel {
       await Promise.all([
         this.ensureAuthenticatedOrdersLoaded(),
         this.ensureGuestOrdersLoaded(),
-        this.ensureVendorAccessLoaded()
+        this.ensureVendorAccessLoaded(),
+        this.ensureProfileClientLoaded()
       ]);
     } finally {
       this.isBootstrapping = false;
@@ -220,7 +259,7 @@ class ProfilePanel {
   }
 
   getPersonalInfoRows(user) {
-    const client = this.cartManager.currentClient || {};
+    const client = this.profileClient || this.cartManager.currentClient || {};
     const addressParts = [
       client.address,
       client.commune,
@@ -246,7 +285,86 @@ class ProfilePanel {
     ];
   }
 
+  getDefaultAddress(client) {
+    return Array.isArray(client?.addresses)
+      ? client.addresses.find((address) => address.id === client.defaultDeliveryAddressId) || client.addresses.find((address) => address.isDelivery) || client.addresses[0] || null
+      : null;
+  }
+
+  renderDepartmentOptions(selected = '') {
+    return '<option value="">Choisir...</option>' + Object.keys(HAITI_DEPARTMENTS)
+      .map((department) => `<option value="${this.escape(department)}" ${department === selected ? 'selected' : ''}>${this.escape(department)}</option>`)
+      .join('');
+  }
+
+  renderCommuneOptions(department = '', selected = '') {
+    const communes = HAITI_DEPARTMENTS[department] || [];
+    return '<option value="">Choisir...</option>' + communes
+      .map((commune) => `<option value="${this.escape(commune)}" ${commune === selected ? 'selected' : ''}>${this.escape(commune)}</option>`)
+      .join('');
+  }
+
+  renderEditPersonalInfoForm(colors, fonts, user) {
+    const client = this.profileClient || this.cartManager.currentClient || {};
+    const fullName = user?.displayName || client.name || `${client.firstName || ''} ${client.lastName || ''}`.trim();
+    const defaultAddress = this.getDefaultAddress(client) || {};
+    return `
+      <form class="profile-personal-form" style="display:grid;gap:0.85rem;">
+        <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;">
+          <h3 style="margin:0;font-family:${fonts.primary};font-size:1.35rem;color:${colors.text.title};">Modifier mes informations</h3>
+          <p style="margin:0.4rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">Vos modifications seront sauvegardees sur votre compte.</p>
+        </div>
+
+        ${this.renderProfileInput('Username', 'profileEditUsername', fullName, colors)}
+        ${this.renderProfileInput('Nom', 'profileEditLastName', client.lastName || '', colors)}
+        ${this.renderProfileInput('Prenom', 'profileEditFirstName', client.firstName || '', colors)}
+        ${this.renderProfileInput('Telephone', 'profileEditPhone', client.phone || '', colors, 'tel')}
+        ${this.renderProfileInput('Adresse principale', 'profileEditAddress', defaultAddress.address || client.address || '', colors)}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
+          <label style="display:grid;gap:0.35rem;">
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Departement</span>
+            <select id="profileEditDepartment" style="${this.profileFieldStyle(colors)}">
+              ${this.renderDepartmentOptions(defaultAddress.department || client.department || '')}
+            </select>
+          </label>
+          <label style="display:grid;gap:0.35rem;">
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Commune</span>
+            <select id="profileEditCommune" style="${this.profileFieldStyle(colors)}">
+              ${this.renderCommuneOptions(defaultAddress.department || client.department || '', defaultAddress.commune || client.commune || '')}
+            </select>
+          </label>
+        </div>
+
+        <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
+          <button type="submit" style="border:none;border-radius:999px;background:${colors.background.button};color:${colors.text.button};padding:0.9rem 1rem;font-weight:800;cursor:pointer;">
+            Enregistrer
+          </button>
+          <button type="button" class="profile-cancel-edit-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.9rem 1rem;font-weight:800;cursor:pointer;">
+            Annuler
+          </button>
+        </div>
+      </form>
+    `;
+  }
+
+  renderProfileInput(label, id, value, colors, type = 'text') {
+    return `
+      <label style="display:grid;gap:0.35rem;">
+        <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">${this.escape(label)}</span>
+        <input id="${id}" type="${type}" value="${this.escape(value)}" style="${this.profileFieldStyle(colors)}">
+      </label>
+    `;
+  }
+
+  profileFieldStyle(colors) {
+    return `width:100%;border:1px solid ${colors.background.button}33;border-radius:0.9rem;background:${colors.background.card};color:${colors.text.title};padding:0.85rem 0.95rem;font:inherit;`;
+  }
+
   renderPersonalInfoView(colors, fonts, user) {
+    if (this.isEditingPersonalInfo) {
+      return this.renderEditPersonalInfoForm(colors, fonts, user);
+    }
     const rows = this.getPersonalInfoRows(user);
     return `
       <section style="display:grid;gap:1rem;">
@@ -307,6 +425,23 @@ class ProfilePanel {
           <i class="fas fa-key"></i>
           Changer mon mot de passe
         </button>
+
+        <button class="profile-edit-info-btn" style="
+          border:1px solid ${colors.background.button}33;
+          border-radius:999px;
+          background:${colors.background.card};
+          color:${colors.text.title};
+          padding:0.95rem 1rem;
+          font-weight:800;
+          cursor:pointer;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:0.55rem;
+        ">
+          <i class="fas fa-pen"></i>
+          Modifier mes informations
+        </button>
       </section>
     `;
   }
@@ -318,6 +453,157 @@ class ProfilePanel {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  async savePersonalInfo() {
+    const user = this.authManager.getCurrentUser();
+    if (!user?.uid || !db) return;
+
+    const username = this.modal.querySelector('#profileEditUsername')?.value?.trim() || '';
+    const lastName = this.modal.querySelector('#profileEditLastName')?.value?.trim() || '';
+    const firstName = this.modal.querySelector('#profileEditFirstName')?.value?.trim() || '';
+    const phone = this.modal.querySelector('#profileEditPhone')?.value?.trim() || '';
+    const addressText = this.modal.querySelector('#profileEditAddress')?.value?.trim() || '';
+    const department = this.modal.querySelector('#profileEditDepartment')?.value?.trim() || '';
+    const commune = this.modal.querySelector('#profileEditCommune')?.value?.trim() || '';
+
+    if (!username || !lastName || !firstName || !phone || !addressText || !department || !commune) {
+      this.authManager.showToast('Merci de remplir tous les champs obligatoires.', 'error');
+      return;
+    }
+
+    const currentClient = this.profileClient || this.cartManager.currentClient || {};
+    const currentAddresses = Array.isArray(currentClient.addresses) ? currentClient.addresses : [];
+    const currentDefaultAddress = this.getDefaultAddress(currentClient);
+    const addressId = currentDefaultAddress?.id || 'addr_' + Date.now().toString(36);
+    const updatedAddress = {
+      ...(currentDefaultAddress || {}),
+      id: addressId,
+      label: currentDefaultAddress?.label || 'Adresse principale',
+      address: addressText,
+      country: 'Haiti',
+      department,
+      commune,
+      isDelivery: currentDefaultAddress?.isDelivery !== false,
+      updatedAt: new Date().toISOString(),
+      createdAt: currentDefaultAddress?.createdAt || new Date().toISOString()
+    };
+    const addresses = currentAddresses.length
+      ? currentAddresses.map((address) => address.id === addressId ? updatedAddress : address)
+      : [updatedAddress];
+    if (!addresses.some((address) => address.id === addressId)) addresses.unshift(updatedAddress);
+
+    const payload = {
+      firstName,
+      lastName,
+      name: username,
+      phone,
+      address: addressText,
+      country: 'Haiti',
+      department,
+      commune,
+      city: commune,
+      addresses,
+      defaultDeliveryAddressId: currentClient.defaultDeliveryAddressId || addressId,
+      updatedAt: new Date().toISOString()
+    };
+
+    await setDoc(doc(db, 'clients', user.uid), payload, { merge: true });
+    if (auth?.currentUser && username !== auth.currentUser.displayName) {
+      await updateProfile(auth.currentUser, { displayName: username });
+    }
+    this.profileClient = { id: user.uid, ...currentClient, ...payload };
+    this.cartManager.currentClient = {
+      ...(this.cartManager.currentClient || {}),
+      ...this.profileClient
+    };
+    this.isEditingPersonalInfo = false;
+    this.authManager.showToast('Informations personnelles mises a jour.', 'success');
+    this.render();
+  }
+
+  showPasswordResetSentModal(email) {
+    const colors = this.getThemeColors();
+    const fonts = this.getThemeFonts();
+    const overlay = document.createElement('div');
+    overlay.className = 'password-reset-sent-overlay';
+    overlay.style.cssText = `
+      position:fixed;
+      inset:0;
+      z-index:1000002;
+      background:rgba(0,0,0,0.55);
+      backdrop-filter:blur(6px);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:1rem;
+    `;
+
+    overlay.innerHTML = `
+      <div style="
+        width:100%;
+        max-width:420px;
+        border-radius:1.35rem;
+        background:${colors.background.general};
+        color:${colors.text.title};
+        box-shadow:0 24px 60px rgba(0,0,0,0.24);
+        padding:1.25rem;
+        border:1px solid ${colors.background.button}33;
+        text-align:center;
+      ">
+        <div style="
+          width:4rem;
+          height:4rem;
+          border-radius:999px;
+          margin:0 auto 0.95rem;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:${colors.background.button}18;
+          color:${colors.icon.hover};
+          font-size:1.5rem;
+        ">
+          <i class="fas fa-envelope-circle-check"></i>
+        </div>
+        <h3 style="margin:0;font-family:${fonts.primary};font-size:1.75rem;line-height:1;color:${colors.text.title};">Lien envoye</h3>
+        <p style="margin:0.8rem 0 0;color:${colors.text.body};line-height:1.65;">
+          Un lien pour changer votre mot de passe a ete envoye a:
+        </p>
+        <strong style="display:block;margin:0.65rem 0;color:${colors.text.title};word-break:break-word;">${this.escape(email)}</strong>
+        <div style="
+          margin-top:0.85rem;
+          border-radius:1rem;
+          background:${colors.background.button}12;
+          border:1px solid ${colors.background.button}22;
+          padding:0.85rem;
+          color:${colors.text.body};
+          line-height:1.55;
+          font-size:0.9rem;
+        ">
+          Si vous ne le voyez pas dans votre boite de reception, verifiez aussi vos spams ou courriers indesirables.
+        </div>
+        <button type="button" class="password-reset-sent-close" style="
+          margin-top:1rem;
+          width:100%;
+          border:none;
+          border-radius:999px;
+          background:${colors.background.button};
+          color:${colors.text.button};
+          padding:0.95rem 1rem;
+          font-weight:800;
+          cursor:pointer;
+        ">
+          Compris
+        </button>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('.password-reset-sent-close')?.addEventListener('click', close);
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) close();
+    });
   }
 
   updateSectionVisibility(sectionName) {
@@ -698,6 +984,11 @@ class ProfilePanel {
     const personalInfoBtn = this.modal.querySelector('.profile-personal-info-btn');
     const backAccountBtn = this.modal.querySelector('.profile-back-account-btn');
     const changePasswordBtn = this.modal.querySelector('.profile-change-password-btn');
+    const editInfoBtn = this.modal.querySelector('.profile-edit-info-btn');
+    const cancelEditBtn = this.modal.querySelector('.profile-cancel-edit-btn');
+    const personalForm = this.modal.querySelector('.profile-personal-form');
+    const departmentSelect = this.modal.querySelector('#profileEditDepartment');
+    const communeSelect = this.modal.querySelector('#profileEditCommune');
     const ordersHeader = this.modal.querySelector('.orders-header');
     const likesHeader = this.modal.querySelector('.likes-header');
 
@@ -731,13 +1022,46 @@ class ProfilePanel {
     personalInfoBtn?.addEventListener('click', (event) => {
       event.preventDefault();
       this.activeView = 'personal';
+      this.isEditingPersonalInfo = false;
       this.render();
+      this.ensureProfileClientLoaded().then(() => {
+        if (this.modal && this.activeView === 'personal') this.render();
+      });
     });
 
     backAccountBtn?.addEventListener('click', (event) => {
       event.preventDefault();
       this.activeView = 'account';
+      this.isEditingPersonalInfo = false;
       this.render();
+    });
+
+    editInfoBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.isEditingPersonalInfo = true;
+      this.render();
+    });
+
+    cancelEditBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.isEditingPersonalInfo = false;
+      this.render();
+    });
+
+    departmentSelect?.addEventListener('change', () => {
+      if (communeSelect) {
+        communeSelect.innerHTML = this.renderCommuneOptions(departmentSelect.value);
+      }
+    });
+
+    personalForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await this.savePersonalInfo();
+      } catch (error) {
+        console.error('Erreur sauvegarde informations personnelles:', error);
+        this.authManager.showToast('Impossible de sauvegarder vos informations.', 'error');
+      }
     });
 
     changePasswordBtn?.addEventListener('click', async (event) => {
@@ -749,7 +1073,7 @@ class ProfilePanel {
       }
       try {
         await sendPasswordResetEmail(auth, email);
-        this.authManager.showToast('Email de changement de mot de passe envoye.', 'success');
+        this.showPasswordResetSentModal(email);
       } catch (error) {
         console.error('Erreur changement mot de passe:', error);
         this.authManager.showToast('Impossible d envoyer l email de changement de mot de passe.', 'error');

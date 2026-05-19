@@ -348,6 +348,7 @@ class CartManager {
       } else {
         const existing = snapshot.data() || {};
         const mergedData = {
+          ...existing,
           uid: user.uid,
           name: existing.name || user.displayName || '',
           email: existing.email || user.email || '',
