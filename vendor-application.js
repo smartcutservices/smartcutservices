@@ -8,6 +8,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 const FORM_SETTINGS_REF = ['vendorApplicationSettings', 'form'];
+const PLAN_SETTINGS_REF = ['vendorPlanSettings', 'main'];
 
 const DEFAULT_FORM_SETTINGS = {
   title: 'Candidature vendeur',
@@ -29,6 +30,11 @@ const DEFAULT_FORM_SETTINGS = {
 };
 
 const VENDOR_DELIVERY_MODE = 'Le vendeur gere la livraison';
+const DEFAULT_PLAN_SETTINGS = {
+  proPrice: 1750,
+  currency: 'HTG',
+  payoutDelayDays: 30
+};
 const HAITI_DEPARTMENTS = {
   'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
   'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
@@ -50,6 +56,13 @@ class VendorApplicationPage {
     this.application = null;
     this.clientProfile = null;
     this.formSettings = DEFAULT_FORM_SETTINGS;
+    this.planSettings = DEFAULT_PLAN_SETTINGS;
+    this.selectedPlan = '';
+    this.kycDocuments = {
+      recto: null,
+      verso: null
+    };
+    this.isUploadingKyc = false;
     this.uniqueId = `vendor_apply_${Math.random().toString(36).slice(2, 9)}`;
 
     if (!this.container) return;
@@ -65,13 +78,20 @@ class VendorApplicationPage {
   }
 
   async init() {
-    await this.loadData();
+    try {
+      await this.loadData();
+    } catch (error) {
+      console.error('Erreur chargement candidature vendeur:', error);
+    }
     this.render();
     this.attachEvents();
   }
 
   async loadData() {
-    await this.loadFormSettings();
+    await Promise.all([
+      this.loadFormSettings(),
+      this.loadPlanSettings()
+    ]);
 
     if (!this.user?.uid || !db) {
       this.clientProfile = null;
@@ -86,6 +106,10 @@ class VendorApplicationPage {
 
     this.clientProfile = clientSnap.exists() ? clientSnap.data() : null;
     this.application = applicationSnap.exists() ? applicationSnap.data() : null;
+    this.kycDocuments = {
+      recto: this.application?.kycDocuments?.recto || null,
+      verso: this.application?.kycDocuments?.verso || null
+    };
   }
 
   async loadFormSettings() {
@@ -113,6 +137,23 @@ class VendorApplicationPage {
     ));
   }
 
+  async loadPlanSettings() {
+    if (!db) {
+      this.planSettings = DEFAULT_PLAN_SETTINGS;
+      return;
+    }
+
+    try {
+      const snap = await getDoc(doc(db, ...PLAN_SETTINGS_REF));
+      this.planSettings = snap.exists()
+        ? { ...DEFAULT_PLAN_SETTINGS, ...(snap.data() || {}) }
+        : DEFAULT_PLAN_SETTINGS;
+    } catch (error) {
+      console.warn('Parametres plans vendeurs indisponibles, fallback local utilise:', error);
+      this.planSettings = DEFAULT_PLAN_SETTINGS;
+    }
+  }
+
   render() {
     const status = String(this.application?.status || '').toLowerCase();
     const isApproved = status === 'approved';
@@ -125,6 +166,7 @@ class VendorApplicationPage {
     const submittedAt = this.formatDateTime(this.application?.createdAt);
     const reviewedAt = this.formatDateTime(this.application?.reviewedAt);
     const activeAt = this.formatDateTime(this.application?.sellerActivatedAt || this.clientProfile?.sellerActivatedAt || this.clientProfile?.approvedAt);
+    const shouldChoosePlan = Boolean(this.user && !this.application && !this.selectedPlan);
 
     this.container.innerHTML = `
       <section style="max-width:980px;margin:0 auto;padding:1.2rem 1rem 0;">
@@ -204,9 +246,11 @@ class VendorApplicationPage {
                   </div>
                 ` : ''}
               </div>
-            ` : `
+            ` : shouldChoosePlan ? this.renderPlanSelection() : `
               <form id="vendorApplicationForm" style="display:grid;gap:1rem;">
+                ${this.renderSelectedPlanNotice()}
                 ${this.renderFields()}
+                ${this.renderKycBlock()}
                 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding-top:.5rem;">
                   <button type="submit" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">
                     ${this.escape(this.formSettings.submitLabel || DEFAULT_FORM_SETTINGS.submitLabel)}
@@ -270,6 +314,177 @@ class VendorApplicationPage {
   renderFields() {
     const fields = this.formSettings.fields.map((field) => this.renderField(field)).join('');
     return `${fields}${this.renderVendorDeliveryZones()}`;
+  }
+
+  formatCurrency(value) {
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value) || 0)} ${this.planSettings.currency || 'HTG'}`;
+  }
+
+  getPlanMeta(planId) {
+    const plan = String(planId || 'basic').toLowerCase();
+    if (plan === 'pro') {
+      return {
+        id: 'pro',
+        label: 'PRO',
+        price: Number(this.planSettings.proPrice || DEFAULT_PLAN_SETTINGS.proPrice),
+        priceLabel: this.formatCurrency(this.planSettings.proPrice || DEFAULT_PLAN_SETTINGS.proPrice),
+        paymentRequired: true
+      };
+    }
+    return {
+      id: 'basic',
+      label: 'BASIC',
+      price: 0,
+      priceLabel: 'Gratuit',
+      paymentRequired: false
+    };
+  }
+
+  renderSelectedPlanNotice() {
+    const plan = this.getPlanMeta(this.selectedPlan);
+    return `
+      <div style="border-radius:1.1rem;border:1px solid rgba(198,167,94,0.24);background:rgba(198,167,94,0.1);padding:1rem;display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+        <div>
+          <strong style="display:block;color:#1F1E1C;">Plan selectionne: ${this.escape(plan.label)}</strong>
+          <span style="display:block;margin-top:.25rem;color:#6E6557;">${this.escape(plan.priceLabel)}${plan.paymentRequired ? ' - payable via MonCash / NatCash' : ''}</span>
+        </div>
+        <button type="button" id="changeVendorPlanBtn" style="border:1px solid rgba(31,30,28,0.14);border-radius:999px;background:#fff;color:#1F1E1C;padding:.75rem 1rem;font-weight:800;cursor:pointer;">Changer de plan</button>
+      </div>
+    `;
+  }
+
+  renderPlanSelection() {
+    const pro = this.getPlanMeta('pro');
+    return `
+      <section style="display:grid;gap:1.2rem;">
+        <div style="border-radius:1.35rem;border:1px solid rgba(31,30,28,0.08);background:#fff;padding:1.15rem;">
+          <small style="display:block;color:#C6A75E;text-transform:uppercase;letter-spacing:.14em;font-weight:800;margin-bottom:.5rem;">Choisissez votre plan</small>
+          <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-size:2.3rem;line-height:1;color:#1F1E1C;">Vendez avec plus de visibilite</h2>
+          <p style="margin:.75rem 0 0;color:#6E6557;line-height:1.8;">Les plans vendeur permettent aux acheteurs de reperer vos produits plus rapidement, d'ameliorer votre position dans les recherches et d'afficher un badge de verification selon votre plan.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+          ${this.renderPlanCard({
+            id: 'basic',
+            title: 'BASIC',
+            price: 'Gratuit',
+            subtitle: 'Pour tous les vendeurs',
+            highlight: false,
+            features: [
+              'Mise en ligne de 5 produits',
+              'Acces au tableau de bord vendeur',
+              'Gestion des commandes',
+              'Paiement via MonCash / NatCash / Carte bancaire',
+              'Support standard reponse sous 24-48h',
+              `Request payment tous les ${Number(this.planSettings.payoutDelayDays || 30)} jours`
+            ]
+          })}
+          ${this.renderPlanCard({
+            id: 'pro',
+            title: 'PRO',
+            price: pro.priceLabel,
+            subtitle: 'Pour vendeurs actifs qui veulent plus de visibilite',
+            highlight: true,
+            features: [
+              'Tout du Plan Basic',
+              'Mise en ligne illimitee de produits',
+              'Badge Vendeur Verifie',
+              'Position amelioree dans les recherches',
+              'Paiement via MonCash / NatCash / Carte bancaire',
+              'Statistiques de ventes avancees',
+              'Support prioritaire reponse sous 12h',
+              `Request payment tous les ${Number(this.planSettings.payoutDelayDays || 30)} jours`
+            ]
+          })}
+        </div>
+      </section>
+    `;
+  }
+
+  renderPlanCard(plan) {
+    return `
+      <article style="position:relative;border-radius:1.35rem;border:1px solid ${plan.highlight ? 'rgba(198,167,94,0.5)' : 'rgba(31,30,28,0.08)'};background:${plan.highlight ? 'linear-gradient(180deg,#1F1E1C,#3A3328)' : '#fff'};color:${plan.highlight ? '#F8F5EF' : '#1F1E1C'};padding:1.15rem;box-shadow:${plan.highlight ? '0 22px 44px rgba(31,30,28,0.22)' : '0 14px 34px rgba(31,30,28,0.08)'};display:grid;gap:1rem;">
+        ${plan.highlight ? `<span style="position:absolute;top:1rem;right:1rem;border-radius:999px;background:#C6A75E;color:#1F1E1C;padding:.35rem .65rem;font-size:.72rem;font-weight:900;">Recommande</span>` : ''}
+        <div>
+          <h3 style="margin:0;font-size:1.6rem;font-weight:900;letter-spacing:.04em;">${this.escape(plan.title)}</h3>
+          <strong style="display:block;margin-top:.45rem;font-size:1.35rem;">${this.escape(plan.price)}</strong>
+          <p style="margin:.45rem 0 0;color:${plan.highlight ? 'rgba(248,245,239,0.78)' : '#6E6557'};line-height:1.6;">${this.escape(plan.subtitle)}</p>
+        </div>
+        <ul style="margin:0;padding:0;list-style:none;display:grid;gap:.65rem;">
+          ${plan.features.map((feature) => `
+            <li style="display:flex;gap:.55rem;align-items:flex-start;line-height:1.55;">
+              <i class="fas fa-check" style="margin-top:.25rem;color:${plan.highlight ? '#C6A75E' : '#14532D'};"></i>
+              <span>${this.escape(feature)}</span>
+            </li>
+          `).join('')}
+        </ul>
+        <button type="button" data-select-vendor-plan="${this.escape(plan.id)}" style="border:none;border-radius:999px;background:${plan.highlight ? '#C6A75E' : '#1F1E1C'};color:${plan.highlight ? '#1F1E1C' : '#F8F5EF'};padding:1rem 1.1rem;font-weight:900;cursor:pointer;">
+          Choisir ${this.escape(plan.title)}
+        </button>
+      </article>
+    `;
+  }
+
+  renderKycBlock() {
+    const hasRecto = Boolean(this.kycDocuments.recto?.url || this.kycDocuments.recto?.path);
+    const hasVerso = Boolean(this.kycDocuments.verso?.url || this.kycDocuments.verso?.path);
+    const complete = hasRecto && hasVerso;
+    return `
+      <section style="border:1px solid ${complete ? 'rgba(20,83,45,0.18)' : 'rgba(198,167,94,0.28)'};border-radius:1.25rem;background:${complete ? 'rgba(20,83,45,0.07)' : '#fff'};padding:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <div>
+          <strong style="display:block;color:#1F1E1C;">Verification KYC *</strong>
+          <span style="display:block;margin-top:.25rem;color:#6E6557;line-height:1.6;">Telechargez le recto et le verso de votre carte d'identite. Stripe pourra demander ces informations.</span>
+          <small style="display:block;margin-top:.35rem;color:${complete ? '#14532D' : '#92400E'};font-weight:800;">${complete ? 'Documents KYC ajoutes' : 'Recto et verso requis avant envoi'}</small>
+        </div>
+        <button type="button" id="openKycModalBtn" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:.9rem 1.1rem;font-weight:900;cursor:pointer;">
+          ${complete ? 'Modifier la verification KYC' : 'Faire la verification KYC'}
+        </button>
+      </section>
+    `;
+  }
+
+  renderKycModal() {
+    const rectoName = this.kycDocuments.recto?.originalName || this.kycDocuments.recto?.name || '';
+    const versoName = this.kycDocuments.verso?.originalName || this.kycDocuments.verso?.name || '';
+    return `
+      <div id="vendorKycModal" style="position:fixed;inset:0;z-index:1000002;background:#F8F5EF;color:#1F1E1C;display:flex;flex-direction:column;">
+        <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid rgba(31,30,28,0.08);background:#fff;">
+          <div>
+            <small style="display:block;color:#C6A75E;text-transform:uppercase;letter-spacing:.14em;font-weight:900;">Verification KYC</small>
+            <h2 style="margin:.25rem 0 0;font-family:'Cormorant Garamond',serif;font-size:2rem;line-height:1;">Carte d'identite vendeur</h2>
+          </div>
+          <button type="button" id="closeKycModalBtn" style="border:none;border-radius:999px;background:#F3EEE6;color:#1F1E1C;width:44px;height:44px;cursor:pointer;">
+            <i class="fas fa-times"></i>
+          </button>
+        </header>
+        <div style="flex:1;overflow:auto;padding:clamp(1rem,3vw,2rem);">
+          <div style="max-width:920px;margin:0 auto;display:grid;gap:1rem;">
+            <p style="margin:0;color:#6E6557;line-height:1.8;">Ajoutez le recto et le verso de votre carte d'identite. Ces fichiers resteront lies a votre candidature vendeur pour faciliter les controles KYC demandes par Stripe.</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+              ${this.renderKycUploadCard('recto', 'Recto *', rectoName)}
+              ${this.renderKycUploadCard('verso', 'Verso *', versoName)}
+            </div>
+            <div id="kycModalError" style="display:none;border-radius:1rem;background:#FEE2E2;color:#991B1B;padding:.85rem 1rem;"></div>
+            <div style="display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap;">
+              <button type="button" id="cancelKycModalBtn" style="border:1px solid rgba(31,30,28,0.14);border-radius:999px;background:#fff;color:#1F1E1C;padding:.9rem 1.1rem;font-weight:900;cursor:pointer;">Annuler</button>
+              <button type="button" id="saveKycModalBtn" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:.9rem 1.1rem;font-weight:900;cursor:pointer;">Enregistrer la verification</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderKycUploadCard(side, label, currentName) {
+    return `
+      <label style="display:grid;gap:.75rem;border:1px solid rgba(31,30,28,0.1);border-radius:1.25rem;background:#fff;padding:1rem;min-height:210px;">
+        <span style="font-weight:900;color:#1F1E1C;">${this.escape(label)}</span>
+        <span style="display:flex;align-items:center;justify-content:center;border:1px dashed rgba(198,167,94,0.55);border-radius:1rem;background:rgba(198,167,94,0.08);min-height:116px;color:#6E6557;text-align:center;padding:1rem;">
+          <span data-kyc-file-name="${side}">${currentName ? this.escape(currentName) : 'Choisir une image ou un PDF'}</span>
+        </span>
+        <input type="file" data-kyc-file="${side}" accept="image/jpeg,image/png,image/webp,application/pdf" style="width:100%;">
+        <small style="color:#6E6557;">Formats acceptes: JPG, PNG, WEBP ou PDF.</small>
+      </label>
+    `;
   }
 
   renderVendorDeliveryZones() {
@@ -450,6 +665,24 @@ class VendorApplicationPage {
       signInBtn.addEventListener('click', () => this.auth.openAuthModal('login'));
     }
 
+    this.container.querySelectorAll('[data-select-vendor-plan]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selectedPlan = button.dataset.selectVendorPlan || 'basic';
+        this.render();
+        this.attachEvents();
+      });
+    });
+
+    this.container.querySelector('#changeVendorPlanBtn')?.addEventListener('click', () => {
+      this.selectedPlan = '';
+      this.render();
+      this.attachEvents();
+    });
+
+    this.container.querySelector('#openKycModalBtn')?.addEventListener('click', () => {
+      this.openKycModal();
+    });
+
     const form = this.container.querySelector('#vendorApplicationForm');
     if (form) {
       form.addEventListener('submit', async (event) => {
@@ -498,6 +731,90 @@ class VendorApplicationPage {
         row?.remove();
       });
     });
+  }
+
+  openKycModal() {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = this.renderKycModal();
+    const modal = wrapper.firstElementChild;
+    if (!modal) return;
+    document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    const close = () => {
+      modal.remove();
+      document.body.style.overflow = '';
+    };
+    const showError = (message) => {
+      const error = modal.querySelector('#kycModalError');
+      if (!error) return;
+      error.style.display = 'block';
+      error.textContent = message;
+    };
+
+    modal.querySelector('#closeKycModalBtn')?.addEventListener('click', close);
+    modal.querySelector('#cancelKycModalBtn')?.addEventListener('click', close);
+
+    modal.querySelectorAll('[data-kyc-file]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const side = input.dataset.kycFile;
+        const label = modal.querySelector(`[data-kyc-file-name="${side}"]`);
+        if (label) label.textContent = input.files?.[0]?.name || 'Choisir une image ou un PDF';
+      });
+    });
+
+    modal.querySelector('#saveKycModalBtn')?.addEventListener('click', async () => {
+      const saveBtn = modal.querySelector('#saveKycModalBtn');
+      try {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Upload en cours...';
+        await this.saveKycDocuments(modal);
+        close();
+        this.render();
+        this.attachEvents();
+        this.auth.showToast('Verification KYC enregistree.', 'success');
+      } catch (error) {
+        console.error('Erreur KYC:', error);
+        showError(error?.message || 'Impossible de sauvegarder la verification KYC.');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Enregistrer la verification';
+      }
+    });
+  }
+
+  async saveKycDocuments(modal) {
+    if (!this.user?.uid) throw new Error('Vous devez etre connecte pour envoyer vos documents KYC.');
+    const rectoFile = modal.querySelector('[data-kyc-file="recto"]')?.files?.[0] || null;
+    const versoFile = modal.querySelector('[data-kyc-file="verso"]')?.files?.[0] || null;
+    const next = { ...this.kycDocuments };
+
+    if (!rectoFile && !next.recto) throw new Error('Le recto de la carte d identite est obligatoire.');
+    if (!versoFile && !next.verso) throw new Error('Le verso de la carte d identite est obligatoire.');
+
+    const { uploadStorageFile } = await import('./firebase-storage.js');
+    const uploadOne = async (file, side) => {
+      if (!file) return next[side];
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowed.includes(file.type)) {
+        throw new Error('Format non supporte. Utilisez JPG, PNG, WEBP ou PDF.');
+      }
+      const result = await uploadStorageFile(file, `vendor-kyc/${this.user.uid}/${side}`, { maxSizeMb: 12 });
+      return {
+        side,
+        url: result.url,
+        path: result.path,
+        name: result.name,
+        originalName: file.name,
+        contentType: file.type,
+        size: file.size,
+        uploadedAt: new Date().toISOString()
+      };
+    };
+
+    next.recto = await uploadOne(rectoFile, 'recto');
+    next.verso = await uploadOne(versoFile, 'verso');
+    this.kycDocuments = next;
   }
 
   collectResponses() {
@@ -592,8 +909,13 @@ class VendorApplicationPage {
       this.auth.showToast('Merci d ajouter au moins une zone de livraison avec son prix.', 'error');
       return;
     }
+    if (!this.kycDocuments.recto || !this.kycDocuments.verso) {
+      this.auth.showToast('Merci de completer la verification KYC: recto et verso sont obligatoires.', 'error');
+      return;
+    }
 
     const canonical = this.buildCanonicalPayload(responses);
+    const plan = this.getPlanMeta(this.selectedPlan || 'basic');
     const now = new Date().toISOString();
     const payload = {
       uid: this.user.uid,
@@ -609,6 +931,15 @@ class VendorApplicationPage {
       reviewedAt: this.application?.reviewedAt || '',
       reviewedBy: this.application?.reviewedBy || '',
       sellerActivatedAt: this.application?.sellerActivatedAt || '',
+      planId: plan.id,
+      planLabel: plan.label,
+      planPrice: plan.price,
+      planCurrency: this.planSettings.currency || 'HTG',
+      planPaymentRequired: plan.paymentRequired,
+      planPaymentStatus: plan.paymentRequired ? 'pending' : 'not_required',
+      payoutRequestIntervalDays: Number(this.planSettings.payoutDelayDays || 30),
+      kycStatus: 'submitted',
+      kycDocuments: this.kycDocuments,
       deliveryCoverage,
       deliveryZones: deliveryCoverage.zones,
       ...canonical
