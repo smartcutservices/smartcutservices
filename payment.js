@@ -1300,7 +1300,14 @@ class PaymentModal {
               quantity,
               sku: item?.sku || '',
               image: item?.image || '',
-              selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : []
+              selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : [],
+              vendorId: item?.vendorId || '',
+              vendorName: item?.vendorName || '',
+              sourceType: item?.sourceType || '',
+              sourceCollection: item?.sourceCollection || '',
+              isDigitalProduct: Boolean(item?.isDigitalProduct),
+              digitalDownloadLink: item?.digitalDownloadLink || '',
+              deliveryDelay: item?.deliveryDelay || ''
             };
           })
         : [];

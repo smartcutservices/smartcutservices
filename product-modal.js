@@ -1023,6 +1023,13 @@ class ProductModal {
           <i class="fas fa-store" style="color:#C6A75E;"></i>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeMeta.storeName}</span>
         </a>
+
+        ${(product.isDigitalProduct || product.deliveryDelay) ? `
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+            ${product.isDigitalProduct ? `<span style="display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;padding:.45rem .75rem;font-size:.82rem;font-weight:700;"><i class="fas fa-bolt"></i> Article digital - livraison instantanee</span>` : ''}
+            ${product.deliveryDelay ? `<span style="display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;background:rgba(31,30,28,.06);color:#5E564C;padding:.45rem .75rem;font-size:.82rem;font-weight:700;"><i class="fas fa-truck"></i> Delai: ${product.deliveryDelay}</span>` : ''}
+          </div>
+        ` : ''}
         
         <!-- Description courte -->
         <p style="color: #8B7E6B; margin: 0;">
@@ -1840,7 +1847,10 @@ class ProductModal {
     sourceCollection: String(product?.sourceCollection || (vendorId ? 'vendorProducts' : 'products')).trim(),
     categoryId: String(product?.categoryId || '').trim(),
     category: String(product?.category || product?.categoryName || '').trim(),
-    deliveryMode: String(product?.deliveryMode || '').trim()
+    deliveryMode: String(product?.deliveryMode || '').trim(),
+    isDigitalProduct: Boolean(product?.isDigitalProduct),
+    digitalDownloadLink: String(product?.digitalDownloadLink || '').trim(),
+    deliveryDelay: String(product?.deliveryDelay || (product?.isDigitalProduct ? 'Instantanee' : '')).trim()
   };
 }
 

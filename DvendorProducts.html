@@ -1189,6 +1189,30 @@
                     </div>
                   </div>
 
+                  <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-white p-4 space-y-4">
+                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <h4 class="font-semibold text-text-primary">Livraison & digital</h4>
+                        <p class="text-sm text-text-secondary mt-1">Indiquez le delai de livraison ou marquez le produit comme article digital avec son lien de telechargement.</p>
+                      </div>
+                      <label class="inline-flex items-center gap-2 rounded-full bg-background px-3 py-2 text-sm font-semibold text-text-primary">
+                        <input type="checkbox" id="isDigitalProduct" class="accent-[#C6A75E]">
+                        Article digital
+                      </label>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Delai de livraison</label>
+                        <input type="text" id="deliveryDelay" class="form-input" placeholder="Ex: 24-48h, 3 jours, instantanee">
+                      </div>
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Lien de telechargement digital</label>
+                        <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
+                      </div>
+                    </div>
+                    <p class="text-xs text-text-secondary">Pour un article digital, la livraison sera affichee comme instantanee et le lien sera conserve avec la commande apres paiement.</p>
+                  </div>
+
                   <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-[rgba(198,167,94,0.06)] p-4 space-y-4">
                     <div class="flex items-start justify-between gap-3 flex-wrap">
                       <div>
@@ -1492,6 +1516,7 @@
     const VENDOR_PAYOUT_REQUEST_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/requestVendorPayout';
     const VENDOR_SERVICE_FEE_STATUS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorServiceFeeStatus';
     const VENDOR_SERVICE_FEE_PAYMENT_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/startVendorServiceFeePayment';
+    const VENDOR_ORDER_FULFILLMENT_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/updateVendorOrderFulfillment';
 
     // ========== CLASSE PRODUCT MANAGER ==========
     class ProductManager {
@@ -1917,6 +1942,9 @@
           longDescription: document.getElementById('longDescription'),
           basePrice: document.getElementById('basePrice'),
           comparePrice: document.getElementById('comparePrice'),
+          isDigitalProduct: document.getElementById('isDigitalProduct'),
+          digitalDownloadLink: document.getElementById('digitalDownloadLink'),
+          deliveryDelay: document.getElementById('deliveryDelay'),
           discountType: document.getElementById('discountType'),
           discountValue: document.getElementById('discountValue'),
           discountStartAt: document.getElementById('discountStartAt'),
@@ -2209,6 +2237,14 @@
         return method || '-';
       }
 
+      isBasicPlanProductLimitReached() {
+        const planId = String(this.vendorContext?.planId || '').toLowerCase();
+        const planLabel = String(this.vendorContext?.planLabel || '').toLowerCase();
+        const isPro = planId === 'pro' || planLabel.includes('pro');
+        if (isPro) return false;
+        return (this.products || []).length >= 5;
+      }
+
       isServiceFeeSuspended() {
         const status = String(this.vendorContext?.status || this.vendorContext?.vendorStatus || '').toLowerCase();
         const feeStatus = String(this.vendorServiceFee?.vendor?.serviceFeeStatus || this.vendorContext?.serviceFeeStatus || '').toLowerCase();
@@ -2255,11 +2291,14 @@
         const suspended = this.isServiceFeeSuspended();
         [this.elements?.addProductBtn, this.elements?.newProductBtn, this.elements?.saveProductBtn].forEach((button) => {
           if (!button) return;
-          button.disabled = suspended;
-          button.style.opacity = suspended ? '0.55' : '';
-          button.style.cursor = suspended ? 'not-allowed' : '';
+          const basicLimit = (button === this.elements?.addProductBtn || button === this.elements?.newProductBtn) && this.isBasicPlanProductLimitReached();
+          button.disabled = suspended || basicLimit;
+          button.style.opacity = (suspended || basicLimit) ? '0.55' : '';
+          button.style.cursor = (suspended || basicLimit) ? 'not-allowed' : '';
           if (suspended) {
             button.title = 'Store suspendu: payez le frais de service mensuel pour reactiver les actions catalogue.';
+          } else if (basicLimit) {
+            button.title = 'Plan Basic: limite de 5 produits atteinte. Passez au Plan Pro.';
           } else {
             button.removeAttribute('title');
           }
@@ -2419,6 +2458,34 @@
         }
 
         return payload?.orders || [];
+      }
+
+      async updateVendorOrderFulfillment(order, fulfillmentStatus = 'delivered') {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('Utilisateur vendeur non connecte');
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch(VENDOR_ORDER_FULFILLMENT_FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            orderId: order?.id || '',
+            refPath: order?.refPath || '',
+            fulfillmentStatus
+          })
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+        }
+
+        return payload;
       }
 
       normalizeCategory(value) {
@@ -2614,6 +2681,8 @@
                 <div class="mt-3 pt-3 border-t border-border text-xs text-text-secondary space-y-1">
                   <p>Upload: ${this.formatDateTime(product.submittedAt || product.createdAt)}</p>
                   <p>Mise a jour: ${this.formatDateTime(product.updatedAt || product.createdAt)}</p>
+                  ${product.isDigitalProduct ? '<p><i class="fas fa-bolt text-secondary"></i> Article digital - livraison instantanee</p>' : ''}
+                  ${product.deliveryDelay ? `<p>Delai: ${this.escape(product.deliveryDelay)}</p>` : ''}
                 </div>
                 <div class="flex justify-end gap-2 mt-3 pt-3 border-t border-border">
                   <button class="edit-product btn-icon" data-id="${product.id}">
@@ -3098,7 +3167,7 @@
             </div>
             <div class="flex-1">
               <p class="font-medium">${p.name || 'Sans nom'}</p>
-              <p class="text-xs text-text-secondary">${p.sku || 'SKU non défini'}</p>
+              <p class="text-xs text-text-secondary">${p.sku || 'SKU non defini'}${p.isDigitalProduct ? ' - Digital' : ''}${p.deliveryDelay ? ` - ${this.escape(p.deliveryDelay)}` : ''}</p>
             </div>
             <span class="text-sm font-medium">${p.price ? new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(p.price)) : '?'}</span>
             <button
@@ -3342,10 +3411,17 @@
             const vendorManaged = !!order.vendorManagedDelivery;
             const customer = order.customer || {};
             const items = Array.isArray(order.items) ? order.items : [];
+            const paymentStatus = String(order.paymentStatus || '').toLowerCase();
+            const fulfillmentStatus = String(order.fulfillmentStatus || '').toLowerCase();
+            const canMarkDelivered = vendorManaged
+              && fulfillmentStatus !== 'delivered'
+              && ['paid', 'approved', 'confirmed', 'completed'].includes(paymentStatus);
             const itemsHtml = items.map((item) => `
               <div style="display:flex;justify-content:space-between;gap:1rem;padding:.65rem .8rem;border-radius:.85rem;background:rgba(255,255,255,.82);border:1px solid rgba(198,167,94,.12);">
                 <div style="min-width:0;">
                   <strong style="display:block;color:var(--text-primary);">${this.escape(item?.name || 'Produit')}</strong>
+                  ${item?.isDigitalProduct ? '<span style="display:block;color:var(--success);font-size:.8rem;">Article digital - livraison instantanee</span>' : ''}
+                  ${item?.deliveryDelay ? `<span style="display:block;color:var(--text-secondary);font-size:.8rem;">Delai: ${this.escape(item.deliveryDelay)}</span>` : ''}
                   <span style="display:block;color:var(--text-secondary);font-size:.82rem;">Qte ${Number(item?.quantity || 0)} · Commission ${Number(item?.commissionRate || 0)}%</span>
                 </div>
                 <strong style="white-space:nowrap;">${this.escape(this.formatCurrency(Number(item?.vendorNetAmount || 0)))}</strong>
@@ -3397,6 +3473,12 @@
                       </div>
                     </div>
                     <div style="display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap;">
+                      ${canMarkDelivered ? `
+                        <button type="button" class="btn btn-primary" data-mark-vendor-order-delivered="${this.escape(order.id)}">
+                          <i class="fas fa-check-circle"></i>
+                          Marquer livre
+                        </button>
+                      ` : ''}
                       <button type="button" class="btn btn-secondary" data-download-vendor-order-pdf="${this.escape(order.id)}">
                         <i class="fas fa-file-pdf"></i>
                         Telecharger le PDF
@@ -3412,6 +3494,24 @@
 
           this.elements.vendorOrdersList.querySelectorAll('[data-download-vendor-order-pdf]').forEach((button) => {
             button.addEventListener('click', () => this.downloadVendorOrderPdf(button.dataset.downloadVendorOrderPdf));
+          });
+
+          this.elements.vendorOrdersList.querySelectorAll('[data-mark-vendor-order-delivered]').forEach((button) => {
+            button.addEventListener('click', async () => {
+              const order = (this.vendorOrders || []).find((item) => String(item.id) === String(button.dataset.markVendorOrderDelivered));
+              if (!order) return;
+
+              try {
+                button.disabled = true;
+                await this.updateVendorOrderFulfillment(order, 'delivered');
+                this.showToast('Commande marquee comme livree.');
+                await this.loadVendorOrders();
+              } catch (error) {
+                console.error('Erreur mise a jour livraison vendeur:', error);
+                this.showToast(error?.message || 'Impossible de marquer la commande comme livree.', 'error');
+                button.disabled = false;
+              }
+            });
           });
         }
 
@@ -3623,6 +3723,10 @@
           this.showToast('Store suspendu: payez le frais de service mensuel avant d ajouter un produit.', 'error');
           return;
         }
+        if (this.isBasicPlanProductLimitReached()) {
+          this.showToast('Plan Basic: limite de 5 produits atteinte. Passez au Plan Pro pour ajouter plus de produits.', 'error');
+          return;
+        }
         this.currentProduct = null;
         this.currentVariations = [];
         this.categorySelections = [];
@@ -3671,6 +3775,9 @@
           this.elements.longDescription.value = this.currentProduct.longDescription || '';
           this.elements.basePrice.value = this.currentProduct.price || '';
           this.elements.comparePrice.value = this.currentProduct.comparePrice || '';
+          this.elements.isDigitalProduct.checked = Boolean(this.currentProduct.isDigitalProduct);
+          this.elements.digitalDownloadLink.value = this.currentProduct.digitalDownloadLink || '';
+          this.elements.deliveryDelay.value = this.currentProduct.deliveryDelay || (this.currentProduct.isDigitalProduct ? 'Instantanee' : '');
           this.populateDiscountFields(this.currentProduct);
           this.elements.productStatus.checked = this.currentProduct.status !== 'draft';
           
@@ -3701,6 +3808,9 @@
         this.elements.longDescription.value = '';
         this.elements.basePrice.value = '';
         this.elements.comparePrice.value = '';
+        this.elements.isDigitalProduct.checked = false;
+        this.elements.digitalDownloadLink.value = '';
+        this.elements.deliveryDelay.value = '';
         this.populateDiscountFields(null);
         this.elements.totalStock.value = '0';
         this.elements.productStatus.checked = true;
@@ -3716,6 +3826,10 @@
       async saveProduct() {
         if (this.isServiceFeeSuspended()) {
           this.showToast('Store suspendu: payez le frais de service mensuel avant d enregistrer un produit.', 'error');
+          return;
+        }
+        if (!this.currentProduct?.id && this.isBasicPlanProductLimitReached()) {
+          this.showToast('Plan Basic: limite de 5 produits atteinte. Passez au Plan Pro pour ajouter plus de produits.', 'error');
           return;
         }
         const now = new Date().toISOString();
@@ -3738,6 +3852,11 @@
           longDescription: this.elements.longDescription.value.trim(),
           price: parseFloat(this.elements.basePrice.value) || 0,
           comparePrice: parseFloat(this.elements.comparePrice.value) || null,
+          isDigitalProduct: Boolean(this.elements.isDigitalProduct?.checked),
+          digitalDownloadLink: this.elements.digitalDownloadLink?.value?.trim() || '',
+          deliveryDelay: Boolean(this.elements.isDigitalProduct?.checked)
+            ? (this.elements.deliveryDelay?.value?.trim() || 'Instantanee')
+            : (this.elements.deliveryDelay?.value?.trim() || ''),
           discount,
           discountEnabled: Boolean(discount?.enabled),
           discountType: discount?.type || '',
@@ -3757,6 +3876,10 @@
           vendorId: this.vendorContext.uid,
           vendorName: this.vendorContext.vendorName || this.vendorContext.shopName || 'Vendeur',
           shopName: this.vendorContext.shopName || '',
+          planId: this.vendorContext.planId || 'basic',
+          planLabel: this.vendorContext.planLabel || '',
+          vendorVerified: String(this.vendorContext.planId || '').toLowerCase() === 'pro'
+            || String(this.vendorContext.planLabel || '').toLowerCase().includes('pro'),
           deliveryMode: this.vendorContext.deliveryMode || '',
           deliveryCoverage: this.vendorContext.deliveryCoverage || null,
           deliveryZones: Array.isArray(this.vendorContext.deliveryZones) ? this.vendorContext.deliveryZones : [],
@@ -3785,6 +3908,11 @@
 
         if (!productData.name) {
           this.showToast('Le nom du produit est requis', 'error');
+          return;
+        }
+
+        if (productData.isDigitalProduct && !productData.digitalDownloadLink) {
+          this.showToast('Ajoutez le lien de telechargement pour cet article digital.', 'error');
           return;
         }
 

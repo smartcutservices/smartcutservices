@@ -836,7 +836,10 @@ class CartManager {
         commissionRule: item?.commissionRule || null,
         sourceType: item?.sourceType || '',
         category: item?.category || '',
-        deliveryMode: item?.deliveryMode || ''
+        deliveryMode: item?.deliveryMode || '',
+        isDigitalProduct: Boolean(item?.isDigitalProduct),
+        digitalDownloadLink: item?.digitalDownloadLink || '',
+        deliveryDelay: item?.deliveryDelay || ''
       }));
       const computedAmount = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const customerFirstName = String(this.currentClient.firstName || '').trim();
@@ -1216,7 +1219,10 @@ class CartManager {
       sourceType: String(item?.sourceType || (item?.vendorId ? 'vendor' : 'smartcut')).trim(),
       sourceCollection: String(item?.sourceCollection || (item?.vendorId ? 'vendorProducts' : 'products')).trim(),
       categoryId: String(item?.categoryId || '').trim(),
-      category: String(item?.category || '').trim()
+      category: String(item?.category || '').trim(),
+      isDigitalProduct: Boolean(item?.isDigitalProduct),
+      digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
+      deliveryDelay: String(item?.deliveryDelay || '').trim()
     };
 
     const itemKey = this.getCartItemKey(item);
@@ -1368,12 +1374,24 @@ class CartManager {
       sourceType: item?.sourceType || '',
       category: item?.category || '',
       deliveryMode: item?.deliveryMode || '',
+      isDigitalProduct: Boolean(item?.isDigitalProduct),
+      digitalDownloadLink: item?.digitalDownloadLink || '',
+      deliveryDelay: item?.deliveryDelay || '',
       selectedOptions: Array.isArray(item?.selectedOptions)
         ? item.selectedOptions
         : Array.isArray(item?.options)
           ? item.options
           : []
     }));
+  }
+
+  escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
   
   formatPrice(price) {
@@ -2098,6 +2116,8 @@ class CartManager {
     const timeLeft = (Number.isFinite(order.timeLeft) && order.timeLeft > 0)
       ? order.timeLeft
       : this.calculateTimeLeft(order.expiresAt);
+    const orderItems = this.getOrderItems(order);
+    const downloadableItems = orderItems.filter((item) => item.isDigitalProduct && item.digitalDownloadLink);
     
     return `
       <div style="
@@ -2147,6 +2167,30 @@ class CartManager {
         </div>
 
         ${this.renderFulfillmentTracker(order, colors)}
+
+        ${(['approved', 'paid'].includes(order.status) && downloadableItems.length) ? `
+          <div style="
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: #10B98110;
+            border: 1px solid #10B98122;
+            border-radius: 0.75rem;
+            color: ${colors.text.body};
+            display: grid;
+            gap: 0.55rem;
+          ">
+            <strong style="color:#047857;display:flex;align-items:center;gap:.45rem;">
+              <i class="fas fa-bolt"></i>
+              Articles digitaux disponibles
+            </strong>
+            ${downloadableItems.map((item) => `
+              <a href="${this.escapeHtml(item.digitalDownloadLink)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#047857;text-decoration:none;background:#fff;border-radius:.65rem;padding:.55rem .7rem;">
+                <span>${this.escapeHtml(item.name || 'Telechargement')}</span>
+                <i class="fas fa-download"></i>
+              </a>
+            `).join('')}
+          </div>
+        ` : ''}
         
         ${(order.status === 'pending' || order.status === 'review') && timeLeft > 0 ? `
           <div style="

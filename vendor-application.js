@@ -19,10 +19,21 @@ const DEFAULT_FORM_SETTINGS = {
     { id: 'email', type: 'email', label: 'Email', required: true, placeholder: 'nom@exemple.com' },
     { id: 'phone', type: 'tel', label: 'Telephone', required: true, placeholder: '+509...' },
     { id: 'shopName', type: 'text', label: 'Nom de boutique', required: true, placeholder: 'Nom de votre boutique' },
+    { id: 'identityNumber', type: 'text', label: 'Numero identite (NIF, CIN ou passeport)', required: true, placeholder: 'NIF, CIN ou passeport' },
     { id: 'city', type: 'text', label: 'Ville', required: true, placeholder: 'Votre ville' },
     { id: 'address', type: 'textarea', label: 'Adresse', required: true, placeholder: 'Adresse complete' },
     { id: 'category', type: 'select', label: 'Categorie principale', required: true, options: ['Mode', 'Accessoires', 'Maison & deco', 'Impression', 'Electronique', 'Beaute', 'Autre'] },
     { id: 'deliveryMode', type: 'radio', label: 'Gestion livraison', required: true, options: ['Le vendeur gere la livraison'] },
+    { id: 'bankAccountHolder', type: 'text', label: 'Titulaire du compte bancaire', required: true, placeholder: 'Nom du titulaire' },
+    { id: 'bankName', type: 'text', label: 'Banque', required: true, placeholder: 'Nom de la banque' },
+    { id: 'bankAccountNumber', type: 'text', label: 'Numero de compte / IBAN', required: true, placeholder: 'Numero de compte' },
+    { id: 'bankSwiftBic', type: 'text', label: 'SWIFT / BIC', required: false, placeholder: 'Optionnel' },
+    { id: 'businessName', type: 'text', label: 'Entreprise - nom legal', required: false, placeholder: 'Si applicable' },
+    { id: 'businessNif', type: 'text', label: 'Entreprise - NIF', required: false, placeholder: 'Si applicable' },
+    { id: 'businessAddress', type: 'textarea', label: 'Entreprise - adresse', required: false, placeholder: 'Si applicable' },
+    { id: 'businessBankAccountHolder', type: 'text', label: 'Entreprise - titulaire compte bancaire', required: false, placeholder: 'Si applicable' },
+    { id: 'businessBankName', type: 'text', label: 'Entreprise - banque', required: false, placeholder: 'Si applicable' },
+    { id: 'businessBankAccountNumber', type: 'text', label: 'Entreprise - numero de compte', required: false, placeholder: 'Si applicable' },
     { id: 'socialLink', type: 'url', label: 'Reseau social ou site web', required: false, placeholder: 'https://...' },
     { id: 'description', type: 'textarea', label: 'Presentation de votre activite', required: true, placeholder: 'Decrivez votre activite, vos produits et votre positionnement.' },
     { id: 'agreementAccepted', type: 'checkbox', label: 'Je confirme que les informations envoyees sont exactes et j accepte la revue manuelle de ma candidature.', required: true }
@@ -30,6 +41,19 @@ const DEFAULT_FORM_SETTINGS = {
 };
 
 const VENDOR_DELIVERY_MODE = 'Le vendeur gere la livraison';
+function mergeRequiredVendorFields(fields = []) {
+  const next = Array.isArray(fields) && fields.length ? [...fields] : [...DEFAULT_FORM_SETTINGS.fields];
+  const existingIds = new Set(next.map((field) => String(field?.id || '')));
+  DEFAULT_FORM_SETTINGS.fields.forEach((field) => {
+    if (!existingIds.has(field.id)) next.push(field);
+  });
+  return next.map((field) => (
+    field.id === 'deliveryMode'
+      ? { ...field, required: true, options: [VENDOR_DELIVERY_MODE] }
+      : field
+  ));
+}
+
 const DEFAULT_PLAN_SETTINGS = {
   proPrice: 1750,
   currency: 'HTG',
@@ -128,13 +152,8 @@ class VendorApplicationPage {
     this.formSettings = {
       ...DEFAULT_FORM_SETTINGS,
       ...data,
-      fields: Array.isArray(data.fields) && data.fields.length ? data.fields : DEFAULT_FORM_SETTINGS.fields
+      fields: mergeRequiredVendorFields(data.fields)
     };
-    this.formSettings.fields = this.formSettings.fields.map((field) => (
-      field.id === 'deliveryMode'
-        ? { ...field, required: true, options: [VENDOR_DELIVERY_MODE] }
-        : field
-    ));
   }
 
   async loadPlanSettings() {
@@ -876,10 +895,21 @@ class VendorApplicationPage {
       email: String(responses.email || ''),
       phone: String(responses.phone || ''),
       shopName: String(responses.shopName || ''),
+      identityNumber: String(responses.identityNumber || ''),
       city: String(responses.city || ''),
       address: String(responses.address || ''),
       category: String(responses.category || ''),
       deliveryMode: VENDOR_DELIVERY_MODE,
+      bankAccountHolder: String(responses.bankAccountHolder || ''),
+      bankName: String(responses.bankName || ''),
+      bankAccountNumber: String(responses.bankAccountNumber || ''),
+      bankSwiftBic: String(responses.bankSwiftBic || ''),
+      businessName: String(responses.businessName || ''),
+      businessNif: String(responses.businessNif || ''),
+      businessAddress: String(responses.businessAddress || ''),
+      businessBankAccountHolder: String(responses.businessBankAccountHolder || ''),
+      businessBankName: String(responses.businessBankName || ''),
+      businessBankAccountNumber: String(responses.businessBankAccountNumber || ''),
       socialLink: String(responses.socialLink || ''),
       description: String(responses.description || ''),
       experience: String(responses.experience || ''),

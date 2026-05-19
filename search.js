@@ -703,7 +703,7 @@ class SearchComponent {
       try {
         const snapshot = await getDocs(collection(db, collectionName));
         snapshot.forEach(docSnap => {
-          const product = { id: docSnap.id, ...docSnap.data() };
+          const product = { id: docSnap.id, sourceCollection: collectionName, ...docSnap.data() };
 
           const nameMatch = product.name?.toLowerCase().includes(searchTerm);
           const descMatch = product.shortDescription?.toLowerCase().includes(searchTerm);
@@ -724,7 +724,20 @@ class SearchComponent {
       }
     }
 
-    return mergedResults.slice(0, this.options.maxResults);
+    return mergedResults
+      .sort((a, b) => this.getSearchPriority(b) - this.getSearchPriority(a) || String(a.name || '').localeCompare(String(b.name || '')))
+      .slice(0, this.options.maxResults);
+  }
+
+  isProVendorProduct(product = {}) {
+    const planId = String(product.planId || '').toLowerCase();
+    const planLabel = String(product.planLabel || '').toLowerCase();
+    return String(product.sourceCollection || '') === 'vendorProducts'
+      && Boolean(product.vendorVerified || planId === 'pro' || planLabel.includes('pro'));
+  }
+
+  getSearchPriority(product = {}) {
+    return this.isProVendorProduct(product) ? 10 : 0;
   }
   
   async searchPresentations(searchTerm) {
@@ -819,6 +832,7 @@ class SearchComponent {
     
     const productPrice = this.formatPriceHTG(product.price || 0);
     const oldPrice = product.comparePrice ? this.formatPriceHTG(product.comparePrice) : null;
+    const isProVendorProduct = this.isProVendorProduct(product);
 
     return `
       <div class="search-card-${this.uniqueId}" data-type="product" data-id="${product.id}">
@@ -835,7 +849,7 @@ class SearchComponent {
             <span class="search-card-price-${this.uniqueId}">${productPrice}</span>
             ${oldPrice ? `<span class="search-card-oldprice-${this.uniqueId}">${oldPrice}</span>` : ''}
           </div>
-          <span class="search-card-badge-${this.uniqueId}">Produit</span>
+          <span class="search-card-badge-${this.uniqueId}">${isProVendorProduct ? 'Store verifie' : 'Produit'}</span>
         </div>
       </div>
     `;

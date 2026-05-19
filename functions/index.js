@@ -685,7 +685,10 @@ async function enrichMarketplaceItems(items = []) {
         sourceType: isVendorItem ? 'vendor' : 'smartcut',
         categoryId: String(item?.categoryId || productData?.categoryId || '').trim(),
         category: resolvedCategory,
-        deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim()
+        deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim(),
+        isDigitalProduct: Boolean(item?.isDigitalProduct || productData?.isDigitalProduct),
+        digitalDownloadLink: String(item?.digitalDownloadLink || productData?.digitalDownloadLink || '').trim(),
+        deliveryDelay: String(item?.deliveryDelay || productData?.deliveryDelay || (productData?.isDigitalProduct ? 'Instantanee' : '')).trim()
       };
     } catch (error) {
       logger.warn('Unable to enrich vendor marketplace item', {
@@ -4081,6 +4084,104 @@ exports.getVendorDashboardOrders = onRequest(
         ok: false,
         error: 'vendor-orders-failed',
         message: error?.message || 'Unable to load vendor orders'
+      });
+    }
+  }
+);
+
+exports.updateVendorOrderFulfillment = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(decodedUser.uid);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const orderId = String(body?.orderId || '').trim();
+      const refPath = String(body?.refPath || '').trim();
+      const requestedStatus = String(body?.fulfillmentStatus || 'delivered').trim().toLowerCase();
+      const allowedStatuses = new Set(['ordered', 'shipped', 'in_delivery', 'delivered']);
+
+      if (!orderId && !refPath) {
+        sendJson(res, 400, { ok: false, error: 'missing-order-reference' });
+        return;
+      }
+
+      if (!allowedStatuses.has(requestedStatus)) {
+        sendJson(res, 400, { ok: false, error: 'invalid-fulfillment-status' });
+        return;
+      }
+
+      const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
+      const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+
+      let orderSnap = null;
+      if (refPath) {
+        const candidate = await db.doc(refPath).get();
+        if (candidate.exists) orderSnap = candidate;
+      }
+
+      if (!orderSnap && orderId) {
+        const ordersSnap = await db.collectionGroup('orders').get();
+        orderSnap = ordersSnap.docs.find((snap) => snap.id === orderId) || null;
+      }
+
+      if (!orderSnap || !orderSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'order-not-found' });
+        return;
+      }
+
+      const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
+      const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, orderSnap.ref.path);
+      if (!context) {
+        sendJson(res, 403, { ok: false, error: 'vendor-order-access-denied' });
+        return;
+      }
+
+      if (!context.vendorManagedDelivery) {
+        sendJson(res, 403, { ok: false, error: 'delivery-not-managed-by-vendor' });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      await orderSnap.ref.set({
+        fulfillmentStatus: requestedStatus,
+        fulfillmentUpdatedAt: now,
+        vendorFulfillmentStatus: requestedStatus,
+        vendorFulfillmentUpdatedAt: now,
+        vendorFulfillmentUpdatedBy: decodedUser.uid,
+        updatedAt: now
+      }, { merge: true });
+
+      sendJson(res, 200, {
+        ok: true,
+        orderId: orderSnap.id,
+        refPath: orderSnap.ref.path,
+        fulfillmentStatus: requestedStatus,
+        updatedAt: now
+      });
+    } catch (error) {
+      logger.error('Vendor order fulfillment update failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-order-fulfillment-update-failed',
+        message: error?.message || 'Unable to update vendor order fulfillment'
       });
     }
   }

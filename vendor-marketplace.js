@@ -32,7 +32,7 @@ class VendorMarketplacePage {
     this.products = productSnapshot.docs
       .map((entry) => ({ id: entry.id, ...entry.data() }))
       .filter((item) => this.vendors.has(item.vendorId))
-      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      .sort((a, b) => this.getProPriority(b) - this.getProPriority(a) || String(a.name || '').localeCompare(String(b.name || '')));
 
     if (this.selectedVendorId) {
       this.products = this.products.filter((item) => String(item.vendorId) === String(this.selectedVendorId));
@@ -57,9 +57,21 @@ class VendorMarketplacePage {
       .replace(/'/g, '&#39;');
   }
 
+  isProVendor(product = {}) {
+    const vendor = this.vendors.get(product.vendorId);
+    const planId = String(product.planId || vendor?.planId || '').toLowerCase();
+    const planLabel = String(product.planLabel || vendor?.planLabel || '').toLowerCase();
+    return Boolean(product.vendorVerified || vendor?.vendorVerified || planId === 'pro' || planLabel.includes('pro'));
+  }
+
+  getProPriority(product = {}) {
+    return this.isProVendor(product) ? 1 : 0;
+  }
+
   getProductCard(product) {
     const vendor = this.vendors.get(product.vendorId);
     const pricing = getProductPricing(product, product.price || 0);
+    const isPro = this.isProVendor(product);
     const image = Array.isArray(product.images) && product.images[0]
       ? `<img src="${product.images[0]}" alt="${this.escape(product.name || 'Produit vendeur')}" style="width:100%;height:100%;object-fit:cover;">`
       : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#c6a75e;font-weight:800;">VENDEUR</div>';
@@ -71,6 +83,12 @@ class VendorMarketplacePage {
             <i class="fas fa-store"></i>
             Vendeur
           </span>
+          ${isPro ? `
+            <span style="position:absolute;top:1rem;right:1rem;display:inline-flex;align-items:center;gap:.4rem;background:#C6A75E;color:#1F1E1C;border-radius:999px;padding:.45rem .75rem;font-size:.74rem;font-weight:900;box-shadow:0 10px 24px rgba(198,167,94,.28);">
+              <i class="fas fa-shield-alt"></i>
+              Store verifie
+            </span>
+          ` : ''}
         </div>
         <div style="padding:1.2rem;display:grid;gap:.8rem;">
           <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;">
@@ -86,6 +104,8 @@ class VendorMarketplacePage {
           <div style="display:flex;flex-wrap:wrap;gap:.55rem;">
             ${product.category ? `<span style="display:inline-flex;border-radius:999px;background:rgba(198,167,94,0.14);color:#8A6D2D;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">${this.escape(product.category)}</span>` : ''}
             ${product.deliveryMode ? `<span style="display:inline-flex;border-radius:999px;background:rgba(31,30,28,0.06);color:#5E564C;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">${this.escape(product.deliveryMode)}</span>` : ''}
+            ${product.isDigitalProduct ? `<span style="display:inline-flex;border-radius:999px;background:rgba(16,185,129,0.12);color:#047857;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">Digital instantane</span>` : ''}
+            ${product.deliveryDelay ? `<span style="display:inline-flex;border-radius:999px;background:rgba(31,30,28,0.06);color:#5E564C;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">Delai: ${this.escape(product.deliveryDelay)}</span>` : ''}
           </div>
           <p style="color:#6E6557;line-height:1.75;">${this.escape(product.shortDescription || product.longDescription || 'Produit vendeur valide et publie dans la section marketplace Smart Cut Services.')}</p>
           <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
@@ -178,13 +198,19 @@ class VendorMarketplacePage {
             vendorDeliveryZones: this.vendors.get(product.vendorId)?.deliveryZones || product.deliveryZones || [],
             commissionRule: product.commissionRule || null,
             sourceType: 'vendor_marketplace',
+            sourceCollection: 'vendorProducts',
             category: product.category || '',
             deliveryMode: product.deliveryMode || '',
+            isDigitalProduct: Boolean(product.isDigitalProduct),
+            digitalDownloadLink: product.digitalDownloadLink || '',
+            deliveryDelay: product.deliveryDelay || '',
             stockLimit: Number.isFinite(Number(product.stock)) ? Number(product.stock) : undefined,
             selectedOptions: [
               { label: 'Source', value: 'Marketplace vendeurs' },
               ...(product.category ? [{ label: 'Categorie', value: product.category }] : []),
-              ...(product.deliveryMode ? [{ label: 'Livraison', value: product.deliveryMode }] : [])
+              ...(product.deliveryMode ? [{ label: 'Livraison', value: product.deliveryMode }] : []),
+              ...(product.isDigitalProduct ? [{ label: 'Type', value: 'Article digital' }] : []),
+              ...(product.deliveryDelay ? [{ label: 'Delai', value: product.deliveryDelay }] : [])
             ]
           }
         }));
