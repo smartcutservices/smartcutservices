@@ -531,6 +531,7 @@ class ProfilePanel {
     const user = this.authManager.getCurrentUser();
     const isAuthenticated = this.authManager.isAuthenticated();
     const isPersonalView = isAuthenticated && this.activeView === 'personal';
+    const isMounted = document.body.contains(this.modal);
 
     this.modal.innerHTML = `
       <div class="profile-overlay" style="
@@ -539,7 +540,7 @@ class ProfilePanel {
         background:rgba(0,0,0,0.5);
         backdrop-filter:blur(5px);
         z-index:999998;
-        opacity:0;
+        opacity:${isMounted ? '1' : '0'};
         transition:opacity 0.28s ease;
       "></div>
 
@@ -553,8 +554,8 @@ class ProfilePanel {
         background:${colors.background.general};
         z-index:999999;
         box-shadow:-10px 0 30px rgba(0,0,0,0.1);
-        transform:translateX(100%);
-        opacity:0;
+        transform:${isMounted ? 'translateX(0)' : 'translateX(100%)'};
+        opacity:${isMounted ? '1' : '0'};
         transition:transform 0.28s ease, opacity 0.28s ease;
         display:flex;
         flex-direction:column;
