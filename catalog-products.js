@@ -20,6 +20,9 @@ function normalizeProduct(docSnap, source) {
 }
 
 export function isPublicProductVisible(product) {
+  if (product?.sourceCollection === 'vendorProducts' && String(product?.vendorServiceFeeStatus || '').toLowerCase() === 'suspended') {
+    return false;
+  }
   if (typeof product?.status === 'string') return product.status === 'active';
   if (typeof product?.active === 'boolean') return product.active !== false;
   return true;

@@ -1026,11 +1026,16 @@ class PaymentModal {
     const emailInput = this.modal.querySelector('#moncashEmail');
     const phoneInput = this.modal.querySelector('#moncashPhone');
 
-    const customerName = nameInput?.value?.trim() || this.clientData.fullName || this.clientData.name || this.options.client?.name || '';
+    const customerFirstName = String(this.options.client?.firstName || this.clientData.firstName || '').trim();
+    const customerLastName = String(this.options.client?.lastName || this.clientData.lastName || '').trim();
+    const profileName = `${customerFirstName} ${customerLastName}`.trim();
+    const customerName = nameInput?.value?.trim() || profileName || this.clientData.fullName || this.clientData.name || this.options.client?.name || '';
     const customerEmail = emailInput?.value?.trim() || this.clientData.email || this.options.client?.email || '';
     const customerPhone = phoneInput?.value?.trim() || this.clientData.phone || this.options.client?.phone || '';
 
     return {
+      customerFirstName,
+      customerLastName,
       customerName,
       customerEmail,
       customerPhone,
@@ -1073,6 +1078,8 @@ class PaymentModal {
         delivery: this.options.delivery || null,
         promo: this.options.promo || null,
         customerName: customer.customerName,
+        customerFirstName: customer.customerFirstName,
+        customerLastName: customer.customerLastName,
         customerEmail: customer.customerEmail,
         customerPhone: customer.customerPhone,
         customerAddress: customer.customerAddress,
@@ -1322,7 +1329,14 @@ class PaymentModal {
         extractedText: this.extractedText,
         proofName: proofName,
         clientData: this.clientData,
-        customerName: this.clientData.fullName || this.clientData.name || this.options.client?.name || '',
+        customerName: `${this.options.client?.firstName || this.clientData.firstName || ''} ${this.options.client?.lastName || this.clientData.lastName || ''}`.trim()
+          || this.clientData.fullName
+          || this.clientData.name
+          || this.options.client?.name
+          || '',
+        customerFirstName: this.options.client?.firstName || this.clientData.firstName || '',
+        customerLastName: this.options.client?.lastName || this.clientData.lastName || '',
+        customerUsername: this.options.client?.username || this.options.client?.displayName || '',
         customerEmail: this.clientData.email || this.options.client?.email || '',
         customerPhone: this.clientData.phone || this.options.client?.phone || '',
         customerAddress: this.clientData.address || this.options.client?.address || '',

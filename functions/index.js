@@ -24,6 +24,8 @@ const MONCASH_GATEWAY_BASE = normalizeBaseUrl(
 const MONCASH_CURRENCY = process.env.MONCASH_CURRENCY || 'HTG';
 const DEFAULT_RETURN_URL = `${SITE_BASE_URL}/moncash/return`;
 const DEFAULT_ALERT_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/moncashAlert`;
+const VENDOR_SERVICE_FEES_COLLECTION = 'vendorServiceFees';
+const VENDOR_SERVICE_FEE_INTERVAL_DAYS = 30;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
@@ -257,6 +259,68 @@ function toMonthKey(value) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
+}
+
+function addDaysIso(value, days = 30) {
+  const base = value ? new Date(value) : new Date();
+  const date = Number.isNaN(base.getTime()) ? new Date() : base;
+  date.setDate(date.getDate() + Number(days || 0));
+  return date.toISOString();
+}
+
+function normalizeVendorServicePaymentMethod(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized.includes('nat')) return 'natcash';
+  if (normalized.includes('card') || normalized.includes('carte')) return 'card';
+  return 'moncash';
+}
+
+function getVendorServiceFeeAmount(vendor = {}) {
+  const configured = toNumber(vendor?.monthlyServiceFee || vendor?.serviceFeeAmount);
+  if (configured > 0) return configured;
+  const planPrice = toNumber(vendor?.planPrice);
+  const planId = String(vendor?.planId || '').trim().toLowerCase();
+  const planPaymentRequired = Boolean(vendor?.planPaymentRequired);
+  if ((planPaymentRequired || planId === 'pro') && planPrice > 0) return planPrice;
+  return 0;
+}
+
+function isVendorServiceFeeVendor(vendor = {}) {
+  return getVendorServiceFeeAmount(vendor) > 0;
+}
+
+async function updateVendorProductsServiceStatus(vendorId = '', status = 'active') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return;
+
+  const snap = await db
+    .collection('vendorProducts')
+    .where('vendorId', '==', normalizedVendorId)
+    .get();
+
+  if (snap.empty) return;
+
+  const now = new Date().toISOString();
+  const batches = [];
+  let batch = db.batch();
+  let count = 0;
+
+  snap.docs.forEach((docSnap) => {
+    batch.set(docSnap.ref, {
+      vendorServiceFeeStatus: status,
+      vendorServiceFeeUpdatedAt: now,
+      updatedAt: now
+    }, { merge: true });
+    count += 1;
+    if (count === 450) {
+      batches.push(batch.commit());
+      batch = db.batch();
+      count = 0;
+    }
+  });
+
+  if (count > 0) batches.push(batch.commit());
+  await Promise.all(batches);
 }
 
 function createMonthBuckets(months = 6) {
@@ -1702,6 +1766,184 @@ async function findSessionByTransactionId(transactionId) {
   return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
 }
 
+async function findVendorServiceFeeById(feeId = '') {
+  const id = String(feeId || '').trim();
+  if (!id) return null;
+  const snap = await db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ref: snap.ref, data: snap.data() || {} };
+}
+
+async function findLatestVendorServiceFee(vendorId = '', status = '') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return null;
+
+  let ref = db
+    .collection(VENDOR_SERVICE_FEES_COLLECTION)
+    .where('vendorId', '==', normalizedVendorId);
+
+  if (status) {
+    ref = ref.where('status', '==', String(status || '').trim());
+  }
+
+  const snap = await ref.get();
+  if (snap.empty) return null;
+
+  const docs = snap.docs
+    .map((docSnap) => ({ id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} }))
+    .sort((a, b) => toDateMs(b.data?.createdAt || b.data?.requestedAt || b.data?.paidAt) - toDateMs(a.data?.createdAt || a.data?.requestedAt || a.data?.paidAt));
+
+  return docs[0] || null;
+}
+
+async function findLatestOpenVendorServiceFee(vendorId = '') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return null;
+
+  const snap = await db
+    .collection(VENDOR_SERVICE_FEES_COLLECTION)
+    .where('vendorId', '==', normalizedVendorId)
+    .get();
+
+  if (snap.empty) return null;
+  const openStatuses = new Set(['pending', 'payment_pending', 'payment_initiated', 'redirect_ready', 'payment_failed']);
+  const docs = snap.docs
+    .map((docSnap) => ({ id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} }))
+    .filter((item) => openStatuses.has(String(item.data?.status || '').trim().toLowerCase()))
+    .sort((a, b) => toDateMs(b.data?.createdAt || b.data?.requestedAt || b.data?.updatedAt) - toDateMs(a.data?.createdAt || a.data?.requestedAt || a.data?.updatedAt));
+
+  return docs[0] || null;
+}
+
+async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method = '', paidAt = '', provider = '', providerDetails = null } = {}) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  const normalizedFeeId = String(feeId || '').trim();
+  if (!normalizedVendorId || !normalizedFeeId) return null;
+
+  const now = paidAt || new Date().toISOString();
+  const nextDueAt = addDaysIso(now, VENDOR_SERVICE_FEE_INTERVAL_DAYS);
+  const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc(normalizedFeeId);
+  const vendorRef = db.collection('vendors').doc(normalizedVendorId);
+  const clientRef = db.collection('clients').doc(normalizedVendorId);
+
+  await db.runTransaction(async (transaction) => {
+    transaction.set(feeRef, {
+      status: 'paid',
+      paidAt: now,
+      nextDueAt,
+      paymentMethod: normalizeVendorServicePaymentMethod(method),
+      paymentProvider: provider || normalizeVendorServicePaymentMethod(method),
+      providerDetails: providerDetails || null,
+      updatedAt: now
+    }, { merge: true });
+
+    transaction.set(vendorRef, {
+      status: 'active',
+      vendorStatus: 'active',
+      serviceFeeStatus: 'paid',
+      serviceFeeCurrentId: normalizedFeeId,
+      serviceFeeLastPaidAt: now,
+      serviceFeeNextDueAt: nextDueAt,
+      serviceFeePaymentMethod: normalizeVendorServicePaymentMethod(method),
+      updatedAt: now
+    }, { merge: true });
+
+    transaction.set(clientRef, {
+      role: 'vendor',
+      vendorStatus: 'active',
+      serviceFeeStatus: 'paid',
+      serviceFeeCurrentId: normalizedFeeId,
+      serviceFeeLastPaidAt: now,
+      serviceFeeNextDueAt: nextDueAt,
+      updatedAt: now
+    }, { merge: true });
+  });
+
+  await updateVendorProductsServiceStatus(normalizedVendorId, 'active');
+
+  return {
+    feeId: normalizedFeeId,
+    vendorId: normalizedVendorId,
+    paidAt: now,
+    nextDueAt
+  };
+}
+
+async function syncVendorServiceFeePayment({ session, details, source = '' }) {
+  const now = new Date().toISOString();
+  const paymentStatus = derivePaymentStatus(details);
+  const sessionData = session?.data || {};
+  const feeId = String(sessionData.feeId || sessionData.vendorServiceFeeId || '').trim();
+  const vendorId = String(sessionData.vendorId || '').trim();
+
+  if (!session || !feeId || !vendorId) {
+    return {
+      sessionId: session?.id || '',
+      orderId: details?.orderId || '',
+      paymentStatus,
+      updated: false
+    };
+  }
+
+  const sessionPatch = {
+    status: paymentStatus,
+    providerOrderId: details.orderId || sessionData.orderId || '',
+    providerTransactionId: details.transactionId || null,
+    payer: details.payer || null,
+    providerMessage: details.message || '',
+    providerResponse: details.providerResponse || null,
+    updatedAt: now
+  };
+
+  if (paymentStatus === 'paid') {
+    await activateVendorAfterServiceFee({
+      vendorId,
+      feeId,
+      method: 'moncash',
+      paidAt: now,
+      provider: 'moncash',
+      providerDetails: {
+        orderId: details.orderId || sessionData.orderId || '',
+        transactionId: details.transactionId || null,
+        payer: details.payer || null,
+        source,
+        raw: details.providerResponse || null
+      }
+    });
+    sessionPatch.paidAt = now;
+  } else {
+    const fee = await findVendorServiceFeeById(feeId);
+    await Promise.all([
+      session.ref.set(sessionPatch, { merge: true }),
+      fee?.ref?.set({
+        status: paymentStatus === 'failed' ? 'payment_failed' : 'payment_pending',
+        paymentMethod: 'moncash',
+        paymentProvider: 'moncash',
+        providerDetails: {
+          orderId: details.orderId || sessionData.orderId || '',
+          transactionId: details.transactionId || null,
+          payer: details.payer || null,
+          source,
+          raw: details.providerResponse || null
+        },
+        updatedAt: now
+      }, { merge: true })
+    ]);
+  }
+
+  await session.ref.set(sessionPatch, { merge: true });
+
+  return {
+    sessionId: session.id,
+    orderId: details.orderId || sessionData.orderId || '',
+    paymentStatus,
+    updated: true,
+    paymentType: 'vendor_service_fee',
+    feeId,
+    vendorId
+  };
+}
+
 function derivePaymentStatus(details) {
   if (details?.ok) return 'paid';
 
@@ -1717,6 +1959,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   const now = new Date().toISOString();
   const paymentStatus = derivePaymentStatus(details);
   const sessionData = session?.data || {};
+  if (String(sessionData.paymentType || '').trim() === 'vendor_service_fee') {
+    return syncVendorServiceFeePayment({ session, details, source });
+  }
   const clientId = sessionData.clientId || '';
   const orderId = sessionData.orderId || details.orderId || '';
 
@@ -1981,6 +2226,7 @@ async function resolveAndSyncPayment({ sessionId = '', orderId = '', transaction
 function buildStatusResponse({ session, details, syncResult, fallbackSessionId = '', order = null }) {
   const sessionData = session?.data || {};
   const orderData = order?.data || {};
+  const paymentType = String(sessionData.paymentType || syncResult?.paymentType || '').trim();
   return {
     ok: true,
     sessionId: session?.id || fallbackSessionId || '',
@@ -1988,6 +2234,9 @@ function buildStatusResponse({ session, details, syncResult, fallbackSessionId =
     amount: details?.amount || sessionData.amount || 0,
     currency: sessionData.currency || MONCASH_CURRENCY,
     orderId: details?.orderId || sessionData.orderId || '',
+    paymentType,
+    feeId: sessionData.feeId || syncResult?.feeId || '',
+    vendorId: sessionData.vendorId || syncResult?.vendorId || '',
     transactionId: details?.transactionId || sessionData.providerTransactionId || '',
     uniqueCode: orderData.uniqueCode || sessionData.uniqueCode || '',
     orderStatus: syncResult?.paymentStatus === 'paid' ? 'paid' : (sessionData.status || ''),
@@ -2017,6 +2266,8 @@ exports.createMoncashPayment = onRequest(
     const localClientId = String(body.clientId || '').trim();
     const clientUid = String(body.clientUid || '').trim();
     const customerName = String(body.customerName || '').trim();
+    const customerFirstName = String(body.customerFirstName || '').trim();
+    const customerLastName = String(body.customerLastName || '').trim();
     const customerEmail = String(body.customerEmail || '').trim();
     const customerPhone = String(body.customerPhone || '').trim();
     const customerAddress = String(body.customerAddress || '').trim();
@@ -2099,6 +2350,8 @@ exports.createMoncashPayment = onRequest(
       methodId: String(body.methodId || ''),
       methodName: String(body.methodName || 'MonCash'),
       customerName,
+      customerFirstName,
+      customerLastName,
       customerEmail,
       customerPhone,
       customerAddress,
@@ -2124,6 +2377,8 @@ exports.createMoncashPayment = onRequest(
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
       customerName,
+      customerFirstName,
+      customerLastName,
       customerEmail,
       customerPhone,
       promoCode: promoSummary ? {
@@ -2209,6 +2464,295 @@ exports.createMoncashPayment = onRequest(
         error: 'server-error',
         message: error?.message || 'Unexpected server error'
       });
+    }
+  }
+);
+
+exports.requestVendorServiceFee = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user || !(await isAdminUser(user.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-required' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const vendorId = String(body.vendorId || '').trim();
+      if (!vendorId) {
+        sendJson(res, 400, { ok: false, error: 'missing-vendor-id' });
+        return;
+      }
+
+      const vendorSnap = await db.collection('vendors').doc(vendorId).get();
+      if (!vendorSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'vendor-not-found' });
+        return;
+      }
+
+      const vendor = { id: vendorSnap.id, ...(vendorSnap.data() || {}) };
+      const amount = getVendorServiceFeeAmount(vendor);
+      if (amount <= 0) {
+        sendJson(res, 400, { ok: false, error: 'vendor-has-no-monthly-subscription' });
+        return;
+      }
+
+      const latestPaid = await findLatestVendorServiceFee(vendorId, 'paid');
+      const nextDueMs = toDateMs(latestPaid?.data?.nextDueAt || vendor?.serviceFeeNextDueAt || '');
+      if (latestPaid && nextDueMs > Date.now()) {
+        sendJson(res, 200, {
+          ok: true,
+          alreadyPaid: true,
+          message: 'Ce store a deja paye son cycle courant.',
+          fee: { id: latestPaid.id, ...latestPaid.data }
+        });
+        return;
+      }
+
+      const activePending = await findLatestOpenVendorServiceFee(vendorId);
+      if (activePending) {
+        sendJson(res, 200, {
+          ok: true,
+          alreadyRequested: true,
+          fee: { id: activePending.id, ...activePending.data }
+        });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
+      const fee = {
+        vendorId,
+        vendorName: vendor.vendorName || vendor.shopName || 'Store vendeur',
+        shopName: vendor.shopName || vendor.vendorName || '',
+        email: vendor.email || '',
+        amount,
+        currency: vendor.planCurrency || MONCASH_CURRENCY,
+        status: 'pending',
+        cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+        requestedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        requestedBy: user.uid,
+        paymentMethod: '',
+        paymentProvider: '',
+        paidAt: '',
+        nextDueAt: '',
+        planId: vendor.planId || '',
+        planLabel: vendor.planLabel || ''
+      };
+
+      await Promise.all([
+        feeRef.set(fee, { merge: true }),
+        db.collection('vendors').doc(vendorId).set({
+          status: 'suspended_service_fee',
+          vendorStatus: 'suspended_service_fee',
+          serviceFeeStatus: 'pending',
+          serviceFeeCurrentId: feeRef.id,
+          serviceFeeAmount: amount,
+          serviceFeeRequestedAt: now,
+          updatedAt: now
+        }, { merge: true }),
+        db.collection('clients').doc(vendorId).set({
+          uid: vendorId,
+          role: 'vendor',
+          vendorStatus: 'suspended_service_fee',
+          serviceFeeStatus: 'pending',
+          serviceFeeCurrentId: feeRef.id,
+          updatedAt: now
+        }, { merge: true })
+      ]);
+
+      await updateVendorProductsServiceStatus(vendorId, 'suspended');
+
+      sendJson(res, 200, {
+        ok: true,
+        fee: { id: feeRef.id, ...fee }
+      });
+    } catch (error) {
+      logger.error('requestVendorServiceFee failed', error);
+      sendJson(res, 500, { ok: false, error: 'server-error', message: error?.message || 'Erreur serveur.' });
+    }
+  }
+);
+
+exports.getVendorServiceFeeStatus = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+
+      const vendor = await getVendorProfile(user.uid);
+      if (!vendor || String(vendor.role || '').toLowerCase() !== 'vendor') {
+        sendJson(res, 403, { ok: false, error: 'vendor-required' });
+        return;
+      }
+
+      const [pending, paid] = await Promise.all([
+        findLatestOpenVendorServiceFee(user.uid),
+        findLatestVendorServiceFee(user.uid, 'paid')
+      ]);
+
+      sendJson(res, 200, {
+        ok: true,
+        vendor: {
+          vendorId: user.uid,
+          vendorName: vendor.vendorName || vendor.shopName || '',
+          status: vendor.status || vendor.vendorStatus || '',
+          serviceFeeStatus: vendor.serviceFeeStatus || '',
+          serviceFeeAmount: getVendorServiceFeeAmount(vendor),
+          serviceFeeNextDueAt: vendor.serviceFeeNextDueAt || ''
+        },
+        currentFee: pending ? { id: pending.id, ...pending.data } : null,
+        lastPayment: paid ? { id: paid.id, ...paid.data } : null
+      });
+    } catch (error) {
+      logger.error('getVendorServiceFeeStatus failed', error);
+      sendJson(res, 500, { ok: false, error: 'server-error', message: error?.message || 'Erreur serveur.' });
+    }
+  }
+);
+
+exports.startVendorServiceFeePayment = onRequest(
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+
+      const vendor = await getVendorProfile(user.uid);
+      if (!vendor || String(vendor.role || '').toLowerCase() !== 'vendor') {
+        sendJson(res, 403, { ok: false, error: 'vendor-required' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const method = normalizeVendorServicePaymentMethod(body.method || 'moncash');
+      const pending = await findLatestOpenVendorServiceFee(user.uid);
+      if (!pending) {
+        sendJson(res, 400, { ok: false, error: 'no-pending-service-fee', message: 'Aucun frais mensuel en attente pour ce store.' });
+        return;
+      }
+
+      const amount = Math.max(0, toNumber(pending.data?.amount || getVendorServiceFeeAmount(vendor)));
+      if (amount <= 0) {
+        sendJson(res, 400, { ok: false, error: 'invalid-service-fee-amount' });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      if (method !== 'moncash') {
+        await pending.ref.set({
+          status: 'payment_pending',
+          paymentMethod: method,
+          paymentProvider: method,
+          paymentRequestedAt: now,
+          updatedAt: now
+        }, { merge: true });
+
+        sendJson(res, 200, {
+          ok: true,
+          status: 'payment_pending',
+          method,
+          fee: { id: pending.id, ...pending.data, status: 'payment_pending', paymentMethod: method }
+        });
+        return;
+      }
+
+      const clientId = safeSecretValue(MONCASH_CLIENT_ID);
+      const clientSecret = safeSecretValue(MONCASH_CLIENT_SECRET);
+      if (!clientId || !clientSecret) {
+        sendJson(res, 500, { ok: false, error: 'missing-moncash-credentials' });
+        return;
+      }
+
+      const sessionId = createSessionId();
+      const providerOrderId = `VSF-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+      const sessionRef = db.collection('paymentSessions').doc(sessionId);
+      const sessionData = {
+        identifier: sessionId,
+        paymentType: 'vendor_service_fee',
+        feeId: pending.id,
+        vendorId: user.uid,
+        vendorName: vendor.vendorName || vendor.shopName || '',
+        orderId: providerOrderId,
+        provider: 'moncash',
+        status: 'initiated',
+        amount,
+        currency: pending.data?.currency || MONCASH_CURRENCY,
+        returnUrl: DEFAULT_RETURN_URL,
+        alertUrl: DEFAULT_ALERT_URL,
+        uniqueCode: providerOrderId,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await Promise.all([
+        sessionRef.set(sessionData, { merge: true }),
+        pending.ref.set({
+          status: 'payment_initiated',
+          paymentMethod: 'moncash',
+          paymentProvider: 'moncash',
+          paymentSessionId: sessionId,
+          providerOrderId,
+          updatedAt: now
+        }, { merge: true })
+      ]);
+
+      const redirect = await createMoncashRedirect(providerOrderId, amount);
+      await Promise.all([
+        sessionRef.set({
+          status: 'redirect_ready',
+          paymentToken: redirect.paymentToken,
+          checkoutUrl: redirect.checkoutUrl,
+          providerResponse: redirect.providerResponse,
+          updatedAt: new Date().toISOString()
+        }, { merge: true }),
+        pending.ref.set({
+          status: 'redirect_ready',
+          checkoutUrl: redirect.checkoutUrl,
+          updatedAt: new Date().toISOString()
+        }, { merge: true })
+      ]);
+
+      sendJson(res, 200, {
+        ok: true,
+        sessionId,
+        orderId: providerOrderId,
+        checkoutUrl: redirect.checkoutUrl,
+        returnUrl: DEFAULT_RETURN_URL,
+        alertUrl: DEFAULT_ALERT_URL,
+        amount
+      });
+    } catch (error) {
+      logger.error('startVendorServiceFeePayment failed', error);
+      sendJson(res, 500, { ok: false, error: 'server-error', message: error?.message || 'Erreur serveur.' });
     }
   }
 );

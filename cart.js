@@ -839,11 +839,20 @@ class CartManager {
         deliveryMode: item?.deliveryMode || ''
       }));
       const computedAmount = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const customerFirstName = String(this.currentClient.firstName || '').trim();
+      const customerLastName = String(this.currentClient.lastName || '').trim();
+      const customerFullName = `${customerFirstName} ${customerLastName}`.trim()
+        || this.currentClient.name
+        || orderData.customerName
+        || '';
 
       const order = {
         clientId: this.currentClient.id,
         clientUid: user.uid,
-        customerName: this.currentClient.name || orderData.customerName || '',
+        customerFirstName,
+        customerLastName,
+        customerName: customerFullName,
+        customerUsername: this.currentClient.username || this.currentClient.displayName || user.displayName || '',
         customerEmail: this.currentClient.email || orderData.customerEmail || '',
         customerPhone: orderData.customerPhone || this.currentClient.phone || '',
         customerAddress: orderData.customerAddress || this.currentClient.address || '',

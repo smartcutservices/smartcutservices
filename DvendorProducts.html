@@ -927,6 +927,49 @@
           </div>
         </div>
 
+        <div class="content-card mb-6" id="vendor-service-fee-card" style="display:none;">
+          <div class="card-header">
+            <div>
+              <span>Frais de service mensuel</span>
+              <p id="vendor-service-fee-summary" class="text-sm text-text-secondary mt-1">Chargement du statut abonnement...</p>
+            </div>
+            <span id="vendor-service-fee-badge" class="status-badge status-pending">Verification</span>
+          </div>
+          <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div class="analytics-empty" style="text-align:left;">
+                <strong style="display:block;margin-bottom:.25rem;">Montant</strong>
+                <span id="vendor-service-fee-amount">0 HTG</span>
+              </div>
+              <div class="analytics-empty" style="text-align:left;">
+                <strong style="display:block;margin-bottom:.25rem;">Dernier paiement</strong>
+                <span id="vendor-service-fee-last-paid">-</span>
+              </div>
+              <div class="analytics-empty" style="text-align:left;">
+                <strong style="display:block;margin-bottom:.25rem;">Prochaine echeance</strong>
+                <span id="vendor-service-fee-next-due">-</span>
+              </div>
+            </div>
+            <div id="vendor-service-fee-warning" class="analytics-empty" style="display:none;text-align:left;border-color:rgba(239,68,68,.22);background:rgba(239,68,68,.06);color:#991B1B;margin-bottom:1rem;">
+              Request payment for this store. Votre store est suspendu jusqu au paiement du frais de service mensuel.
+            </div>
+            <div class="flex flex-col md:flex-row gap-3 md:items-end">
+              <label class="flex-1">
+                <span class="block text-sm text-text-secondary mb-2">Methode de paiement</span>
+                <select id="vendor-service-fee-method" class="form-select">
+                  <option value="moncash">MonCash</option>
+                  <option value="natcash">NatCash</option>
+                  <option value="card">Carte bancaire</option>
+                </select>
+              </label>
+              <button type="button" id="vendor-service-fee-pay-btn" class="btn btn-primary">
+                <i class="fas fa-credit-card"></i>
+                Payer le frais mensuel
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- ========== VIEW: DASHBOARD ========== -->
         <div id="dashboard-view" class="view active">
           <!-- Stats -->
@@ -1447,6 +1490,8 @@
     const VENDOR_ANALYTICS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardAnalytics';
     const VENDOR_ORDERS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardOrders';
     const VENDOR_PAYOUT_REQUEST_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/requestVendorPayout';
+    const VENDOR_SERVICE_FEE_STATUS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorServiceFeeStatus';
+    const VENDOR_SERVICE_FEE_PAYMENT_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/startVendorServiceFeePayment';
 
     // ========== CLASSE PRODUCT MANAGER ==========
     class ProductManager {
@@ -1458,6 +1503,7 @@
         this.vendorOrders = [];
         this.vendorPayoutHistory = [];
         this.activePayoutRequest = null;
+        this.vendorServiceFee = null;
         this.productLikes = new Map();
         this.likesModal = null;
         this.likesUnsubscribe = null;
@@ -1490,6 +1536,7 @@
           this.loadProducts(),
           this.loadCategories(),
           this.loadCommissionRules(),
+          this.loadVendorServiceFeeStatus(),
           this.loadSalesAnalytics(),
           this.loadVendorOrders()
         ]);
@@ -1558,7 +1605,7 @@
         if (!profile) return false;
         const role = String(profile.role || '').toLowerCase();
         const status = String(profile.status || profile.vendorStatus || '').toLowerCase();
-        return role === 'vendor' && ['active', 'approved'].includes(status || 'active');
+        return role === 'vendor' && ['active', 'approved', 'suspended_service_fee'].includes(status || 'active');
       }
 
       renderVendorHeader() {
@@ -1573,7 +1620,9 @@
         ).trim();
 
         const status = String(this.vendorContext?.status || this.vendorContext?.vendorStatus || 'approved').trim().toLowerCase();
-        const statusLabel = ['approved', 'active'].includes(status)
+        const statusLabel = status === 'suspended_service_fee'
+          ? 'Suspendu - frais mensuel requis'
+          : ['approved', 'active'].includes(status)
           ? 'Compte approuve'
           : 'Compte vendeur';
         const activeSince = this.formatDateTime(
@@ -1837,6 +1886,15 @@
             vendorPayoutsList: document.getElementById('vendor-payouts-list'),
             vendorOrdersSummary: document.getElementById('vendor-orders-summary'),
             vendorOrdersList: document.getElementById('vendor-orders-list'),
+            vendorServiceFeeCard: document.getElementById('vendor-service-fee-card'),
+            vendorServiceFeeSummary: document.getElementById('vendor-service-fee-summary'),
+            vendorServiceFeeBadge: document.getElementById('vendor-service-fee-badge'),
+            vendorServiceFeeAmount: document.getElementById('vendor-service-fee-amount'),
+            vendorServiceFeeLastPaid: document.getElementById('vendor-service-fee-last-paid'),
+            vendorServiceFeeNextDue: document.getElementById('vendor-service-fee-next-due'),
+            vendorServiceFeeWarning: document.getElementById('vendor-service-fee-warning'),
+            vendorServiceFeeMethod: document.getElementById('vendor-service-fee-method'),
+            vendorServiceFeePayBtn: document.getElementById('vendor-service-fee-pay-btn'),
             
             // Products list
             productsGrid: document.getElementById('products-grid'),
@@ -1983,6 +2041,10 @@
           }
         });
 
+        this.elements.vendorServiceFeePayBtn?.addEventListener('click', async () => {
+          await this.startVendorServiceFeePayment();
+        });
+
         window.addEventListener('smartcut-notification', (event) => {
           const type = String(event?.detail?.data?.broadcastType || '').trim().toLowerCase();
           if (type !== 'vendor-order') return;
@@ -2110,6 +2172,156 @@
         } catch (error) {
           console.error('Erreur chargement commissions vendeur:', error);
           this.commissionRules = [];
+        }
+      }
+
+      async loadVendorServiceFeeStatus() {
+        if (!this.vendorContext?.uid) return;
+
+        try {
+          const user = auth.currentUser;
+          if (!user) throw new Error('Utilisateur vendeur non connecte');
+          const token = await user.getIdToken();
+          const response = await fetch(VENDOR_SERVICE_FEE_STATUS_FUNCTION_URL, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload?.ok === false) {
+            throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+          }
+          this.vendorServiceFee = payload;
+        } catch (error) {
+          console.error('Erreur statut frais mensuel vendeur:', error);
+          this.vendorServiceFee = null;
+        }
+
+        this.renderVendorServiceFee();
+      }
+
+      getServicePaymentMethodLabel(method = '') {
+        const value = String(method || '').toLowerCase();
+        if (value === 'natcash') return 'NatCash';
+        if (value === 'card') return 'Carte bancaire';
+        if (value === 'moncash') return 'MonCash';
+        return method || '-';
+      }
+
+      isServiceFeeSuspended() {
+        const status = String(this.vendorContext?.status || this.vendorContext?.vendorStatus || '').toLowerCase();
+        const feeStatus = String(this.vendorServiceFee?.vendor?.serviceFeeStatus || this.vendorContext?.serviceFeeStatus || '').toLowerCase();
+        return status === 'suspended_service_fee' || ['pending', 'payment_pending', 'payment_initiated', 'redirect_ready'].includes(feeStatus);
+      }
+
+      renderVendorServiceFee() {
+        const elements = this.elements || {};
+        if (!elements.vendorServiceFeeCard) return;
+
+        const vendor = this.vendorServiceFee?.vendor || {};
+        const currentFee = this.vendorServiceFee?.currentFee || null;
+        const lastPayment = this.vendorServiceFee?.lastPayment || null;
+        const amount = Number(currentFee?.amount || vendor.serviceFeeAmount || this.vendorContext?.serviceFeeAmount || 0);
+        const suspended = this.isServiceFeeSuspended();
+        const paidAt = lastPayment?.paidAt || this.vendorContext?.serviceFeeLastPaidAt || '';
+        const nextDueAt = lastPayment?.nextDueAt || vendor.serviceFeeNextDueAt || this.vendorContext?.serviceFeeNextDueAt || '';
+
+        if (amount <= 0 && !currentFee && !lastPayment) {
+          elements.vendorServiceFeeCard.style.display = 'none';
+          return;
+        }
+
+        elements.vendorServiceFeeCard.style.display = 'block';
+        elements.vendorServiceFeeAmount.textContent = this.formatCurrency(amount);
+        elements.vendorServiceFeeLastPaid.textContent = paidAt
+          ? `${this.formatDateTime(paidAt)} - ${this.getServicePaymentMethodLabel(lastPayment?.paymentMethod || this.vendorContext?.serviceFeePaymentMethod)}`
+          : '-';
+        elements.vendorServiceFeeNextDue.textContent = this.formatDateTime(nextDueAt);
+        elements.vendorServiceFeeWarning.style.display = suspended ? 'block' : 'none';
+        elements.vendorServiceFeePayBtn.disabled = !currentFee || String(currentFee?.status || '').toLowerCase() === 'paid';
+        elements.vendorServiceFeeBadge.textContent = suspended ? 'Paiement requis' : 'A jour';
+        elements.vendorServiceFeeBadge.className = `status-badge ${suspended ? 'status-rejected' : 'status-active'}`;
+        elements.vendorServiceFeeSummary.textContent = suspended
+          ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'
+          : paidAt
+            ? `Dernier paiement confirme le ${this.formatDateTime(paidAt)}.`
+            : 'Aucun frais mensuel en attente pour le moment.';
+
+        this.applyServiceFeeLock();
+      }
+
+      applyServiceFeeLock() {
+        const suspended = this.isServiceFeeSuspended();
+        [this.elements?.addProductBtn, this.elements?.newProductBtn, this.elements?.saveProductBtn].forEach((button) => {
+          if (!button) return;
+          button.disabled = suspended;
+          button.style.opacity = suspended ? '0.55' : '';
+          button.style.cursor = suspended ? 'not-allowed' : '';
+          if (suspended) {
+            button.title = 'Store suspendu: payez le frais de service mensuel pour reactiver les actions catalogue.';
+          } else {
+            button.removeAttribute('title');
+          }
+        });
+      }
+
+      async startVendorServiceFeePayment() {
+        const user = auth.currentUser;
+        if (!user) {
+          this.showToast('Utilisateur vendeur non connecte.', 'error');
+          return;
+        }
+
+        const button = this.elements.vendorServiceFeePayBtn;
+        const method = this.elements.vendorServiceFeeMethod?.value || 'moncash';
+
+        try {
+          if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparation...';
+          }
+
+          const token = await user.getIdToken();
+          const response = await fetch(VENDOR_SERVICE_FEE_PAYMENT_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ method })
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok || payload?.ok === false) {
+            throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+          }
+
+          if (method === 'moncash' && payload.checkoutUrl) {
+            try {
+              localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
+                paymentType: 'vendor_service_fee',
+                sessionId: payload.sessionId || '',
+                orderId: payload.orderId || '',
+                amount: payload.amount || 0,
+                customerEmail: auth.currentUser?.email || ''
+              }));
+            } catch (_) {
+              // Continue even when storage is unavailable.
+            }
+            window.location.href = payload.checkoutUrl;
+            return;
+          }
+
+          this.showToast('Demande de paiement enregistree. Verification admin necessaire pour cette methode.', 'success');
+          await this.loadVendorServiceFeeStatus();
+        } catch (error) {
+          console.error('Erreur paiement frais mensuel vendeur:', error);
+          this.showToast(error?.message || 'Impossible de lancer le paiement du frais mensuel.', 'error');
+        } finally {
+          if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-credit-card"></i> Payer le frais mensuel';
+          }
         }
       }
 
@@ -3407,6 +3619,10 @@
       // ========== CRUD PRODUITS ==========
       
       newProduct() {
+        if (this.isServiceFeeSuspended()) {
+          this.showToast('Store suspendu: payez le frais de service mensuel avant d ajouter un produit.', 'error');
+          return;
+        }
         this.currentProduct = null;
         this.currentVariations = [];
         this.categorySelections = [];
@@ -3498,6 +3714,10 @@
       }
       
       async saveProduct() {
+        if (this.isServiceFeeSuspended()) {
+          this.showToast('Store suspendu: payez le frais de service mensuel avant d enregistrer un produit.', 'error');
+          return;
+        }
         const now = new Date().toISOString();
         const nextStatus = this.elements.productStatus.checked ? 'pending_review' : 'draft';
         const discount = this.collectScheduledDiscount();
@@ -3540,6 +3760,7 @@
           deliveryMode: this.vendorContext.deliveryMode || '',
           deliveryCoverage: this.vendorContext.deliveryCoverage || null,
           deliveryZones: Array.isArray(this.vendorContext.deliveryZones) ? this.vendorContext.deliveryZones : [],
+          vendorServiceFeeStatus: this.isServiceFeeSuspended() ? 'suspended' : 'active',
           commissionRule: this.buildCommissionRule(selectedCategoryName, now),
           createdBy: 'vendor_dashboard_products',
           adminReviewNote: this.currentProduct?.id

@@ -496,7 +496,9 @@ class ProfilePanel {
     const payload = {
       firstName,
       lastName,
-      name: username,
+      name: `${firstName || ''} ${lastName || ''}`.trim(),
+      username,
+      displayName: username,
       phone,
       address: addressText,
       country: 'Haiti',
