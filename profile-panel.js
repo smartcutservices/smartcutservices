@@ -1,4 +1,5 @@
-import { db } from './firebase-init.js';
+import { auth, db } from './firebase-init.js';
+import { sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
 import { getCartManager } from './cart.js?v=20260331-2';
@@ -13,6 +14,7 @@ class ProfilePanel {
     this.cartManager = getCartManager();
     this.likeManager = getLikeManager();
     this.isBootstrapping = false;
+    this.activeView = 'account';
     this.vendorAccess = {
       uid: '',
       checked: false,
@@ -166,6 +168,7 @@ class ProfilePanel {
   async open() {
     if (this.modal) return;
 
+    this.activeView = 'account';
     this.openedAt = Date.now();
     this.modal = document.createElement('div');
     this.modal.className = `profile-panel-${this.uniqueId}`;
@@ -214,6 +217,107 @@ class ProfilePanel {
 
   getUserLabel(user) {
     return user?.displayName || user?.email || 'Mon profil';
+  }
+
+  getPersonalInfoRows(user) {
+    const client = this.cartManager.currentClient || {};
+    const addressParts = [
+      client.address,
+      client.commune,
+      client.department,
+      client.country
+    ].filter(Boolean);
+    const defaultAddress = Array.isArray(client.addresses)
+      ? client.addresses.find((address) => address.id === client.defaultDeliveryAddressId) || client.addresses.find((address) => address.isDelivery) || client.addresses[0]
+      : null;
+    const savedAddressParts = defaultAddress
+      ? [defaultAddress.address, defaultAddress.commune, defaultAddress.department, defaultAddress.country || 'Haiti'].filter(Boolean)
+      : [];
+
+    return [
+      { label: 'Username', value: user?.displayName || client.name || `${client.firstName || ''} ${client.lastName || ''}`.trim() || '-' },
+      { label: 'Nom', value: client.lastName || '-' },
+      { label: 'Prenom', value: client.firstName || '-' },
+      { label: 'Date de naissance', value: client.birthDate || '-' },
+      { label: 'Email', value: user?.email || client.email || '-' },
+      { label: 'Telephone', value: client.phone || '-' },
+      { label: 'Adresse principale', value: savedAddressParts.join(', ') || addressParts.join(', ') || '-' },
+      { label: 'Nombre d adresses sauvegardees', value: Array.isArray(client.addresses) ? String(client.addresses.length) : '0' }
+    ];
+  }
+
+  renderPersonalInfoView(colors, fonts, user) {
+    const rows = this.getPersonalInfoRows(user);
+    return `
+      <section style="display:grid;gap:1rem;">
+        <div style="
+          border-radius:1.15rem;
+          border:1px solid ${colors.background.button}22;
+          background:${colors.background.card};
+          padding:1rem;
+        ">
+          <div style="
+            width:3rem;
+            height:3rem;
+            border-radius:999px;
+            background:${colors.background.button}18;
+            color:${colors.icon.hover};
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            margin-bottom:0.8rem;
+          ">
+            <i class="fas fa-id-card"></i>
+          </div>
+          <h3 style="margin:0;font-family:${fonts.primary};font-size:1.45rem;color:${colors.text.title};">Informations personnelles</h3>
+          <p style="margin:0.45rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">
+            Retrouvez ici les informations associees a votre compte Smart Cut Services.
+          </p>
+        </div>
+
+        <div style="display:grid;gap:0.7rem;">
+          ${rows.map((row) => `
+            <div style="
+              display:grid;
+              gap:0.25rem;
+              border-radius:0.95rem;
+              border:1px solid ${colors.background.button}18;
+              background:${colors.background.card};
+              padding:0.9rem 1rem;
+            ">
+              <span style="color:${colors.text.body};font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">${this.escape(row.label)}</span>
+              <strong style="color:${colors.text.title};font-size:0.98rem;line-height:1.45;word-break:break-word;">${this.escape(row.value)}</strong>
+            </div>
+          `).join('')}
+        </div>
+
+        <button class="profile-change-password-btn" style="
+          border:none;
+          border-radius:999px;
+          background:${colors.background.button};
+          color:${colors.text.button};
+          padding:0.95rem 1rem;
+          font-weight:800;
+          cursor:pointer;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          gap:0.55rem;
+        ">
+          <i class="fas fa-key"></i>
+          Changer mon mot de passe
+        </button>
+      </section>
+    `;
+  }
+
+  escape(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   updateSectionVisibility(sectionName) {
@@ -426,6 +530,7 @@ class ProfilePanel {
     const fonts = this.getThemeFonts();
     const user = this.authManager.getCurrentUser();
     const isAuthenticated = this.authManager.isAuthenticated();
+    const isPersonalView = isAuthenticated && this.activeView === 'personal';
 
     this.modal.innerHTML = `
       <div class="profile-overlay" style="
@@ -462,6 +567,22 @@ class ProfilePanel {
         ">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
             <div style="min-width:0;">
+              ${isPersonalView ? `
+                <button class="profile-back-account-btn" style="
+                  border:none;
+                  background:transparent;
+                  color:${colors.text.body};
+                  padding:0 0 0.7rem;
+                  display:inline-flex;
+                  align-items:center;
+                  gap:0.45rem;
+                  cursor:pointer;
+                  font-weight:800;
+                ">
+                  <i class="fas fa-arrow-left"></i>
+                  Retour
+                </button>
+              ` : ''}
               <div style="
                 display:inline-flex;
                 align-items:center;
@@ -482,9 +603,9 @@ class ProfilePanel {
                 font-size:1.7rem;
                 color:${colors.text.title};
                 line-height:1;
-              ">${isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
               <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
-                ${isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -520,7 +641,7 @@ class ProfilePanel {
         </div>
 
         <div style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
-          ${isAuthenticated ? `
+          ${isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isAuthenticated ? `
             ${this.renderVendorQuickAccess(colors)}
             ${this.isBootstrapping ? `
               <div style="
@@ -535,6 +656,27 @@ class ProfilePanel {
               </div>
             ` : ''}
             ${this.renderSummaryCards(colors)}
+            <button class="profile-personal-info-btn" style="
+              width:100%;
+              border:1px solid ${colors.background.button}22;
+              border-radius:1rem;
+              background:${colors.background.card};
+              color:${colors.text.title};
+              padding:0.95rem 1rem;
+              margin-bottom:1rem;
+              cursor:pointer;
+              display:flex;
+              align-items:center;
+              justify-content:space-between;
+              gap:0.8rem;
+              font-weight:800;
+            ">
+              <span style="display:flex;align-items:center;gap:0.6rem;">
+                <i class="fas fa-id-card" style="color:${colors.icon.hover};"></i>
+                Informations personnelles
+              </span>
+              <i class="fas fa-chevron-right" style="color:${colors.text.body};"></i>
+            </button>
             ${this.cartManager.renderLikedSection(colors, fonts)}
             ${this.cartManager.renderOrdersSection(colors, fonts)}
           ` : this.renderLoggedOutState(colors)}
@@ -552,6 +694,9 @@ class ProfilePanel {
     const overlay = this.modal.querySelector('.profile-overlay');
     const loginBtn = this.modal.querySelector('.profile-login-btn');
     const logoutBtn = this.modal.querySelector('.profile-logout-btn');
+    const personalInfoBtn = this.modal.querySelector('.profile-personal-info-btn');
+    const backAccountBtn = this.modal.querySelector('.profile-back-account-btn');
+    const changePasswordBtn = this.modal.querySelector('.profile-change-password-btn');
     const ordersHeader = this.modal.querySelector('.orders-header');
     const likesHeader = this.modal.querySelector('.likes-header');
 
@@ -578,7 +723,36 @@ class ProfilePanel {
     logoutBtn?.addEventListener('click', async (event) => {
       event.preventDefault();
       await this.authManager.logout();
+      this.activeView = 'account';
       this.render();
+    });
+
+    personalInfoBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.activeView = 'personal';
+      this.render();
+    });
+
+    backAccountBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.activeView = 'account';
+      this.render();
+    });
+
+    changePasswordBtn?.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const email = this.authManager.getCurrentUser()?.email || this.cartManager.currentClient?.email || '';
+      if (!email) {
+        this.authManager.showToast('Email introuvable pour ce compte.', 'error');
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, email);
+        this.authManager.showToast('Email de changement de mot de passe envoye.', 'success');
+      } catch (error) {
+        console.error('Erreur changement mot de passe:', error);
+        this.authManager.showToast('Impossible d envoyer l email de changement de mot de passe.', 'error');
+      }
     });
 
     ordersHeader?.addEventListener('click', (event) => {
