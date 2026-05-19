@@ -1,6 +1,7 @@
 import { db } from './firebase-init.js';
 import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { renderPublicServiceNav } from './public-service-nav.js';
+import { getProductPricing } from './product-display-utils.js';
 
 class VendorMarketplacePage {
   constructor(containerId = 'vendor-marketplace-root') {
@@ -9,6 +10,7 @@ class VendorMarketplacePage {
     this.filteredProducts = [];
     this.vendors = new Map();
     this.searchTerm = '';
+    this.selectedVendorId = new URLSearchParams(window.location.search).get('vendor') || '';
     if (!this.container) return;
     this.init();
   }
@@ -31,6 +33,10 @@ class VendorMarketplacePage {
       .map((entry) => ({ id: entry.id, ...entry.data() }))
       .filter((item) => this.vendors.has(item.vendorId))
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+    if (this.selectedVendorId) {
+      this.products = this.products.filter((item) => String(item.vendorId) === String(this.selectedVendorId));
+    }
   }
 
   formatPrice(value) {
@@ -53,6 +59,7 @@ class VendorMarketplacePage {
 
   getProductCard(product) {
     const vendor = this.vendors.get(product.vendorId);
+    const pricing = getProductPricing(product, product.price || 0);
     const image = Array.isArray(product.images) && product.images[0]
       ? `<img src="${product.images[0]}" alt="${this.escape(product.name || 'Produit vendeur')}" style="width:100%;height:100%;object-fit:cover;">`
       : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#c6a75e;font-weight:800;">VENDEUR</div>';
@@ -71,7 +78,10 @@ class VendorMarketplacePage {
               <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;line-height:1;">${this.escape(product.name || 'Produit vendeur')}</h3>
               <p style="margin-top:.45rem;color:#6E6557;">${this.escape(vendor?.vendorName || product.vendorName || 'Boutique partenaire')}</p>
             </div>
-            <strong style="font-size:1.05rem;color:#1F1E1C;">${this.formatPrice(product.price)}</strong>
+            <div style="display:grid;justify-items:end;gap:0.2rem;">
+              <strong style="font-size:1.05rem;color:#1F1E1C;">${this.formatPrice(pricing.currentPrice)}</strong>
+              ${pricing.comparePrice ? `<span style="font-size:0.78rem;color:#8B7E6B;text-decoration:line-through;">${this.formatPrice(pricing.comparePrice)}</span>` : ''}
+            </div>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:.55rem;">
             ${product.category ? `<span style="display:inline-flex;border-radius:999px;background:rgba(198,167,94,0.14);color:#8A6D2D;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">${this.escape(product.category)}</span>` : ''}
@@ -88,12 +98,20 @@ class VendorMarketplacePage {
   }
 
   render() {
+    const selectedVendor = this.selectedVendorId ? this.vendors.get(this.selectedVendorId) : null;
+    const pageTitle = selectedVendor
+      ? `Boutique ${this.escape(selectedVendor.shopName || selectedVendor.vendorName || 'vendeur')}`
+      : 'Selection vendeurs approuves';
+    const pageDescription = selectedVendor
+      ? `Retrouvez ici tous les produits actuellement disponibles chez ${this.escape(selectedVendor.shopName || selectedVendor.vendorName || 'ce vendeur partenaire')}.`
+      : 'Cette section publique reste separee du catalogue principal. Elle affiche uniquement les produits vendeur approuves et publies par l administration Smart Cut Services.';
+
     this.container.innerHTML = `
       <section style="max-width:1280px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1.25rem;">
         <article style="border:1px solid rgba(31,30,28,0.08);border-radius:2rem;background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,242,230,0.94));box-shadow:0 24px 60px rgba(31,30,28,0.08);padding:clamp(1.5rem,4vw,2.6rem);">
           <small style="display:inline-block;color:#C6A75E;text-transform:uppercase;letter-spacing:.16em;font-size:.76rem;font-weight:700;margin-bottom:.8rem;">Marketplace vendeurs</small>
-          <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.7rem,7vw,4.9rem);line-height:.92;margin:0;">Selection vendeurs approuves</h1>
-          <p style="margin:1rem 0 0;color:#6E6557;line-height:1.85;max-width:72ch;">Cette section publique reste separee du catalogue principal. Elle affiche uniquement les produits vendeur approuves et publies par l'administration Smart Cut Services.</p>
+          <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.7rem,7vw,4.9rem);line-height:.92;margin:0;">${pageTitle}</h1>
+          <p style="margin:1rem 0 0;color:#6E6557;line-height:1.85;max-width:72ch;">${pageDescription}</p>
           <div style="margin-top:1.25rem;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:1rem;">
             <input id="vendorMarketplaceSearch" type="text" value="${this.escape(this.searchTerm)}" placeholder="Rechercher un produit, une categorie ou une boutique" style="width:100%;border:1px solid rgba(31,30,28,0.12);border-radius:999px;padding:.95rem 1.1rem;background:#fff;font:inherit;">
             <button id="vendorMarketplaceOpenCart" type="button" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:.95rem 1.1rem;font-weight:700;cursor:pointer;">Ouvrir le panier</button>
@@ -145,16 +163,19 @@ class VendorMarketplacePage {
       button.addEventListener('click', () => {
         const product = this.products.find((item) => item.id === button.dataset.addVendorProduct);
         if (!product) return;
+        const pricing = getProductPricing(product, product.price || 0);
         document.dispatchEvent(new CustomEvent('addToCart', {
           detail: {
             productId: product.id,
             name: product.name || 'Produit vendeur',
-            price: Number(product.price) || 0,
+            price: pricing.currentPrice || 0,
             quantity: 1,
             sku: product.sku || '',
             image: Array.isArray(product.images) ? (product.images[0] || '') : '',
             vendorId: product.vendorId || '',
             vendorName: product.vendorName || this.vendors.get(product.vendorId)?.vendorName || '',
+            vendorDeliveryCoverage: this.vendors.get(product.vendorId)?.deliveryCoverage || product.deliveryCoverage || null,
+            vendorDeliveryZones: this.vendors.get(product.vendorId)?.deliveryZones || product.deliveryZones || [],
             commissionRule: product.commissionRule || null,
             sourceType: 'vendor_marketplace',
             category: product.category || '',

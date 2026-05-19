@@ -21,11 +21,25 @@ const DEFAULT_FORM_SETTINGS = {
     { id: 'city', type: 'text', label: 'Ville', required: true, placeholder: 'Votre ville' },
     { id: 'address', type: 'textarea', label: 'Adresse', required: true, placeholder: 'Adresse complete' },
     { id: 'category', type: 'select', label: 'Categorie principale', required: true, options: ['Mode', 'Accessoires', 'Maison & deco', 'Impression', 'Electronique', 'Beaute', 'Autre'] },
-    { id: 'deliveryMode', type: 'radio', label: 'Gestion livraison', required: true, options: ['Le vendeur gere la livraison', 'Smart Cut gere la livraison', 'A definir'] },
+    { id: 'deliveryMode', type: 'radio', label: 'Gestion livraison', required: true, options: ['Le vendeur gere la livraison'] },
     { id: 'socialLink', type: 'url', label: 'Reseau social ou site web', required: false, placeholder: 'https://...' },
     { id: 'description', type: 'textarea', label: 'Presentation de votre activite', required: true, placeholder: 'Decrivez votre activite, vos produits et votre positionnement.' },
     { id: 'agreementAccepted', type: 'checkbox', label: 'Je confirme que les informations envoyees sont exactes et j accepte la revue manuelle de ma candidature.', required: true }
   ]
+};
+
+const VENDOR_DELIVERY_MODE = 'Le vendeur gere la livraison';
+const HAITI_DEPARTMENTS = {
+  'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+  'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+  'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+  'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+  'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+  'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+  'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+  'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+  'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+  'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
 class VendorApplicationPage {
@@ -92,6 +106,11 @@ class VendorApplicationPage {
       ...data,
       fields: Array.isArray(data.fields) && data.fields.length ? data.fields : DEFAULT_FORM_SETTINGS.fields
     };
+    this.formSettings.fields = this.formSettings.fields.map((field) => (
+      field.id === 'deliveryMode'
+        ? { ...field, required: true, options: [VENDOR_DELIVERY_MODE] }
+        : field
+    ));
   }
 
   render() {
@@ -249,7 +268,78 @@ class VendorApplicationPage {
   }
 
   renderFields() {
-    return this.formSettings.fields.map((field) => this.renderField(field)).join('');
+    const fields = this.formSettings.fields.map((field) => this.renderField(field)).join('');
+    return `${fields}${this.renderVendorDeliveryZones()}`;
+  }
+
+  renderVendorDeliveryZones() {
+    const saved = this.application?.deliveryCoverage || {};
+    const zones = Array.isArray(saved.zones) && saved.zones.length ? saved.zones : [{ country: 'Haiti', department: '', commune: '', fee: '' }];
+    return `
+      <section style="border:1px solid rgba(31,30,28,0.08);border-radius:1.25rem;background:#fff;padding:1rem;display:grid;gap:.9rem;">
+        <div>
+          <strong style="display:block;color:#1F1E1C;">Zones et prix de livraison *</strong>
+          <p style="margin:.35rem 0 0;color:#6E6557;line-height:1.7;font-size:.92rem;">Le vendeur gere uniquement la livraison a domicile. Ajoutez les zones ou vous pouvez livrer et le prix que le client devra payer au checkout.</p>
+        </div>
+        <label class="${this.uniqueId}-option">
+          <input id="vendorDeliveryNationwide" type="checkbox" ${saved.nationwide ? 'checked' : ''}>
+          <span style="color:#1F1E1C;line-height:1.7;">Je veux livrer mes produits sur tout le territoire national</span>
+        </label>
+        <label id="vendorNationwideFeeWrapper" class="${this.uniqueId}-field" style="max-width:260px;display:none;">
+          <span class="${this.uniqueId}-label">Prix livraison nationale</span>
+          <input id="vendorNationwideFee" class="${this.uniqueId}-input" type="number" min="0" step="1" value="${this.escape(saved.nationwideFee || '')}" placeholder="Ex: 500">
+        </label>
+        <div id="vendorDeliveryZonesList" style="display:grid;gap:.75rem;">
+          ${zones.map((zone, index) => this.renderVendorDeliveryZoneRow(zone, index)).join('')}
+        </div>
+        <button type="button" id="addVendorDeliveryZone" style="justify-self:start;border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:.75rem 1rem;font-weight:800;cursor:pointer;">
+          Ajouter une zone
+        </button>
+      </section>
+    `;
+  }
+
+  renderVendorDeliveryZoneRow(zone = {}, index = 0) {
+    return `
+      <div data-vendor-delivery-zone="${index}" style="display:grid;grid-template-columns:1fr 1fr 1fr 130px auto;gap:.65rem;align-items:end;border:1px solid rgba(31,30,28,0.08);border-radius:1rem;padding:.8rem;background:#F8F5EF;">
+        <label class="${this.uniqueId}-field">
+          <span class="${this.uniqueId}-label">Pays</span>
+          <select data-zone-field="country" class="${this.uniqueId}-select">
+            <option value="Haiti" selected>Haiti</option>
+          </select>
+        </label>
+        <label class="${this.uniqueId}-field">
+          <span class="${this.uniqueId}-label">Departement</span>
+          <select data-zone-field="department" class="${this.uniqueId}-select">
+            ${this.renderDepartmentOptions(zone.department || '')}
+          </select>
+        </label>
+        <label class="${this.uniqueId}-field">
+          <span class="${this.uniqueId}-label">Commune</span>
+          <select data-zone-field="commune" class="${this.uniqueId}-select">
+            ${this.renderCommuneOptions(zone.department || '', zone.commune || '')}
+          </select>
+        </label>
+        <label class="${this.uniqueId}-field">
+          <span class="${this.uniqueId}-label">Prix</span>
+          <input data-zone-field="fee" class="${this.uniqueId}-input" type="number" min="0" step="1" value="${this.escape(zone.fee || '')}" placeholder="500">
+        </label>
+        <button type="button" data-remove-vendor-delivery-zone="${index}" style="border:1px solid rgba(127,29,29,0.2);border-radius:.8rem;background:#fff;color:#7F1D1D;padding:.85rem;cursor:pointer;">Retirer</button>
+      </div>
+    `;
+  }
+
+  renderDepartmentOptions(selected = '') {
+    return '<option value="">Choisir...</option>' + Object.keys(HAITI_DEPARTMENTS)
+      .map((department) => `<option value="${this.escape(department)}" ${department === selected ? 'selected' : ''}>${this.escape(department)}</option>`)
+      .join('');
+  }
+
+  renderCommuneOptions(department = '', selected = '') {
+    const communes = HAITI_DEPARTMENTS[department] || [];
+    return '<option value="">Choisir...</option>' + communes
+      .map((commune) => `<option value="${this.escape(commune)}" ${commune === selected ? 'selected' : ''}>${this.escape(commune)}</option>`)
+      .join('');
   }
 
   renderStatusSummary() {
@@ -368,6 +458,46 @@ class VendorApplicationPage {
       });
     }
 
+    this.bindVendorDeliveryZoneEvents();
+
+  }
+
+  bindVendorDeliveryZoneEvents() {
+    const list = this.container.querySelector('#vendorDeliveryZonesList');
+    const addButton = this.container.querySelector('#addVendorDeliveryZone');
+    const nationwide = this.container.querySelector('#vendorDeliveryNationwide');
+    const syncVisibility = () => {
+      const isNationwide = Boolean(nationwide?.checked);
+      const nationalFeeWrapper = this.container.querySelector('#vendorNationwideFeeWrapper');
+      if (list) list.style.opacity = isNationwide ? '0.45' : '1';
+      if (addButton) addButton.disabled = isNationwide;
+      if (nationalFeeWrapper) nationalFeeWrapper.style.display = isNationwide ? 'grid' : 'none';
+    };
+
+    nationwide?.addEventListener('change', syncVisibility);
+    syncVisibility();
+
+    addButton?.addEventListener('click', () => {
+      if (!list) return;
+      const index = list.querySelectorAll('[data-vendor-delivery-zone]').length;
+      list.insertAdjacentHTML('beforeend', this.renderVendorDeliveryZoneRow({}, index));
+      this.bindVendorDeliveryZoneEvents();
+    });
+
+    this.container.querySelectorAll('[data-vendor-delivery-zone]').forEach((row) => {
+      const department = row.querySelector('[data-zone-field="department"]');
+      const commune = row.querySelector('[data-zone-field="commune"]');
+      department?.addEventListener('change', () => {
+        if (commune) commune.innerHTML = this.renderCommuneOptions(department.value);
+      });
+    });
+
+    this.container.querySelectorAll('[data-remove-vendor-delivery-zone]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const row = button.closest('[data-vendor-delivery-zone]');
+        row?.remove();
+      });
+    });
   }
 
   collectResponses() {
@@ -395,6 +525,24 @@ class VendorApplicationPage {
     return responses;
   }
 
+  collectDeliveryCoverage() {
+    const nationwide = Boolean(this.container.querySelector('#vendorDeliveryNationwide')?.checked);
+    const nationwideFee = Number(this.container.querySelector('#vendorNationwideFee')?.value || 0);
+    const zones = Array.from(this.container.querySelectorAll('[data-vendor-delivery-zone]')).map((row) => ({
+      country: row.querySelector('[data-zone-field="country"]')?.value || 'Haiti',
+      department: row.querySelector('[data-zone-field="department"]')?.value || '',
+      commune: row.querySelector('[data-zone-field="commune"]')?.value || '',
+      fee: Number(row.querySelector('[data-zone-field="fee"]')?.value || 0)
+    })).filter((zone) => zone.country && zone.department && zone.commune && Number.isFinite(zone.fee) && zone.fee >= 0);
+    return {
+      country: 'Haiti',
+      mode: nationwide ? 'nationwide' : 'specific',
+      nationwide,
+      nationwideFee: Number.isFinite(nationwideFee) ? nationwideFee : 0,
+      zones
+    };
+  }
+
   validateResponses(responses) {
     const missing = this.formSettings.fields.find((field) => {
       if (!field.required) return false;
@@ -414,7 +562,7 @@ class VendorApplicationPage {
       city: String(responses.city || ''),
       address: String(responses.address || ''),
       category: String(responses.category || ''),
-      deliveryMode: String(responses.deliveryMode || ''),
+      deliveryMode: VENDOR_DELIVERY_MODE,
       socialLink: String(responses.socialLink || ''),
       description: String(responses.description || ''),
       experience: String(responses.experience || ''),
@@ -429,9 +577,19 @@ class VendorApplicationPage {
     }
 
     const responses = this.collectResponses();
+    responses.deliveryMode = VENDOR_DELIVERY_MODE;
     const missingField = this.validateResponses(responses);
     if (missingField) {
       this.auth.showToast(`Merci de remplir le champ obligatoire: ${missingField}.`, 'error');
+      return;
+    }
+    const deliveryCoverage = this.collectDeliveryCoverage();
+    if (deliveryCoverage.nationwide && (!Number.isFinite(deliveryCoverage.nationwideFee) || deliveryCoverage.nationwideFee < 0)) {
+      this.auth.showToast('Merci d indiquer un prix de livraison nationale valide.', 'error');
+      return;
+    }
+    if (!deliveryCoverage.nationwide && deliveryCoverage.zones.length === 0) {
+      this.auth.showToast('Merci d ajouter au moins une zone de livraison avec son prix.', 'error');
       return;
     }
 
@@ -451,6 +609,8 @@ class VendorApplicationPage {
       reviewedAt: this.application?.reviewedAt || '',
       reviewedBy: this.application?.reviewedBy || '',
       sellerActivatedAt: this.application?.sellerActivatedAt || '',
+      deliveryCoverage,
+      deliveryZones: deliveryCoverage.zones,
       ...canonical
     };
 

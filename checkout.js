@@ -1,6 +1,6 @@
 // ============= CHECKOUT COMPONENT - MODAL DE PAIEMENT =============
 import { db } from './firebase-init.js';
-import { collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { collection, doc, getDoc, getDocs, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 function normalizeSelectedOptionLabel(value) {
   return String(value || '')
@@ -19,6 +19,19 @@ function isCustomerVisibleOption(option) {
 function getCustomerVisibleOptions(options) {
   return (Array.isArray(options) ? options : []).filter(isCustomerVisibleOption);
 }
+
+const HAITI_DEPARTMENTS = {
+  'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+  'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+  'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+  'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+  'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+  'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+  'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+  'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+  'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+  'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
+};
 
 class CheckoutModal {
   constructor(options = {}) {
@@ -54,8 +67,12 @@ class CheckoutModal {
     this.selectedDelivery = {
       method: null,
       home: {
+        savedAddressId: '',
         zoneId: '',
         address: '',
+        country: 'Haiti',
+        department: '',
+        commune: '',
         phone: '',
         whatsapp: ''
       },
@@ -110,6 +127,93 @@ class CheckoutModal {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(price || 0);
+  }
+
+  getSavedDeliveryAddresses() {
+    const addresses = Array.isArray(this.client?.addresses) ? this.client.addresses : [];
+    return addresses.filter((address) => (
+      address
+      && address.address
+      && address.country
+      && address.department
+      && address.commune
+    ));
+  }
+
+  getDefaultDeliveryAddress() {
+    const addresses = this.getSavedDeliveryAddresses();
+    if (!addresses.length) return null;
+    return addresses.find((address) => address.id === this.client?.defaultDeliveryAddressId)
+      || addresses.find((address) => address.isDelivery)
+      || addresses[0];
+  }
+
+  formatSavedAddress(address) {
+    if (!address) return '';
+    return [address.address, address.commune, address.department, address.country || 'Haiti']
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  hasVendorItems() {
+    return this.cart.some((item) => String(item?.vendorId || '').trim() !== '');
+  }
+
+  hasSmartCutItems() {
+    return this.cart.some((item) => !String(item?.vendorId || '').trim());
+  }
+
+  getVendorDeliveryGroups() {
+    const groups = new Map();
+    this.cart.forEach((item) => {
+      const vendorId = String(item?.vendorId || '').trim();
+      if (!vendorId) return;
+      if (!groups.has(vendorId)) {
+        groups.set(vendorId, {
+          vendorId,
+          vendorName: item.vendorName || 'Vendeur',
+          coverage: item.vendorDeliveryCoverage || null,
+          zones: Array.isArray(item.vendorDeliveryZones) ? item.vendorDeliveryZones : []
+        });
+      }
+    });
+    return Array.from(groups.values());
+  }
+
+  findVendorDeliveryZone(group) {
+    const department = String(this.selectedDelivery.home.department || '').trim();
+    const commune = String(this.selectedDelivery.home.commune || '').trim();
+    const coverage = group.coverage || {};
+    const zones = Array.isArray(coverage.zones) && coverage.zones.length ? coverage.zones : group.zones;
+    if (coverage.nationwide && zones.length === 0) {
+      return { country: 'Haiti', department: 'Tout Haiti', commune: 'Tout Haiti', fee: Number(coverage.nationwideFee || 0), nationwide: true };
+    }
+    return (Array.isArray(zones) ? zones : []).find((zone) => (
+      String(zone.country || 'Haiti') === 'Haiti'
+      && String(zone.department || '').trim() === department
+      && String(zone.commune || '').trim() === commune
+    )) || null;
+  }
+
+  getVendorDeliveryFee() {
+    if (this.selectedDelivery.method !== 'home') return 0;
+    return this.getVendorDeliveryGroups().reduce((sum, group) => {
+      const zone = this.findVendorDeliveryZone(group);
+      return sum + Number(zone?.fee || 0);
+    }, 0);
+  }
+
+  escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  escapeAttribute(value) {
+    return this.escapeHtml(value);
   }
   
   render() {
@@ -522,6 +626,13 @@ class CheckoutModal {
     const methodOptions = methods.length > 0
       ? methods.map(m => this.renderDeliveryMethodRadio(m)).join('')
       : `<div style="color:#8B7E6B;font-size:0.9rem;">Aucune méthode de livraison disponible pour le moment.</div>`;
+    const savedAddresses = this.getSavedDeliveryAddresses();
+    const defaultAddress = this.getDefaultDeliveryAddress();
+    const savedAddressOptions = savedAddresses.map((address) => `
+      <option value="${this.escapeAttribute(address.id || '')}" ${address.id === defaultAddress?.id ? 'selected' : ''}>
+        ${this.escapeHtml(this.formatSavedAddress(address))}
+      </option>
+    `).join('');
     
     return `
       <div class="delivery-section-${this.uniqueId}" style="
@@ -546,6 +657,17 @@ class CheckoutModal {
         <div class="delivery-panels">
           <div class="delivery-panel" data-delivery-panel="home" style="display:none;">
             <div style="display:grid;gap:0.75rem;">
+              ${savedAddresses.length ? `
+                <div>
+                  <label style="font-size:0.9rem;color:#8B7E6B;">Adresse enregistree</label>
+                  <select class="delivery-saved-address" style="
+                    width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
+                  ">
+                    <option value="">Ajouter une nouvelle adresse</option>
+                    ${savedAddressOptions}
+                  </select>
+                </div>
+              ` : ''}
               <label style="font-size:0.9rem;color:#8B7E6B;">Ville / Zone</label>
               <select class="delivery-home-zone" style="
                 padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
@@ -557,6 +679,21 @@ class CheckoutModal {
               <input type="text" class="delivery-home-address" placeholder="Adresse complète" style="
                 padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
               ">
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div>
+                  <label style="font-size:0.9rem;color:#8B7E6B;">Departement</label>
+                  <select class="delivery-home-department" style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;">
+                    ${this.renderDepartmentOptions(this.selectedDelivery.home.department)}
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:0.9rem;color:#8B7E6B;">Commune</label>
+                  <select class="delivery-home-commune" style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;">
+                    ${this.renderCommuneOptions(this.selectedDelivery.home.department, this.selectedDelivery.home.commune)}
+                  </select>
+                </div>
+              </div>
               
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
@@ -593,13 +730,6 @@ class CheckoutModal {
               ${this.renderSelectOptions(this.deliveryData.meetupZones, 'Aucune zone disponible')}
             </select>
             
-            <div class="meetup-proposal-wrapper" style="margin-top:0.75rem;display:none;">
-              <label style="font-size:0.9rem;color:#8B7E6B;">Proposer un lieu</label>
-              <input type="text" class="delivery-meetup-proposal" placeholder="Proposez un point de rencontre" style="
-                width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-              ">
-            </div>
-            
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">
               <div>
                 <label style="font-size:0.9rem;color:#8B7E6B;">Téléphone</label>
@@ -625,8 +755,8 @@ class CheckoutModal {
     const settings = this.deliverySettings?.methodsVisible || defaults;
     const methods = [];
     if (settings.home) methods.push({ key: 'home', label: 'A domicile', icon: 'fa-house' });
-    if (settings.pickup) methods.push({ key: 'pickup', label: 'Retrait en point de vente', icon: 'fa-store' });
-    if (settings.meetup) methods.push({ key: 'meetup', label: 'Par rencontre', icon: 'fa-people-arrows' });
+    if (!this.hasVendorItems() && settings.pickup) methods.push({ key: 'pickup', label: 'Retrait en point de vente', icon: 'fa-store' });
+    if (!this.hasVendorItems() && settings.meetup) methods.push({ key: 'meetup', label: 'Par rencontre', icon: 'fa-people-arrows' });
     return methods;
   }
 
@@ -656,6 +786,19 @@ class CheckoutModal {
       return `<option value="${item.id}">${label}${feeText}</option>`;
     });
     return `<option value="">Sélectionner...</option>${options.join('')}`;
+  }
+
+  renderDepartmentOptions(selected = '') {
+    return '<option value="">Choisir un departement...</option>' + Object.keys(HAITI_DEPARTMENTS)
+      .map((department) => `<option value="${department}" ${department === selected ? 'selected' : ''}>${department}</option>`)
+      .join('');
+  }
+
+  renderCommuneOptions(department = '', selected = '') {
+    const communes = HAITI_DEPARTMENTS[department] || [];
+    return '<option value="">Choisir une commune...</option>' + communes
+      .map((commune) => `<option value="${commune}" ${commune === selected ? 'selected' : ''}>${commune}</option>`)
+      .join('');
   }
   
   renderDesktopRow(item, index) {
@@ -825,14 +968,15 @@ class CheckoutModal {
       } else {
         this.deliverySettings = {
           methodsVisible: { home: true, pickup: true, meetup: true },
-          allowMeetupProposal: true
+          allowMeetupProposal: false
         };
       }
+      this.deliverySettings.allowMeetupProposal = false;
     } catch (error) {
       console.error('❌ Erreur paramètres livraison:', error);
       this.deliverySettings = {
         methodsVisible: { home: true, pickup: true, meetup: true },
-        allowMeetupProposal: true
+        allowMeetupProposal: false
       };
     }
   }
@@ -911,6 +1055,33 @@ class CheckoutModal {
     this.updateDeliveryPanels();
   }
 
+  applySavedDeliveryAddress(addressId) {
+    const savedAddress = this.getSavedDeliveryAddresses().find((address) => address.id === addressId);
+    this.selectedDelivery.home.savedAddressId = addressId || '';
+    if (!savedAddress) return;
+
+    this.selectedDelivery.home.address = savedAddress.address || '';
+    this.selectedDelivery.home.country = savedAddress.country || 'Haiti';
+    this.selectedDelivery.home.department = savedAddress.department || '';
+    this.selectedDelivery.home.commune = savedAddress.commune || '';
+    this.selectedDelivery.home.phone = this.client?.phone || this.selectedDelivery.home.phone || '';
+    this.selectedDelivery.home.whatsapp = this.selectedDelivery.home.whatsapp || this.selectedDelivery.home.phone || '';
+
+    const addressInput = this.modal.querySelector('.delivery-home-address');
+    const departmentSelect = this.modal.querySelector('.delivery-home-department');
+    const communeSelect = this.modal.querySelector('.delivery-home-commune');
+    const phoneInput = this.modal.querySelector('.delivery-home-phone');
+    const whatsappInput = this.modal.querySelector('.delivery-home-whatsapp');
+    if (addressInput) addressInput.value = this.selectedDelivery.home.address;
+    if (departmentSelect) departmentSelect.value = this.selectedDelivery.home.department;
+    if (communeSelect) {
+      communeSelect.innerHTML = this.renderCommuneOptions(this.selectedDelivery.home.department, this.selectedDelivery.home.commune);
+      communeSelect.value = this.selectedDelivery.home.commune;
+    }
+    if (phoneInput) phoneInput.value = this.selectedDelivery.home.phone;
+    if (whatsappInput) whatsappInput.value = this.selectedDelivery.home.whatsapp;
+  }
+
   bindDeliveryEvents() {
     const methodRadios = this.modal.querySelectorAll(`input[name="delivery_method_${this.uniqueId}"]`);
     methodRadios.forEach(radio => {
@@ -928,6 +1099,16 @@ class CheckoutModal {
         this.selectedDelivery.home.zoneId = homeSelect.value;
         this.updateDeliveryCosts();
         this.updateTotalsUI();
+      });
+    }
+
+    const savedAddressSelect = this.modal.querySelector('.delivery-saved-address');
+    if (savedAddressSelect) {
+      if (savedAddressSelect.value && !this.selectedDelivery.home.savedAddressId) {
+        this.applySavedDeliveryAddress(savedAddressSelect.value);
+      }
+      savedAddressSelect.addEventListener('change', () => {
+        this.applySavedDeliveryAddress(savedAddressSelect.value);
       });
     }
     
@@ -954,6 +1135,22 @@ class CheckoutModal {
     if (addressInput) {
       addressInput.addEventListener('input', () => {
         this.selectedDelivery.home.address = addressInput.value;
+        this.selectedDelivery.home.savedAddressId = '';
+      });
+    }
+
+    const departmentSelect = this.modal.querySelector('.delivery-home-department');
+    const communeSelect = this.modal.querySelector('.delivery-home-commune');
+    if (departmentSelect && communeSelect) {
+      departmentSelect.addEventListener('change', () => {
+        this.selectedDelivery.home.department = departmentSelect.value;
+        this.selectedDelivery.home.commune = '';
+        this.selectedDelivery.home.savedAddressId = '';
+        communeSelect.innerHTML = this.renderCommuneOptions(departmentSelect.value);
+      });
+      communeSelect.addEventListener('change', () => {
+        this.selectedDelivery.home.commune = communeSelect.value;
+        this.selectedDelivery.home.savedAddressId = '';
       });
     }
     
@@ -985,12 +1182,7 @@ class CheckoutModal {
       });
     }
     
-    const meetupProposal = this.modal.querySelector('.delivery-meetup-proposal');
-    if (meetupProposal) {
-      meetupProposal.addEventListener('input', () => {
-        this.selectedDelivery.meetup.proposal = meetupProposal.value;
-      });
-    }
+    this.selectedDelivery.meetup.proposal = '';
   }
 
   updateDeliveryPanels() {
@@ -1018,14 +1210,14 @@ class CheckoutModal {
   updateMeetupProposalVisibility() {
     const wrapper = this.modal.querySelector('.meetup-proposal-wrapper');
     if (!wrapper) return;
-    wrapper.style.display = this.deliverySettings?.allowMeetupProposal ? 'block' : 'none';
+    wrapper.style.display = 'none';
   }
 
   updateDeliveryCosts() {
     let baseFee = 0;
     if (this.selectedDelivery.method === 'home') {
       const zone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
-      baseFee = Number(zone?.fee || 0);
+      baseFee = (this.hasSmartCutItems() ? Number(zone?.fee || 0) : 0) + this.getVendorDeliveryFee();
     } else if (this.selectedDelivery.method === 'pickup') {
       baseFee = 0;
     } else if (this.selectedDelivery.method === 'meetup') {
@@ -1084,12 +1276,21 @@ class CheckoutModal {
     }
     
     if (this.selectedDelivery.method === 'home') {
-      if (!this.selectedDelivery.home.zoneId) {
+      if (this.hasSmartCutItems() && !this.selectedDelivery.home.zoneId) {
         this.showMessage('Veuillez sélectionner une ville ou zone', 'error');
         return false;
       }
       if (!this.selectedDelivery.home.address?.trim()) {
         this.showMessage('Veuillez saisir votre adresse', 'error');
+        return false;
+      }
+      if (!this.selectedDelivery.home.department || !this.selectedDelivery.home.commune) {
+        this.showMessage('Veuillez choisir votre departement et votre commune', 'error');
+        return false;
+      }
+      const unavailableVendor = this.getVendorDeliveryGroups().find((group) => !this.findVendorDeliveryZone(group));
+      if (unavailableVendor) {
+        this.showMessage(`${unavailableVendor.vendorName} ne livre pas dans cette commune.`, 'error');
         return false;
       }
       if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
@@ -1126,20 +1327,76 @@ class CheckoutModal {
     
     return true;
   }
+
+  async saveCheckoutDeliveryAddress() {
+    if (this.selectedDelivery.method !== 'home' || this.selectedDelivery.home.savedAddressId) return;
+    if (!this.client?.id || !db) return;
+
+    const addressText = String(this.selectedDelivery.home.address || '').trim();
+    if (!addressText) return;
+
+    const existingAddresses = this.getSavedDeliveryAddresses();
+    const alreadySaved = existingAddresses.some((address) => (
+      String(address.address || '').trim().toLowerCase() === addressText.toLowerCase()
+      && String(address.commune || '').trim().toLowerCase() === String(this.selectedDelivery.home.commune || '').trim().toLowerCase()
+      && String(address.department || '').trim().toLowerCase() === String(this.selectedDelivery.home.department || '').trim().toLowerCase()
+    ));
+    if (alreadySaved) return;
+
+    const newAddress = {
+      id: 'addr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+      label: 'Adresse de livraison',
+      address: addressText,
+      country: this.selectedDelivery.home.country || 'Haiti',
+      department: this.selectedDelivery.home.department || '',
+      commune: this.selectedDelivery.home.commune || '',
+      isDelivery: true,
+      createdAt: new Date().toISOString()
+    };
+    const addresses = existingAddresses.concat(newAddress);
+    this.client.addresses = addresses;
+    this.client.defaultDeliveryAddressId = this.client.defaultDeliveryAddressId || newAddress.id;
+    this.selectedDelivery.home.savedAddressId = newAddress.id;
+
+    await setDoc(doc(db, 'clients', this.client.id), {
+      addresses,
+      defaultDeliveryAddressId: this.client.defaultDeliveryAddressId,
+      address: newAddress.address,
+      country: newAddress.country,
+      department: newAddress.department,
+      commune: newAddress.commune,
+      city: newAddress.commune,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  }
   
   getDeliveryPayload() {
     const homeZone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
     const pickupPoint = this.deliveryData.pickupPoints.find(p => p.id === this.selectedDelivery.pickup.pointId);
     const meetupZone = this.deliveryData.meetupZones.find(z => z.id === this.selectedDelivery.meetup.zoneId);
+    const vendorDeliveryDetails = this.getVendorDeliveryGroups().map((group) => {
+      const zone = this.findVendorDeliveryZone(group);
+      return {
+        vendorId: group.vendorId,
+        vendorName: group.vendorName,
+        zone: zone || null,
+        fee: Number(zone?.fee || 0)
+      };
+    });
     return {
       method: this.selectedDelivery.method,
       address: this.selectedDelivery.home.address || '',
+      savedAddressId: this.selectedDelivery.home.savedAddressId || '',
+      country: this.selectedDelivery.home.country || 'Haiti',
+      department: this.selectedDelivery.home.department || '',
+      commune: this.selectedDelivery.home.commune || '',
       phone: this.selectedDelivery.method === 'home' ? (this.selectedDelivery.home.phone || '') : (this.selectedDelivery.meetup.phone || ''),
       whatsapp: this.selectedDelivery.method === 'home' ? (this.selectedDelivery.home.whatsapp || '') : (this.selectedDelivery.meetup.whatsapp || ''),
       meetupProposal: this.selectedDelivery.meetup.proposal || '',
       homeZone: homeZone || null,
       pickupPoint: pickupPoint || null,
       meetupZone: meetupZone || null,
+      vendorDeliveryDetails,
       weightGrams: this.getCartWeight(),
       baseFee: this.deliveryFees.base,
       weightFee: this.deliveryFees.weightExtra,
@@ -1376,6 +1633,7 @@ class CheckoutModal {
       if (!this.validateDelivery()) {
         return;
       }
+      await this.saveCheckoutDeliveryAddress();
       const module = await import('./payment.js?v=20260413-2');
       const PaymentModal = module.default;
       
