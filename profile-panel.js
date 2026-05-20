@@ -2,7 +2,7 @@ import { auth, db } from './firebase-init.js';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
-import { getCartManager } from './cart.js?v=20260520-1';
+import { getCartManager } from './cart.js?v=20260520-2';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -30,6 +30,7 @@ class ProfilePanel {
     this.activeView = 'account';
     this.profileClient = null;
     this.isEditingPersonalInfo = false;
+    this.additionalAddressForms = 0;
     this.vendorAccess = {
       uid: '',
       checked: false,
@@ -308,6 +309,8 @@ class ProfilePanel {
     const client = this.profileClient || this.cartManager.currentClient || {};
     const fullName = user?.displayName || client.name || `${client.firstName || ''} ${client.lastName || ''}`.trim();
     const defaultAddress = this.getDefaultAddress(client) || {};
+    const savedAddresses = Array.isArray(client.addresses) ? client.addresses : [];
+    const otherAddressesCount = savedAddresses.filter((address) => address?.id && address.id !== defaultAddress.id).length;
     return `
       <form class="profile-personal-form" style="display:grid;gap:0.85rem;">
         <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;">
@@ -336,6 +339,24 @@ class ProfilePanel {
           </label>
         </div>
 
+        <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;display:grid;gap:0.85rem;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
+            <div>
+              <h4 style="margin:0;color:${colors.text.title};font-size:1rem;">Adresses supplementaires</h4>
+              <p style="margin:0.35rem 0 0;color:${colors.text.body};font-size:0.85rem;line-height:1.55;">
+                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) deja sauvegardee(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
+              </p>
+            </div>
+            <button type="button" class="profile-add-address-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.75rem 0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.45rem;">
+              <i class="fas fa-plus"></i>
+              Ajouter une adresse
+            </button>
+          </div>
+          <div class="profile-extra-addresses" style="display:grid;gap:0.8rem;">
+            ${Array.from({ length: this.additionalAddressForms }, (_, index) => this.renderExtraAddressForm(index, colors)).join('')}
+          </div>
+        </div>
+
         <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
           <button type="submit" style="border:none;border-radius:999px;background:${colors.background.button};color:${colors.text.button};padding:0.9rem 1rem;font-weight:800;cursor:pointer;">
             Enregistrer
@@ -345,6 +366,29 @@ class ProfilePanel {
           </button>
         </div>
       </form>
+    `;
+  }
+
+  renderExtraAddressForm(index, colors) {
+    return `
+      <div data-extra-address-index="${index}" style="border:1px dashed ${colors.background.button}44;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.button}08;">
+        <strong style="color:${colors.text.title};font-size:0.92rem;">Nouvelle adresse ${index + 1}</strong>
+        ${this.renderProfileInput('Adresse', `profileExtraAddress_${index}`, '', colors)}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
+          <label style="display:grid;gap:0.35rem;">
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Departement</span>
+            <select id="profileExtraDepartment_${index}" class="profile-extra-department" data-extra-address-department="${index}" style="${this.profileFieldStyle(colors)}">
+              ${this.renderDepartmentOptions('')}
+            </select>
+          </label>
+          <label style="display:grid;gap:0.35rem;">
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Commune</span>
+            <select id="profileExtraCommune_${index}" data-extra-address-commune="${index}" style="${this.profileFieldStyle(colors)}">
+              ${this.renderCommuneOptions('', '')}
+            </select>
+          </label>
+        </div>
+      </div>
     `;
   }
 
@@ -474,8 +518,28 @@ class ProfilePanel {
 
     const currentClient = this.profileClient || this.cartManager.currentClient || {};
     const currentAddresses = Array.isArray(currentClient.addresses) ? currentClient.addresses : [];
+    const extraAddresses = Array.from(this.modal.querySelectorAll('[data-extra-address-index]')).map((node) => {
+      const index = node.dataset.extraAddressIndex;
+      const extraAddress = this.modal.querySelector(`#profileExtraAddress_${index}`)?.value?.trim() || '';
+      const extraDepartment = this.modal.querySelector(`#profileExtraDepartment_${index}`)?.value?.trim() || '';
+      const extraCommune = this.modal.querySelector(`#profileExtraCommune_${index}`)?.value?.trim() || '';
+      const hasAnyValue = Boolean(extraAddress || extraDepartment || extraCommune);
+      return {
+        hasAnyValue,
+        address: extraAddress,
+        department: extraDepartment,
+        commune: extraCommune
+      };
+    }).filter((item) => item.hasAnyValue);
+
+    if (extraAddresses.some((address) => !address.address || !address.department || !address.commune)) {
+      this.authManager.showToast('Merci de completer chaque nouvelle adresse ajoutee.', 'error');
+      return;
+    }
+
     const currentDefaultAddress = this.getDefaultAddress(currentClient);
     const addressId = currentDefaultAddress?.id || 'addr_' + Date.now().toString(36);
+    const now = new Date().toISOString();
     const updatedAddress = {
       ...(currentDefaultAddress || {}),
       id: addressId,
@@ -485,13 +549,26 @@ class ProfilePanel {
       department,
       commune,
       isDelivery: currentDefaultAddress?.isDelivery !== false,
-      updatedAt: new Date().toISOString(),
-      createdAt: currentDefaultAddress?.createdAt || new Date().toISOString()
+      updatedAt: now,
+      createdAt: currentDefaultAddress?.createdAt || now
     };
     const addresses = currentAddresses.length
       ? currentAddresses.map((address) => address.id === addressId ? updatedAddress : address)
       : [updatedAddress];
     if (!addresses.some((address) => address.id === addressId)) addresses.unshift(updatedAddress);
+    extraAddresses.forEach((extraAddress, index) => {
+      addresses.push({
+        id: `addr_${Date.now().toString(36)}_${index}`,
+        label: `Adresse ${addresses.length + 1}`,
+        address: extraAddress.address,
+        country: 'Haiti',
+        department: extraAddress.department,
+        commune: extraAddress.commune,
+        isDelivery: false,
+        createdAt: now,
+        updatedAt: now
+      });
+    });
 
     const payload = {
       firstName,
@@ -507,7 +584,7 @@ class ProfilePanel {
       city: commune,
       addresses,
       defaultDeliveryAddressId: currentClient.defaultDeliveryAddressId || addressId,
-      updatedAt: new Date().toISOString()
+      updatedAt: now
     };
 
     await setDoc(doc(db, 'clients', user.uid), payload, { merge: true });
@@ -520,6 +597,7 @@ class ProfilePanel {
       ...this.profileClient
     };
     this.isEditingPersonalInfo = false;
+    this.additionalAddressForms = 0;
     this.authManager.showToast('Informations personnelles mises a jour.', 'success');
     this.render();
   }
@@ -988,6 +1066,7 @@ class ProfilePanel {
     const changePasswordBtn = this.modal.querySelector('.profile-change-password-btn');
     const editInfoBtn = this.modal.querySelector('.profile-edit-info-btn');
     const cancelEditBtn = this.modal.querySelector('.profile-cancel-edit-btn');
+    const addAddressBtn = this.modal.querySelector('.profile-add-address-btn');
     const personalForm = this.modal.querySelector('.profile-personal-form');
     const departmentSelect = this.modal.querySelector('#profileEditDepartment');
     const communeSelect = this.modal.querySelector('#profileEditCommune');
@@ -1041,12 +1120,20 @@ class ProfilePanel {
     editInfoBtn?.addEventListener('click', (event) => {
       event.preventDefault();
       this.isEditingPersonalInfo = true;
+      this.additionalAddressForms = 0;
       this.render();
     });
 
     cancelEditBtn?.addEventListener('click', (event) => {
       event.preventDefault();
       this.isEditingPersonalInfo = false;
+      this.additionalAddressForms = 0;
+      this.render();
+    });
+
+    addAddressBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
+      this.additionalAddressForms += 1;
       this.render();
     });
 
@@ -1054,6 +1141,14 @@ class ProfilePanel {
       if (communeSelect) {
         communeSelect.innerHTML = this.renderCommuneOptions(departmentSelect.value);
       }
+    });
+
+    this.modal.querySelectorAll('.profile-extra-department').forEach((select) => {
+      select.addEventListener('change', () => {
+        const index = select.dataset.extraAddressDepartment;
+        const extraCommune = this.modal.querySelector(`[data-extra-address-commune="${index}"]`);
+        if (extraCommune) extraCommune.innerHTML = this.renderCommuneOptions(select.value);
+      });
     });
 
     personalForm?.addEventListener('submit', async (event) => {
