@@ -4559,6 +4559,89 @@ exports.trackWebsiteVisit = onRequest(
   }
 );
 
+exports.deleteClientAccount = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const clientId = sanitizeText(body?.clientId || body?.uid || '', 160);
+      if (!clientId) {
+        sendJson(res, 400, { ok: false, error: 'missing-client-id', message: 'Client introuvable.' });
+        return;
+      }
+
+      if (clientId === decodedUser.uid) {
+        sendJson(res, 400, { ok: false, error: 'cannot-delete-self', message: 'Un admin ne peut pas supprimer son propre compte ici.' });
+        return;
+      }
+
+      const clientRef = db.collection('clients').doc(clientId);
+      const clientSnap = await clientRef.get();
+      if (!clientSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'client-not-found', message: 'Client introuvable.' });
+        return;
+      }
+
+      const clientData = clientSnap.data() || {};
+      if (String(clientData.role || '').toLowerCase() === 'admin') {
+        sendJson(res, 400, { ok: false, error: 'admin-client-protected', message: 'Ce compte admin est protege.' });
+        return;
+      }
+
+      if (typeof db.recursiveDelete === 'function') {
+        await db.recursiveDelete(clientRef);
+      } else {
+        const ordersSnap = await clientRef.collection('orders').get();
+        await Promise.all(ordersSnap.docs.map((snap) => snap.ref.delete()));
+        await clientRef.delete();
+      }
+
+      let authDeleted = false;
+      try {
+        await admin.auth().deleteUser(clientId);
+        authDeleted = true;
+      } catch (authError) {
+        if (authError?.code !== 'auth/user-not-found') {
+          logger.warn('deleteClientAccount auth delete failed', {
+            clientId,
+            code: authError?.code || '',
+            message: authError?.message || ''
+          });
+        }
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        clientId,
+        firestoreDeleted: true,
+        authDeleted,
+        deletedBy: decodedUser.uid,
+        deletedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error('deleteClientAccount failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'client-delete-failed',
+        message: error?.message || 'Impossible de supprimer ce client.'
+      });
+    }
+  }
+);
+
 exports.getWebsiteAnalytics = onRequest(
   { region: REGION },
   async (req, res) => {

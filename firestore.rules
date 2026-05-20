@@ -203,6 +203,7 @@ service cloud.firestore {
       allow read: if isOwner(uid) || isAdmin();
       allow create: if signedIn() && request.auth.uid == uid;
       allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin() && resource.data.role != "admin";
     }
 
     match /clients/{uid}/orders/{orderId} {
