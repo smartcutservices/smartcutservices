@@ -2,7 +2,7 @@ import { auth, db } from './firebase-init.js';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
-import { getCartManager } from './cart.js?v=20260520-2';
+import { getCartManager } from './cart.js?v=20260520-3';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -310,7 +310,8 @@ class ProfilePanel {
     const fullName = user?.displayName || client.name || `${client.firstName || ''} ${client.lastName || ''}`.trim();
     const defaultAddress = this.getDefaultAddress(client) || {};
     const savedAddresses = Array.isArray(client.addresses) ? client.addresses : [];
-    const otherAddressesCount = savedAddresses.filter((address) => address?.id && address.id !== defaultAddress.id).length;
+    const secondaryAddresses = savedAddresses.filter((address) => address && address !== defaultAddress);
+    const otherAddressesCount = secondaryAddresses.length;
     return `
       <form class="profile-personal-form" style="display:grid;gap:0.85rem;">
         <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;">
@@ -353,6 +354,7 @@ class ProfilePanel {
             </button>
           </div>
           <div class="profile-extra-addresses" style="display:grid;gap:0.8rem;">
+            ${secondaryAddresses.map((address, index) => this.renderSavedAddressForm(address, index, colors)).join('')}
             ${Array.from({ length: this.additionalAddressForms }, (_, index) => this.renderExtraAddressForm(index, colors)).join('')}
           </div>
         </div>
@@ -366,6 +368,29 @@ class ProfilePanel {
           </button>
         </div>
       </form>
+    `;
+  }
+
+  renderSavedAddressForm(address, index, colors) {
+    return `
+      <div data-saved-address-index="${index}" data-saved-address-id="${this.escape(address.id || '')}" style="border:1px solid ${colors.background.button}26;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.card};">
+        <strong style="color:${colors.text.title};font-size:0.92rem;">Adresse sauvegardee ${index + 1}</strong>
+        ${this.renderProfileInput('Adresse', `profileSavedAddress_${index}`, address.address || '', colors)}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
+          <label style="display:grid;gap:0.35rem;">
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Departement</span>
+            <select id="profileSavedDepartment_${index}" class="profile-saved-department" data-saved-address-department="${index}" style="${this.profileFieldStyle(colors)}">
+              ${this.renderDepartmentOptions(address.department || '')}
+            </select>
+          </label>
+          <label style="display:grid;gap:0.35rem;">
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Commune</span>
+            <select id="profileSavedCommune_${index}" data-saved-address-commune="${index}" style="${this.profileFieldStyle(colors)}">
+              ${this.renderCommuneOptions(address.department || '', address.commune || '')}
+            </select>
+          </label>
+        </div>
+      </div>
     `;
   }
 
@@ -518,6 +543,28 @@ class ProfilePanel {
 
     const currentClient = this.profileClient || this.cartManager.currentClient || {};
     const currentAddresses = Array.isArray(currentClient.addresses) ? currentClient.addresses : [];
+    const currentDefaultAddress = this.getDefaultAddress(currentClient);
+    const secondaryAddresses = currentAddresses.filter((address) => address && address !== currentDefaultAddress);
+    const savedAddressUpdates = Array.from(this.modal.querySelectorAll('[data-saved-address-index]')).map((node) => {
+      const index = Number(node.dataset.savedAddressIndex);
+      const original = secondaryAddresses[index] || {};
+      const savedAddress = this.modal.querySelector(`#profileSavedAddress_${index}`)?.value?.trim() || '';
+      const savedDepartment = this.modal.querySelector(`#profileSavedDepartment_${index}`)?.value?.trim() || '';
+      const savedCommune = this.modal.querySelector(`#profileSavedCommune_${index}`)?.value?.trim() || '';
+      return {
+        original,
+        id: original.id || node.dataset.savedAddressId || `addr_saved_${index}`,
+        address: savedAddress,
+        department: savedDepartment,
+        commune: savedCommune
+      };
+    });
+
+    if (savedAddressUpdates.some((address) => !address.address || !address.department || !address.commune)) {
+      this.authManager.showToast('Merci de completer chaque adresse sauvegardee.', 'error');
+      return;
+    }
+
     const extraAddresses = Array.from(this.modal.querySelectorAll('[data-extra-address-index]')).map((node) => {
       const index = node.dataset.extraAddressIndex;
       const extraAddress = this.modal.querySelector(`#profileExtraAddress_${index}`)?.value?.trim() || '';
@@ -537,7 +584,6 @@ class ProfilePanel {
       return;
     }
 
-    const currentDefaultAddress = this.getDefaultAddress(currentClient);
     const addressId = currentDefaultAddress?.id || 'addr_' + Date.now().toString(36);
     const now = new Date().toISOString();
     const updatedAddress = {
@@ -553,9 +599,29 @@ class ProfilePanel {
       createdAt: currentDefaultAddress?.createdAt || now
     };
     const addresses = currentAddresses.length
-      ? currentAddresses.map((address) => address.id === addressId ? updatedAddress : address)
+      ? currentAddresses.map((address) => (address === currentDefaultAddress || address.id === addressId) ? updatedAddress : address)
       : [updatedAddress];
     if (!addresses.some((address) => address.id === addressId)) addresses.unshift(updatedAddress);
+    savedAddressUpdates.forEach((update) => {
+      const updatedSavedAddress = {
+        ...(update.original || {}),
+        id: update.id,
+        label: update.original?.label || 'Adresse sauvegardee',
+        address: update.address,
+        country: 'Haiti',
+        department: update.department,
+        commune: update.commune,
+        isDelivery: Boolean(update.original?.isDelivery),
+        createdAt: update.original?.createdAt || now,
+        updatedAt: now
+      };
+      const addressIndex = addresses.findIndex((address) => address === update.original || address.id === update.id);
+      if (addressIndex >= 0) {
+        addresses[addressIndex] = updatedSavedAddress;
+      } else {
+        addresses.push(updatedSavedAddress);
+      }
+    });
     extraAddresses.forEach((extraAddress, index) => {
       addresses.push({
         id: `addr_${Date.now().toString(36)}_${index}`,
@@ -1148,6 +1214,14 @@ class ProfilePanel {
         const index = select.dataset.extraAddressDepartment;
         const extraCommune = this.modal.querySelector(`[data-extra-address-commune="${index}"]`);
         if (extraCommune) extraCommune.innerHTML = this.renderCommuneOptions(select.value);
+      });
+    });
+
+    this.modal.querySelectorAll('.profile-saved-department').forEach((select) => {
+      select.addEventListener('change', () => {
+        const index = select.dataset.savedAddressDepartment;
+        const savedCommune = this.modal.querySelector(`[data-saved-address-commune="${index}"]`);
+        if (savedCommune) savedCommune.innerHTML = this.renderCommuneOptions(select.value);
       });
     });
 

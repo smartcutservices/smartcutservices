@@ -1,14 +1,6 @@
 ﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <link rel="icon" href="/ico/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="/ico/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/ico/favicon-16x16.png">
-  <link rel="apple-touch-icon" href="/ico/apple-touch-icon.png">
-  <link rel="manifest" href="/ico/site.webmanifest">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Smart Cut">
-  <meta name="msapplication-TileColor" content="#1F1E1C">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1F1E1C">
@@ -423,7 +415,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260520-2';
+    const ASSET_VERSION = '20260520-3';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -569,7 +561,7 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260520-2')
+      import('./notification.js?v=20260520-3')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
@@ -581,7 +573,7 @@
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260520-2')
+      import('./musique.js?v=20260520-3')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',
@@ -660,7 +652,6 @@
       setTimeout(updateThemeColor, 350);
     })();
   </script>
-<script src="/pwa-install.js" defer></script>
 </body>
 </html>
 
