@@ -2,9 +2,9 @@ import { db } from './firebase-init.js';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js';
 import Navbar from './navbar.js';
-import { getCartManager } from './cart.js?v=20260520-3';
+import { getCartManager } from './cart.js?v=20260520-4';
 import { getAuthManager } from './auth.js';
-import { getProfilePanel } from './profile-panel.js?v=20260520-3';
+import { getProfilePanel } from './profile-panel.js?v=20260520-4';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 
 class SierraHeaderNebula {

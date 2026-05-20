@@ -2,7 +2,7 @@ import { auth, db } from './firebase-init.js';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
-import { getCartManager } from './cart.js?v=20260520-3';
+import { getCartManager } from './cart.js?v=20260520-4';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -322,6 +322,7 @@ class ProfilePanel {
         ${this.renderProfileInput('Username', 'profileEditUsername', fullName, colors)}
         ${this.renderProfileInput('Nom', 'profileEditLastName', client.lastName || '', colors)}
         ${this.renderProfileInput('Prenom', 'profileEditFirstName', client.firstName || '', colors)}
+        ${this.renderProfileInput('Date de naissance', 'profileEditBirthDate', client.birthDate || '', colors, 'date')}
         ${this.renderProfileInput('Telephone', 'profileEditPhone', client.phone || '', colors, 'tel')}
         ${this.renderProfileInput('Adresse principale', 'profileEditAddress', defaultAddress.address || client.address || '', colors)}
 
@@ -531,12 +532,13 @@ class ProfilePanel {
     const username = this.modal.querySelector('#profileEditUsername')?.value?.trim() || '';
     const lastName = this.modal.querySelector('#profileEditLastName')?.value?.trim() || '';
     const firstName = this.modal.querySelector('#profileEditFirstName')?.value?.trim() || '';
+    const birthDate = this.modal.querySelector('#profileEditBirthDate')?.value?.trim() || '';
     const phone = this.modal.querySelector('#profileEditPhone')?.value?.trim() || '';
     const addressText = this.modal.querySelector('#profileEditAddress')?.value?.trim() || '';
     const department = this.modal.querySelector('#profileEditDepartment')?.value?.trim() || '';
     const commune = this.modal.querySelector('#profileEditCommune')?.value?.trim() || '';
 
-    if (!username || !lastName || !firstName || !phone || !addressText || !department || !commune) {
+    if (!username || !lastName || !firstName || !birthDate || !phone || !addressText || !department || !commune) {
       this.authManager.showToast('Merci de remplir tous les champs obligatoires.', 'error');
       return;
     }
@@ -642,6 +644,7 @@ class ProfilePanel {
       name: `${firstName || ''} ${lastName || ''}`.trim(),
       username,
       displayName: username,
+      birthDate,
       phone,
       address: addressText,
       country: 'Haiti',
