@@ -42,11 +42,23 @@ const DEFAULT_FORM_SETTINGS = {
 
 const VENDOR_DELIVERY_MODE = 'Le vendeur gere la livraison';
 function mergeRequiredVendorFields(fields = []) {
-  const next = Array.isArray(fields) && fields.length ? [...fields] : [...DEFAULT_FORM_SETTINGS.fields];
-  const existingIds = new Set(next.map((field) => String(field?.id || '')));
-  DEFAULT_FORM_SETTINGS.fields.forEach((field) => {
-    if (!existingIds.has(field.id)) next.push(field);
+  const next = [];
+  const seenIds = new Set();
+  const sourceFields = Array.isArray(fields) && fields.length ? fields : DEFAULT_FORM_SETTINGS.fields;
+
+  sourceFields.forEach((field) => {
+    const id = String(field?.id || '').trim();
+    if (!id || seenIds.has(id)) return;
+    seenIds.add(id);
+    next.push(field);
   });
+
+  DEFAULT_FORM_SETTINGS.fields.forEach((field) => {
+    if (seenIds.has(field.id)) return;
+    seenIds.add(field.id);
+    next.push(field);
+  });
+
   return next.map((field) => (
     field.id === 'deliveryMode'
       ? { ...field, required: true, options: [VENDOR_DELIVERY_MODE] }
