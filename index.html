@@ -423,7 +423,25 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260331-2';
+    const ASSET_VERSION = '20260520-1';
+    window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
+    try {
+      const versionKey = 'smartcut_asset_version';
+      const previousVersion = localStorage.getItem(versionKey);
+      if (previousVersion && previousVersion !== ASSET_VERSION) {
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.update().catch(() => null)));
+        }
+      }
+      localStorage.setItem(versionKey, ASSET_VERSION);
+    } catch (error) {
+      console.warn('Cache update check skipped:', error);
+    }
     await import(`./firebase-init.js?v=${ASSET_VERSION}`);
 
     const loaded = new Set();
@@ -551,7 +569,7 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260331-2')
+      import('./notification.js?v=20260520-1')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
@@ -563,7 +581,7 @@
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260331-2')
+      import('./musique.js?v=20260520-1')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',

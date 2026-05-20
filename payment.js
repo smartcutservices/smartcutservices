@@ -1068,7 +1068,7 @@ class PaymentModal {
         phone: customer.customerPhone
       };
 
-      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260413-2');
+      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260520-1');
       const response = await createMoncashPaymentSession({
         clientId: this.options.client?.id || '',
         clientUid: this.options.client?.uid || '',

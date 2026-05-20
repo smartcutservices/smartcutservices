@@ -2,7 +2,7 @@ import { db } from './firebase-init.js';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js';
 import Navbar from './navbar.js';
-import { getCartManager } from './cart.js?v=20260331-2';
+import { getCartManager } from './cart.js?v=20260520-1';
 import { getAuthManager } from './auth.js';
 import { getProfilePanel } from './profile-panel.js';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';

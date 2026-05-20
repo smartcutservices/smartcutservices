@@ -151,7 +151,10 @@ export class NotificationComponent {
   async registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      this.swRegistration = await navigator.serviceWorker.register('./notification-sw.js');
+      this.swRegistration = await navigator.serviceWorker.register('./notification-sw.js?v=20260520-1', {
+        updateViaCache: 'none'
+      });
+      await this.swRegistration.update();
     } catch (error) {
       console.warn('⚠️ Service worker notifications non disponible:', error);
     }

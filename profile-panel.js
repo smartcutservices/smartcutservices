@@ -2,7 +2,7 @@ import { auth, db } from './firebase-init.js';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js';
-import { getCartManager } from './cart.js?v=20260331-2';
+import { getCartManager } from './cart.js?v=20260520-1';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
