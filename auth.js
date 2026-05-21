@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260521-1';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -1233,12 +1233,13 @@ class AuthManager {
   
   // Obtenir l'utilisateur courant
   getCurrentUser() {
-    return this.currentUser;
+    return this.currentUser || auth?.currentUser || null;
   }
   
   // Vérifier si l'utilisateur est connecté
   isAuthenticated() {
-    return !!this.currentUser && !this.currentUser.isAnonymous;
+    const user = this.getCurrentUser();
+    return !!user && !user.isAnonymous;
   }
 
   showToast(message, type = 'success') {

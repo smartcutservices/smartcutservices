@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js';
+import { auth, db } from './firebase-init.js?v=20260521-1';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js';
-import { getCartManager } from './cart.js?v=20260520-4';
+import { getAuthManager } from './auth.js?v=20260521-1';
+import { getCartManager } from './cart.js?v=20260521-1';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -179,6 +179,9 @@ class ProfilePanel {
     if (this.modal) this.render();
 
     try {
+      if (typeof this.authManager.waitForAuthReady === 'function') {
+        await this.authManager.waitForAuthReady();
+      }
       await Promise.all([
         this.ensureAuthenticatedOrdersLoaded(),
         this.ensureGuestOrdersLoaded(),
@@ -210,6 +213,7 @@ class ProfilePanel {
 
     this.activeView = 'account';
     this.openedAt = Date.now();
+    this.isBootstrapping = true;
     this.modal = document.createElement('div');
     this.modal.className = `profile-panel-${this.uniqueId}`;
     this.render();
@@ -965,6 +969,7 @@ class ProfilePanel {
     const fonts = this.getThemeFonts();
     const user = this.authManager.getCurrentUser();
     const isAuthenticated = this.authManager.isAuthenticated();
+    const isAuthResolving = this.isBootstrapping && !this.authManager.isAuthReady;
     const isPersonalView = isAuthenticated && this.activeView === 'personal';
     const isMounted = document.body.contains(this.modal);
 
@@ -1039,9 +1044,9 @@ class ProfilePanel {
                 font-size:1.7rem;
                 color:${colors.text.title};
                 line-height:1;
-              ">${isPersonalView ? 'Informations personnelles' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
               <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Verification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1077,7 +1082,19 @@ class ProfilePanel {
         </div>
 
         <div style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
-          ${isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isAuthenticated ? `
+          ${isAuthResolving ? `
+            <div style="
+              border:1px solid ${colors.background.button}22;
+              border-radius:1rem;
+              background:${colors.background.card};
+              padding:1rem;
+              color:${colors.text.body};
+              line-height:1.5;
+            ">
+              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de verification</strong>
+              Votre compte est en train d etre restaure. Le profil va apparaitre automatiquement.
+            </div>
+          ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isAuthenticated ? `
             ${this.renderVendorQuickAccess(colors)}
             ${this.isBootstrapping ? `
               <div style="

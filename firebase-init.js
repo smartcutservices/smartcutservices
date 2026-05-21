@@ -5,6 +5,9 @@ import {
   getAuth,
   setPersistence,
   browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
+  onAuthStateChanged,
   GoogleAuthProvider
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
@@ -28,6 +31,65 @@ let googleProvider = null;
 let storage = null;
 let authReadyPromise = Promise.resolve();
 
+async function configureAuthPersistence(authInstance) {
+  const candidates = [
+    { label: 'local', value: browserLocalPersistence },
+    { label: 'session', value: browserSessionPersistence },
+    { label: 'memory', value: inMemoryPersistence }
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await setPersistence(authInstance, candidate.value);
+      console.info('[AUTH] Persistence activee', { mode: candidate.label });
+      return candidate.label;
+    } catch (error) {
+      console.warn('[AUTH] Persistence refusee', {
+        mode: candidate.label,
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
+    }
+  }
+
+  return 'default';
+}
+
+function waitForFirstAuthState(authInstance) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let unsubscribe = null;
+
+    const settle = (user = null) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout?.(fallbackTimer);
+      try {
+        unsubscribe?.();
+      } catch (_) {}
+      console.info('[AUTH] Etat initial Firebase resolu', {
+        uid: user?.uid || null,
+        isAnonymous: Boolean(user?.isAnonymous)
+      });
+      resolve(user);
+    };
+
+    const fallbackTimer = window.setTimeout?.(() => {
+      console.warn('[AUTH] Etat initial Firebase trop lent, poursuite sans blocage');
+      settle(authInstance?.currentUser || null);
+    }, 3500);
+
+    unsubscribe = onAuthStateChanged(
+      authInstance,
+      (user) => settle(user),
+      (error) => {
+        console.warn('[AUTH] Erreur pendant la resolution initiale', error);
+        settle(authInstance?.currentUser || null);
+      }
+    );
+  });
+}
+
 try {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
@@ -41,9 +103,12 @@ try {
   googleProvider.addScope('email');
   googleProvider.addScope('profile');
 
-  authReadyPromise = setPersistence(auth, browserLocalPersistence)
-    .then(() => {})
-    .catch((err) => console.warn('Persistance auth non activee:', err.code));
+  authReadyPromise = configureAuthPersistence(auth)
+    .then(() => waitForFirstAuthState(auth))
+    .catch((err) => {
+      console.warn('[AUTH] Initialisation auth incomplete:', err?.code || err);
+      return auth?.currentUser || null;
+    });
 } catch (error) {
   console.error('Firebase initialization error:', error);
 }

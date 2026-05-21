@@ -1,6 +1,6 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js';
-import { getAuthManager } from './auth.js';
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260521-1';
+import { getAuthManager } from './auth.js?v=20260521-1';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -455,6 +455,12 @@ class CartManager {
     if (this.preloadPromise) return this.preloadPromise;
 
     this.preloadPromise = (async () => {
+      if (typeof this.auth?.waitForAuthReady === 'function') {
+        await this.auth.waitForAuthReady();
+      } else {
+        await authReadyPromise.catch(() => {});
+      }
+
       if (this.auth?.isAuthenticated?.()) {
         const user = this.auth?.getCurrentUser?.();
         if (user && !this.currentClient) {
