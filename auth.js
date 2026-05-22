@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260521-1';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260521-2';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -46,6 +46,10 @@ class AuthManager {
     this.modalOpenedAt = 0;
     this.isAuthReady = false;
     this.pendingGoogleRedirect = false;
+    this.authChangeCallbacks = new Set();
+    if (typeof this.options.onAuthChange === 'function') {
+      this.authChangeCallbacks.add(this.options.onAuthChange);
+    }
     
     this.init();
   }
@@ -90,10 +94,27 @@ class AuthManager {
       });
       document.dispatchEvent(event);
       
-      if (this.options.onAuthChange) {
-        this.options.onAuthChange(user);
+      for (const callback of this.authChangeCallbacks) {
+        try {
+          callback(user);
+        } catch (error) {
+          console.error('[AUTH] Erreur callback auth:', error);
+        }
       }
     });
+  }
+
+  addAuthChangeListener(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.authChangeCallbacks.add(callback);
+    if (this.hasAuthInitialized) {
+      try {
+        callback(this.getCurrentUser());
+      } catch (error) {
+        console.error('[AUTH] Erreur callback auth initial:', error);
+      }
+    }
+    return () => this.authChangeCallbacks.delete(callback);
   }
   
   // Ouvrir le modal de connexion
@@ -1287,10 +1308,22 @@ class AuthManager {
 }
 
 let authInstance = null;
+const AUTH_MANAGER_KEY = '__SMART_CUT_AUTH_MANAGER__';
 
 export function getAuthManager(options = {}) {
+  if (globalThis[AUTH_MANAGER_KEY]) {
+    authInstance = globalThis[AUTH_MANAGER_KEY];
+    if (typeof options.onAuthChange === 'function') {
+      authInstance.addAuthChangeListener(options.onAuthChange);
+    }
+    return authInstance;
+  }
+
   if (!authInstance) {
     authInstance = new AuthManager(options);
+    globalThis[AUTH_MANAGER_KEY] = authInstance;
+  } else if (typeof options.onAuthChange === 'function') {
+    authInstance.addAuthChangeListener(options.onAuthChange);
   }
   return authInstance;
 }

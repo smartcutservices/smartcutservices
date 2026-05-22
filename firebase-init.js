@@ -30,6 +30,7 @@ let auth = null;
 let googleProvider = null;
 let storage = null;
 let authReadyPromise = Promise.resolve();
+const firebaseState = globalThis.__SMART_CUT_FIREBASE__ || (globalThis.__SMART_CUT_FIREBASE__ = {});
 
 async function configureAuthPersistence(authInstance) {
   const candidates = [
@@ -59,11 +60,12 @@ function waitForFirstAuthState(authInstance) {
   return new Promise((resolve) => {
     let settled = false;
     let unsubscribe = null;
+    let fallbackTimer = null;
 
     const settle = (user = null) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout?.(fallbackTimer);
+      globalThis.clearTimeout?.(fallbackTimer);
       try {
         unsubscribe?.();
       } catch (_) {}
@@ -74,7 +76,7 @@ function waitForFirstAuthState(authInstance) {
       resolve(user);
     };
 
-    const fallbackTimer = window.setTimeout?.(() => {
+    fallbackTimer = globalThis.setTimeout?.(() => {
       console.warn('[AUTH] Etat initial Firebase trop lent, poursuite sans blocage');
       settle(authInstance?.currentUser || null);
     }, 3500);
@@ -87,28 +89,47 @@ function waitForFirstAuthState(authInstance) {
         settle(authInstance?.currentUser || null);
       }
     );
-  });
+});
 }
 
 try {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
-  auth = getAuth(app);
-  googleProvider = new GoogleAuthProvider();
-  storage = getStorage(app, STORAGE_BUCKET_URL);
+  if (firebaseState.app && firebaseState.db && firebaseState.auth) {
+    app = firebaseState.app;
+    db = firebaseState.db;
+    auth = firebaseState.auth;
+    googleProvider = firebaseState.googleProvider;
+    storage = firebaseState.storage;
+    authReadyPromise = firebaseState.authReadyPromise || Promise.resolve(auth?.currentUser || null);
+    console.info('[AUTH] Firebase singleton reutilise');
+  } else {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    googleProvider = new GoogleAuthProvider();
+    storage = getStorage(app, STORAGE_BUCKET_URL);
 
-  googleProvider.setCustomParameters({
-    prompt: 'select_account'
-  });
-  googleProvider.addScope('email');
-  googleProvider.addScope('profile');
-
-  authReadyPromise = configureAuthPersistence(auth)
-    .then(() => waitForFirstAuthState(auth))
-    .catch((err) => {
-      console.warn('[AUTH] Initialisation auth incomplete:', err?.code || err);
-      return auth?.currentUser || null;
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
     });
+    googleProvider.addScope('email');
+    googleProvider.addScope('profile');
+
+    authReadyPromise = configureAuthPersistence(auth)
+      .then(() => waitForFirstAuthState(auth))
+      .catch((err) => {
+        console.warn('[AUTH] Initialisation auth incomplete:', err?.code || err);
+        return auth?.currentUser || null;
+      });
+
+    Object.assign(firebaseState, {
+      app,
+      db,
+      auth,
+      googleProvider,
+      storage,
+      authReadyPromise
+    });
+  }
 } catch (error) {
   console.error('Firebase initialization error:', error);
 }

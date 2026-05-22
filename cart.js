@@ -1,6 +1,6 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js?v=20260521-1';
-import { getAuthManager } from './auth.js?v=20260521-1';
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260521-2';
+import { getAuthManager } from './auth.js?v=20260521-2';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -130,7 +130,19 @@ class CartManager {
 
     await authReadyPromise.catch(() => {});
 
-    let guestUser = this.auth?.getCurrentUser?.() || auth?.currentUser || null;
+    const signedUser = this.auth?.getCurrentUser?.() || auth?.currentUser || null;
+    if (signedUser?.uid && !signedUser.isAnonymous) {
+      console.warn('[CART] Session invite ignoree: utilisateur connecte detecte', {
+        uid: signedUser.uid,
+        email: signedUser.email || null
+      });
+      if (!this.currentClient || this.currentClient.id !== signedUser.uid) {
+        await this.loadOrCreateClient(signedUser);
+      }
+      return this.currentClient;
+    }
+
+    let guestUser = signedUser?.isAnonymous ? signedUser : null;
     if (!guestUser?.uid) {
       const credential = await signInAnonymously(auth);
       guestUser = credential?.user || auth?.currentUser || null;
