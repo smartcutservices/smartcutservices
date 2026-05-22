@@ -1,6 +1,6 @@
 ﻿// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÃˆME =============
-import { auth, authReadyPromise, db } from './firebase-init.js?v=20260522-1';
-import { getAuthManager } from './auth.js?v=20260522-1';
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260522-2';
+import { getAuthManager } from './auth.js?v=20260522-2';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -282,9 +282,15 @@ class CartManager {
   
   async handleAuthChange(user) {
     console.info('[CART] handleAuthChange', {
+      version: '20260522-2',
       isAuthenticated: Boolean(user),
       uid: user?.uid || null,
-      currentClientId: this.currentClient?.id || null
+      isAnonymous: Boolean(user?.isAnonymous),
+      authManagerReady: this.auth?.isAuthReady ?? null,
+      authManagerUid: this.auth?.getCurrentUser?.()?.uid || null,
+      firebaseUid: auth?.currentUser?.uid || null,
+      currentClientId: this.currentClient?.id || null,
+      ordersListenerActive: Boolean(this.ordersListener)
     });
     
     if (user) {
@@ -297,6 +303,12 @@ class CartManager {
         this.loadCustomerOrders(this.currentClient.id);
       }
     } else {
+      console.info('[CART] handleAuthChange:null-user cleanup', {
+        authManagerReady: this.auth?.isAuthReady ?? null,
+        firebaseUid: auth?.currentUser?.uid || null,
+        hadCurrentClient: Boolean(this.currentClient?.id),
+        ordersBeforeCleanup: this.orders.length
+      });
       if (this.ordersListener) {
         this.ordersListener();
         this.ordersListener = null;
@@ -2792,4 +2804,5 @@ export function getCartManager(options = {}) {
 }
 
 export default CartManager;
+
 

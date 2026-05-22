@@ -1,5 +1,5 @@
 ﻿// ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260522-1';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260522-2';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,6 +30,24 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
+const AUTH_DEBUG_VERSION = '20260522-2';
+
+function getAuthDebugSnapshot(extra = {}) {
+  return {
+    version: AUTH_DEBUG_VERSION,
+    href: window.location.href,
+    readyState: document.readyState,
+    authCurrentUid: auth?.currentUser?.uid || null,
+    authCurrentEmail: auth?.currentUser?.email || null,
+    authCurrentAnonymous: Boolean(auth?.currentUser?.isAnonymous),
+    ...extra
+  };
+}
+
+function logAuthDebug(stage, extra = {}) {
+  console.info('[AUTH_DEBUG]', getAuthDebugSnapshot({ stage, ...extra }));
+}
+
 class AuthManager {
   constructor(options = {}) {
     this.options = {
@@ -51,15 +69,25 @@ class AuthManager {
     if (typeof this.options.onAuthChange === 'function') {
       this.authChangeCallbacks.add(this.options.onAuthChange);
     }
+    logAuthDebug('manager:constructor', {
+      hasInitialCallback: typeof this.options.onAuthChange === 'function'
+    });
     
     this.init();
   }
   
   init() {
+    logAuthDebug('manager:init');
     authReadyPromise
-      .catch(() => {})
+      .catch((error) => {
+        logAuthDebug('manager:authReadyPromise:error', {
+          message: error?.message || String(error),
+          code: error?.code || null
+        });
+      })
       .finally(async () => {
         this.isAuthReady = true;
+        logAuthDebug('manager:ready');
         await this.handleRedirectResult();
       });
 
@@ -67,6 +95,7 @@ class AuthManager {
     onAuthStateChanged(auth, (user) => {
       if (!this.isAuthReady && !user) {
         console.info('[AUTH] State null ignore avant persistence');
+        logAuthDebug('state:null-ignored-before-ready');
         return;
       }
 
@@ -75,6 +104,14 @@ class AuthManager {
       const wasAuthenticated = !!previousUser && !previousUser.isAnonymous;
       const isAuthenticated = !!user && !user.isAnonymous;
       const isAnonymous = !!user?.isAnonymous;
+      logAuthDebug('state:received', {
+        uid: user?.uid || null,
+        email: user?.email || null,
+        isAnonymous,
+        previousUid: previousUser?.uid || null,
+        managerReady: this.isAuthReady,
+        hasAuthInitialized: this.hasAuthInitialized
+      });
 
       if (this.hasAuthInitialized) {
         if (!wasAuthenticated && isAuthenticated) {
@@ -113,6 +150,10 @@ class AuthManager {
   addAuthChangeListener(callback) {
     if (typeof callback !== 'function') return () => {};
     this.authChangeCallbacks.add(callback);
+    logAuthDebug('manager:add-listener', {
+      listenerCount: this.authChangeCallbacks.size,
+      hasAuthInitialized: this.hasAuthInitialized
+    });
     if (this.hasAuthInitialized) {
       try {
         callback(this.getCurrentUser());
@@ -125,6 +166,11 @@ class AuthManager {
   
   // Ouvrir le modal de connexion
   openAuthModal(mode = 'login') {
+    logAuthDebug('modal:open-request', {
+      mode,
+      isModalOpen: this.isModalOpen,
+      isModalClosing: this.isModalClosing
+    });
     // Ã‰viter d'ouvrir plusieurs modals
     if (this.isModalOpen) {
       return;
@@ -780,6 +826,11 @@ class AuthManager {
     const email = this.modal.querySelector('#email').value;
     const password = this.modal.querySelector('#password').value;
     const errorDiv = this.modal.querySelector('#authError');
+    logAuthDebug('login:start', {
+      hasEmail: Boolean(email),
+      email,
+      passwordLength: password?.length || 0
+    });
 
     if (!auth) {
       errorDiv.style.display = 'block';
@@ -794,9 +845,30 @@ class AuthManager {
         email: userCredential?.user?.email || null,
         currentUid: auth?.currentUser?.uid || null
       });
+      logAuthDebug('login:success', {
+        uid: userCredential?.user?.uid || null,
+        email: userCredential?.user?.email || null,
+        providerId: userCredential?.providerId || null
+      });
+      try {
+        const token = await userCredential?.user?.getIdToken?.(true);
+        logAuthDebug('login:token-refreshed', {
+          uid: userCredential?.user?.uid || null,
+          tokenLength: token?.length || 0
+        });
+      } catch (tokenError) {
+        logAuthDebug('login:token-refresh-error', {
+          message: tokenError?.message || String(tokenError),
+          code: tokenError?.code || null
+        });
+      }
       this.closeAuthModal();
     } catch (error) {
       console.error('âŒ Erreur connexion:', error);
+      logAuthDebug('login:error', {
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
       errorDiv.style.display = 'block';
       errorDiv.textContent = this.getErrorMessage(error.code);
     }
@@ -1257,6 +1329,8 @@ class AuthManager {
   // DÃ©connexion
   async logout() {
     try {
+      logAuthDebug('logout:requested');
+      console.trace('[AUTH_DEBUG] logout stack');
       await signOut(auth);
     } catch (error) {
       console.error('âŒ Erreur dÃ©connexion:', error);
@@ -1340,4 +1414,5 @@ export function getAuthManager(options = {}) {
 }
 
 export default AuthManager;
+
 

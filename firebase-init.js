@@ -31,8 +31,45 @@ let googleProvider = null;
 let storage = null;
 let authReadyPromise = Promise.resolve();
 const firebaseState = globalThis.__SMART_CUT_FIREBASE__ || (globalThis.__SMART_CUT_FIREBASE__ = {});
+const AUTH_DEBUG_VERSION = '20260522-2';
+
+function testStorageArea(name) {
+  try {
+    const area = globalThis[name];
+    if (!area) return 'missing';
+    const key = `smartcut_auth_debug_${Date.now()}`;
+    area.setItem(key, '1');
+    const value = area.getItem(key);
+    area.removeItem(key);
+    return value === '1' ? 'ok' : 'read_mismatch';
+  } catch (error) {
+    return `error:${error?.name || error?.code || 'unknown'}`;
+  }
+}
+
+function getAuthDebugContext(extra = {}) {
+  return {
+    version: AUTH_DEBUG_VERSION,
+    href: globalThis.location?.href || '',
+    origin: globalThis.location?.origin || '',
+    userAgent: globalThis.navigator?.userAgent || '',
+    cookieEnabled: Boolean(globalThis.navigator?.cookieEnabled),
+    isSecureContext: Boolean(globalThis.isSecureContext),
+    localStorage: testStorageArea('localStorage'),
+    sessionStorage: testStorageArea('sessionStorage'),
+    indexedDB: typeof globalThis.indexedDB !== 'undefined' ? 'available' : 'missing',
+    currentUid: auth?.currentUser?.uid || null,
+    currentAnonymous: Boolean(auth?.currentUser?.isAnonymous),
+    ...extra
+  };
+}
+
+function logAuthDebug(stage, extra = {}) {
+  console.info('[AUTH_DEBUG]', getAuthDebugContext({ stage, ...extra }));
+}
 
 async function configureAuthPersistence(authInstance) {
+  logAuthDebug('persistence:start');
   const candidates = [
     { label: 'local', value: browserLocalPersistence },
     { label: 'session', value: browserSessionPersistence },
@@ -43,6 +80,7 @@ async function configureAuthPersistence(authInstance) {
     try {
       await setPersistence(authInstance, candidate.value);
       console.info('[AUTH] Persistence activee', { mode: candidate.label });
+      logAuthDebug('persistence:active', { mode: candidate.label });
       return candidate.label;
     } catch (error) {
       console.warn('[AUTH] Persistence refusee', {
@@ -50,9 +88,15 @@ async function configureAuthPersistence(authInstance) {
         code: error?.code || null,
         message: error?.message || String(error)
       });
+      logAuthDebug('persistence:refused', {
+        mode: candidate.label,
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
     }
   }
 
+  logAuthDebug('persistence:default');
   return 'default';
 }
 
@@ -73,11 +117,16 @@ function waitForFirstAuthState(authInstance) {
         uid: user?.uid || null,
         isAnonymous: Boolean(user?.isAnonymous)
       });
+      logAuthDebug('initial-state:resolved', {
+        uid: user?.uid || null,
+        isAnonymous: Boolean(user?.isAnonymous)
+      });
       resolve(user);
     };
 
     fallbackTimer = globalThis.setTimeout?.(() => {
       console.warn('[AUTH] Etat initial Firebase trop lent, poursuite sans blocage');
+      logAuthDebug('initial-state:timeout');
       settle(authInstance?.currentUser || null);
     }, 3500);
 
@@ -101,7 +150,9 @@ try {
     storage = firebaseState.storage;
     authReadyPromise = firebaseState.authReadyPromise || Promise.resolve(auth?.currentUser || null);
     console.info('[AUTH] Firebase singleton reutilise');
+    logAuthDebug('firebase-singleton:reused');
   } else {
+    logAuthDebug('firebase-singleton:create');
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     auth = getAuth(app);
@@ -129,9 +180,14 @@ try {
       storage,
       authReadyPromise
     });
+    logAuthDebug('firebase-singleton:stored');
   }
 } catch (error) {
   console.error('Firebase initialization error:', error);
+  logAuthDebug('firebase-init:error', {
+    message: error?.message || String(error),
+    code: error?.code || null
+  });
 }
 
 export { app, db, auth, googleProvider, storage, STORAGE_BUCKET_URL, authReadyPromise };

@@ -1,10 +1,10 @@
-﻿import { db } from './firebase-init.js?v=20260522-1';
+﻿import { db } from './firebase-init.js?v=20260522-2';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js';
 import Navbar from './navbar.js';
-import { getCartManager } from './cart.js?v=20260522-1';
-import { getAuthManager } from './auth.js?v=20260522-1';
-import { getProfilePanel } from './profile-panel.js?v=20260522-1';
+import { getCartManager } from './cart.js?v=20260522-2';
+import { getAuthManager } from './auth.js?v=20260522-2';
+import { getProfilePanel } from './profile-panel.js?v=20260522-2';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 
 class SierraHeaderNebula {
@@ -1042,7 +1042,14 @@ class SierraHeaderNebula {
       event.preventDefault();
       event.stopPropagation();
 
-      getProfilePanel().open();
+      const panel = getProfilePanel();
+      console.info('[PROFILE_DEBUG] header-profile-click', {
+        version: '20260522-2',
+        authReady: panel?.authManager?.isAuthReady ?? null,
+        isAuthenticated: panel?.authManager?.isAuthenticated?.() ?? null,
+        authUid: panel?.authManager?.getCurrentUser?.()?.uid || null
+      });
+      panel.open();
     };
 
     ['desktopProfileIcon', 'mobileProfileIcon'].forEach((id) => {
@@ -1209,4 +1216,5 @@ class SierraHeaderNebula {
 }
 
 export default SierraHeaderNebula;
+
 

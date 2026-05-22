@@ -1,6 +1,6 @@
 ﻿// ============= LIKE COMPONENT - FIREBASE + AUTH =============
-import { db } from './firebase-init.js?v=20260522-1';
-import { getAuthManager } from './auth.js?v=20260522-1';
+import { db } from './firebase-init.js?v=20260522-2';
+import { getAuthManager } from './auth.js?v=20260522-2';
 import {
   collection,
   query,
@@ -223,4 +223,5 @@ export function getLikeManager(containerIdOrOptions = null, maybeOptions = {}) {
 }
 
 export default SierraLike;
+
 

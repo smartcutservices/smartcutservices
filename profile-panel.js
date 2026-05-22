@@ -1,8 +1,8 @@
-﻿import { auth, db } from './firebase-init.js?v=20260522-1';
+﻿import { auth, db } from './firebase-init.js?v=20260522-2';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js?v=20260522-1';
-import { getCartManager } from './cart.js?v=20260522-1';
+import { getAuthManager } from './auth.js?v=20260522-2';
+import { getCartManager } from './cart.js?v=20260522-2';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -100,8 +100,16 @@ class ProfilePanel {
   }
 
   async ensureProfileClientLoaded() {
+    console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:start', {
+      version: '20260522-2',
+      isAuthenticated: this.authManager.isAuthenticated(),
+      authReady: this.authManager.isAuthReady,
+      authUid: this.authManager.getCurrentUser()?.uid || null,
+      firebaseUid: auth?.currentUser?.uid || null
+    });
     if (!this.authManager.isAuthenticated()) {
       this.profileClient = null;
+      console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:skip-not-authenticated');
       return;
     }
 
@@ -110,6 +118,10 @@ class ProfilePanel {
 
     try {
       const clientSnap = await getDoc(doc(db, 'clients', user.uid));
+      console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:snapshot', {
+        uid: user.uid,
+        exists: clientSnap.exists()
+      });
       if (clientSnap.exists()) {
         this.profileClient = { id: user.uid, ...(clientSnap.data() || {}) };
         this.cartManager.currentClient = {
@@ -119,6 +131,10 @@ class ProfilePanel {
       }
     } catch (error) {
       console.error('Erreur chargement informations personnelles:', error);
+      console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:error', {
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
     }
   }
 
@@ -176,12 +192,24 @@ class ProfilePanel {
 
   async preloadPanelData() {
     this.isBootstrapping = true;
+    console.info('[PROFILE_DEBUG] preload:start', {
+      version: '20260522-2',
+      authReady: this.authManager.isAuthReady,
+      authUid: this.authManager.getCurrentUser()?.uid || null,
+      firebaseUid: auth?.currentUser?.uid || null
+    });
     if (this.modal) this.render();
 
     try {
       if (typeof this.authManager.waitForAuthReady === 'function') {
         await this.authManager.waitForAuthReady();
       }
+      console.info('[PROFILE_DEBUG] preload:after-auth-ready', {
+        authReady: this.authManager.isAuthReady,
+        isAuthenticated: this.authManager.isAuthenticated(),
+        authUid: this.authManager.getCurrentUser()?.uid || null,
+        firebaseUid: auth?.currentUser?.uid || null
+      });
       await Promise.all([
         this.ensureAuthenticatedOrdersLoaded(),
         this.ensureGuestOrdersLoaded(),
@@ -190,6 +218,11 @@ class ProfilePanel {
       ]);
     } finally {
       this.isBootstrapping = false;
+      console.info('[PROFILE_DEBUG] preload:done', {
+        isAuthenticated: this.authManager.isAuthenticated(),
+        orders: this.cartManager.orders.length,
+        hasProfileClient: Boolean(this.profileClient?.id)
+      });
       if (this.modal) this.render();
     }
   }
@@ -214,6 +247,13 @@ class ProfilePanel {
     this.activeView = 'account';
     this.openedAt = Date.now();
     this.isBootstrapping = true;
+    console.info('[PROFILE_DEBUG] open', {
+      version: '20260522-2',
+      authReady: this.authManager.isAuthReady,
+      isAuthenticated: this.authManager.isAuthenticated(),
+      authUid: this.authManager.getCurrentUser()?.uid || null,
+      firebaseUid: auth?.currentUser?.uid || null
+    });
     this.modal = document.createElement('div');
     this.modal.className = `profile-panel-${this.uniqueId}`;
     this.render();
@@ -1046,7 +1086,7 @@ class ProfilePanel {
                 line-height:1;
               ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invitÃ©' : 'Mon compte')}</h2>
               <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Verification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connectÃ©') : (this.getVisibleOrders().length > 0 ? 'Historique invitÃ© disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1091,8 +1131,8 @@ class ProfilePanel {
               color:${colors.text.body};
               line-height:1.5;
             ">
-              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de verification</strong>
-              Votre compte est en train d etre restaure. Le profil va apparaitre automatiquement.
+              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vérification</strong>
+              Votre compte est en cours de restauration. Le profil apparaîtra automatiquement.
             </div>
           ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isAuthenticated ? `
             ${this.renderVendorQuickAccess(colors)}
@@ -1332,4 +1372,5 @@ export function getProfilePanel() {
 }
 
 export default ProfilePanel;
+
 
