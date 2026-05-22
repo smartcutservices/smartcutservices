@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=20260521-2';
+﻿import { auth, db } from './firebase-init.js?v=20260522-1';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js?v=20260521-2';
-import { getCartManager } from './cart.js?v=20260521-2';
+import { getAuthManager } from './auth.js?v=20260522-1';
+import { getCartManager } from './cart.js?v=20260522-1';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -804,7 +804,7 @@ class ProfilePanel {
         accent: colors.icon.hover
       },
       {
-        label: 'Confirmées',
+        label: 'ConfirmÃ©es',
         value: paidOrders.length,
         icon: 'fa-circle-check',
         accent: '#10B981'
@@ -910,7 +910,7 @@ class ProfilePanel {
         </div>
         <h3 style="margin:0 0 0.35rem;font-size:1.2rem;color:${colors.text.title};">Connectez-vous</h3>
         <p style="margin:0 0 1rem;color:${colors.text.body};line-height:1.6;">
-          Retrouvez vos favoris, votre historique et vos commandes. En invité, vous pouvez déjà revoir vos commandes passées sur cet appareil.
+          Retrouvez vos favoris, votre historique et vos commandes. En invitÃ©, vous pouvez dÃ©jÃ  revoir vos commandes passÃ©es sur cet appareil.
         </p>
         <div style="display:flex;flex-wrap:wrap;gap:0.65rem;">
           <button class="profile-login-btn" style="
@@ -938,7 +938,7 @@ class ProfilePanel {
           line-height:1.55;
         ">
           <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Ce que vous trouverez ici</strong>
-          Favoris, historique de commandes, téléchargement des reçus PDF et accès rapide à votre compte.
+          Favoris, historique de commandes, tÃ©lÃ©chargement des reÃ§us PDF et accÃ¨s rapide Ã  votre compte.
         </div>
         ${guestOrders.length > 0 ? `
           <div style="
@@ -949,8 +949,8 @@ class ProfilePanel {
             color:${colors.text.body};
             line-height:1.55;
           ">
-            <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Commandes invité</strong>
-            Vos commandes passées sans connexion restent visibles ici sur cet appareil.
+            <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Commandes invitÃ©</strong>
+            Vos commandes passÃ©es sans connexion restent visibles ici sur cet appareil.
           </div>
         ` : ''}
       </div>
@@ -1044,9 +1044,9 @@ class ProfilePanel {
                 font-size:1.7rem;
                 color:${colors.text.title};
                 line-height:1;
-              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invitÃ©' : 'Mon compte')}</h2>
               <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Verification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Verification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connectÃ©') : (this.getVisibleOrders().length > 0 ? 'Historique invitÃ© disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1061,7 +1061,7 @@ class ProfilePanel {
                   cursor:pointer;
                   font-size:0.78rem;
                   font-weight:700;
-                ">Déconnexion</button>
+                ">DÃ©connexion</button>
               ` : ''}
               <button class="close-profile-btn" style="
                 border:none;
@@ -1332,3 +1332,4 @@ export function getProfilePanel() {
 }
 
 export default ProfilePanel;
+

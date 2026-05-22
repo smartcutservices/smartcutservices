@@ -415,7 +415,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260521-2';
+    const ASSET_VERSION = '20260522-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -561,7 +561,7 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260521-2')
+      import('./notification.js?v=20260522-1')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
@@ -573,7 +573,7 @@
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260521-2')
+      import('./musique.js?v=20260522-1')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',
@@ -654,4 +654,5 @@
   </script>
 </body>
 </html>
+
 

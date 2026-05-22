@@ -1,6 +1,6 @@
-// ============= LIKE COMPONENT - FIREBASE + AUTH =============
-import { db } from './firebase-init.js?v=20260521-2';
-import { getAuthManager } from './auth.js?v=20260521-2';
+﻿// ============= LIKE COMPONENT - FIREBASE + AUTH =============
+import { db } from './firebase-init.js?v=20260522-1';
+import { getAuthManager } from './auth.js?v=20260522-1';
 import {
   collection,
   query,
@@ -38,7 +38,7 @@ class SierraLike {
       this.currentUser = this.auth?.getCurrentUser() || null;
       this.handleAuthChange(this.currentUser);
     } catch (error) {
-      console.error('❌ Like: erreur initialisation auth', error);
+      console.error('âŒ Like: erreur initialisation auth', error);
     }
 
     document.addEventListener('authChanged', (e) => {
@@ -84,7 +84,7 @@ class SierraLike {
       });
       this.emitUpdate();
     }, (error) => {
-      console.error('❌ Like: erreur écoute likes', error);
+      console.error('âŒ Like: erreur Ã©coute likes', error);
     });
   }
 
@@ -142,7 +142,7 @@ class SierraLike {
         };
       }
     } catch (error) {
-      console.warn('⚠️ Like: impossible de charger meta produit', error);
+      console.warn('âš ï¸ Like: impossible de charger meta produit', error);
     }
 
     return meta;
@@ -185,7 +185,7 @@ class SierraLike {
 
       return { ok: true, liked: true };
     } catch (error) {
-      console.error('❌ Like: erreur toggle', error);
+      console.error('âŒ Like: erreur toggle', error);
       return { ok: false, reason: 'write_failed', error };
     }
   }
@@ -223,3 +223,4 @@ export function getLikeManager(containerIdOrOptions = null, maybeOptions = {}) {
 }
 
 export default SierraLike;
+

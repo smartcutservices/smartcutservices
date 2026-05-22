@@ -1,6 +1,6 @@
-// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js?v=20260521-2';
-import { getAuthManager } from './auth.js?v=20260521-2';
+﻿// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÃˆME =============
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260522-1';
+import { getAuthManager } from './auth.js?v=20260522-1';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -41,7 +41,7 @@ class CartManager {
     this.modalOpenedAt = 0;
     
     
-    // S'abonner aux changements de thème
+    // S'abonner aux changements de thÃ¨me
     this.unsubscribeTheme = this.theme.subscribe((newTheme) => {
       if (this.modal) {
         this.renderCartModal();
@@ -53,7 +53,7 @@ class CartManager {
         onAuthChange: (user) => this.handleAuthChange(user)
       });
     } catch (error) {
-      console.error('❌ Erreur initialisation auth:', error);
+      console.error('âŒ Erreur initialisation auth:', error);
     }
 
     try {
@@ -62,7 +62,7 @@ class CartManager {
         if (this.modal) this.renderCartModal();
       });
     } catch (error) {
-      console.error('❌ Erreur initialisation LikeManager:', error);
+      console.error('âŒ Erreur initialisation LikeManager:', error);
     }
     
     this.loadCart();
@@ -72,7 +72,7 @@ class CartManager {
     this.isInitialized = true;
   }
   
-  // Obtenir les couleurs du thème
+  // Obtenir les couleurs du thÃ¨me
   getThemeColors() {
     const colors = this.theme.getColors();
     return {
@@ -94,7 +94,7 @@ class CartManager {
     };
   }
   
-  // Obtenir les polices du thème
+  // Obtenir les polices du thÃ¨me
   getThemeFonts() {
     const fonts = this.theme.getFonts();
     const typography = this.theme.getTypography();
@@ -113,7 +113,7 @@ class CartManager {
     return {
       id: guestId,
       uid: guestId,
-      name: 'Client invité',
+      name: 'Client invitÃ©',
       email: '',
       phone: '',
       address: '',
@@ -221,10 +221,10 @@ class CartManager {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <p style="color:#6E6557;line-height:1.8;">Vous pouvez vous connecter pour retrouver vos commandes plus tard, ou continuer comme invité pour commander immédiatement.</p>
+        <p style="color:#6E6557;line-height:1.8;">Vous pouvez vous connecter pour retrouver vos commandes plus tard, ou continuer comme invitÃ© pour commander immÃ©diatement.</p>
         <div style="display:grid;gap:.75rem;">
           <button class="choice-login" style="border:none;border-radius:999px;background:#1F1E1C;color:#F5F1E8;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Se connecter / S'inscrire</button>
-          <button class="choice-guest" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Continuer comme invité</button>
+          <button class="choice-guest" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Continuer comme invitÃ©</button>
         </div>
       </div>
     `;
@@ -266,7 +266,7 @@ class CartManager {
         };
       }
     } catch (error) {
-      console.error('❌ Erreur chargement config PDF:', error);
+      console.error('âŒ Erreur chargement config PDF:', error);
     }
   }
   
@@ -275,7 +275,7 @@ class CartManager {
       const savedCart = localStorage.getItem(this.options.storageKey);
       this.cart = savedCart ? JSON.parse(savedCart) : [];
     } catch (error) {
-      console.error('❌ Erreur chargement panier:', error);
+      console.error('âŒ Erreur chargement panier:', error);
       this.cart = [];
     }
   }
@@ -320,7 +320,7 @@ class CartManager {
   
   async loadOrCreateClient(user) {
     if (!db) {
-      console.error('❌ Base de données non initialisée');
+      console.error('âŒ Base de donnÃ©es non initialisÃ©e');
       return;
     }
     
@@ -389,7 +389,7 @@ class CartManager {
       document.dispatchEvent(event);
       
     } catch (error) {
-      console.error('❌ Erreur lors de la gestion du client:', error);
+      console.error('âŒ Erreur lors de la gestion du client:', error);
       this.currentClient = {
         id: user.uid,
         uid: user.uid,
@@ -413,7 +413,7 @@ class CartManager {
   
   async loadCustomerOrders(clientId) {
     if (!db || !clientId) {
-      console.error('❌ DB ou clientId manquant');
+      console.error('âŒ DB ou clientId manquant');
       return;
     }
     
@@ -455,11 +455,11 @@ class CartManager {
           this.renderCartModal();
         }
       }, (error) => {
-        console.error('❌ Erreur listener commandes:', error);
+        console.error('âŒ Erreur listener commandes:', error);
       });
       
     } catch (error) {
-      console.error('❌ Erreur chargement commandes:', error);
+      console.error('âŒ Erreur chargement commandes:', error);
     }
   }
 
@@ -546,7 +546,7 @@ class CartManager {
   }
   
   formatTimeLeft(ms) {
-    if (ms <= 0) return 'Expiré';
+    if (ms <= 0) return 'ExpirÃ©';
 
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -614,7 +614,7 @@ class CartManager {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('❌ Erreur mise à jour statut:', error);
+      console.error('âŒ Erreur mise Ã  jour statut:', error);
     }
   }
   
@@ -647,7 +647,7 @@ class CartManager {
       const list = raw ? JSON.parse(raw) : [];
       this.hiddenOrderIds = new Set(Array.isArray(list) ? list.map(String) : []);
     } catch (error) {
-      console.error('❌ Erreur chargement commandes masquées:', error);
+      console.error('âŒ Erreur chargement commandes masquÃ©es:', error);
       this.hiddenOrderIds = new Set();
     }
   }
@@ -656,7 +656,7 @@ class CartManager {
     try {
       localStorage.setItem(this.getHiddenOrdersKey(), JSON.stringify(Array.from(this.hiddenOrderIds)));
     } catch (error) {
-      console.error('❌ Erreur sauvegarde commandes masquées:', error);
+      console.error('âŒ Erreur sauvegarde commandes masquÃ©es:', error);
     }
   }
 
@@ -667,23 +667,23 @@ class CartManager {
   hideOrderFromClient(orderId) {
     const order = this.orders.find((o) => o.id === orderId);
     if (!order || (!['approved', 'paid', 'rejected'].includes(order.status))) {
-      this.showNotification('❌ Seules les commandes approuvées ou rejetées peuvent être masquées', 'error');
+      this.showNotification('âŒ Seules les commandes approuvÃ©es ou rejetÃ©es peuvent Ãªtre masquÃ©es', 'error');
       return;
     }
 
     const warningMessage = ['approved', 'paid'].includes(order.status)
       ? (
-        '⚠️ Attention: si vous supprimez cette commande sans télécharger le PDF, vous pouvez perdre le colis.\n\n' +
-        'Téléchargez d’abord le reçu PDF avec votre code de retrait.\n\n' +
+        'âš ï¸ Attention: si vous supprimez cette commande sans tÃ©lÃ©charger le PDF, vous pouvez perdre le colis.\n\n' +
+        'TÃ©lÃ©chargez dâ€™abord le reÃ§u PDF avec votre code de retrait.\n\n' +
         'Voulez-vous masquer cette commande sur votre site ?'
       )
-      : 'Voulez-vous masquer cette commande rejetée sur votre site ?';
+      : 'Voulez-vous masquer cette commande rejetÃ©e sur votre site ?';
     const warning = confirm(warningMessage);
     if (!warning) return;
 
     this.hiddenOrderIds.add(String(orderId));
     this.saveHiddenOrders();
-    this.showNotification('✅ Commande masquée sur votre site (non supprimée en base)', 'success');
+    this.showNotification('âœ… Commande masquÃ©e sur votre site (non supprimÃ©e en base)', 'success');
 
     if (this.modal) {
       this.renderCartModal();
@@ -695,7 +695,7 @@ class CartManager {
       localStorage.setItem(this.options.storageKey, JSON.stringify(this.cart));
       this.emitUpdate();
     } catch (error) {
-      console.error('❌ Erreur sauvegarde panier:', error);
+      console.error('âŒ Erreur sauvegarde panier:', error);
     }
   }
   
@@ -785,7 +785,7 @@ class CartManager {
         mode: cartData?.mode || 'authenticated',
         currentClient: this.currentClient || null
       });
-      this.showNotification('❌ Impossible de charger le client. Réessayez.');
+      this.showNotification('âŒ Impossible de charger le client. RÃ©essayez.');
       return;
     }
     console.info('[CART] openCheckout: client resolu', {
@@ -813,7 +813,7 @@ class CartManager {
           this.cart = [];
           this.saveCart();
           
-          this.showNotification('✅ Commande soumise avec succès !');
+          this.showNotification('âœ… Commande soumise avec succÃ¨s !');
           if (window.veltrixaNotificationCenter?.promptOrderNotificationChoice) {
             setTimeout(() => {
               window.veltrixaNotificationCenter.promptOrderNotificationChoice();
@@ -822,20 +822,20 @@ class CartManager {
         }
       });
     } catch (error) {
-      console.error('❌ Erreur ouverture checkout:', error);
+      console.error('âŒ Erreur ouverture checkout:', error);
     }
   }
   
   async saveOrder(orderData) {
     if (!this.currentClient || !this.auth) {
-      console.error('❌ Client ou auth non disponible');
+      console.error('âŒ Client ou auth non disponible');
       return;
     }
     
     try {
       const user = this.auth.getCurrentUser();
       if (!user) {
-        console.error('❌ Utilisateur non connecté');
+        console.error('âŒ Utilisateur non connectÃ©');
         return;
       }
       
@@ -902,7 +902,7 @@ class CartManager {
       return docRef.id;
       
     } catch (error) {
-      console.error('❌ Erreur sauvegarde commande:', error);
+      console.error('âŒ Erreur sauvegarde commande:', error);
       throw error;
     }
   }
@@ -920,21 +920,21 @@ class CartManager {
     try {
       const order = this.orders.find(o => o.id === orderId);
       if (!order) {
-        this.showNotification('❌ Commande non trouvée', 'error');
+        this.showNotification('âŒ Commande non trouvÃ©e', 'error');
         return;
       }
       
       if (!['approved', 'paid'].includes(order.status)) {
-        this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
+        this.showNotification('âš ï¸ Cette commande n\'est pas encore approuvÃ©e', 'warning');
         return;
       }
       
       if (typeof window.jspdf === 'undefined') {
-        this.showNotification('❌ Bibliothèque PDF non chargée', 'error');
+        this.showNotification('âŒ BibliothÃ¨que PDF non chargÃ©e', 'error');
         return;
       }
       
-      this.showNotification('📄 Génération du PDF en cours...', 'info');
+      this.showNotification('ðŸ“„ GÃ©nÃ©ration du PDF en cours...', 'info');
       
       this.showNotification('Generation du PDF en cours...', 'info');
       await downloadOrderPdfReceipt(
@@ -992,7 +992,7 @@ class CartManager {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('REÇU DE PAIEMENT', 20, 60);
+      doc.text('REÃ‡U DE PAIEMENT', 20, 60);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -1017,14 +1017,14 @@ class CartManager {
       doc.setFont('helvetica', 'normal');
       doc.text(`Nom: ${order.customerName || this.currentClient?.name || 'N/A'}`, 20, 120);
       doc.text(`Email: ${order.customerEmail || this.currentClient?.email || '-'}`, 20, 130);
-      doc.text(`Téléphone: ${order.customerPhone || this.currentClient?.phone || '-'}`, 20, 140);
+      doc.text(`TÃ©lÃ©phone: ${order.customerPhone || this.currentClient?.phone || '-'}`, 20, 140);
       doc.text(`Adresse: ${order.customerAddress || this.currentClient?.address || '-'}`, 20, 150);
       doc.text(`Ville: ${order.customerCity || this.currentClient?.city || '-'}`, 20, 160);
 
       const delivery = order.delivery || null;
       if (delivery) {
         const deliveryLabel = delivery.method === 'home'
-          ? 'Livraison à domicile'
+          ? 'Livraison Ã  domicile'
           : delivery.method === 'pickup'
             ? 'Retrait en point de vente'
             : delivery.method === 'meetup'
@@ -1044,7 +1044,7 @@ class CartManager {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Méthode: ${deliveryLabel}`, 20, 184);
+        doc.text(`MÃ©thode: ${deliveryLabel}`, 20, 184);
         if (deliveryTarget) {
           doc.text(`Zone/Point: ${deliveryTarget}`.slice(0, 110), 20, 192);
         }
@@ -1052,7 +1052,7 @@ class CartManager {
           doc.text(`Adresse: ${delivery.address}`.slice(0, 110), 20, 200);
         }
         if (delivery.phone || delivery.whatsapp) {
-          const contact = [delivery.phone ? `Tél: ${delivery.phone}` : '', delivery.whatsapp ? `WA: ${delivery.whatsapp}` : ''].filter(Boolean).join(' | ');
+          const contact = [delivery.phone ? `TÃ©l: ${delivery.phone}` : '', delivery.whatsapp ? `WA: ${delivery.whatsapp}` : ''].filter(Boolean).join(' | ');
           doc.text(contact.slice(0, 110), 20, 208);
         }
         if (delivery.meetupProposal) {
@@ -1069,7 +1069,7 @@ class CartManager {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Méthode: ${order.methodName || 'N/A'}`, 20, delivery ? 246 : 186);
+      doc.text(`MÃ©thode: ${order.methodName || 'N/A'}`, 20, delivery ? 246 : 186);
       
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
@@ -1080,13 +1080,13 @@ class CartManager {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Produits commandés', 20, y);
+      doc.text('Produits commandÃ©s', 20, y);
       y += 7;
 
       if (orderItems.length === 0) {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('Aucun détail produit enregistré.', 20, y);
+        doc.text('Aucun dÃ©tail produit enregistrÃ©.', 20, y);
         y += 6;
       } else {
         orderItems.forEach((item, index) => {
@@ -1110,7 +1110,7 @@ class CartManager {
 
           doc.setFont('helvetica', 'normal');
           doc.text(
-            `Qté: ${qty} | PU: ${this.formatPrice(unitPrice)} | Total: ${this.formatPrice(lineTotal)}${productId}${sku}`.slice(0, 110),
+            `QtÃ©: ${qty} | PU: ${this.formatPrice(unitPrice)} | Total: ${this.formatPrice(lineTotal)}${productId}${sku}`.slice(0, 110),
             24,
             y
           );
@@ -1144,20 +1144,20 @@ class CartManager {
       
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text('Ce document est un reçu officiel de paiement.', 20, 280);
-      doc.text(`Code de vérification: ${order.uniqueCode || 'N/A'}`, 20, 285);
+      doc.text('Ce document est un reÃ§u officiel de paiement.', 20, 280);
+      doc.text(`Code de vÃ©rification: ${order.uniqueCode || 'N/A'}`, 20, 285);
       
       doc.save(`recu-${order.uniqueCode || order.id}.pdf`);
       
-      this.showNotification('✅ PDF téléchargé avec succès !', 'success');
+      this.showNotification('âœ… PDF tÃ©lÃ©chargÃ© avec succÃ¨s !', 'success');
       
       setTimeout(() => {
-        this.showNotification('⚠️ Conservez ce PDF précieusement - il contient votre code unique !', 'warning');
+        this.showNotification('âš ï¸ Conservez ce PDF prÃ©cieusement - il contient votre code unique !', 'warning');
       }, 1000);
       
     } catch (error) {
-      console.error('❌ Erreur génération PDF:', error);
-      this.showNotification('❌ Erreur lors de la génération du PDF', 'error');
+      console.error('âŒ Erreur gÃ©nÃ©ration PDF:', error);
+      this.showNotification('âŒ Erreur lors de la gÃ©nÃ©ration du PDF', 'error');
     }
   }
   
@@ -1165,22 +1165,22 @@ class CartManager {
     try {
       const order = this.orders.find(o => o.id === orderId);
       if (!order) {
-        this.showNotification('❌ Commande non trouvée', 'error');
+        this.showNotification('âŒ Commande non trouvÃ©e', 'error');
         return;
       }
       
       if (!['approved', 'paid'].includes(order.status)) {
-        this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
+        this.showNotification('âš ï¸ Cette commande n\'est pas encore approuvÃ©e', 'warning');
         return;
       }
       
       const confirmDownload = confirm(
-        '⚠️ IMPORTANT ⚠️\n\n' +
-        'Ce PDF contient un code unique qui vous permettra de récupérer votre commande.\n\n' +
-        '✅ Conservez-le précieusement.\n' +
-        '✅ Il sera demandé lors du retrait/livraison.\n' +
-        '✅ Ne le partagez pas avec des inconnus.\n\n' +
-        'Voulez-vous télécharger votre reçu ?'
+        'âš ï¸ IMPORTANT âš ï¸\n\n' +
+        'Ce PDF contient un code unique qui vous permettra de rÃ©cupÃ©rer votre commande.\n\n' +
+        'âœ… Conservez-le prÃ©cieusement.\n' +
+        'âœ… Il sera demandÃ© lors du retrait/livraison.\n' +
+        'âœ… Ne le partagez pas avec des inconnus.\n\n' +
+        'Voulez-vous tÃ©lÃ©charger votre reÃ§u ?'
       );
       
       if (!confirmDownload) return;
@@ -1188,8 +1188,8 @@ class CartManager {
       await this.generateOrderPdf(orderId);
       
     } catch (error) {
-      console.error('❌ Erreur téléchargement PDF:', error);
-      this.showNotification('❌ Erreur lors du téléchargement', 'error');
+      console.error('âŒ Erreur tÃ©lÃ©chargement PDF:', error);
+      this.showNotification('âŒ Erreur lors du tÃ©lÃ©chargement', 'error');
     }
   }
   
@@ -1228,7 +1228,7 @@ class CartManager {
   
   addItem(item) {
     if (!item || !item.productId) {
-      console.error('❌ Article invalide', item);
+      console.error('âŒ Article invalide', item);
       return;
     }
     
@@ -1255,7 +1255,7 @@ class CartManager {
         : currentQty + incomingQty;
 
       if (nextQty <= currentQty) {
-        this.showNotification(`⚠️ Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
+        this.showNotification(`âš ï¸ Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
         return;
       }
 
@@ -1278,13 +1278,13 @@ class CartManager {
       }
       this.showNotification(
         nextQty < currentQty + incomingQty
-          ? `⚠️ Stock limité à ${nextQty} pour ${this.cart[existingIndex].name}`
-          : `📦 Quantité mise à jour: ${this.cart[existingIndex].name}`
+          ? `âš ï¸ Stock limitÃ© Ã  ${nextQty} pour ${this.cart[existingIndex].name}`
+          : `ðŸ“¦ QuantitÃ© mise Ã  jour: ${this.cart[existingIndex].name}`
       );
     } else {
       const initialQty = Number.isFinite(stockLimit) ? Math.min(stockLimit, incomingQty) : incomingQty;
       if (initialQty <= 0) {
-        this.showNotification(`⚠️ Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
+        this.showNotification(`âš ï¸ Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
         return;
       }
       this.cart.push({
@@ -1294,8 +1294,8 @@ class CartManager {
       });
       this.showNotification(
         initialQty < incomingQty
-          ? `⚠️ ${item.name || 'Produit'} limité à ${initialQty} unité(s)`
-          : `✅ ${item.name || 'Produit'} ajouté au panier`
+          ? `âš ï¸ ${item.name || 'Produit'} limitÃ© Ã  ${initialQty} unitÃ©(s)`
+          : `âœ… ${item.name || 'Produit'} ajoutÃ© au panier`
       );
     }
     
@@ -1307,7 +1307,7 @@ class CartManager {
       const item = this.cart[index];
       this.cart.splice(index, 1);
       this.saveCart();
-      this.showNotification(`🗑️ ${item.name || 'Article'} supprimé du panier`, 'info');
+      this.showNotification(`ðŸ—‘ï¸ ${item.name || 'Article'} supprimÃ© du panier`, 'info');
       if (this.modal) {
         this.renderCartModal();
       }
@@ -1324,7 +1324,7 @@ class CartManager {
           ? Math.min(stockLimit, quantity)
           : quantity;
         if (safeQuantity < quantity) {
-          this.showNotification(`⚠️ Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
+          this.showNotification(`âš ï¸ Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
         }
         this.cart[index].quantity = safeQuantity;
         this.saveCart();
@@ -1338,10 +1338,10 @@ class CartManager {
   clearCart() {
     if (this.cart.length === 0) return;
     
-    if (confirm('🗑️ Vider le panier ?')) {
+    if (confirm('ðŸ—‘ï¸ Vider le panier ?')) {
       this.cart = [];
       this.saveCart();
-      this.showNotification('Panier vidé', 'info');
+      this.showNotification('Panier vidÃ©', 'info');
       if (this.modal) {
         this.renderCartModal();
       }
@@ -1444,9 +1444,9 @@ class CartManager {
       pending: 'En attente',
         review: 'En examen',
         paid: 'Paiement confirme',
-      approved: '✅ Approuvé',
-      rejected: '❌ Rejeté',
-      expired: '⏰ Expiré'
+      approved: 'âœ… ApprouvÃ©',
+      rejected: 'âŒ RejetÃ©',
+      expired: 'â° ExpirÃ©'
     };
     return texts[status] || status;
   }
@@ -1465,10 +1465,10 @@ class CartManager {
 
   getFulfillmentStatusText(status) {
     const texts = {
-      ordered: 'Commandé',
-      shipped: 'Expédié',
+      ordered: 'CommandÃ©',
+      shipped: 'ExpÃ©diÃ©',
       in_delivery: 'En cours de livraison',
-      delivered: 'Livré'
+      delivered: 'LivrÃ©'
     };
     return texts[status] || texts.ordered;
   }
@@ -1485,10 +1485,10 @@ class CartManager {
 
   getFulfillmentSteps() {
     return [
-      { key: 'ordered', label: 'Commandé' },
-      { key: 'shipped', label: 'Expédié' },
+      { key: 'ordered', label: 'CommandÃ©' },
+      { key: 'shipped', label: 'ExpÃ©diÃ©' },
       { key: 'in_delivery', label: 'En cours de livraison' },
-      { key: 'delivered', label: 'Livré' }
+      { key: 'delivered', label: 'LivrÃ©' }
     ];
   }
 
@@ -1680,7 +1680,7 @@ class CartManager {
     }
 
     this.warmUpClientContext().catch((error) => {
-      console.error('❌ Erreur prechargement panier:', error);
+      console.error('âŒ Erreur prechargement panier:', error);
     });
     
     this.modalOpenedAt = Date.now();
@@ -1845,7 +1845,7 @@ class CartManager {
               gap: 0.5rem;
             " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
               <i class="fas fa-lock"></i>
-              Procéder au paiement
+              ProcÃ©der au paiement
             </button>
             
             <button class="continue-shopping-btn" style="
@@ -1920,7 +1920,7 @@ class CartManager {
               color:${colors.text.body};
               font-size:0.88rem;
               text-align:center;
-            ">Aucun produit liké pour le moment.</div>
+            ">Aucun produit likÃ© pour le moment.</div>
           ` : `
             <div style="display:flex; flex-direction:column; gap:0.55rem;">
               ${items.map((item) => `
@@ -1980,7 +1980,7 @@ class CartManager {
         });
       })
       .catch((error) => {
-        console.error('❌ Erreur ouverture produit liké:', error);
+        console.error('âŒ Erreur ouverture produit likÃ©:', error);
       });
   }
   
@@ -2008,7 +2008,7 @@ class CartManager {
         </div>
         <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; color: ${colors.text.title};">Connectez-vous</h3>
         <p style="color: ${colors.text.body}; margin-bottom: 1.5rem;">
-          Connectez-vous pour retrouver vos commandes, ou continuez comme invité pour commander tout de suite.
+          Connectez-vous pour retrouver vos commandes, ou continuez comme invitÃ© pour commander tout de suite.
         </p>
         <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;">
           <button class="login-btn" style="
@@ -2033,7 +2033,7 @@ class CartManager {
             font-size: 1rem;
             transition: all 0.3s;
           ">
-            Continuer comme invité
+            Continuer comme invitÃ©
           </button>
         </div>
       </div>
@@ -2180,7 +2180,7 @@ class CartManager {
           color: ${colors.text.body};
         ">
           <span>${order.methodName || 'Paiement mobile'}</span>
-          <span>•</span>
+          <span>â€¢</span>
           <span>Code: ${order.uniqueCode || order.id || 'N/A'}</span>
         </div>
 
@@ -2265,7 +2265,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-check-circle"></i>
-            <span style="flex: 1;">Paiement confirmé</span>
+            <span style="flex: 1;">Paiement confirmÃ©</span>
             <button class="download-pdf-btn" data-order-id="${order.id}" style="
               background: #10B981;
               color: white;
@@ -2280,7 +2280,7 @@ class CartManager {
               gap: 0.3rem;
             " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
               <i class="fas fa-file-pdf"></i>
-              Télécharger le reçu
+              TÃ©lÃ©charger le reÃ§u
             </button>
           </div>
           
@@ -2296,7 +2296,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-exclamation-triangle" style="color: #F59E0B;"></i>
-            <span>⚠️ Ce PDF contient votre code unique de retrait. Conservez-le précieusement !</span>
+            <span>âš ï¸ Ce PDF contient votre code unique de retrait. Conservez-le prÃ©cieusement !</span>
           </div>
         ` : ''}
         
@@ -2313,7 +2313,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-times-circle"></i>
-            <span>Paiement rejeté</span>
+            <span>Paiement rejetÃ©</span>
           </div>
         ` : ''}
         
@@ -2330,7 +2330,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-clock"></i>
-            <span>Demande expirée</span>
+            <span>Demande expirÃ©e</span>
           </div>
         ` : ''}
       </div>
@@ -2396,7 +2396,7 @@ class CartManager {
           font-size: 0.9rem;
           margin-top: 1rem;
         " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-          Découvrir les produits
+          DÃ©couvrir les produits
         </button>
       </div>
     `;
@@ -2792,3 +2792,4 @@ export function getCartManager(options = {}) {
 }
 
 export default CartManager;
+
