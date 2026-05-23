@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js';
+import { db, auth, authReadyPromise } from './firebase-init.js';
 import { getAuthManager } from './auth.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 import {
@@ -789,7 +789,7 @@ class VendorApplicationPage {
   }
 
   async saveKycDocuments(modal) {
-    if (!this.user?.uid) throw new Error('Vous devez etre connecte pour envoyer vos documents KYC.');
+    const uploadUser = await this.ensureKycUploadAuthReady();
     const rectoFile = modal.querySelector('[data-kyc-file="recto"]')?.files?.[0] || null;
     const versoFile = modal.querySelector('[data-kyc-file="verso"]')?.files?.[0] || null;
     const next = { ...this.kycDocuments };
@@ -804,7 +804,16 @@ class VendorApplicationPage {
       if (!allowed.includes(file.type)) {
         throw new Error('Format non supporte. Utilisez JPG, PNG, WEBP ou PDF.');
       }
-      const result = await uploadStorageFile(file, `vendor-kyc/${this.user.uid}/${side}`, { maxSizeMb: 12 });
+      const folder = `vendor-kyc/${uploadUser.uid}/${side}`;
+      console.info('[KYC_UPLOAD] start', {
+        side,
+        folder,
+        authUid: auth?.currentUser?.uid || null,
+        pageUid: this.user?.uid || null,
+        fileType: file.type,
+        fileSize: file.size
+      });
+      const result = await uploadStorageFile(file, folder, { maxSizeMb: 12 });
       return {
         side,
         url: result.url,
@@ -820,6 +829,35 @@ class VendorApplicationPage {
     next.recto = await uploadOne(rectoFile, 'recto');
     next.verso = await uploadOne(versoFile, 'verso');
     this.kycDocuments = next;
+  }
+
+  async ensureKycUploadAuthReady() {
+    try {
+      await authReadyPromise;
+      await this.auth.waitForAuthReady?.();
+    } catch (error) {
+      console.warn('[KYC_UPLOAD] auth-ready warning', error);
+    }
+
+    const currentUser = auth?.currentUser || this.auth.getCurrentUser?.();
+    console.info('[KYC_UPLOAD] auth-check', {
+      authUid: auth?.currentUser?.uid || null,
+      managerUid: this.auth.getCurrentUser?.()?.uid || null,
+      pageUid: this.user?.uid || null,
+      isAnonymous: Boolean(currentUser?.isAnonymous)
+    });
+
+    if (!currentUser?.uid || currentUser.isAnonymous) {
+      throw new Error('Session Firebase introuvable. Reconnectez-vous puis reessayez la verification KYC.');
+    }
+
+    if (this.user?.uid && this.user.uid !== currentUser.uid) {
+      this.user = currentUser;
+      await this.loadData();
+    }
+
+    await currentUser.getIdToken(true);
+    return currentUser;
   }
 
   collectResponses() {
