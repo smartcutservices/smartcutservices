@@ -1,5 +1,5 @@
 ﻿// ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260522-2';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260522-3';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const AUTH_DEBUG_VERSION = '20260522-2';
+const AUTH_DEBUG_VERSION = '20260522-3';
 
 function getAuthDebugSnapshot(extra = {}) {
   return {
@@ -684,7 +684,7 @@ class AuthManager {
     const departments = Object.keys(HAITI_DEPARTMENTS);
     const selectedDepartment = values.department || '';
     const communes = selectedDepartment ? (HAITI_DEPARTMENTS[selectedDepartment] || []) : [];
-    const departmentOptions = ['<option value="">Choisir un departement...</option>']
+    const departmentOptions = ['<option value="">Choisir un département...</option>']
       .concat(departments.map((department) => `<option value="${department}" ${selectedDepartment === department ? 'selected' : ''}>${department}</option>`))
       .join('');
     const communeOptions = ['<option value="">Choisir une commune...</option>']
@@ -695,7 +695,7 @@ class AuthManager {
       <div style="display:grid;gap:0.75rem;">
         <div>
           <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Adresse *</label>
-          <input type="text" id="${prefix}Address" value="${this.escapeAttribute(values.address || '')}" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Rue, numero, quartier">
+          <input type="text" id="${prefix}Address" value="${this.escapeAttribute(values.address || '')}" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Rue, numéro, quartier">
         </div>
         <div>
           <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Pays *</label>
@@ -812,6 +812,11 @@ class AuthManager {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      logAuthDebug('auth-form:submit', {
+        mode,
+        hasEmail: Boolean(this.modal.querySelector('#email')?.value),
+        passwordLength: this.modal.querySelector('#password')?.value?.length || 0
+      });
       if (mode === 'login') {
         this.handleLogin();
       } else {
@@ -834,7 +839,7 @@ class AuthManager {
 
     if (!auth) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Firebase Auth n est pas disponible pour le moment.';
+      errorDiv.textContent = 'Firebase Auth n’est pas disponible pour le moment.';
       return;
     }
     
@@ -890,7 +895,7 @@ class AuthManager {
 
     if (!auth) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Firebase Auth n est pas disponible pour le moment.';
+      errorDiv.textContent = 'Firebase Auth n’est pas disponible pour le moment.';
       return;
     }
     if (!lastName || !firstName) {
@@ -910,7 +915,7 @@ class AuthManager {
     }
     if (!address.address || !address.country || !address.department || !address.commune) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Veuillez completer votre adresse.';
+      errorDiv.textContent = 'Veuillez compléter votre adresse.';
       return;
     }
     if (password !== confirmPassword) {
@@ -942,7 +947,7 @@ class AuthManager {
         });
       } catch (profileError) {
         console.error('âŒ Erreur sauvegarde profil client:', profileError);
-        this.showToast('Compte cree, mais le profil client n a pas pu etre synchronise completement.', 'info');
+        this.showToast('Compte créé, mais le profil client n’a pas pu être synchronisé complètement.', 'info');
       }
       
       this.closeAuthModal();
@@ -1021,7 +1026,7 @@ class AuthManager {
       if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
         try {
           this.pendingGoogleRedirect = true;
-          this.showToast('Popup Google bloquee. Redirection en cours...', 'info');
+          this.showToast('Popup Google bloquée. Redirection en cours...', 'info');
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {
@@ -1107,8 +1112,8 @@ class AuthManager {
 
       overlay.innerHTML = `
         <div style="width:100%;max-width:460px;max-height:90vh;overflow:auto;background:#F5F1E8;border-radius:1rem;box-shadow:0 20px 40px rgba(0,0,0,0.25);padding:1.25rem;">
-          <h3 style="margin:0 0 0.35rem 0;font-size:1.2rem;color:#1F1E1C;">Completer votre profil</h3>
-          <p style="margin:0 0 1rem 0;color:#8B7E6B;font-size:0.9rem;">Nom, date de naissance, telephone et adresse sont requis.</p>
+          <h3 style="margin:0 0 0.35rem 0;font-size:1.2rem;color:#1F1E1C;">Compléter votre profil</h3>
+          <p style="margin:0 0 1rem 0;color:#8B7E6B;font-size:0.9rem;">Nom, date de naissance, téléphone et adresse sont requis.</p>
 
           <div style="display:flex;flex-direction:column;gap:0.75rem;">
             <div>
@@ -1173,8 +1178,8 @@ class AuthManager {
 
         if (!lastName || !firstName) return showError('Veuillez saisir votre nom et votre prenom.');
         if (!birthDate) return showError('Veuillez saisir votre date de naissance.');
-        if (!phone) return showError('Veuillez saisir votre numero telephone.');
-        if (!address.address || !address.country || !address.department || !address.commune) return showError('Veuillez completer votre adresse.');
+        if (!phone) return showError('Veuillez saisir votre numéro de téléphone.');
+        if (!address.address || !address.country || !address.department || !address.commune) return showError('Veuillez compléter votre adresse.');
 
         close({ firstName, lastName, birthDate, phone, address });
       });
@@ -1313,10 +1318,10 @@ class AuthManager {
       'auth/invalid-email': 'Email invalide',
       'auth/too-many-requests': 'Trop de tentatives. RÃ©essayez plus tard',
       'auth/network-request-failed': 'Erreur rÃ©seau. VÃ©rifiez votre connexion',
-      'auth/operation-not-allowed': 'La mÃ©thode email/mot de passe ou Google n est pas active dans Firebase Auth.',
+      'auth/operation-not-allowed': 'La méthode email/mot de passe ou Google n’est pas active dans Firebase Auth.',
       'auth/invalid-credential': 'Identifiants invalides ou compte inexistant.',
-      'auth/unauthorized-domain': 'Ce domaine n est pas autorise dans Firebase Auth. Ajoutez-le dans les domaines autorises.',
-      'auth/account-exists-with-different-credential': 'Un compte existe deja avec cet email via une autre methode de connexion.',
+      'auth/unauthorized-domain': 'Ce domaine n’est pas autorisé dans Firebase Auth. Ajoutez-le dans les domaines autorisés.',
+      'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cet email via une autre méthode de connexion.',
       'auth/popup-closed-by-user': 'FenÃªtre de connexion fermÃ©e',
       'auth/cancelled-popup-request': 'Connexion annulÃ©e',
       'auth/popup-blocked': 'La popup a Ã©tÃ© bloquÃ©e par le navigateur',
@@ -1414,5 +1419,6 @@ export function getAuthManager(options = {}) {
 }
 
 export default AuthManager;
+
 
 

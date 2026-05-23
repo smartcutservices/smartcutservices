@@ -1,8 +1,8 @@
-﻿import { auth, db } from './firebase-init.js?v=20260522-2';
+﻿import { auth, db } from './firebase-init.js?v=20260522-3';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js?v=20260522-2';
-import { getCartManager } from './cart.js?v=20260522-2';
+import { getAuthManager } from './auth.js?v=20260522-3';
+import { getCartManager } from './cart.js?v=20260522-3';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -101,7 +101,7 @@ class ProfilePanel {
 
   async ensureProfileClientLoaded() {
     console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:start', {
-      version: '20260522-2',
+      version: '20260522-3',
       isAuthenticated: this.authManager.isAuthenticated(),
       authReady: this.authManager.isAuthReady,
       authUid: this.authManager.getCurrentUser()?.uid || null,
@@ -193,7 +193,7 @@ class ProfilePanel {
   async preloadPanelData() {
     this.isBootstrapping = true;
     console.info('[PROFILE_DEBUG] preload:start', {
-      version: '20260522-2',
+      version: '20260522-3',
       authReady: this.authManager.isAuthReady,
       authUid: this.authManager.getCurrentUser()?.uid || null,
       firebaseUid: auth?.currentUser?.uid || null
@@ -248,7 +248,7 @@ class ProfilePanel {
     this.openedAt = Date.now();
     this.isBootstrapping = true;
     console.info('[PROFILE_DEBUG] open', {
-      version: '20260522-2',
+      version: '20260522-3',
       authReady: this.authManager.isAuthReady,
       isAuthenticated: this.authManager.isAuthenticated(),
       authUid: this.authManager.getCurrentUser()?.uid || null,
@@ -390,7 +390,7 @@ class ProfilePanel {
             <div>
               <h4 style="margin:0;color:${colors.text.title};font-size:1rem;">Adresses supplementaires</h4>
               <p style="margin:0.35rem 0 0;color:${colors.text.body};font-size:0.85rem;line-height:1.55;">
-                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) deja sauvegardee(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
+                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) déjà sauvegardée(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
               </p>
             </div>
             <button type="button" class="profile-add-address-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.75rem 0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.45rem;">
@@ -607,7 +607,7 @@ class ProfilePanel {
     });
 
     if (savedAddressUpdates.some((address) => !address.address || !address.department || !address.commune)) {
-      this.authManager.showToast('Merci de completer chaque adresse sauvegardee.', 'error');
+      this.authManager.showToast('Merci de compléter chaque adresse sauvegardée.', 'error');
       return;
     }
 
@@ -626,7 +626,7 @@ class ProfilePanel {
     }).filter((item) => item.hasAnyValue);
 
     if (extraAddresses.some((address) => !address.address || !address.department || !address.commune)) {
-      this.authManager.showToast('Merci de completer chaque nouvelle adresse ajoutee.', 'error');
+      this.authManager.showToast('Merci de compléter chaque nouvelle adresse ajoutée.', 'error');
       return;
     }
 
@@ -760,7 +760,7 @@ class ProfilePanel {
         </div>
         <h3 style="margin:0;font-family:${fonts.primary};font-size:1.75rem;line-height:1;color:${colors.text.title};">Lien envoye</h3>
         <p style="margin:0.8rem 0 0;color:${colors.text.body};line-height:1.65;">
-          Un lien pour changer votre mot de passe a ete envoye a:
+          Un lien pour changer votre mot de passe a été envoyé à:
         </p>
         <strong style="display:block;margin:0.65rem 0;color:${colors.text.title};word-break:break-word;">${this.escape(email)}</strong>
         <div style="
@@ -1215,6 +1215,13 @@ class ProfilePanel {
 
     loginBtn?.addEventListener('click', (event) => {
       event.preventDefault();
+      console.info('[PROFILE_DEBUG] login-click', {
+        version: '20260522-3',
+        authReady: this.authManager.isAuthReady,
+        isAuthenticated: this.authManager.isAuthenticated(),
+        authUid: this.authManager.getCurrentUser()?.uid || null,
+        firebaseUid: auth?.currentUser?.uid || null
+      });
       this.close();
       this.authManager.openAuthModal('login');
     });
@@ -1372,5 +1379,6 @@ export function getProfilePanel() {
 }
 
 export default ProfilePanel;
+
 
 
