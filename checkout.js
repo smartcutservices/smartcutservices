@@ -164,20 +164,26 @@ class CheckoutModal {
   }
 
   getVendorDeliveryGroups() {
-    const groups = new Map();
-    this.cart.forEach((item) => {
+    return this.cart.map((item, index) => {
       const vendorId = String(item?.vendorId || '').trim();
-      if (!vendorId) return;
-      if (!groups.has(vendorId)) {
-        groups.set(vendorId, {
-          vendorId,
-          vendorName: item.vendorName || 'Vendeur',
-          coverage: item.vendorDeliveryCoverage || null,
-          zones: Array.isArray(item.vendorDeliveryZones) ? item.vendorDeliveryZones : []
-        });
-      }
-    });
-    return Array.from(groups.values());
+      if (!vendorId) return null;
+      const productCoverage = item.productDeliveryCoverage || item.deliveryCoverage || item.vendorDeliveryCoverage || null;
+      const productZones = Array.isArray(item.productDeliveryZones)
+        ? item.productDeliveryZones
+        : (Array.isArray(item.deliveryZones)
+          ? item.deliveryZones
+          : (Array.isArray(item.vendorDeliveryZones) ? item.vendorDeliveryZones : []));
+      return {
+        cartIndex: index,
+        productId: item.productId || '',
+        productName: item.name || 'Produit',
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        vendorId,
+        vendorName: item.vendorName || 'Vendeur',
+        coverage: productCoverage,
+        zones: productZones
+      };
+    }).filter(Boolean);
   }
 
   findVendorDeliveryZone(group) {
@@ -199,8 +205,29 @@ class CheckoutModal {
     if (this.selectedDelivery.method !== 'home') return 0;
     return this.getVendorDeliveryGroups().reduce((sum, group) => {
       const zone = this.findVendorDeliveryZone(group);
-      return sum + Number(zone?.fee || 0);
+      return sum + (Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1));
     }, 0);
+  }
+
+  getCartItemDeliveryZone(item) {
+    if (!String(item?.vendorId || '').trim()) return null;
+    const group = this.getVendorDeliveryGroups().find((entry) => (
+      entry.productId === item.productId
+      && entry.productName === (item.name || 'Produit')
+    ));
+    return group ? this.findVendorDeliveryZone(group) : null;
+  }
+
+  getCartItemDeliveryLabel(item) {
+    if (!String(item?.vendorId || '').trim()) return '';
+    const department = String(this.selectedDelivery.home.department || '').trim();
+    const commune = String(this.selectedDelivery.home.commune || '').trim();
+    if (!department || !commune) return 'Livraison calculee apres choix de votre adresse.';
+    const zone = this.getCartItemDeliveryZone(item);
+    if (!zone) return `Livraison indisponible a ${commune}.`;
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const fee = Number(zone.fee || 0) * qty;
+    return `Livraison ${commune}: ${this.formatPrice(fee)}`;
   }
 
   escapeHtml(value) {
@@ -805,6 +832,7 @@ class CheckoutModal {
     const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
+    const deliveryLabel = this.getCartItemDeliveryLabel(item);
     
     return `
       <tr data-index="${index}">
@@ -827,6 +855,7 @@ class CheckoutModal {
             <div>
               <div style="font-weight: 500;">${item.name || 'Produit'}</div>
               ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
+              ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryLabel.includes('indisponible') ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
             </div>
           </div>
         </td>
@@ -869,6 +898,7 @@ class CheckoutModal {
     const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
+    const deliveryLabel = this.getCartItemDeliveryLabel(item);
     
     return `
       <div class="checkout-mobile-item" data-index="${index}" style="
@@ -898,6 +928,7 @@ class CheckoutModal {
               <div>
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.name || 'Produit'}</div>
                 ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
+                ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryLabel.includes('indisponible') ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
               </div>
             </div>
             
@@ -1235,6 +1266,18 @@ class CheckoutModal {
     };
     this.shipping = this.deliveryFees.total;
     this.calculateTotals();
+    this.refreshCartDeliveryLabels();
+  }
+
+  refreshCartDeliveryLabels() {
+    if (!this.modal) return;
+    this.cart.forEach((item, index) => {
+      const label = this.getCartItemDeliveryLabel(item);
+      this.modal.querySelectorAll(`[data-item-delivery-label="${index}"]`).forEach((node) => {
+        node.textContent = label;
+        node.style.color = label.includes('indisponible') ? '#B91C1C' : '#2E5D3A';
+      });
+    });
   }
 
   getCartWeight() {
@@ -1290,7 +1333,7 @@ class CheckoutModal {
       }
       const unavailableVendor = this.getVendorDeliveryGroups().find((group) => !this.findVendorDeliveryZone(group));
       if (unavailableVendor) {
-        this.showMessage(`${unavailableVendor.vendorName} ne livre pas dans cette commune.`, 'error');
+        this.showMessage(`${unavailableVendor.productName} ne peut pas etre livre dans cette commune.`, 'error');
         return false;
       }
       if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
@@ -1379,8 +1422,12 @@ class CheckoutModal {
       return {
         vendorId: group.vendorId,
         vendorName: group.vendorName,
+        productId: group.productId,
+        productName: group.productName,
+        quantity: group.quantity,
         zone: zone || null,
-        fee: Number(zone?.fee || 0)
+        fee: Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1),
+        unitFee: Number(zone?.fee || 0)
       };
     });
     return {

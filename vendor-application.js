@@ -344,7 +344,7 @@ class VendorApplicationPage {
 
   renderFields() {
     const fields = this.formSettings.fields.map((field) => this.renderField(field)).join('');
-    return `${fields}${this.renderVendorDeliveryZones()}`;
+    return fields;
   }
 
   formatCurrency(value) {
@@ -942,15 +942,7 @@ class VendorApplicationPage {
       this.auth.showToast(`Merci de remplir le champ obligatoire: ${missingField}.`, 'error');
       return;
     }
-    const deliveryCoverage = this.collectDeliveryCoverage();
-    if (deliveryCoverage.nationwide && (!Number.isFinite(deliveryCoverage.nationwideFee) || deliveryCoverage.nationwideFee < 0)) {
-      this.auth.showToast('Merci d indiquer un prix de livraison nationale valide.', 'error');
-      return;
-    }
-    if (!deliveryCoverage.nationwide && deliveryCoverage.zones.length === 0) {
-      this.auth.showToast('Merci d ajouter au moins une zone de livraison avec son prix.', 'error');
-      return;
-    }
+    const deliveryCoverage = { country: 'Haiti', mode: 'per_product', nationwide: false, nationwideFee: 0, zones: [] };
     if (!this.kycDocuments.recto || !this.kycDocuments.verso) {
       this.auth.showToast('Merci de completer la verification KYC: recto et verso sont obligatoires.', 'error');
       return;
@@ -983,7 +975,7 @@ class VendorApplicationPage {
       kycStatus: 'submitted',
       kycDocuments: this.kycDocuments,
       deliveryCoverage,
-      deliveryZones: deliveryCoverage.zones,
+      deliveryZones: [],
       ...canonical
     };
 

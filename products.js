@@ -278,6 +278,16 @@ class SierraProducts {
       categoryId: String(product?.categoryId || '').trim(),
       category: String(product?.category || product?.categoryName || '').trim(),
       deliveryMode: String(product?.deliveryMode || '').trim(),
+      productDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || null,
+      productDeliveryZones: Array.isArray(product?.deliveryZones)
+        ? product.deliveryZones
+        : (Array.isArray(product?.productDeliveryZones) ? product.productDeliveryZones : []),
+      vendorDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || product?.vendorDeliveryCoverage || null,
+      vendorDeliveryZones: Array.isArray(product?.deliveryZones)
+        ? product.deliveryZones
+        : (Array.isArray(product?.productDeliveryZones)
+          ? product.productDeliveryZones
+          : (Array.isArray(product?.vendorDeliveryZones) ? product.vendorDeliveryZones : [])),
       selectedOptions,
       quantity: 1,
       timestamp: Date.now()

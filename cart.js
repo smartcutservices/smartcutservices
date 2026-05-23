@@ -807,7 +807,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260520-1');
+      const module = await import('./checkout.js?v=20260523-7');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -861,6 +861,8 @@ class CartManager {
         selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : [],
         vendorId: item?.vendorId || '',
         vendorName: item?.vendorName || '',
+        productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+        productDeliveryZones: Array.isArray(item?.productDeliveryZones) ? item.productDeliveryZones : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
         vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,
         vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones) ? item.vendorDeliveryZones : [],
         commissionRule: item?.commissionRule || null,
@@ -1250,6 +1252,16 @@ class CartManager {
       sourceCollection: String(item?.sourceCollection || (item?.vendorId ? 'vendorProducts' : 'products')).trim(),
       categoryId: String(item?.categoryId || '').trim(),
       category: String(item?.category || '').trim(),
+      productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+      productDeliveryZones: Array.isArray(item?.productDeliveryZones)
+        ? item.productDeliveryZones
+        : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
+      vendorDeliveryCoverage: item?.vendorDeliveryCoverage || item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+      vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones)
+        ? item.vendorDeliveryZones
+        : (Array.isArray(item?.productDeliveryZones)
+          ? item.productDeliveryZones
+          : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : [])),
       isDigitalProduct: Boolean(item?.isDigitalProduct),
       digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
       deliveryDelay: String(item?.deliveryDelay || '').trim()
@@ -1287,6 +1299,18 @@ class CartManager {
       }
       if (!this.cart[existingIndex].category && item.category) {
         this.cart[existingIndex].category = item.category;
+      }
+      if (!this.cart[existingIndex].productDeliveryCoverage && item.productDeliveryCoverage) {
+        this.cart[existingIndex].productDeliveryCoverage = item.productDeliveryCoverage;
+      }
+      if ((!this.cart[existingIndex].productDeliveryZones || !this.cart[existingIndex].productDeliveryZones.length) && item.productDeliveryZones?.length) {
+        this.cart[existingIndex].productDeliveryZones = item.productDeliveryZones;
+      }
+      if (!this.cart[existingIndex].vendorDeliveryCoverage && item.vendorDeliveryCoverage) {
+        this.cart[existingIndex].vendorDeliveryCoverage = item.vendorDeliveryCoverage;
+      }
+      if ((!this.cart[existingIndex].vendorDeliveryZones || !this.cart[existingIndex].vendorDeliveryZones.length) && item.vendorDeliveryZones?.length) {
+        this.cart[existingIndex].vendorDeliveryZones = item.vendorDeliveryZones;
       }
       this.showNotification(
         nextQty < currentQty + incomingQty
@@ -1398,6 +1422,10 @@ class CartManager {
       image: item?.image || item?.imageUrl || '',
         vendorId: item?.vendorId || '',
         vendorName: item?.vendorName || '',
+        productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+        productDeliveryZones: Array.isArray(item?.productDeliveryZones)
+          ? item.productDeliveryZones
+          : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
         vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,
         vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones) ? item.vendorDeliveryZones : [],
         commissionRule: item?.commissionRule || null,
