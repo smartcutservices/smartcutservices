@@ -20,6 +20,14 @@ service firebase.storage {
       return hasContentType('application/pdf');
     }
 
+    function isKycDocument() {
+      return isImage() || isPdf();
+    }
+
+    function isKycSide(side) {
+      return side == 'recto' || side == 'verso';
+    }
+
     function maxSize(megabytes) {
       return request.resource != null
         && request.resource.size <= megabytes * 1024 * 1024;
@@ -28,6 +36,20 @@ service firebase.storage {
     match /products/{productId}/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() && maxSize(20);
+    }
+
+    match /vendor-kyc/{vendorId}/{side}/{fileName} {
+      allow read: if isSignedIn()
+        && request.auth.uid == vendorId
+        && isKycSide(side);
+      allow create, update: if isSignedIn()
+        && request.auth.uid == vendorId
+        && isKycSide(side)
+        && isKycDocument()
+        && maxSize(12);
+      allow delete: if isSignedIn()
+        && request.auth.uid == vendorId
+        && isKycSide(side);
     }
 
     match /printing-documents/{fileName} {
