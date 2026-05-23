@@ -228,6 +228,66 @@ async function isAdminUser(uid) {
   return String(clientSnap.data()?.role || '').toLowerCase() === 'admin';
 }
 
+async function deleteDocumentRefs(refs = []) {
+  const uniqueRefs = new Map();
+  refs.forEach((ref) => {
+    if (ref?.path) uniqueRefs.set(ref.path, ref);
+  });
+
+  const values = Array.from(uniqueRefs.values());
+  for (let index = 0; index < values.length; index += 450) {
+    const batch = db.batch();
+    values.slice(index, index + 450).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+
+  return values.length;
+}
+
+async function collectVendorLinkedProductRefs(vendorId) {
+  const fields = ['vendorId', 'uid', 'sellerUid', 'ownerUid'];
+  const snapshots = await Promise.all(fields.map((field) => (
+    db.collection('vendorProducts').where(field, '==', vendorId).get().catch((error) => {
+      logger.warn('deleteClientAccount vendorProducts lookup failed', {
+        vendorId,
+        field,
+        message: error?.message || ''
+      });
+      return null;
+    })
+  )));
+
+  return snapshots
+    .filter(Boolean)
+    .flatMap((snapshot) => snapshot.docs.map((item) => item.ref));
+}
+
+async function deleteLinkedVendorAccount(vendorId) {
+  if (!vendorId) {
+    return { vendorDeleted: false, vendorApplicationDeleted: false, vendorProductsDeleted: 0 };
+  }
+
+  const vendorRef = db.collection('vendors').doc(vendorId);
+  const applicationRef = db.collection('vendorApplications').doc(vendorId);
+  const [vendorSnap, applicationSnap, productRefs] = await Promise.all([
+    vendorRef.get(),
+    applicationRef.get(),
+    collectVendorLinkedProductRefs(vendorId)
+  ]);
+
+  await deleteDocumentRefs([
+    ...(vendorSnap.exists ? [vendorRef] : []),
+    ...(applicationSnap.exists ? [applicationRef] : []),
+    ...productRefs
+  ]);
+
+  return {
+    vendorDeleted: vendorSnap.exists,
+    vendorApplicationDeleted: applicationSnap.exists,
+    vendorProductsDeleted: new Set(productRefs.map((ref) => ref.path)).size
+  };
+}
+
 function isApprovedVendorProfile(profile) {
   if (!profile) return false;
   const role = String(profile.role || '').toLowerCase();
@@ -4601,6 +4661,10 @@ exports.deleteClientAccount = onRequest(
         return;
       }
 
+      const wasVendorAccount = String(clientData.role || clientData.vendorStatus || '').toLowerCase() === 'vendor'
+        || String(clientData.vendorStatus || '').trim() !== ''
+        || Boolean(clientData.vendorId);
+
       let authDeleted = false;
       try {
         await admin.auth().deleteUser(clientId);
@@ -4621,6 +4685,8 @@ exports.deleteClientAccount = onRequest(
         }
       }
 
+      const vendorCleanup = await deleteLinkedVendorAccount(clientId);
+
       if (typeof db.recursiveDelete === 'function') {
         await db.recursiveDelete(clientRef);
       } else {
@@ -4634,6 +4700,8 @@ exports.deleteClientAccount = onRequest(
         clientId,
         firestoreDeleted: true,
         authDeleted,
+        wasVendorAccount,
+        vendorCleanup,
         deletedBy: decodedUser.uid,
         deletedAt: new Date().toISOString()
       });
