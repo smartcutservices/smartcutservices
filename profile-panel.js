@@ -1,8 +1,8 @@
-﻿import { auth, db } from './firebase-init.js?v=20260523-1';
+import { auth, db } from './firebase-init.js?v=20260523-2';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js?v=20260523-1';
-import { getCartManager } from './cart.js?v=20260523-1';
+import { getAuthManager } from './auth.js?v=20260523-2';
+import { getCartManager } from './cart.js?v=20260523-2';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -101,7 +101,7 @@ class ProfilePanel {
 
   async ensureProfileClientLoaded() {
     console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:start', {
-      version: '20260523-1',
+      version: '20260523-2',
       isAuthenticated: this.authManager.isAuthenticated(),
       authReady: this.authManager.isAuthReady,
       authUid: this.authManager.getCurrentUser()?.uid || null,
@@ -193,7 +193,7 @@ class ProfilePanel {
   async preloadPanelData() {
     this.isBootstrapping = true;
     console.info('[PROFILE_DEBUG] preload:start', {
-      version: '20260523-1',
+      version: '20260523-2',
       authReady: this.authManager.isAuthReady,
       authUid: this.authManager.getCurrentUser()?.uid || null,
       firebaseUid: auth?.currentUser?.uid || null
@@ -248,7 +248,7 @@ class ProfilePanel {
     this.openedAt = Date.now();
     this.isBootstrapping = true;
     console.info('[PROFILE_DEBUG] open', {
-      version: '20260523-1',
+      version: '20260523-2',
       authReady: this.authManager.isAuthReady,
       isAuthenticated: this.authManager.isAuthenticated(),
       authUid: this.authManager.getCurrentUser()?.uid || null,
@@ -1215,15 +1215,25 @@ class ProfilePanel {
 
     loginBtn?.addEventListener('click', (event) => {
       event.preventDefault();
+      event.stopPropagation();
       console.info('[PROFILE_DEBUG] login-click', {
-        version: '20260523-1',
+        version: '20260523-2',
         authReady: this.authManager.isAuthReady,
         isAuthenticated: this.authManager.isAuthenticated(),
         authUid: this.authManager.getCurrentUser()?.uid || null,
         firebaseUid: auth?.currentUser?.uid || null
       });
       this.close();
-      this.authManager.openAuthModal('login');
+      window.setTimeout(() => {
+        console.info('[PROFILE_DEBUG] opening-auth-after-profile-close', {
+          version: '20260523-2',
+          authReady: this.authManager.isAuthReady,
+          isAuthenticated: this.authManager.isAuthenticated(),
+          authUid: this.authManager.getCurrentUser()?.uid || null,
+          firebaseUid: auth?.currentUser?.uid || null
+        });
+        this.authManager.openAuthModal('login');
+      }, 160);
     });
 
     logoutBtn?.addEventListener('click', async (event) => {

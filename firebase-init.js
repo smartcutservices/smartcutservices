@@ -1,4 +1,4 @@
-﻿// ============= FIREBASE INIT - MODULAR V9 =============
+// ============= FIREBASE INIT - MODULAR V9 =============
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import {
@@ -31,7 +31,7 @@ let googleProvider = null;
 let storage = null;
 let authReadyPromise = Promise.resolve();
 const firebaseState = globalThis.__SMART_CUT_FIREBASE__ || (globalThis.__SMART_CUT_FIREBASE__ = {});
-const AUTH_DEBUG_VERSION = '20260523-1';
+const AUTH_DEBUG_VERSION = '20260523-2';
 
 function testStorageArea(name) {
   try {

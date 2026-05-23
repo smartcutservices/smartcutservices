@@ -1,5 +1,5 @@
-﻿// ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-1';
+// ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-2';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const AUTH_DEBUG_VERSION = '20260523-1';
+const AUTH_DEBUG_VERSION = '20260523-2';
 
 function getAuthDebugSnapshot(extra = {}) {
   return {
@@ -123,28 +123,42 @@ class AuthManager {
       }
 
       this.hasAuthInitialized = true;
-      
-      // Émettre un événement
-      const event = new CustomEvent('authChanged', { 
-        detail: { 
-          user: user,
-          isAuthenticated,
-          isAnonymous,
-          email: user?.email,
-          displayName: user?.displayName,
-          uid: user?.uid
-        }
-      });
-      document.dispatchEvent(event);
-      
-      for (const callback of this.authChangeCallbacks) {
-        try {
-          callback(user);
-        } catch (error) {
-          console.error('[AUTH] Erreur callback auth:', error);
-        }
+      this.emitAuthChange(user, 'firebase-listener');
+    });
+  }
+
+  emitAuthChange(user, source = 'unknown') {
+    const isAuthenticated = !!user && !user.isAnonymous;
+    const isAnonymous = !!user?.isAnonymous;
+    logAuthDebug('state:emit', {
+      source,
+      uid: user?.uid || null,
+      email: user?.email || null,
+      isAuthenticated,
+      isAnonymous,
+      listenerCount: this.authChangeCallbacks.size
+    });
+
+    const event = new CustomEvent('authChanged', {
+      detail: {
+        user,
+        isAuthenticated,
+        isAnonymous,
+        email: user?.email,
+        displayName: user?.displayName,
+        uid: user?.uid,
+        source
       }
     });
+    document.dispatchEvent(event);
+
+    for (const callback of this.authChangeCallbacks) {
+      try {
+        callback(user);
+      } catch (error) {
+        console.error('[AUTH] Erreur callback auth:', error);
+      }
+    }
   }
 
   addAuthChangeListener(callback) {
@@ -189,6 +203,15 @@ class AuthManager {
     this.renderAuthModal(mode);
     document.body.appendChild(this.modal);
     this.revealAuthModal();
+    logAuthDebug('modal:rendered', {
+      mode,
+      hasModal: Boolean(this.modal),
+      hasOverlay: Boolean(this.modal.querySelector('.auth-overlay')),
+      hasContainer: Boolean(this.modal.querySelector('.auth-container')),
+      hasForm: Boolean(this.modal.querySelector('#authForm')),
+      hasEmailInput: Boolean(this.modal.querySelector('#email')),
+      hasSubmitButton: Boolean(this.modal.querySelector('#submitAuth'))
+    });
     
     // Forcer le style display: flex sur l'overlay
     const overlay = this.modal.querySelector('.auth-overlay');
@@ -295,6 +318,9 @@ class AuthManager {
 
       this.pendingGoogleRedirect = false;
       await this.ensureClientProfileForGoogle(result.user);
+      this.currentUser = result.user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(result.user, 'google-redirect-direct-success');
       this.closeAuthModal();
     } catch (error) {
       this.pendingGoogleRedirect = false;
@@ -763,6 +789,16 @@ class AuthManager {
     const form = this.modal.querySelector('#authForm');
     const forgotBtn = this.modal.querySelector('#forgotPassword');
     const googleBtn = this.modal.querySelector('#googleSignIn');
+    logAuthDebug('modal:events-attach', {
+      mode,
+      hasCloseBtn: Boolean(closeBtn),
+      hasOverlay: Boolean(overlay),
+      hasContainer: Boolean(container),
+      hasSwitchBtn: Boolean(switchBtn),
+      hasForm: Boolean(form),
+      hasForgotBtn: Boolean(forgotBtn),
+      hasGoogleBtn: Boolean(googleBtn)
+    });
     
     container?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -867,6 +903,14 @@ class AuthManager {
           code: tokenError?.code || null
         });
       }
+      this.currentUser = userCredential.user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(userCredential.user, 'login-direct-success');
+      logAuthDebug('login:direct-state-applied', {
+        uid: userCredential?.user?.uid || null,
+        currentUid: this.currentUser?.uid || null,
+        firebaseUid: auth?.currentUser?.uid || null
+      });
       this.closeAuthModal();
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
@@ -949,6 +993,10 @@ class AuthManager {
         console.error('❌ Erreur sauvegarde profil client:', profileError);
         this.showToast('Compte créé, mais le profil client n’a pas pu être synchronisé complètement.', 'info');
       }
+
+      this.currentUser = user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(user, 'register-direct-success');
       
       this.closeAuthModal();
     } catch (error) {
@@ -1020,6 +1068,9 @@ class AuthManager {
 
       const result = await signInWithPopup(auth, googleProvider);
       await this.ensureClientProfileForGoogle(result.user);
+      this.currentUser = result.user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(result.user, 'google-popup-direct-success');
       this.closeAuthModal();
     } catch (error) {
       console.error('❌ Erreur Google:', error);
