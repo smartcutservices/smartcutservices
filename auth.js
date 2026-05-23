@@ -1,5 +1,5 @@
 ﻿// ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260522-3';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-1';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const AUTH_DEBUG_VERSION = '20260522-3';
+const AUTH_DEBUG_VERSION = '20260523-1';
 
 function getAuthDebugSnapshot(extra = {}) {
   return {
@@ -91,7 +91,7 @@ class AuthManager {
         await this.handleRedirectResult();
       });
 
-    // Ã‰couter les changements d'authentification
+    // Écouter les changements d'authentification
     onAuthStateChanged(auth, (user) => {
       if (!this.isAuthReady && !user) {
         console.info('[AUTH] State null ignore avant persistence');
@@ -116,15 +116,15 @@ class AuthManager {
       if (this.hasAuthInitialized) {
         if (!wasAuthenticated && isAuthenticated) {
           const label = user?.displayName || user?.email || 'utilisateur';
-          this.showToast(`Connexion rÃ©ussie. Bienvenue ${label}.`, 'success');
+          this.showToast(`Connexion réussie. Bienvenue ${label}.`, 'success');
         } else if (wasAuthenticated && !isAuthenticated) {
-          this.showToast('DÃ©connexion rÃ©ussie.', 'info');
+          this.showToast('Déconnexion réussie.', 'info');
         }
       }
 
       this.hasAuthInitialized = true;
       
-      // Ã‰mettre un Ã©vÃ©nement
+      // Émettre un événement
       const event = new CustomEvent('authChanged', { 
         detail: { 
           user: user,
@@ -171,7 +171,7 @@ class AuthManager {
       isModalOpen: this.isModalOpen,
       isModalClosing: this.isModalClosing
     });
-    // Ã‰viter d'ouvrir plusieurs modals
+    // Éviter d'ouvrir plusieurs modals
     if (this.isModalOpen) {
       return;
     }
@@ -197,7 +197,7 @@ class AuthManager {
       overlay.style.display = 'flex';
     }
     
-    // Animation d'entrÃ©e
+    // Animation d'entrée
     setTimeout(() => {
       const container = this.modal.querySelector('.auth-container');
       if (overlay) overlay.style.opacity = '1';
@@ -274,7 +274,7 @@ class AuthManager {
     try {
       await authReadyPromise;
     } catch (error) {
-      console.warn('âš ï¸ Auth Firebase pas totalement prÃªte:', error);
+      console.warn('⚠️ Auth Firebase pas totalement prête:', error);
     }
     this.isAuthReady = true;
   }
@@ -298,7 +298,7 @@ class AuthManager {
       this.closeAuthModal();
     } catch (error) {
       this.pendingGoogleRedirect = false;
-      console.error('âŒ Erreur retour Google redirect:', error);
+      console.error('❌ Erreur retour Google redirect:', error);
       if (this.modal) {
         const errorDiv = this.modal.querySelector('#authError');
         if (errorDiv) {
@@ -431,7 +431,7 @@ class AuthManager {
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
                   color: #8B7E6B;
-                ">Ã‚ge</label>
+                ">Âge</label>
                 <input type="number" id="age" min="1" max="120" required style="
                   width: 100%;
                   padding: 0.75rem;
@@ -448,7 +448,7 @@ class AuthManager {
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
                   color: #8B7E6B;
-                ">NumÃ©ro tÃ©lÃ©phone</label>
+                ">Numéro téléphone</label>
                 <input type="tel" id="phone" required style="
                   width: 100%;
                   padding: 0.75rem;
@@ -513,7 +513,7 @@ class AuthManager {
                 border-radius: 0.5rem;
                 font-size: 1rem;
                 background: white;
-              " placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢">
+              " placeholder="••••••••">
             </div>
 
             ${mode === 'register' ? `
@@ -543,7 +543,7 @@ class AuthManager {
                   color: #C6A75E;
                   font-size: 0.85rem;
                   cursor: pointer;
-                ">Mot de passe oubliÃ© ?</button>
+                ">Mot de passe oublié ?</button>
               </div>
             ` : ''}
             
@@ -564,7 +564,7 @@ class AuthManager {
             </button>
           </form>
           
-          <!-- SÃ©parateur -->
+          <!-- Séparateur -->
           <div style="
             display: flex;
             align-items: center;
@@ -605,7 +605,7 @@ class AuthManager {
             padding-top: 1.5rem;
           ">
             <p style="color: #8B7E6B; margin-bottom: 0.5rem;">
-              ${mode === 'login' ? 'Pas encore de compte ?' : 'DÃ©jÃ  un compte ?'}
+              ${mode === 'login' ? 'Pas encore de compte ?' : 'Déjà un compte ?'}
             </p>
             <button id="switchMode" style="
               background: none;
@@ -615,7 +615,7 @@ class AuthManager {
               font-weight: 500;
               cursor: pointer;
             ">
-              ${mode === 'login' ? 'CrÃ©er un compte' : 'Se connecter'}
+              ${mode === 'login' ? 'Créer un compte' : 'Se connecter'}
             </button>
           </div>
           
@@ -746,7 +746,7 @@ class AuthManager {
     };
   }
   
-  // Attacher les Ã©vÃ©nements du modal
+  // Attacher les événements du modal
   attachAuthEvents(mode) {
     if (mode === 'register') {
       this.modal.querySelectorAll('#displayName, #age, #phone, #sexe').forEach((field) => {
@@ -825,7 +825,7 @@ class AuthManager {
     });
   }
   
-  // GÃ©rer la connexion
+  // Gérer la connexion
   async handleLogin() {
     await this.waitForAuthReady();
     const email = this.modal.querySelector('#email').value;
@@ -869,7 +869,7 @@ class AuthManager {
       }
       this.closeAuthModal();
     } catch (error) {
-      console.error('âŒ Erreur connexion:', error);
+      console.error('❌ Erreur connexion:', error);
       logAuthDebug('login:error', {
         code: error?.code || null,
         message: error?.message || String(error)
@@ -879,7 +879,7 @@ class AuthManager {
     }
   }
   
-  // GÃ©rer l'inscription
+  // Gérer l'inscription
   async handleRegister() {
     await this.waitForAuthReady();
     const email = this.modal.querySelector('#email').value;
@@ -910,7 +910,7 @@ class AuthManager {
     }
     if (!phone) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Veuillez saisir votre numÃ©ro tÃ©lÃ©phone.';
+      errorDiv.textContent = 'Veuillez saisir votre numéro téléphone.';
       return;
     }
     if (!address.address || !address.country || !address.department || !address.commune) {
@@ -946,13 +946,13 @@ class AuthManager {
           defaultDeliveryAddressId: address.isDelivery ? address.id : ''
         });
       } catch (profileError) {
-        console.error('âŒ Erreur sauvegarde profil client:', profileError);
+        console.error('❌ Erreur sauvegarde profil client:', profileError);
         this.showToast('Compte créé, mais le profil client n’a pas pu être synchronisé complètement.', 'info');
       }
       
       this.closeAuthModal();
     } catch (error) {
-      console.error('âŒ Erreur inscription:', error);
+      console.error('❌ Erreur inscription:', error);
       errorDiv.style.display = 'block';
       errorDiv.textContent = this.getErrorMessage(error.code);
     }
@@ -999,7 +999,7 @@ class AuthManager {
     await setDoc(clientRef, payload, { merge: true });
   }
   
-  // GÃ©rer la connexion avec Google
+  // Gérer la connexion avec Google
   async handleGoogleSignIn() {
     const errorDiv = this.modal.querySelector('#authError');
     await this.waitForAuthReady();
@@ -1022,7 +1022,7 @@ class AuthManager {
       await this.ensureClientProfileForGoogle(result.user);
       this.closeAuthModal();
     } catch (error) {
-      console.error('âŒ Erreur Google:', error);
+      console.error('❌ Erreur Google:', error);
       if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
         try {
           this.pendingGoogleRedirect = true;
@@ -1030,7 +1030,7 @@ class AuthManager {
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {
-          console.error('âŒ Erreur fallback Google redirect:', redirectError);
+          console.error('❌ Erreur fallback Google redirect:', redirectError);
           errorDiv.style.display = 'block';
           errorDiv.textContent = this.getErrorMessage(redirectError.code);
           return;
@@ -1038,7 +1038,7 @@ class AuthManager {
       }
       errorDiv.style.display = 'block';
       if (error?.message === 'profile_incomplete') {
-        errorDiv.textContent = 'Profil incomplet. Connexion annulÃ©e.';
+        errorDiv.textContent = 'Profil incomplet. Connexion annulée.';
       } else {
         errorDiv.textContent = this.getErrorMessage(error.code);
       }
@@ -1213,16 +1213,16 @@ class AuthManager {
           box-shadow: 0 20px 40px rgba(0,0,0,0.25);
           padding: 1.25rem;
         ">
-          <h3 style="margin:0 0 0.35rem 0; font-size:1.2rem; color:#1F1E1C;">ComplÃ©ter votre profil</h3>
-          <p style="margin:0 0 1rem 0; color:#8B7E6B; font-size:0.9rem;">Ã‚ge, sexe et tÃ©lÃ©phone sont requis.</p>
+          <h3 style="margin:0 0 0.35rem 0; font-size:1.2rem; color:#1F1E1C;">Compléter votre profil</h3>
+          <p style="margin:0 0 1rem 0; color:#8B7E6B; font-size:0.9rem;">Âge, sexe et téléphone sont requis.</p>
 
           <div style="display:flex; flex-direction:column; gap:0.75rem;">
             <div>
-              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">Ã‚ge</label>
+              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">Âge</label>
               <input id="googleExtraAge" type="number" min="1" max="120" value="${ageValue}" style="width:100%; padding:0.7rem; border:1px solid rgba(198, 167, 94, 0.3); border-radius:0.5rem; background:#fff;">
             </div>
             <div>
-              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">NumÃ©ro tÃ©lÃ©phone</label>
+              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">Numéro téléphone</label>
               <input id="googleExtraPhone" type="tel" value="${phoneValue}" style="width:100%; padding:0.7rem; border:1px solid rgba(198, 167, 94, 0.3); border-radius:0.5rem; background:#fff;">
             </div>
             <div>
@@ -1267,17 +1267,17 @@ class AuthManager {
 
         if (!Number.isInteger(ageParsed) || ageParsed < 1 || ageParsed > 120) {
           errorDiv.style.display = 'block';
-          errorDiv.textContent = 'Veuillez saisir un Ã¢ge valide (1-120).';
+          errorDiv.textContent = 'Veuillez saisir un âge valide (1-120).';
           return;
         }
         if (!phone) {
           errorDiv.style.display = 'block';
-          errorDiv.textContent = 'Veuillez saisir votre numÃ©ro tÃ©lÃ©phone.';
+          errorDiv.textContent = 'Veuillez saisir votre numéro téléphone.';
           return;
         }
         if (!sexe) {
           errorDiv.style.display = 'block';
-          errorDiv.textContent = 'Veuillez sÃ©lectionner votre sexe.';
+          errorDiv.textContent = 'Veuillez sélectionner votre sexe.';
           return;
         }
 
@@ -1286,7 +1286,7 @@ class AuthManager {
     });
   }
   
-  // GÃ©rer le mot de passe oubliÃ©
+  // Gérer le mot de passe oublié
   async handleForgotPassword() {
     const email = this.modal.querySelector('#email').value;
     const errorDiv = this.modal.querySelector('#authError');
@@ -1299,10 +1299,10 @@ class AuthManager {
     
     try {
       await sendPasswordResetEmail(auth, email);
-      this.showToast('Email de rÃ©initialisation envoyÃ©. VÃ©rifiez votre boÃ®te de rÃ©ception.', 'success');
+      this.showToast('Email de réinitialisation envoyé. Vérifiez votre boîte de réception.', 'success');
       this.closeAuthModal();
     } catch (error) {
-      console.error('âŒ Erreur:', error);
+      console.error('❌ Erreur:', error);
       errorDiv.style.display = 'block';
       errorDiv.textContent = this.getErrorMessage(error.code);
     }
@@ -1311,34 +1311,34 @@ class AuthManager {
   // Traduire les erreurs Firebase
   getErrorMessage(code) {
     const messages = {
-      'auth/user-not-found': 'Aucun compte trouvÃ© avec cet email',
+      'auth/user-not-found': 'Aucun compte trouvé avec cet email',
       'auth/wrong-password': 'Mot de passe incorrect',
-      'auth/email-already-in-use': 'Cet email est dÃ©jÃ  utilisÃ©',
-      'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractÃ¨res',
+      'auth/email-already-in-use': 'Cet email est déjà utilisé',
+      'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères',
       'auth/invalid-email': 'Email invalide',
-      'auth/too-many-requests': 'Trop de tentatives. RÃ©essayez plus tard',
-      'auth/network-request-failed': 'Erreur rÃ©seau. VÃ©rifiez votre connexion',
+      'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard',
+      'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion',
       'auth/operation-not-allowed': 'La méthode email/mot de passe ou Google n’est pas active dans Firebase Auth.',
       'auth/invalid-credential': 'Identifiants invalides ou compte inexistant.',
       'auth/unauthorized-domain': 'Ce domaine n’est pas autorisé dans Firebase Auth. Ajoutez-le dans les domaines autorisés.',
       'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cet email via une autre méthode de connexion.',
-      'auth/popup-closed-by-user': 'FenÃªtre de connexion fermÃ©e',
-      'auth/cancelled-popup-request': 'Connexion annulÃ©e',
-      'auth/popup-blocked': 'La popup a Ã©tÃ© bloquÃ©e par le navigateur',
-      'permission-denied': 'La sauvegarde du profil client a Ã©tÃ© refusÃ©e par les rÃ¨gles Firestore.',
-      'unavailable': 'Service temporairement indisponible. RÃ©essayez dans un instant.'
+      'auth/popup-closed-by-user': 'Fenêtre de connexion fermée',
+      'auth/cancelled-popup-request': 'Connexion annulée',
+      'auth/popup-blocked': 'La popup a été bloquée par le navigateur',
+      'permission-denied': 'La sauvegarde du profil client a été refusée par les règles Firestore.',
+      'unavailable': 'Service temporairement indisponible. Réessayez dans un instant.'
     };
-    return messages[code] || 'Une erreur est survenue. Veuillez rÃ©essayer.';
+    return messages[code] || 'Une erreur est survenue. Veuillez réessayer.';
   }
   
-  // DÃ©connexion
+  // Déconnexion
   async logout() {
     try {
       logAuthDebug('logout:requested');
       console.trace('[AUTH_DEBUG] logout stack');
       await signOut(auth);
     } catch (error) {
-      console.error('âŒ Erreur dÃ©connexion:', error);
+      console.error('❌ Erreur déconnexion:', error);
     }
   }
   
@@ -1347,7 +1347,7 @@ class AuthManager {
     return this.currentUser || auth?.currentUser || null;
   }
   
-  // VÃ©rifier si l'utilisateur est connectÃ©
+  // Vérifier si l'utilisateur est connecté
   isAuthenticated() {
     const user = this.getCurrentUser();
     return !!user && !user.isAnonymous;

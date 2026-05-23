@@ -1,10 +1,10 @@
-﻿import { db } from './firebase-init.js?v=20260522-3';
+﻿import { db } from './firebase-init.js?v=20260523-1';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js';
 import Navbar from './navbar.js';
-import { getCartManager } from './cart.js?v=20260522-3';
-import { getAuthManager } from './auth.js?v=20260522-3';
-import { getProfilePanel } from './profile-panel.js?v=20260522-3';
+import { getCartManager } from './cart.js?v=20260523-1';
+import { getAuthManager } from './auth.js?v=20260523-1';
+import { getProfilePanel } from './profile-panel.js?v=20260523-1';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 
 class SierraHeaderNebula {
@@ -705,7 +705,7 @@ class SierraHeaderNebula {
   render() {
     const headerRoot = document.getElementById(this.containerId);
     if (!headerRoot) {
-      console.error(`âŒ #${this.containerId} not found`);
+      console.error(`❌ #${this.containerId} not found`);
       return;
     }
 
@@ -714,7 +714,7 @@ class SierraHeaderNebula {
         <div class="desktop-header-inner">
           <div class="desktop-top-row">
             <div class="desktop-logo-area">
-              <a class="header-home-link" href="${this.getHomepageUrl()}" aria-label="Retour Ã  l'accueil">
+              <a class="header-home-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
                 <img id="desktopLogoImg" class="desktop-logo" src="" alt="logo" style="display: none;">
                 <span id="desktopCompanyName" class="desktop-company-name">Smart Cut Services</span>
               </a>
@@ -734,7 +734,7 @@ class SierraHeaderNebula {
           </div>
         </div>
         <div class="desktop-nav-row">
-          <a id="desktopAllNavBtn" class="desktop-all-button" href="./catalogue.html" aria-label="Toutes les catÃ©gories">
+          <a id="desktopAllNavBtn" class="desktop-all-button" href="./catalogue.html" aria-label="Toutes les catégories">
             <i class="fas fa-bars"></i>
             <span>Toutes</span>
           </a>
@@ -745,7 +745,7 @@ class SierraHeaderNebula {
       <div class="mobile-header-inner">
           <div class="mobile-top-bar">
           <div class="mobile-logo-center">
-            <a class="mobile-logo-link" href="${this.getHomepageUrl()}" aria-label="Retour Ã  l'accueil">
+            <a class="mobile-logo-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
               <img id="mobileLogoImg" class="mobile-logo" src="" alt="logo" style="display: none;">
               <span id="mobileLogoText" class="mobile-logo-text">logo</span>
             </a>
@@ -765,7 +765,7 @@ class SierraHeaderNebula {
           </div>
           </div>
           <div class="mobile-nav-scroll">
-            <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Toutes les catÃ©gories">
+            <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Toutes les catégories">
               <i class="fas fa-bars"></i>
               <span>Toutes</span>
             </button>
@@ -781,7 +781,7 @@ class SierraHeaderNebula {
         <div class="mega-content">
           <div id="megaColumnsContainer" class="mega-columns-area"></div>
           <div class="mega-featured-products">
-            <h3 style="font-family: var(--primary-font); font-size: 1.3rem; margin-bottom: 1rem;">SÃ©lection Prestige</h3>
+            <h3 style="font-family: var(--primary-font); font-size: 1.3rem; margin-bottom: 1rem;">Sélection Prestige</h3>
             <div id="featuredProductsGrid" class="featured-grid"></div>
           </div>
         </div>
@@ -789,7 +789,7 @@ class SierraHeaderNebula {
 
       <div id="mobileMenuFullscreenOrion99">
         <div class="mobile-menu-header">
-          <span class="mobile-menu-title">CatÃ©gories</span>
+          <span class="mobile-menu-title">Catégories</span>
           <button id="closeMobileMenuBtn" class="mobile-menu-close">
             <i class="fas fa-times"></i>
           </button>
@@ -922,7 +922,7 @@ class SierraHeaderNebula {
         `;
       }).join('');
     } catch (error) {
-      console.error('âŒ Erreur chargement liens footer mobile:', error);
+      console.error('❌ Erreur chargement liens footer mobile:', error);
       linksContainer.innerHTML = '';
     }
   }
@@ -994,7 +994,7 @@ class SierraHeaderNebula {
         this.navbar.applyConfig(config);
       }
     } catch (error) {
-      console.error('âŒ Erreur chargement config header:', error);
+      console.error('❌ Erreur chargement config header:', error);
     }
   }
 
@@ -1044,7 +1044,7 @@ class SierraHeaderNebula {
 
       const panel = getProfilePanel();
       console.info('[PROFILE_DEBUG] header-profile-click', {
-        version: '20260522-3',
+        version: '20260523-1',
         authReady: panel?.authManager?.isAuthReady ?? null,
         isAuthenticated: panel?.authManager?.isAuthenticated?.() ?? null,
         authUid: panel?.authManager?.getCurrentUser?.()?.uid || null

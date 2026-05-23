@@ -344,7 +344,7 @@
   <!-- 4. Gallery Section -->
   <div id="sierra-gallery-root" class="my-8"></div>
 
-  <!-- 5. CatÃ©gories -->
+  <!-- 5. Catégories -->
   <div id="sierra-categories-root" class="my-10"></div>
 
   <section aria-label="Acces catalogue" style="max-width:1280px;margin:0 auto;padding:0 1rem 1rem;">
@@ -367,7 +367,7 @@
     </div>
   </section>
   
-  <!-- 6. ActualitÃ©s Section -->
+  <!-- 6. Actualités Section -->
 
 <div id="sierra-actualites-root" class="my-12"></div>
 
@@ -415,7 +415,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260522-3';
+    const ASSET_VERSION = '20260523-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -469,7 +469,7 @@
         const mod = await loader();
         new mod.default(rootId, options);
       } catch (err) {
-        console.error(`âŒ Erreur composant ${key}:`, err);
+        console.error(`❌ Erreur composant ${key}:`, err);
       }
     };
 
@@ -527,7 +527,7 @@
 
     mountOnVisible('commentaire', 'sierra-commentaire-root', () => import(`./coment.js?v=${ASSET_VERSION}`), {
       title: 'Commentaires en direct',
-      placeholder: 'Ã‰crivez votre message...',
+      placeholder: 'Écrivez votre message...',
       buttonText: 'Envoyer',
       maxComments: 30,
       scrollInterval: 3000,
@@ -553,7 +553,7 @@
             imageBasePath: './'
           });
         } catch (err) {
-          console.error('âŒ Erreur chargement article.js:', err);
+          console.error('❌ Erreur chargement article.js:', err);
         }
       });
     }
@@ -561,19 +561,19 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260522-3')
+      import('./notification.js?v=20260523-1')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
           window.veltrixaNotificationCenter = center;
         })
-        .catch((err) => console.error('âŒ Erreur notification component:', err));
+        .catch((err) => console.error('❌ Erreur notification component:', err));
     }
   </script>
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260522-3')
+      import('./musique.js?v=20260523-1')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',
@@ -582,7 +582,7 @@
             defaultVolume: 0.35
           });
         })
-        .catch((err) => console.error('âŒ Erreur musique component:', err));
+        .catch((err) => console.error('❌ Erreur musique component:', err));
     }
   </script>
   <!-- Styles additionnels -->
