@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-3';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-4';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const AUTH_DEBUG_VERSION = '20260523-3';
+const AUTH_DEBUG_VERSION = '20260523-4';
 
 function getAuthDebugSnapshot(extra = {}) {
   return {
@@ -303,10 +303,7 @@ class AuthManager {
   }
 
   shouldUseGoogleRedirect() {
-    if (typeof window === 'undefined') return false;
-    const touchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.matchMedia('(max-width: 1024px)').matches;
-    return touchCapable || isSmallScreen;
+    return false;
   }
 
   async handleRedirectResult() {
@@ -789,6 +786,7 @@ class AuthManager {
     const form = this.modal.querySelector('#authForm');
     const forgotBtn = this.modal.querySelector('#forgotPassword');
     const googleBtn = this.modal.querySelector('#googleSignIn');
+    const submitBtn = this.modal.querySelector('#submitAuth');
     logAuthDebug('modal:events-attach', {
       mode,
       hasCloseBtn: Boolean(closeBtn),
@@ -797,7 +795,8 @@ class AuthManager {
       hasSwitchBtn: Boolean(switchBtn),
       hasForm: Boolean(form),
       hasForgotBtn: Boolean(forgotBtn),
-      hasGoogleBtn: Boolean(googleBtn)
+      hasGoogleBtn: Boolean(googleBtn),
+      hasSubmitBtn: Boolean(submitBtn)
     });
     
     container?.addEventListener('click', (e) => {
@@ -841,7 +840,23 @@ class AuthManager {
     if (googleBtn) {
       googleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        logAuthDebug('google-button:click', {
+          mode,
+          innerWidth: window.innerWidth,
+          maxTouchPoints: navigator.maxTouchPoints || 0
+        });
         this.handleGoogleSignIn();
+      });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        logAuthDebug('submit-button:click', {
+          mode,
+          hasEmail: Boolean(this.modal.querySelector('#email')?.value),
+          passwordLength: this.modal.querySelector('#password')?.value?.length || 0,
+          innerWidth: window.innerWidth
+        });
       });
     }
     
@@ -1051,6 +1066,12 @@ class AuthManager {
   async handleGoogleSignIn() {
     const errorDiv = this.modal.querySelector('#authError');
     await this.waitForAuthReady();
+    logAuthDebug('google:start', {
+      useRedirect: this.shouldUseGoogleRedirect(),
+      innerWidth: window.innerWidth,
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+      authUid: auth?.currentUser?.uid || null
+    });
 
     if (!auth || !googleProvider) {
       errorDiv.style.display = 'block';
@@ -1067,6 +1088,10 @@ class AuthManager {
       }
 
       const result = await signInWithPopup(auth, googleProvider);
+      logAuthDebug('google:popup-success', {
+        uid: result?.user?.uid || null,
+        email: result?.user?.email || null
+      });
       await this.ensureClientProfileForGoogle(result.user);
       this.currentUser = result.user;
       this.hasAuthInitialized = true;
@@ -1074,10 +1099,17 @@ class AuthManager {
       this.closeAuthModal();
     } catch (error) {
       console.error('❌ Erreur Google:', error);
+      logAuthDebug('google:error', {
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
       if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
         try {
           this.pendingGoogleRedirect = true;
           this.showToast('Popup Google bloquée. Redirection en cours...', 'info');
+          logAuthDebug('google:fallback-redirect-start', {
+            code: error?.code || null
+          });
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {

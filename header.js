@@ -1,10 +1,10 @@
-import { db } from './firebase-init.js?v=20260523-3';
+import { db } from './firebase-init.js?v=20260523-4';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js';
 import Navbar from './navbar.js';
-import { getCartManager } from './cart.js?v=20260523-3';
-import { getAuthManager } from './auth.js?v=20260523-3';
-import { getProfilePanel } from './profile-panel.js?v=20260523-3';
+import { getCartManager } from './cart.js?v=20260523-4';
+import { getAuthManager } from './auth.js?v=20260523-4';
+import { getProfilePanel } from './profile-panel.js?v=20260523-4';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 
 class SierraHeaderNebula {
@@ -1046,7 +1046,7 @@ class SierraHeaderNebula {
       const authManager = panel?.authManager || getAuthManager();
       const isAuthenticated = authManager?.isAuthenticated?.() ?? false;
       console.info('[PROFILE_DEBUG] header-profile-click', {
-        version: '20260523-3',
+        version: '20260523-4',
         authReady: authManager?.isAuthReady ?? null,
         isAuthenticated,
         authUid: authManager?.getCurrentUser?.()?.uid || null,
