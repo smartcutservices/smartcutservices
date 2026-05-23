@@ -31,7 +31,7 @@ let googleProvider = null;
 let storage = null;
 let authReadyPromise = Promise.resolve();
 const firebaseState = globalThis.__SMART_CUT_FIREBASE__ || (globalThis.__SMART_CUT_FIREBASE__ = {});
-const AUTH_DEBUG_VERSION = '20260523-5';
+const AUTH_DEBUG_VERSION = '20260523-6';
 
 function testStorageArea(name) {
   try {

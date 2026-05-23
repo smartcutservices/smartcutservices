@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-5';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-6';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const AUTH_DEBUG_VERSION = '20260523-5';
+const AUTH_DEBUG_VERSION = '20260523-6';
 
 function getAuthDebugSnapshot(extra = {}) {
   return {
