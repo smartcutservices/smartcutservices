@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-4';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-5';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -30,7 +30,7 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const AUTH_DEBUG_VERSION = '20260523-4';
+const AUTH_DEBUG_VERSION = '20260523-5';
 
 function getAuthDebugSnapshot(extra = {}) {
   return {
@@ -64,6 +64,8 @@ class AuthManager {
     this.modalOpenedAt = 0;
     this.isAuthReady = false;
     this.pendingGoogleRedirect = false;
+    this.isExplicitLogout = false;
+    this.lastSuccessfulAuthAt = 0;
     this.authChangeCallbacks = new Set();
     this.authUnsubscribe = null;
     if (typeof this.options.onAuthChange === 'function') {
@@ -100,6 +102,21 @@ class AuthManager {
       }
 
       const previousUser = this.currentUser;
+      const hadAuthenticatedUser = !!previousUser && !previousUser.isAnonymous;
+      if (!user && hadAuthenticatedUser && !this.isExplicitLogout) {
+        console.warn('[AUTH] Null state ignore: utilisateur connecte conserve en memoire', {
+          previousUid: previousUser.uid,
+          firebaseUid: auth?.currentUser?.uid || null,
+          ageMs: this.lastSuccessfulAuthAt ? Date.now() - this.lastSuccessfulAuthAt : null
+        });
+        logAuthDebug('state:null-ignored-after-success', {
+          previousUid: previousUser.uid,
+          ageMs: this.lastSuccessfulAuthAt ? Date.now() - this.lastSuccessfulAuthAt : null
+        });
+        this.emitAuthChange(previousUser, 'firebase-null-ignored');
+        return;
+      }
+
       this.currentUser = user;
       const wasAuthenticated = !!previousUser && !previousUser.isAnonymous;
       const isAuthenticated = !!user && !user.isAnonymous;
@@ -124,12 +141,19 @@ class AuthManager {
 
       this.hasAuthInitialized = true;
       this.emitAuthChange(user, 'firebase-listener');
+      if (!user && this.isExplicitLogout) {
+        this.isExplicitLogout = false;
+      }
     });
   }
 
   emitAuthChange(user, source = 'unknown') {
     const isAuthenticated = !!user && !user.isAnonymous;
     const isAnonymous = !!user?.isAnonymous;
+    if (isAuthenticated) {
+      this.lastSuccessfulAuthAt = Date.now();
+      this.isExplicitLogout = false;
+    }
     logAuthDebug('state:emit', {
       source,
       uid: user?.uid || null,
@@ -1419,8 +1443,10 @@ class AuthManager {
     try {
       logAuthDebug('logout:requested');
       console.trace('[AUTH_DEBUG] logout stack');
+      this.isExplicitLogout = true;
       await signOut(auth);
     } catch (error) {
+      this.isExplicitLogout = false;
       console.error('❌ Erreur déconnexion:', error);
     }
   }

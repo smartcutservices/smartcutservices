@@ -1,6 +1,6 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js?v=20260523-4';
-import { getAuthManager } from './auth.js?v=20260523-4';
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260523-5';
+import { getAuthManager } from './auth.js?v=20260523-5';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -282,7 +282,7 @@ class CartManager {
   
   async handleAuthChange(user) {
     console.info('[CART] handleAuthChange', {
-      version: '20260523-4',
+      version: '20260523-5',
       isAuthenticated: Boolean(user),
       uid: user?.uid || null,
       isAnonymous: Boolean(user?.isAnonymous),
