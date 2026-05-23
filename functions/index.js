@@ -4601,26 +4601,32 @@ exports.deleteClientAccount = onRequest(
         return;
       }
 
-      if (typeof db.recursiveDelete === 'function') {
-        await db.recursiveDelete(clientRef);
-      } else {
-        const ordersSnap = await clientRef.collection('orders').get();
-        await Promise.all(ordersSnap.docs.map((snap) => snap.ref.delete()));
-        await clientRef.delete();
-      }
-
       let authDeleted = false;
       try {
         await admin.auth().deleteUser(clientId);
         authDeleted = true;
       } catch (authError) {
         if (authError?.code !== 'auth/user-not-found') {
-          logger.warn('deleteClientAccount auth delete failed', {
+          logger.error('deleteClientAccount auth delete failed', {
             clientId,
             code: authError?.code || '',
             message: authError?.message || ''
           });
+          sendJson(res, 500, {
+            ok: false,
+            error: 'auth-delete-failed',
+            message: 'Impossible de supprimer le compte Auth du client. Les donnees Firestore n ont pas ete supprimees.'
+          });
+          return;
         }
+      }
+
+      if (typeof db.recursiveDelete === 'function') {
+        await db.recursiveDelete(clientRef);
+      } else {
+        const ordersSnap = await clientRef.collection('orders').get();
+        await Promise.all(ordersSnap.docs.map((snap) => snap.ref.delete()));
+        await clientRef.delete();
       }
 
       sendJson(res, 200, {
