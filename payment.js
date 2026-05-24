@@ -29,6 +29,14 @@ function getSafeMoncashErrorMessage(error) {
   return rawMessage;
 }
 
+function logMoncashDebug(stage, data = {}) {
+  try {
+    console.info('[MONCASH_DEBUG]', stage, data);
+  } catch (_) {
+    // Debug logging must never block payment.
+  }
+}
+
 class PaymentModal {
   constructor(options = {}) {
     this.options = {
@@ -1071,6 +1079,16 @@ class PaymentModal {
 
   async startMoncashCheckout() {
     const launchBtn = this.modal.querySelector('#launchMoncashBtn');
+    logMoncashDebug('checkout:start', {
+      version: '20260524-3',
+      amount: this.options.amount || 0,
+      itemCount: Array.isArray(this.options.cart) ? this.options.cart.length : 0,
+      clientId: this.options.client?.id || '',
+      clientUid: this.options.client?.uid || '',
+      methodId: this.selectedMethod?.id || '',
+      methodName: this.selectedMethod?.name || ''
+    });
+
     if (launchBtn) {
       launchBtn.disabled = true;
       launchBtn.innerHTML = '<div class="loading-spinner"></div> Redirection vers MonCash...';
@@ -1082,6 +1100,15 @@ class PaymentModal {
       }
 
       const customer = this.collectMoncashCustomerData();
+      logMoncashDebug('checkout:customer', {
+        hasName: Boolean(customer.customerName),
+        hasEmail: Boolean(customer.customerEmail),
+        hasPhone: Boolean(customer.customerPhone),
+        deliveryDepartment: this.options.delivery?.department || '',
+        deliveryCommune: this.options.delivery?.commune || '',
+        deliveryTotalFee: this.options.delivery?.totalFee ?? this.options.delivery?.shippingAmount ?? null
+      });
+
       if (!customer.customerName || !customer.customerEmail) {
         throw new Error('Veuillez renseigner votre nom complet et votre email avant de continuer.');
       }
@@ -1093,7 +1120,7 @@ class PaymentModal {
         phone: customer.customerPhone
       };
 
-      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260524-2');
+      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260524-3');
       const response = await createMoncashPaymentSession({
         clientId: this.options.client?.id || '',
         clientUid: this.options.client?.uid || '',
@@ -1115,6 +1142,12 @@ class PaymentModal {
         throw new Error('MonCash n’a pas renvoyé d’URL de paiement.');
       }
 
+      logMoncashDebug('checkout:redirect-ready', {
+        sessionId: response?.sessionId || '',
+        orderId: response?.orderId || '',
+        hasCheckoutUrl: Boolean(response?.checkoutUrl)
+      });
+
       try {
         localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
           sessionId: response?.sessionId || '',
@@ -1131,6 +1164,11 @@ class PaymentModal {
       window.location.assign(response.checkoutUrl);
     } catch (error) {
       console.error('❌ Erreur démarrage MonCash:', error);
+      logMoncashDebug('checkout:error', {
+        code: error?.payload?.error || error?.code || '',
+        message: error?.message || '',
+        payload: error?.payload || null
+      });
       if (launchBtn) {
         launchBtn.disabled = false;
         launchBtn.textContent = 'Payer avec MonCash';

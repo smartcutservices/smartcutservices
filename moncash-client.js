@@ -1,6 +1,15 @@
 const PROJECT_ID = 'smartcutservices-9ce54';
 const REGION = 'us-central1';
 const FUNCTION_BASE_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
+const MONCASH_DEBUG_TAG = '[MONCASH_DEBUG]';
+
+function logMoncashDebug(stage, data = {}) {
+  try {
+    console.info(MONCASH_DEBUG_TAG, stage, data);
+  } catch (_) {
+    // Debug logging must never block payment.
+  }
+}
 
 function sanitizeMoncashClientMessage(message) {
   const rawMessage = String(message || '').trim();
@@ -28,6 +37,13 @@ function sanitizeMoncashClientMessage(message) {
 }
 
 async function requestJson(url, options = {}) {
+  const startedAt = Date.now();
+  logMoncashDebug('request:start', {
+    url,
+    method: options.method || 'GET',
+    hasBody: Boolean(options.body)
+  });
+
   const response = await fetch(url, {
     headers: {
       Accept: 'application/json',
@@ -43,6 +59,16 @@ async function requestJson(url, options = {}) {
   } catch (_) {
     payload = { raw: text };
   }
+
+  logMoncashDebug('request:response', {
+    url,
+    ok: response.ok,
+    status: response.status,
+    durationMs: Date.now() - startedAt,
+    payloadOk: payload?.ok,
+    error: payload?.error || '',
+    message: payload?.message || ''
+  });
 
   if (!response.ok || payload?.ok === false) {
     const error = new Error(sanitizeMoncashClientMessage(payload?.message || payload?.error || 'MonCash request failed'));

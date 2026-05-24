@@ -2675,23 +2675,45 @@ exports.createMoncashPayment = onRequest(
     const items = await enrichMarketplaceItems(body.items);
     const requestedPromo = body.promo && typeof body.promo === 'object' ? body.promo : null;
 
+    logger.info('MONCASH_CREATE_DEBUG request:start', {
+      clientId: localClientId,
+      clientUid,
+      itemCount: items.length,
+      hasCustomerName: Boolean(customerName),
+      hasCustomerEmail: Boolean(customerEmail),
+      deliveryDepartment: delivery?.department || '',
+      deliveryCommune: delivery?.commune || '',
+      hasPromo: Boolean(requestedPromo?.code)
+    });
+
     if (!localClientId) {
+      logger.warn('MONCASH_CREATE_DEBUG request:missing-client-id');
       sendJson(res, 400, { ok: false, error: 'missing-client-id' });
       return;
     }
 
     if (!customerName || !customerEmail) {
+      logger.warn('MONCASH_CREATE_DEBUG request:missing-customer-identity', {
+        hasCustomerName: Boolean(customerName),
+        hasCustomerEmail: Boolean(customerEmail)
+      });
       sendJson(res, 400, { ok: false, error: 'missing-customer-identity' });
       return;
     }
 
     if (items.length === 0) {
+      logger.warn('MONCASH_CREATE_DEBUG request:missing-items');
       sendJson(res, 400, { ok: false, error: 'missing-items' });
       return;
     }
 
     const deliveryValidation = validateHomeDeliveryPayload(items, delivery);
     if (!deliveryValidation.ok) {
+      logger.warn('MONCASH_CREATE_DEBUG request:delivery-invalid', {
+        error: deliveryValidation.error,
+        message: deliveryValidation.message,
+        unavailable: deliveryValidation.unavailable || null
+      });
       sendJson(res, 400, {
         ok: false,
         error: deliveryValidation.error,
@@ -2715,6 +2737,12 @@ exports.createMoncashPayment = onRequest(
     const discountAmount = Math.max(0, Number(promoSummary?.discountAmount || 0));
     const finalTotal = Math.max(0, totals.total - discountAmount);
     if (finalTotal <= 0) {
+      logger.warn('MONCASH_CREATE_DEBUG request:invalid-total', {
+        subtotal: totals.subtotal,
+        shippingAmount: totals.shippingAmount,
+        discountAmount,
+        finalTotal
+      });
       sendJson(res, 400, { ok: false, error: 'invalid-total' });
       return;
     }
@@ -2821,6 +2849,12 @@ exports.createMoncashPayment = onRequest(
         sessionRef.set(sessionData, { merge: true })
       ]);
 
+      logger.info('MONCASH_CREATE_DEBUG redirect:start', {
+        sessionId,
+        orderId,
+        amount: finalTotal
+      });
+
       const redirect = await createMoncashRedirect(orderId, finalTotal);
 
       await Promise.all([
@@ -2842,6 +2876,12 @@ exports.createMoncashPayment = onRequest(
         })
       ]);
 
+      logger.info('MONCASH_CREATE_DEBUG redirect:ready', {
+        sessionId,
+        orderId,
+        hasCheckoutUrl: Boolean(redirect.checkoutUrl)
+      });
+
       sendJson(res, 200, {
         ok: true,
         sessionId,
@@ -2854,6 +2894,13 @@ exports.createMoncashPayment = onRequest(
     } catch (error) {
       logger.error('MonCash create payment failed', error);
       const publicError = getSafeMoncashPublicError(error);
+      logger.warn('MONCASH_CREATE_DEBUG redirect:error', {
+        status: publicError.status,
+        publicError: publicError.error,
+        publicMessage: publicError.message,
+        rawMessage: error?.message || '',
+        payload: error?.payload || null
+      });
 
       await Promise.all([
         sessionRef.set(
