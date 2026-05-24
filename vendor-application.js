@@ -1,4 +1,4 @@
-import { db, auth, authReadyPromise } from './firebase-init.js';
+import { db } from './firebase-init.js';
 import { getAuthManager } from './auth.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 import {
@@ -67,11 +67,6 @@ class VendorApplicationPage {
     this.formSettings = DEFAULT_FORM_SETTINGS;
     this.planSettings = DEFAULT_PLAN_SETTINGS;
     this.selectedPlan = '';
-    this.kycDocuments = {
-      recto: null,
-      verso: null
-    };
-    this.isUploadingKyc = false;
     this.uniqueId = `vendor_apply_${Math.random().toString(36).slice(2, 9)}`;
 
     if (!this.container) return;
@@ -115,10 +110,6 @@ class VendorApplicationPage {
 
     this.clientProfile = clientSnap.exists() ? clientSnap.data() : null;
     this.application = applicationSnap.exists() ? applicationSnap.data() : null;
-    this.kycDocuments = {
-      recto: this.application?.kycDocuments?.recto || null,
-      verso: this.application?.kycDocuments?.verso || null
-    };
   }
 
   async loadFormSettings() {
@@ -254,7 +245,6 @@ class VendorApplicationPage {
               <form id="vendorApplicationForm" style="display:grid;gap:1rem;">
                 ${this.renderSelectedPlanNotice()}
                 ${this.renderFields()}
-                ${this.renderKycBlock()}
                 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding-top:.5rem;">
                   <button type="submit" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">
                     ${this.escape(this.formSettings.submitLabel || DEFAULT_FORM_SETTINGS.submitLabel)}
@@ -425,69 +415,6 @@ class VendorApplicationPage {
           Choisir ${this.escape(plan.title)}
         </button>
       </article>
-    `;
-  }
-
-  renderKycBlock() {
-    const hasRecto = Boolean(this.kycDocuments.recto?.url || this.kycDocuments.recto?.path);
-    const hasVerso = Boolean(this.kycDocuments.verso?.url || this.kycDocuments.verso?.path);
-    const complete = hasRecto && hasVerso;
-    return `
-      <section style="border:1px solid ${complete ? 'rgba(20,83,45,0.18)' : 'rgba(198,167,94,0.28)'};border-radius:1.25rem;background:${complete ? 'rgba(20,83,45,0.07)' : '#fff'};padding:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
-        <div>
-          <strong style="display:block;color:#1F1E1C;">Verification KYC *</strong>
-          <span style="display:block;margin-top:.25rem;color:#6E6557;line-height:1.6;">Telechargez le recto et le verso de votre carte d'identite. Stripe pourra demander ces informations.</span>
-          <small style="display:block;margin-top:.35rem;color:${complete ? '#14532D' : '#92400E'};font-weight:800;">${complete ? 'Documents KYC ajoutes' : 'Recto et verso requis avant envoi'}</small>
-        </div>
-        <button type="button" id="openKycModalBtn" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:.9rem 1.1rem;font-weight:900;cursor:pointer;">
-          ${complete ? 'Modifier la verification KYC' : 'Faire la verification KYC'}
-        </button>
-      </section>
-    `;
-  }
-
-  renderKycModal() {
-    const rectoName = this.kycDocuments.recto?.originalName || this.kycDocuments.recto?.name || '';
-    const versoName = this.kycDocuments.verso?.originalName || this.kycDocuments.verso?.name || '';
-    return `
-      <div id="vendorKycModal" style="position:fixed;inset:0;z-index:1000002;background:#F8F5EF;color:#1F1E1C;display:flex;flex-direction:column;">
-        <header style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid rgba(31,30,28,0.08);background:#fff;">
-          <div>
-            <small style="display:block;color:#C6A75E;text-transform:uppercase;letter-spacing:.14em;font-weight:900;">Verification KYC</small>
-            <h2 style="margin:.25rem 0 0;font-family:'Cormorant Garamond',serif;font-size:2rem;line-height:1;">Carte d'identite vendeur</h2>
-          </div>
-          <button type="button" id="closeKycModalBtn" style="border:none;border-radius:999px;background:#F3EEE6;color:#1F1E1C;width:44px;height:44px;cursor:pointer;">
-            <i class="fas fa-times"></i>
-          </button>
-        </header>
-        <div style="flex:1;overflow:auto;padding:clamp(1rem,3vw,2rem);">
-          <div style="max-width:920px;margin:0 auto;display:grid;gap:1rem;">
-            <p style="margin:0;color:#6E6557;line-height:1.8;">Ajoutez le recto et le verso de votre carte d'identite. Ces fichiers resteront lies a votre candidature vendeur pour faciliter les controles KYC demandes par Stripe.</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
-              ${this.renderKycUploadCard('recto', 'Recto *', rectoName)}
-              ${this.renderKycUploadCard('verso', 'Verso *', versoName)}
-            </div>
-            <div id="kycModalError" style="display:none;border-radius:1rem;background:#FEE2E2;color:#991B1B;padding:.85rem 1rem;"></div>
-            <div style="display:flex;justify-content:flex-end;gap:.75rem;flex-wrap:wrap;">
-              <button type="button" id="cancelKycModalBtn" style="border:1px solid rgba(31,30,28,0.14);border-radius:999px;background:#fff;color:#1F1E1C;padding:.9rem 1.1rem;font-weight:900;cursor:pointer;">Annuler</button>
-              <button type="button" id="saveKycModalBtn" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:.9rem 1.1rem;font-weight:900;cursor:pointer;">Enregistrer la verification</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  renderKycUploadCard(side, label, currentName) {
-    return `
-      <label style="display:grid;gap:.75rem;border:1px solid rgba(31,30,28,0.1);border-radius:1.25rem;background:#fff;padding:1rem;min-height:210px;">
-        <span style="font-weight:900;color:#1F1E1C;">${this.escape(label)}</span>
-        <span style="display:flex;align-items:center;justify-content:center;border:1px dashed rgba(198,167,94,0.55);border-radius:1rem;background:rgba(198,167,94,0.08);min-height:116px;color:#6E6557;text-align:center;padding:1rem;">
-          <span data-kyc-file-name="${side}">${currentName ? this.escape(currentName) : 'Choisir une image ou un PDF'}</span>
-        </span>
-        <input type="file" data-kyc-file="${side}" accept="image/jpeg,image/png,image/webp,application/pdf" style="width:100%;">
-        <small style="color:#6E6557;">Formats acceptes: JPG, PNG, WEBP ou PDF.</small>
-      </label>
     `;
   }
 
@@ -684,10 +611,6 @@ class VendorApplicationPage {
       this.attachEvents();
     });
 
-    this.container.querySelector('#openKycModalBtn')?.addEventListener('click', () => {
-      this.openKycModal();
-    });
-
     const form = this.container.querySelector('#vendorApplicationForm');
     if (form) {
       form.addEventListener('submit', async (event) => {
@@ -736,128 +659,6 @@ class VendorApplicationPage {
         row?.remove();
       });
     });
-  }
-
-  openKycModal() {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = this.renderKycModal();
-    const modal = wrapper.firstElementChild;
-    if (!modal) return;
-    document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
-
-    const close = () => {
-      modal.remove();
-      document.body.style.overflow = '';
-    };
-    const showError = (message) => {
-      const error = modal.querySelector('#kycModalError');
-      if (!error) return;
-      error.style.display = 'block';
-      error.textContent = message;
-    };
-
-    modal.querySelector('#closeKycModalBtn')?.addEventListener('click', close);
-    modal.querySelector('#cancelKycModalBtn')?.addEventListener('click', close);
-
-    modal.querySelectorAll('[data-kyc-file]').forEach((input) => {
-      input.addEventListener('change', () => {
-        const side = input.dataset.kycFile;
-        const label = modal.querySelector(`[data-kyc-file-name="${side}"]`);
-        if (label) label.textContent = input.files?.[0]?.name || 'Choisir une image ou un PDF';
-      });
-    });
-
-    modal.querySelector('#saveKycModalBtn')?.addEventListener('click', async () => {
-      const saveBtn = modal.querySelector('#saveKycModalBtn');
-      try {
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Upload en cours...';
-        await this.saveKycDocuments(modal);
-        close();
-        this.render();
-        this.attachEvents();
-        this.auth.showToast('Verification KYC enregistree.', 'success');
-      } catch (error) {
-        console.error('Erreur KYC:', error);
-        showError(error?.message || 'Impossible de sauvegarder la verification KYC.');
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Enregistrer la verification';
-      }
-    });
-  }
-
-  async saveKycDocuments(modal) {
-    const uploadUser = await this.ensureKycUploadAuthReady();
-    const rectoFile = modal.querySelector('[data-kyc-file="recto"]')?.files?.[0] || null;
-    const versoFile = modal.querySelector('[data-kyc-file="verso"]')?.files?.[0] || null;
-    const next = { ...this.kycDocuments };
-
-    if (!rectoFile && !next.recto) throw new Error('Le recto de la carte d identite est obligatoire.');
-    if (!versoFile && !next.verso) throw new Error('Le verso de la carte d identite est obligatoire.');
-
-    const { uploadStorageFile } = await import('./firebase-storage.js');
-    const uploadOne = async (file, side) => {
-      if (!file) return next[side];
-      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-      if (!allowed.includes(file.type)) {
-        throw new Error('Format non supporte. Utilisez JPG, PNG, WEBP ou PDF.');
-      }
-      const folder = `vendor-kyc/${uploadUser.uid}/${side}`;
-      console.info('[KYC_UPLOAD] start', {
-        side,
-        folder,
-        authUid: auth?.currentUser?.uid || null,
-        pageUid: this.user?.uid || null,
-        fileType: file.type,
-        fileSize: file.size
-      });
-      const result = await uploadStorageFile(file, folder, { maxSizeMb: 12 });
-      return {
-        side,
-        url: result.url,
-        path: result.path,
-        name: result.name,
-        originalName: file.name,
-        contentType: file.type,
-        size: file.size,
-        uploadedAt: new Date().toISOString()
-      };
-    };
-
-    next.recto = await uploadOne(rectoFile, 'recto');
-    next.verso = await uploadOne(versoFile, 'verso');
-    this.kycDocuments = next;
-  }
-
-  async ensureKycUploadAuthReady() {
-    try {
-      await authReadyPromise;
-      await this.auth.waitForAuthReady?.();
-    } catch (error) {
-      console.warn('[KYC_UPLOAD] auth-ready warning', error);
-    }
-
-    const currentUser = auth?.currentUser || this.auth.getCurrentUser?.();
-    console.info('[KYC_UPLOAD] auth-check', {
-      authUid: auth?.currentUser?.uid || null,
-      managerUid: this.auth.getCurrentUser?.()?.uid || null,
-      pageUid: this.user?.uid || null,
-      isAnonymous: Boolean(currentUser?.isAnonymous)
-    });
-
-    if (!currentUser?.uid || currentUser.isAnonymous) {
-      throw new Error('Session Firebase introuvable. Reconnectez-vous puis reessayez la verification KYC.');
-    }
-
-    if (this.user?.uid && this.user.uid !== currentUser.uid) {
-      this.user = currentUser;
-      await this.loadData();
-    }
-
-    await currentUser.getIdToken(true);
-    return currentUser;
   }
 
   collectResponses() {
@@ -957,10 +758,6 @@ class VendorApplicationPage {
       return;
     }
     const deliveryCoverage = { country: 'Haiti', mode: 'per_product', nationwide: false, nationwideFee: 0, zones: [] };
-    if (!this.kycDocuments.recto || !this.kycDocuments.verso) {
-      this.auth.showToast('Merci de completer la verification KYC: recto et verso sont obligatoires.', 'error');
-      return;
-    }
 
     const canonical = this.buildCanonicalPayload(responses);
     const plan = this.getPlanMeta(this.selectedPlan || 'basic');
@@ -986,8 +783,6 @@ class VendorApplicationPage {
       planPaymentRequired: plan.paymentRequired,
       planPaymentStatus: plan.paymentRequired ? 'pending' : 'not_required',
       payoutRequestIntervalDays: Number(this.planSettings.payoutDelayDays || 30),
-      kycStatus: 'submitted',
-      kycDocuments: this.kycDocuments,
       deliveryCoverage,
       deliveryZones: [],
       ...canonical
