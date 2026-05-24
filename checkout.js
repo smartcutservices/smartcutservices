@@ -65,7 +65,7 @@ class CheckoutModal {
       weightRules: []
     };
     this.selectedDelivery = {
-      method: null,
+      method: 'home',
       home: {
         savedAddressId: '',
         zoneId: '',
@@ -131,13 +131,31 @@ class CheckoutModal {
 
   getSavedDeliveryAddresses() {
     const addresses = Array.isArray(this.client?.addresses) ? this.client.addresses : [];
-    return addresses.filter((address) => (
+    const savedAddresses = addresses.filter((address) => (
       address
       && address.address
       && address.country
       && address.department
       && address.commune
     ));
+    const profileAddress = {
+      id: 'profile-default',
+      label: 'Adresse principale',
+      address: this.client?.address || this.client?.adresse || '',
+      country: this.client?.country || 'Haiti',
+      department: this.client?.department || this.client?.departement || '',
+      commune: this.client?.commune || this.client?.city || '',
+      isDelivery: true
+    };
+    const hasProfileAddress = profileAddress.address && profileAddress.country && profileAddress.department && profileAddress.commune;
+    const alreadySaved = savedAddresses.some((address) => (
+      String(address.address || '').trim().toLowerCase() === String(profileAddress.address || '').trim().toLowerCase()
+      && String(address.department || '').trim().toLowerCase() === String(profileAddress.department || '').trim().toLowerCase()
+      && String(address.commune || '').trim().toLowerCase() === String(profileAddress.commune || '').trim().toLowerCase()
+    ));
+    return hasProfileAddress && !alreadySaved
+      ? [profileAddress, ...savedAddresses]
+      : savedAddresses;
   }
 
   getDefaultDeliveryAddress() {
@@ -652,10 +670,6 @@ class CheckoutModal {
   }
 
   renderDeliverySection() {
-    const methods = this.getAvailableDeliveryMethods();
-    const methodOptions = methods.length > 0
-      ? methods.map(m => this.renderDeliveryMethodRadio(m)).join('')
-      : `<div style="color:#8B7E6B;font-size:0.9rem;">Aucune méthode de livraison disponible pour le moment.</div>`;
     const savedAddresses = this.getSavedDeliveryAddresses();
     const defaultAddress = this.getDefaultDeliveryAddress();
     const savedAddressOptions = savedAddresses.map((address) => `
@@ -678,14 +692,14 @@ class CheckoutModal {
           margin-bottom: 0.75rem;
           color: #1F1E1C;
         ">
-          Choisir une méthode de livraison
+          Livraison a domicile
         </h3>
-        <div class="delivery-methods" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
-          ${methodOptions}
+        <div style="margin-bottom:1rem;color:#6E6557;font-size:0.95rem;line-height:1.6;">
+          Votre commande sera livree directement a l'adresse indiquee ci-dessous.
         </div>
         
         <div class="delivery-panels">
-          <div class="delivery-panel" data-delivery-panel="home" style="display:none;">
+          <div class="delivery-panel" data-delivery-panel="home" style="display:block;">
             <div style="display:grid;gap:0.75rem;">
               ${savedAddresses.length ? `
                 <div>
@@ -741,53 +755,13 @@ class CheckoutModal {
               </div>
             </div>
           </div>
-          
-          <div class="delivery-panel" data-delivery-panel="pickup" style="display:none;">
-            <label style="font-size:0.9rem;color:#8B7E6B;">Point de retrait</label>
-            <select class="delivery-pickup-point" style="
-              width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-            ">
-              ${this.renderSelectOptions(this.deliveryData.pickupPoints, 'Aucun point disponible')}
-            </select>
-            <div class="pickup-details" style="margin-top:0.75rem;font-size:0.9rem;color:#8B7E6B;"></div>
-          </div>
-          
-          <div class="delivery-panel" data-delivery-panel="meetup" style="display:none;">
-            <label style="font-size:0.9rem;color:#8B7E6B;">Zone de rencontre</label>
-            <select class="delivery-meetup-zone" style="
-              width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-            ">
-              ${this.renderSelectOptions(this.deliveryData.meetupZones, 'Aucune zone disponible')}
-            </select>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">
-              <div>
-                <label style="font-size:0.9rem;color:#8B7E6B;">Téléphone</label>
-                <input type="text" class="delivery-meetup-phone" placeholder="Ex: 37 00 00 00" style="
-                  width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-                ">
-              </div>
-              <div>
-                <label style="font-size:0.9rem;color:#8B7E6B;">WhatsApp</label>
-                <input type="text" class="delivery-meetup-whatsapp" placeholder="Ex: 37 00 00 00" style="
-                  width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-                ">
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     `;
   }
 
   getAvailableDeliveryMethods() {
-    const defaults = { home: true, pickup: true, meetup: true };
-    const settings = this.deliverySettings?.methodsVisible || defaults;
-    const methods = [];
-    if (settings.home) methods.push({ key: 'home', label: 'A domicile', icon: 'fa-house' });
-    if (!this.hasVendorItems() && settings.pickup) methods.push({ key: 'pickup', label: 'Retrait en point de vente', icon: 'fa-store' });
-    if (!this.hasVendorItems() && settings.meetup) methods.push({ key: 'meetup', label: 'Par rencontre', icon: 'fa-people-arrows' });
-    return methods;
+    return [{ key: 'home', label: 'A domicile', icon: 'fa-house' }];
   }
 
   renderDeliveryMethodRadio(method) {
@@ -1001,15 +975,16 @@ class CheckoutModal {
         this.deliverySettings = snapshot.data();
       } else {
         this.deliverySettings = {
-          methodsVisible: { home: true, pickup: true, meetup: true },
+          methodsVisible: { home: true, pickup: false, meetup: false },
           allowMeetupProposal: false
         };
       }
+      this.deliverySettings.methodsVisible = { home: true, pickup: false, meetup: false };
       this.deliverySettings.allowMeetupProposal = false;
     } catch (error) {
       console.error('❌ Erreur paramètres livraison:', error);
       this.deliverySettings = {
-        methodsVisible: { home: true, pickup: true, meetup: true },
+        methodsVisible: { home: true, pickup: false, meetup: false },
         allowMeetupProposal: false
       };
     }
@@ -1026,10 +1001,8 @@ class CheckoutModal {
       }
     };
     
-    const [homeZones, pickupPoints, meetupZones, weightRules] = await Promise.all([
+    const [homeZones, weightRules] = await Promise.all([
       loadCollection('deliveryHomeZones'),
-      loadCollection('deliveryPickupPoints'),
-      loadCollection('deliveryMeetupZones'),
       loadCollection('deliveryWeightRules')
     ]);
     
@@ -1039,18 +1012,8 @@ class CheckoutModal {
         ...zone,
         displayLabel: zone.zone ? `${zone.city} - ${zone.zone}` : zone.city || zone.name
       }));
-    this.deliveryData.pickupPoints = pickupPoints
-      .filter(point => point.isActive !== false)
-      .map(point => ({
-        ...point,
-        displayLabel: point.name || point.title || 'Point de retrait'
-      }));
-    this.deliveryData.meetupZones = meetupZones
-      .filter(zone => zone.isActive !== false)
-      .map(zone => ({
-        ...zone,
-        displayLabel: zone.zone || zone.name || 'Zone de rencontre'
-      }));
+    this.deliveryData.pickupPoints = [];
+    this.deliveryData.meetupZones = [];
     this.deliveryData.weightRules = weightRules
       .filter(rule => rule.isActive !== false)
       .map(rule => ({
@@ -1068,20 +1031,10 @@ class CheckoutModal {
     section.outerHTML = this.renderDeliverySection();
     this.bindDeliveryEvents();
     this.updateDeliveryPanels();
-    this.updatePickupDetails();
-    this.updateMeetupProposalVisibility();
   }
 
   setDefaultDeliveryMethod() {
-    const methods = this.getAvailableDeliveryMethods();
-    if (!methods.length) {
-      this.selectedDelivery.method = null;
-      return;
-    }
-    if (this.selectedDelivery.method && methods.find(m => m.key === this.selectedDelivery.method)) {
-      return;
-    }
-    this.selectedDelivery.method = methods[0].key;
+    this.selectedDelivery.method = 'home';
     const defaultRadio = this.modal.querySelector(`input[name="delivery_method_${this.uniqueId}"][value="${this.selectedDelivery.method}"]`);
     if (defaultRadio) {
       defaultRadio.checked = true;
@@ -1117,10 +1070,11 @@ class CheckoutModal {
   }
 
   bindDeliveryEvents() {
+    this.selectedDelivery.method = 'home';
     const methodRadios = this.modal.querySelectorAll(`input[name="delivery_method_${this.uniqueId}"]`);
     methodRadios.forEach(radio => {
       radio.addEventListener('change', () => {
-        this.selectedDelivery.method = radio.value;
+        this.selectedDelivery.method = 'home';
         this.updateDeliveryPanels();
         this.updateDeliveryCosts();
         this.updateTotalsUI();
@@ -1145,26 +1099,6 @@ class CheckoutModal {
         this.applySavedDeliveryAddress(savedAddressSelect.value);
       });
     }
-    
-    const pickupSelect = this.modal.querySelector('.delivery-pickup-point');
-    if (pickupSelect) {
-      pickupSelect.addEventListener('change', () => {
-        this.selectedDelivery.pickup.pointId = pickupSelect.value;
-        this.updatePickupDetails();
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    }
-    
-    const meetupSelect = this.modal.querySelector('.delivery-meetup-zone');
-    if (meetupSelect) {
-      meetupSelect.addEventListener('change', () => {
-        this.selectedDelivery.meetup.zoneId = meetupSelect.value;
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    }
-    
     const addressInput = this.modal.querySelector('.delivery-home-address');
     if (addressInput) {
       addressInput.addEventListener('input', () => {
@@ -1201,31 +1135,16 @@ class CheckoutModal {
         this.selectedDelivery.home.whatsapp = homeWhatsapp.value;
       });
     }
-    
-    const meetupPhone = this.modal.querySelector('.delivery-meetup-phone');
-    if (meetupPhone) {
-      meetupPhone.addEventListener('input', () => {
-        this.selectedDelivery.meetup.phone = meetupPhone.value;
-      });
-    }
-    
-    const meetupWhatsapp = this.modal.querySelector('.delivery-meetup-whatsapp');
-    if (meetupWhatsapp) {
-      meetupWhatsapp.addEventListener('input', () => {
-        this.selectedDelivery.meetup.whatsapp = meetupWhatsapp.value;
-      });
-    }
-    
     this.selectedDelivery.meetup.proposal = '';
   }
 
   updateDeliveryPanels() {
+    this.selectedDelivery.method = 'home';
     const panels = this.modal.querySelectorAll('.delivery-panel');
     panels.forEach(panel => {
       const panelType = panel.getAttribute('data-delivery-panel');
-      panel.style.display = panelType === this.selectedDelivery.method ? 'block' : 'none';
+      panel.style.display = panelType === 'home' ? 'block' : 'none';
     });
-    this.updateMeetupProposalVisibility();
   }
 
   updatePickupDetails() {
@@ -1249,15 +1168,9 @@ class CheckoutModal {
 
   updateDeliveryCosts() {
     let baseFee = 0;
-    if (this.selectedDelivery.method === 'home') {
-      const zone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
-      baseFee = (this.hasSmartCutItems() ? Number(zone?.fee || 0) : 0) + this.getVendorDeliveryFee();
-    } else if (this.selectedDelivery.method === 'pickup') {
-      baseFee = 0;
-    } else if (this.selectedDelivery.method === 'meetup') {
-      const zone = this.deliveryData.meetupZones.find(z => z.id === this.selectedDelivery.meetup.zoneId);
-      baseFee = Number(zone?.fee || 0);
-    }
+    this.selectedDelivery.method = 'home';
+    const zone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
+    baseFee = (this.hasSmartCutItems() ? Number(zone?.fee || 0) : 0) + this.getVendorDeliveryFee();
     
     const weightGrams = this.getCartWeight();
     const weightFee = this.getCartWeightFee();
@@ -1316,59 +1229,32 @@ class CheckoutModal {
   }
 
   validateDelivery() {
-    if (!this.selectedDelivery.method) {
-      this.showMessage('Veuillez choisir une méthode de livraison', 'error');
+    this.selectedDelivery.method = 'home';
+
+    if (this.hasSmartCutItems() && !this.selectedDelivery.home.zoneId) {
+      this.showMessage('Veuillez selectionner une ville ou zone', 'error');
       return false;
     }
-    
-    if (this.selectedDelivery.method === 'home') {
-      if (this.hasSmartCutItems() && !this.selectedDelivery.home.zoneId) {
-        this.showMessage('Veuillez sélectionner une ville ou zone', 'error');
-        return false;
-      }
-      if (!this.selectedDelivery.home.address?.trim()) {
-        this.showMessage('Veuillez saisir votre adresse', 'error');
-        return false;
-      }
-      if (!this.selectedDelivery.home.department || !this.selectedDelivery.home.commune) {
-        this.showMessage('Veuillez choisir votre departement et votre commune', 'error');
-        return false;
-      }
-      const unavailableVendor = this.getVendorDeliveryGroups().find((group) => !this.findVendorDeliveryZone(group));
-      if (unavailableVendor) {
-        this.showMessage(`${unavailableVendor.productName} ne peut pas etre livre dans cette commune.`, 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
-        this.showMessage('Numéro de téléphone invalide', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.home.whatsapp)) {
-        this.showMessage('Numéro WhatsApp invalide', 'error');
-        return false;
-      }
+    if (!this.selectedDelivery.home.address?.trim()) {
+      this.showMessage('Veuillez saisir votre adresse', 'error');
+      return false;
     }
-    
-    if (this.selectedDelivery.method === 'pickup') {
-      if (!this.selectedDelivery.pickup.pointId) {
-        this.showMessage('Veuillez sélectionner un point de retrait', 'error');
-        return false;
-      }
+    if (!this.selectedDelivery.home.department || !this.selectedDelivery.home.commune) {
+      this.showMessage('Veuillez choisir votre departement et votre commune', 'error');
+      return false;
     }
-    
-    if (this.selectedDelivery.method === 'meetup') {
-      if (!this.selectedDelivery.meetup.zoneId) {
-        this.showMessage('Veuillez sélectionner une zone de rencontre', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.meetup.phone)) {
-        this.showMessage('Numéro de téléphone invalide', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.meetup.whatsapp)) {
-        this.showMessage('Numéro WhatsApp invalide', 'error');
-        return false;
-      }
+    const unavailableVendor = this.getVendorDeliveryGroups().find((group) => !this.findVendorDeliveryZone(group));
+    if (unavailableVendor) {
+      this.showMessage(`${unavailableVendor.productName} ne peut pas etre livre dans cette commune.`, 'error');
+      return false;
+    }
+    if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
+      this.showMessage('Numero de telephone invalide', 'error');
+      return false;
+    }
+    if (!this.isValidPhone(this.selectedDelivery.home.whatsapp)) {
+      this.showMessage('Numero WhatsApp invalide', 'error');
+      return false;
     }
     
     return true;
@@ -1418,8 +1304,7 @@ class CheckoutModal {
   
   getDeliveryPayload() {
     const homeZone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
-    const pickupPoint = this.deliveryData.pickupPoints.find(p => p.id === this.selectedDelivery.pickup.pointId);
-    const meetupZone = this.deliveryData.meetupZones.find(z => z.id === this.selectedDelivery.meetup.zoneId);
+    this.selectedDelivery.method = 'home';
     const vendorDeliveryDetails = this.getVendorDeliveryGroups().map((group) => {
       const zone = this.findVendorDeliveryZone(group);
       return {
@@ -1434,18 +1319,18 @@ class CheckoutModal {
       };
     });
     return {
-      method: this.selectedDelivery.method,
+      method: 'home',
       address: this.selectedDelivery.home.address || '',
       savedAddressId: this.selectedDelivery.home.savedAddressId || '',
       country: this.selectedDelivery.home.country || 'Haiti',
       department: this.selectedDelivery.home.department || '',
       commune: this.selectedDelivery.home.commune || '',
-      phone: this.selectedDelivery.method === 'home' ? (this.selectedDelivery.home.phone || '') : (this.selectedDelivery.meetup.phone || ''),
-      whatsapp: this.selectedDelivery.method === 'home' ? (this.selectedDelivery.home.whatsapp || '') : (this.selectedDelivery.meetup.whatsapp || ''),
-      meetupProposal: this.selectedDelivery.meetup.proposal || '',
+      phone: this.selectedDelivery.home.phone || '',
+      whatsapp: this.selectedDelivery.home.whatsapp || '',
+      meetupProposal: '',
       homeZone: homeZone || null,
-      pickupPoint: pickupPoint || null,
-      meetupZone: meetupZone || null,
+      pickupPoint: null,
+      meetupZone: null,
       vendorDeliveryDetails,
       weightGrams: this.getCartWeight(),
       baseFee: this.deliveryFees.base,
