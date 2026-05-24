@@ -946,7 +946,7 @@
                 <span id="vendor-service-fee-plan">Basic</span>
               </div>
               <div class="analytics-empty" style="text-align:left;">
-                <strong style="display:block;margin-bottom:.25rem;">Montant</strong>
+                <strong style="display:block;margin-bottom:.25rem;">Montant plan actuel</strong>
                 <span id="vendor-service-fee-amount">0 HTG</span>
               </div>
               <div class="analytics-empty" style="text-align:left;">
@@ -2341,20 +2341,21 @@
         const planLabel = vendor.planLabel || this.vendorContext?.planLabel || (planId === 'pro' ? 'PRO' : 'BASIC');
         const isPro = Boolean(this.vendorServiceFee?.isPro) || planId === 'pro' || String(planLabel || '').toLowerCase().includes('pro');
         const proPrice = Number(proPlan.price || this.vendorContext?.planPrice || 1750);
-        const amount = Number(currentFee?.amount || vendor.serviceFeeAmount || this.vendorContext?.serviceFeeAmount || (isPro || this.vendorServiceFee?.canUpgradeToPro ? proPrice : 0));
         const suspended = this.isServiceFeeSuspended();
         const paidAt = lastPayment?.paidAt || this.vendorContext?.serviceFeeLastPaidAt || '';
         const nextDueAt = lastPayment?.nextDueAt || vendor.serviceFeeNextDueAt || this.vendorContext?.serviceFeeNextDueAt || '';
         const nextDueMs = nextDueAt ? new Date(nextDueAt).getTime() : 0;
         const renewalDue = isPro && (!nextDueAt || Number.isNaN(nextDueMs) || nextDueMs <= Date.now());
         const canUpgrade = Boolean(this.vendorServiceFee?.canUpgradeToPro) || !isPro;
+        const amount = Number(currentFee?.amount || vendor.serviceFeeAmount || this.vendorContext?.serviceFeeAmount || (isPro ? proPrice : 0));
+        const displayAmount = canUpgrade && !currentFee ? 0 : amount;
         const paymentDue = Boolean(currentFee) || canUpgrade || renewalDue || Boolean(this.vendorServiceFee?.paymentDue);
 
         elements.vendorServiceFeeCard.style.display = 'block';
         if (elements.vendorServiceFeePlan) {
           elements.vendorServiceFeePlan.textContent = isPro ? 'PRO' : 'BASIC';
         }
-        elements.vendorServiceFeeAmount.textContent = this.formatCurrency(amount);
+        elements.vendorServiceFeeAmount.textContent = displayAmount > 0 ? this.formatCurrency(displayAmount) : 'Gratuit';
         elements.vendorServiceFeeLastPaid.textContent = paidAt
           ? `${this.formatDateTime(paidAt)} - ${this.getServicePaymentMethodLabel(lastPayment?.paymentMethod || this.vendorContext?.serviceFeePaymentMethod)}`
           : '-';
@@ -2367,7 +2368,7 @@
             : 'Request payment for this store. Votre store est suspendu jusqu au paiement du frais de service mensuel.';
         elements.vendorServiceFeePayBtn.disabled = !paymentDue || String(currentFee?.status || '').toLowerCase() === 'paid';
         elements.vendorServiceFeePayBtn.innerHTML = canUpgrade
-          ? '<i class="fas fa-crown"></i> Passer au Plan Pro'
+          ? `<i class="fas fa-crown"></i> Passer au Plan Pro - ${this.formatCurrency(proPrice)}`
           : renewalDue || currentFee
             ? '<i class="fas fa-credit-card"></i> Payer / renouveler Plan Pro'
             : '<i class="fas fa-check-circle"></i> Plan Pro a jour';
@@ -2375,7 +2376,7 @@
         elements.vendorServiceFeeBadge.textContent = canUpgrade ? 'Plan Basic' : (suspended || renewalDue ? 'Paiement requis' : 'Plan Pro actif');
         elements.vendorServiceFeeBadge.className = `status-badge ${suspended || renewalDue ? 'status-rejected' : canUpgrade ? 'status-pending' : 'status-active'}`;
         elements.vendorServiceFeeSummary.textContent = canUpgrade
-          ? `Plan Basic actif. Le Plan Pro coute ${this.formatCurrency(amount)} tous les 30 jours.`
+          ? `Plan Basic actif: gratuit. Le Plan Pro coute ${this.formatCurrency(proPrice)} tous les 30 jours.`
           : suspended
             ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'
             : renewalDue
