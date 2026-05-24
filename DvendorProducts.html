@@ -790,14 +790,18 @@
       gap: 0.5rem;
       border-bottom: 1px solid var(--border);
       margin-bottom: 1.5rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     
     .section-tab {
+      flex: 0 0 auto;
       padding: 0.75rem 1.5rem;
       cursor: pointer;
       border-bottom: 2px solid transparent;
       transition: all 0.2s;
       font-weight: 500;
+      white-space: nowrap;
     }
     
     .section-tab.active {
@@ -1130,6 +1134,7 @@
           <!-- Tabs de navigation -->
           <div class="section-tabs">
             <button class="section-tab active" data-tab="general">Général</button>
+            <button class="section-tab" data-tab="delivery">Livraison</button>
             <button class="section-tab" data-tab="category">Catégorie & attributs</button>
             <button class="section-tab" data-tab="variations">Variations</button>
             <button class="section-tab" data-tab="gallery">Galerie</button>
@@ -1239,6 +1244,53 @@
                         <label class="block text-sm text-text-secondary mb-1">Date fin</label>
                         <input type="datetime-local" id="discountEndAt" class="form-input">
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== TAB 2: LIVRAISON ===== -->
+            <div id="tab-delivery" class="tab-content hidden">
+              <div class="content-card">
+                <div class="card-header">
+                  <span>Livraison du produit</span>
+                  <span class="inline-flex items-center rounded-full bg-white border border-[rgba(198,167,94,0.2)] px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase text-[#8a6e2f]">
+                    Haiti uniquement
+                  </span>
+                </div>
+                <div class="card-body space-y-4">
+                  <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-[rgba(31,30,28,0.03)] p-4 space-y-4">
+                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <h4 class="font-semibold text-text-primary">Zones de livraison et prix</h4>
+                        <p class="text-sm text-text-secondary mt-1">Definissez le poids du produit, puis ajoutez les communes ou ce produit peut etre livre avec le prix facture au client. Si l'adresse du client ne correspond pas, il ne pourra pas commander ce produit.</p>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Poids produit</label>
+                        <div class="flex gap-2">
+                          <input type="number" id="productWeightValue" class="form-input" min="0" step="0.001" value="0" placeholder="Ex: 15 ou 1.5">
+                          <select id="productWeightUnit" class="form-input" style="max-width:90px;">
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                        <div>
+                          <h5 class="font-semibold text-text-primary">Zones et prix de livraison</h5>
+                          <p class="text-sm text-text-secondary mt-1">Ajoutez une ou plusieurs zones: pays, departement, commune et prix de livraison.</p>
+                        </div>
+                        <button type="button" id="addProductDeliveryZoneBtn" class="btn btn-secondary btn-sm">
+                          <i class="fas fa-plus"></i>
+                          Ajouter une zone
+                        </button>
+                      </div>
+                      <div id="productDeliveryZonesList" class="space-y-3"></div>
                     </div>
                   </div>
                 </div>
@@ -1509,6 +1561,18 @@
     const VENDOR_SESSION_KEY = 'smartcut-vendor-session';
     
     const PRODUCTS_COLLECTION = "vendorProducts";
+    const HAITI_DEPARTMENTS = {
+      'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+      'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+      'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+      'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+      'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+      'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+      'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+      'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+      'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+      'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
+    };
     const CATEGORIES_COLLECTION = "categories_list";
     const COMMISSION_RULES_COLLECTION = "vendorCommissionRules";
     const VENDOR_ANALYTICS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardAnalytics';
@@ -1942,6 +2006,10 @@
           longDescription: document.getElementById('longDescription'),
           basePrice: document.getElementById('basePrice'),
           comparePrice: document.getElementById('comparePrice'),
+          productWeightValue: document.getElementById('productWeightValue'),
+          productWeightUnit: document.getElementById('productWeightUnit'),
+          productDeliveryZonesList: document.getElementById('productDeliveryZonesList'),
+          addProductDeliveryZoneBtn: document.getElementById('addProductDeliveryZoneBtn'),
           isDigitalProduct: document.getElementById('isDigitalProduct'),
           digitalDownloadLink: document.getElementById('digitalDownloadLink'),
           deliveryDelay: document.getElementById('deliveryDelay'),
@@ -2029,6 +2097,7 @@
         
         // Sauvegarde
         this.elements.saveProductBtn.addEventListener('click', () => this.saveProduct());
+        this.elements.addProductDeliveryZoneBtn?.addEventListener('click', () => this.addProductDeliveryZoneRow());
         
         // Tabs
         this.elements.sectionTabs.forEach(tab => {
@@ -3105,6 +3174,128 @@
         const total = this.currentVariations.reduce((sum, v) => sum + (v.stock || 0), 0);
         this.elements.totalStock.value = total;
       }
+
+      setProductWeightInputs(weightGrams) {
+        if (!this.elements.productWeightValue) return;
+        const grams = Number(weightGrams || 0);
+        if (grams >= 1000 && grams % 1000 === 0) {
+          this.elements.productWeightValue.value = String(grams / 1000);
+          if (this.elements.productWeightUnit) this.elements.productWeightUnit.value = 'kg';
+          return;
+        }
+        this.elements.productWeightValue.value = String(grams || 0);
+        if (this.elements.productWeightUnit) this.elements.productWeightUnit.value = 'g';
+      }
+
+      collectProductWeightGrams() {
+        const value = Math.max(0, Number(this.elements.productWeightValue?.value || 0));
+        const unit = this.elements.productWeightUnit?.value || 'g';
+        if (!Number.isFinite(value) || value <= 0) return 0;
+        return unit === 'kg' ? Math.round(value * 1000) : Math.round(value);
+      }
+
+      renderProductDepartmentOptions(selected = '') {
+        return '<option value="">Choisir...</option>' + Object.keys(HAITI_DEPARTMENTS)
+          .map((department) => `<option value="${department}" ${department === selected ? 'selected' : ''}>${department}</option>`)
+          .join('');
+      }
+
+      renderProductCommuneOptions(department = '', selected = '') {
+        const communes = HAITI_DEPARTMENTS[department] || [];
+        return '<option value="">Choisir...</option>' + communes
+          .map((commune) => `<option value="${commune}" ${commune === selected ? 'selected' : ''}>${commune}</option>`)
+          .join('');
+      }
+
+      renderProductCountryOptions(selected = 'Haiti') {
+        return `<option value="Haiti" ${String(selected || 'Haiti') === 'Haiti' ? 'selected' : ''}>Haiti</option>`;
+      }
+
+      renderProductDeliveryZoneRow(zone = {}, index = 0) {
+        return `
+          <div data-product-delivery-zone="${index}" class="grid grid-cols-1 md:grid-cols-[130px_1fr_1fr_120px_auto] gap-3 items-end rounded-xl border border-[rgba(198,167,94,0.18)] bg-white p-3">
+            <div>
+              <label class="block text-sm text-text-secondary mb-1">Pays</label>
+              <select data-product-zone-field="country" class="form-input">
+                ${this.renderProductCountryOptions(zone.country || 'Haiti')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-text-secondary mb-1">Departement</label>
+              <select data-product-zone-field="department" class="form-input">
+                ${this.renderProductDepartmentOptions(zone.department || '')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-text-secondary mb-1">Commune</label>
+              <select data-product-zone-field="commune" class="form-input">
+                ${this.renderProductCommuneOptions(zone.department || '', zone.commune || '')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-text-secondary mb-1">Prix HTG</label>
+              <input data-product-zone-field="fee" type="number" min="0" step="1" value="${Number(zone.fee || 0) || ''}" class="form-input" placeholder="500">
+            </div>
+            <button type="button" data-remove-product-delivery-zone class="btn btn-secondary btn-sm text-danger">
+              Retirer
+            </button>
+          </div>
+        `;
+      }
+
+      renderProductDeliveryZones(zones = []) {
+        const list = this.elements.productDeliveryZonesList;
+        if (!list) return;
+        const normalizedZones = Array.isArray(zones) && zones.length
+          ? zones
+          : [{ country: 'Haiti', department: '', commune: '', fee: '' }];
+        list.innerHTML = normalizedZones.map((zone, index) => this.renderProductDeliveryZoneRow(zone, index)).join('');
+        this.bindProductDeliveryZoneEvents();
+      }
+
+      addProductDeliveryZoneRow(zone = {}) {
+        const list = this.elements.productDeliveryZonesList;
+        if (!list) return;
+        const index = list.querySelectorAll('[data-product-delivery-zone]').length;
+        list.insertAdjacentHTML('beforeend', this.renderProductDeliveryZoneRow(zone, index));
+        this.bindProductDeliveryZoneEvents();
+      }
+
+      bindProductDeliveryZoneEvents() {
+        const list = this.elements.productDeliveryZonesList;
+        if (!list) return;
+        list.querySelectorAll('[data-product-delivery-zone]').forEach((row) => {
+          const department = row.querySelector('[data-product-zone-field="department"]');
+          const commune = row.querySelector('[data-product-zone-field="commune"]');
+          department?.addEventListener('change', () => {
+            if (commune) commune.innerHTML = this.renderProductCommuneOptions(department.value);
+          });
+          row.querySelector('[data-remove-product-delivery-zone]')?.addEventListener('click', () => {
+            row.remove();
+            if (!list.querySelectorAll('[data-product-delivery-zone]').length) {
+              this.addProductDeliveryZoneRow();
+            }
+          });
+        });
+      }
+
+      collectProductDeliveryCoverage() {
+        const zones = Array.from(this.elements.productDeliveryZonesList?.querySelectorAll('[data-product-delivery-zone]') || [])
+          .map((row) => ({
+            country: row.querySelector('[data-product-zone-field="country"]')?.value || 'Haiti',
+            department: row.querySelector('[data-product-zone-field="department"]')?.value || '',
+            commune: row.querySelector('[data-product-zone-field="commune"]')?.value || '',
+            fee: Number(row.querySelector('[data-product-zone-field="fee"]')?.value || 0)
+          }))
+          .filter((zone) => zone.country && zone.department && zone.commune && Number.isFinite(zone.fee) && zone.fee >= 0);
+        return {
+          country: 'Haiti',
+          mode: 'product_zones',
+          nationwide: false,
+          nationwideFee: 0,
+          zones
+        };
+      }
       
       setWeightInputs(weightGrams) {
         const grams = Number(weightGrams || 0);
@@ -3775,6 +3966,8 @@
           this.elements.longDescription.value = this.currentProduct.longDescription || '';
           this.elements.basePrice.value = this.currentProduct.price || '';
           this.elements.comparePrice.value = this.currentProduct.comparePrice || '';
+          this.setProductWeightInputs(this.currentProduct.weightGrams || this.currentProduct.weight || 0);
+          this.renderProductDeliveryZones(this.currentProduct.deliveryZones || this.currentProduct.productDeliveryZones || this.currentProduct.deliveryCoverage?.zones || []);
           this.elements.isDigitalProduct.checked = Boolean(this.currentProduct.isDigitalProduct);
           this.elements.digitalDownloadLink.value = this.currentProduct.digitalDownloadLink || '';
           this.elements.deliveryDelay.value = this.currentProduct.deliveryDelay || (this.currentProduct.isDigitalProduct ? 'Instantanee' : '');
@@ -3808,6 +4001,8 @@
         this.elements.longDescription.value = '';
         this.elements.basePrice.value = '';
         this.elements.comparePrice.value = '';
+        this.setProductWeightInputs(0);
+        this.renderProductDeliveryZones([]);
         this.elements.isDigitalProduct.checked = false;
         this.elements.digitalDownloadLink.value = '';
         this.elements.deliveryDelay.value = '';
@@ -3845,6 +4040,7 @@
           this.currentProduct?.category ||
           ''
         ).trim();
+        const deliveryCoverage = this.collectProductDeliveryCoverage();
         const productData = {
           name: this.elements.productName.value.trim(),
           sku: this.elements.mainSku.value.trim() || this.generateMainSku(),
@@ -3857,6 +4053,10 @@
           deliveryDelay: Boolean(this.elements.isDigitalProduct?.checked)
             ? (this.elements.deliveryDelay?.value?.trim() || 'Instantanee')
             : (this.elements.deliveryDelay?.value?.trim() || ''),
+          weightGrams: this.collectProductWeightGrams(),
+          deliveryCoverage,
+          deliveryZones: deliveryCoverage.zones,
+          productDeliveryZones: deliveryCoverage.zones,
           discount,
           discountEnabled: Boolean(discount?.enabled),
           discountType: discount?.type || '',
@@ -3881,8 +4081,6 @@
           vendorVerified: String(this.vendorContext.planId || '').toLowerCase() === 'pro'
             || String(this.vendorContext.planLabel || '').toLowerCase().includes('pro'),
           deliveryMode: this.vendorContext.deliveryMode || '',
-          deliveryCoverage: this.vendorContext.deliveryCoverage || null,
-          deliveryZones: Array.isArray(this.vendorContext.deliveryZones) ? this.vendorContext.deliveryZones : [],
           vendorServiceFeeStatus: this.isServiceFeeSuspended() ? 'suspended' : 'active',
           commissionRule: this.buildCommissionRule(selectedCategoryName, now),
           createdBy: 'vendor_dashboard_products',
@@ -3913,6 +4111,12 @@
 
         if (productData.isDigitalProduct && !productData.digitalDownloadLink) {
           this.showToast('Ajoutez le lien de telechargement pour cet article digital.', 'error');
+          return;
+        }
+
+        if (!productData.isDigitalProduct && !deliveryCoverage.zones.length) {
+          this.showToast('Ajoutez au moins une zone de livraison pour ce produit.', 'error');
+          this.switchEditorTab('delivery');
           return;
         }
 
