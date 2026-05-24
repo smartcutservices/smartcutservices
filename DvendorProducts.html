@@ -1217,7 +1217,13 @@
                         <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
                       </div>
                     </div>
-                    <p class="text-xs text-text-secondary">Pour un article digital, la livraison sera affichee comme instantanee et le lien sera conserve avec la commande apres paiement.</p>
+                    <div class="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[rgba(198,167,94,0.18)] bg-[rgba(198,167,94,0.06)] p-3">
+                      <p class="text-xs text-text-secondary">Pour un article digital, la livraison sera affichee comme instantanee et le lien sera conserve avec la commande apres paiement. Pour les produits physiques, definissez les zones de livraison du produit.</p>
+                      <button type="button" id="configureDeliveryTabBtn" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-truck"></i>
+                        Configurer la livraison
+                      </button>
+                    </div>
                   </div>
 
                   <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-[rgba(198,167,94,0.06)] p-4 space-y-4">
@@ -2013,6 +2019,7 @@
           productWeightUnit: document.getElementById('productWeightUnit'),
           productDeliveryZonesList: document.getElementById('productDeliveryZonesList'),
           addProductDeliveryZoneBtn: document.getElementById('addProductDeliveryZoneBtn'),
+          configureDeliveryTabBtn: document.getElementById('configureDeliveryTabBtn'),
           isDigitalProduct: document.getElementById('isDigitalProduct'),
           digitalDownloadLink: document.getElementById('digitalDownloadLink'),
           deliveryDelay: document.getElementById('deliveryDelay'),
@@ -2126,6 +2133,9 @@
         
         // Search
         this.elements.searchProducts.addEventListener('input', () => this.renderProductsList());
+        this.elements.configureDeliveryTabBtn?.addEventListener('click', () => {
+          this.switchEditorTab('delivery');
+        });
 
         this.elements.requestPayoutBtn?.addEventListener('click', async () => {
           try {
@@ -2421,6 +2431,13 @@
         const button = this.elements.vendorServiceFeePayBtn;
         const method = this.elements.vendorServiceFeeMethod?.value || 'moncash';
         const action = button?.dataset?.serviceFeeAction || 'renew_pro';
+        console.info('[VENDOR_PRO_DEBUG] payment:start', {
+          method,
+          action,
+          planId: this.vendorContext?.planId || '',
+          currentFeeStatus: this.vendorServiceFee?.currentFee?.status || '',
+          proPlanPrice: this.vendorServiceFee?.proPlan?.price || this.vendorContext?.planPrice || 1750
+        });
 
         try {
           if (button) {
@@ -2438,11 +2455,25 @@
             body: JSON.stringify({ method, action })
           });
           const payload = await response.json().catch(() => ({}));
+          console.info('[VENDOR_PRO_DEBUG] payment:response', {
+            status: response.status,
+            ok: response.ok,
+            payloadOk: payload?.ok,
+            error: payload?.error || '',
+            message: payload?.message || '',
+            hasCheckoutUrl: Boolean(payload?.checkoutUrl),
+            amount: payload?.amount || 0
+          });
           if (!response.ok || payload?.ok === false) {
             throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
           }
 
           if (method === 'moncash' && payload.checkoutUrl) {
+            console.info('[VENDOR_PRO_DEBUG] payment:redirect', {
+              sessionId: payload.sessionId || '',
+              orderId: payload.orderId || '',
+              amount: payload.amount || 0
+            });
             try {
               localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
                 paymentType: 'vendor_service_fee',
@@ -2462,6 +2493,9 @@
           await this.loadVendorServiceFeeStatus();
         } catch (error) {
           console.error('Erreur paiement frais mensuel vendeur:', error);
+          console.info('[VENDOR_PRO_DEBUG] payment:error', {
+            message: error?.message || ''
+          });
           this.showToast(error?.message || 'Impossible de lancer le paiement du frais mensuel.', 'error');
         } finally {
           if (button) {
@@ -3978,7 +4012,11 @@
           this.elements.basePrice.value = this.currentProduct.price || '';
           this.elements.comparePrice.value = this.currentProduct.comparePrice || '';
           this.setProductWeightInputs(this.currentProduct.weightGrams || this.currentProduct.weight || 0);
-          this.renderProductDeliveryZones(this.currentProduct.deliveryZones || this.currentProduct.productDeliveryZones || this.currentProduct.deliveryCoverage?.zones || []);
+          const existingDeliveryZones = this.currentProduct.deliveryZones || this.currentProduct.productDeliveryZones || this.currentProduct.deliveryCoverage?.zones || [];
+          this.renderProductDeliveryZones(existingDeliveryZones);
+          if (!this.currentProduct.isDigitalProduct && !existingDeliveryZones.length) {
+            this.showToast('Produit existant: ajoutez ses zones de livraison dans l onglet Livraison avant de le republier.', 'info');
+          }
           this.elements.isDigitalProduct.checked = Boolean(this.currentProduct.isDigitalProduct);
           this.elements.digitalDownloadLink.value = this.currentProduct.digitalDownloadLink || '';
           this.elements.deliveryDelay.value = this.currentProduct.deliveryDelay || (this.currentProduct.isDigitalProduct ? 'Instantanee' : '');

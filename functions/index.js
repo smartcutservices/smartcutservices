@@ -1061,8 +1061,12 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
   const relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
   if (!relevantItems.length) return null;
 
+  const normalizedVendorUid = String(vendorUid || '').trim();
+  const vendorFulfillment = order?.vendorFulfillments && typeof order.vendorFulfillments === 'object'
+    ? order.vendorFulfillments[normalizedVendorUid] || null
+    : null;
   const deliveryModes = relevantItems.map((item) => String(item?.deliveryMode || '').trim()).filter(Boolean);
-  const hasVendorItems = relevantItems.some((item) => String(item?.vendorId || '').trim() === String(vendorUid || '').trim());
+  const hasVendorItems = relevantItems.some((item) => String(item?.vendorId || '').trim() === normalizedVendorUid);
   const vendorManagedDelivery =
     (hasVendorItems || deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode))) &&
     !deliveryModes.some((mode) => smartCutHandlesDeliveryMode(mode));
@@ -1095,7 +1099,8 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
     orderId: String(order?.id || '').trim(),
     uniqueCode: String(order?.uniqueCode || order?.id || '').trim(),
     status: normalizeOrderStatus(order),
-    fulfillmentStatus: String(order?.fulfillmentStatus || 'ordered').trim(),
+    fulfillmentStatus: String(vendorFulfillment?.status || order?.fulfillmentStatus || 'ordered').trim(),
+    vendorFulfillment: vendorFulfillment || null,
     paymentStatus: String(order?.paymentStatus || order?.status || '').trim(),
     createdAt: order?.createdAt || '',
     updatedAt: order?.updatedAt || '',
@@ -3240,12 +3245,36 @@ exports.startVendorServiceFeePayment = onRequest(
       const planSettings = await getVendorPlanSettings();
       const proPlan = getVendorProPlanMeta(planSettings);
       const isPro = isVendorProPlan(vendor);
+      const wantsProUpgrade = action === 'upgrade_pro' || action === 'upgrade-pro' || !isPro;
+      const now = new Date().toISOString();
       let pending = await findLatestOpenVendorServiceFee(user.uid);
+      if (pending && wantsProUpgrade) {
+        const pendingAmount = toNumber(pending.data?.amount);
+        const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
+        const needsUpgradeSync = pendingAmount !== proPlan.price || pendingPlanId !== 'pro';
+        if (needsUpgradeSync) {
+          const patch = {
+            amount: proPlan.price,
+            currency: proPlan.currency,
+            requestSource: 'vendor_pro_upgrade',
+            planId: 'pro',
+            planLabel: 'PRO',
+            updatedAt: now
+          };
+          await pending.ref.set(patch, { merge: true });
+          pending = {
+            ...pending,
+            data: {
+              ...pending.data,
+              ...patch
+            }
+          };
+        }
+      }
       if (!pending) {
         const latestPaid = await findLatestVendorServiceFee(user.uid, 'paid');
         const nextDueAt = latestPaid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
         const nextDueMs = toDateMs(nextDueAt);
-        const wantsProUpgrade = action === 'upgrade_pro' || action === 'upgrade-pro' || !isPro;
         const proRenewalDue = isPro && (!nextDueAt || nextDueMs <= Date.now());
 
         if (!wantsProUpgrade && !proRenewalDue) {
@@ -3282,7 +3311,6 @@ exports.startVendorServiceFeePayment = onRequest(
         return;
       }
 
-      const now = new Date().toISOString();
       if (method !== 'moncash') {
         await pending.ref.set({
           status: 'payment_pending',
@@ -4776,20 +4804,36 @@ exports.updateVendorOrderFulfillment = onRequest(
       }
 
       const now = new Date().toISOString();
-      await orderSnap.ref.set({
-        fulfillmentStatus: requestedStatus,
-        fulfillmentUpdatedAt: now,
-        vendorFulfillmentStatus: requestedStatus,
+      const vendorFulfillmentEntry = {
+        vendorId: decodedUser.uid,
+        status: requestedStatus,
+        updatedAt: now,
+        updatedBy: decodedUser.uid,
+        itemCount: context.itemCount,
+        deliveryAmount: context.deliveryAmount,
+        orderId: orderSnap.id
+      };
+      const fulfillmentPatch = {
+        vendorFulfillments: {
+          [decodedUser.uid]: vendorFulfillmentEntry
+        },
         vendorFulfillmentUpdatedAt: now,
-        vendorFulfillmentUpdatedBy: decodedUser.uid,
         updatedAt: now
-      }, { merge: true });
+      };
+
+      if (isVendorExclusiveOrder(order, decodedUser.uid)) {
+        fulfillmentPatch.fulfillmentStatus = requestedStatus;
+        fulfillmentPatch.fulfillmentUpdatedAt = now;
+      }
+
+      await orderSnap.ref.set(fulfillmentPatch, { merge: true });
 
       sendJson(res, 200, {
         ok: true,
         orderId: orderSnap.id,
         refPath: orderSnap.ref.path,
         fulfillmentStatus: requestedStatus,
+        vendorFulfillment: vendorFulfillmentEntry,
         updatedAt: now
       });
     } catch (error) {
