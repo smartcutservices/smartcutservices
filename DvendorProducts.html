@@ -940,7 +940,11 @@
             <span id="vendor-service-fee-badge" class="status-badge status-pending">Verification</span>
           </div>
           <div class="card-body">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <div class="analytics-empty" style="text-align:left;">
+                <strong style="display:block;margin-bottom:.25rem;">Plan actuel</strong>
+                <span id="vendor-service-fee-plan">Basic</span>
+              </div>
               <div class="analytics-empty" style="text-align:left;">
                 <strong style="display:block;margin-bottom:.25rem;">Montant</strong>
                 <span id="vendor-service-fee-amount">0 HTG</span>
@@ -962,8 +966,6 @@
                 <span class="block text-sm text-text-secondary mb-2">Methode de paiement</span>
                 <select id="vendor-service-fee-method" class="form-select">
                   <option value="moncash">MonCash</option>
-                  <option value="natcash">NatCash</option>
-                  <option value="card">Carte bancaire</option>
                 </select>
               </label>
               <button type="button" id="vendor-service-fee-pay-btn" class="btn btn-primary">
@@ -1978,6 +1980,7 @@
             vendorServiceFeeCard: document.getElementById('vendor-service-fee-card'),
             vendorServiceFeeSummary: document.getElementById('vendor-service-fee-summary'),
             vendorServiceFeeBadge: document.getElementById('vendor-service-fee-badge'),
+            vendorServiceFeePlan: document.getElementById('vendor-service-fee-plan'),
             vendorServiceFeeAmount: document.getElementById('vendor-service-fee-amount'),
             vendorServiceFeeLastPaid: document.getElementById('vendor-service-fee-last-paid'),
             vendorServiceFeeNextDue: document.getElementById('vendor-service-fee-next-due'),
@@ -2290,6 +2293,12 @@
             throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
           }
           this.vendorServiceFee = payload;
+          if (payload?.vendor) {
+            this.vendorContext = {
+              ...(this.vendorContext || {}),
+              ...payload.vendor
+            };
+          }
         } catch (error) {
           console.error('Erreur statut frais mensuel vendeur:', error);
           this.vendorServiceFee = null;
@@ -2327,31 +2336,53 @@
         const vendor = this.vendorServiceFee?.vendor || {};
         const currentFee = this.vendorServiceFee?.currentFee || null;
         const lastPayment = this.vendorServiceFee?.lastPayment || null;
-        const amount = Number(currentFee?.amount || vendor.serviceFeeAmount || this.vendorContext?.serviceFeeAmount || 0);
+        const proPlan = this.vendorServiceFee?.proPlan || {};
+        const planId = String(vendor.planId || this.vendorContext?.planId || 'basic').toLowerCase();
+        const planLabel = vendor.planLabel || this.vendorContext?.planLabel || (planId === 'pro' ? 'PRO' : 'BASIC');
+        const isPro = Boolean(this.vendorServiceFee?.isPro) || planId === 'pro' || String(planLabel || '').toLowerCase().includes('pro');
+        const proPrice = Number(proPlan.price || this.vendorContext?.planPrice || 1750);
+        const amount = Number(currentFee?.amount || vendor.serviceFeeAmount || this.vendorContext?.serviceFeeAmount || (isPro || this.vendorServiceFee?.canUpgradeToPro ? proPrice : 0));
         const suspended = this.isServiceFeeSuspended();
         const paidAt = lastPayment?.paidAt || this.vendorContext?.serviceFeeLastPaidAt || '';
         const nextDueAt = lastPayment?.nextDueAt || vendor.serviceFeeNextDueAt || this.vendorContext?.serviceFeeNextDueAt || '';
-
-        if (amount <= 0 && !currentFee && !lastPayment) {
-          elements.vendorServiceFeeCard.style.display = 'none';
-          return;
-        }
+        const nextDueMs = nextDueAt ? new Date(nextDueAt).getTime() : 0;
+        const renewalDue = isPro && (!nextDueAt || Number.isNaN(nextDueMs) || nextDueMs <= Date.now());
+        const canUpgrade = Boolean(this.vendorServiceFee?.canUpgradeToPro) || !isPro;
+        const paymentDue = Boolean(currentFee) || canUpgrade || renewalDue || Boolean(this.vendorServiceFee?.paymentDue);
 
         elements.vendorServiceFeeCard.style.display = 'block';
+        if (elements.vendorServiceFeePlan) {
+          elements.vendorServiceFeePlan.textContent = isPro ? 'PRO' : 'BASIC';
+        }
         elements.vendorServiceFeeAmount.textContent = this.formatCurrency(amount);
         elements.vendorServiceFeeLastPaid.textContent = paidAt
           ? `${this.formatDateTime(paidAt)} - ${this.getServicePaymentMethodLabel(lastPayment?.paymentMethod || this.vendorContext?.serviceFeePaymentMethod)}`
           : '-';
         elements.vendorServiceFeeNextDue.textContent = this.formatDateTime(nextDueAt);
-        elements.vendorServiceFeeWarning.style.display = suspended ? 'block' : 'none';
-        elements.vendorServiceFeePayBtn.disabled = !currentFee || String(currentFee?.status || '').toLowerCase() === 'paid';
-        elements.vendorServiceFeeBadge.textContent = suspended ? 'Paiement requis' : 'A jour';
-        elements.vendorServiceFeeBadge.className = `status-badge ${suspended ? 'status-rejected' : 'status-active'}`;
-        elements.vendorServiceFeeSummary.textContent = suspended
-          ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'
-          : paidAt
-            ? `Dernier paiement confirme le ${this.formatDateTime(paidAt)}.`
-            : 'Aucun frais mensuel en attente pour le moment.';
+        elements.vendorServiceFeeWarning.style.display = (suspended || canUpgrade || renewalDue) ? 'block' : 'none';
+        elements.vendorServiceFeeWarning.textContent = canUpgrade
+          ? 'Passez au Plan Pro pour publier un nombre illimite de produits, obtenir le badge vendeur verifie et ameliorer votre visibilite.'
+          : renewalDue
+            ? 'Votre cycle Plan Pro de 30 jours est arrive a echeance. Renouvelez le paiement pour garder le store actif.'
+            : 'Request payment for this store. Votre store est suspendu jusqu au paiement du frais de service mensuel.';
+        elements.vendorServiceFeePayBtn.disabled = !paymentDue || String(currentFee?.status || '').toLowerCase() === 'paid';
+        elements.vendorServiceFeePayBtn.innerHTML = canUpgrade
+          ? '<i class="fas fa-crown"></i> Passer au Plan Pro'
+          : renewalDue || currentFee
+            ? '<i class="fas fa-credit-card"></i> Payer / renouveler Plan Pro'
+            : '<i class="fas fa-check-circle"></i> Plan Pro a jour';
+        elements.vendorServiceFeePayBtn.dataset.serviceFeeAction = canUpgrade ? 'upgrade_pro' : 'renew_pro';
+        elements.vendorServiceFeeBadge.textContent = canUpgrade ? 'Plan Basic' : (suspended || renewalDue ? 'Paiement requis' : 'Plan Pro actif');
+        elements.vendorServiceFeeBadge.className = `status-badge ${suspended || renewalDue ? 'status-rejected' : canUpgrade ? 'status-pending' : 'status-active'}`;
+        elements.vendorServiceFeeSummary.textContent = canUpgrade
+          ? `Plan Basic actif. Le Plan Pro coute ${this.formatCurrency(amount)} tous les 30 jours.`
+          : suspended
+            ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'
+            : renewalDue
+              ? 'Renouvellement Plan Pro disponible maintenant.'
+              : paidAt
+                ? `Dernier paiement confirme le ${this.formatDateTime(paidAt)}.`
+                : 'Plan Pro actif. Aucun frais mensuel en attente pour le moment.';
 
         this.applyServiceFeeLock();
       }
@@ -2383,6 +2414,7 @@
 
         const button = this.elements.vendorServiceFeePayBtn;
         const method = this.elements.vendorServiceFeeMethod?.value || 'moncash';
+        const action = button?.dataset?.serviceFeeAction || 'renew_pro';
 
         try {
           if (button) {
@@ -2397,7 +2429,7 @@
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ method })
+            body: JSON.stringify({ method, action })
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || payload?.ok === false) {
@@ -2428,7 +2460,7 @@
         } finally {
           if (button) {
             button.disabled = false;
-            button.innerHTML = '<i class="fas fa-credit-card"></i> Payer le frais mensuel';
+            this.renderVendorServiceFee();
           }
         }
       }

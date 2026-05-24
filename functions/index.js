@@ -26,6 +26,9 @@ const DEFAULT_RETURN_URL = `${SITE_BASE_URL}/moncash/return`;
 const DEFAULT_ALERT_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/moncashAlert`;
 const VENDOR_SERVICE_FEES_COLLECTION = 'vendorServiceFees';
 const VENDOR_SERVICE_FEE_INTERVAL_DAYS = 30;
+const VENDOR_PLAN_SETTINGS_COLLECTION = 'vendorPlanSettings';
+const VENDOR_PLAN_SETTINGS_DOC = 'main';
+const DEFAULT_VENDOR_PRO_PLAN_PRICE = 1750;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
@@ -343,6 +346,33 @@ function getVendorServiceFeeAmount(vendor = {}) {
   const planPaymentRequired = Boolean(vendor?.planPaymentRequired);
   if ((planPaymentRequired || planId === 'pro') && planPrice > 0) return planPrice;
   return 0;
+}
+
+async function getVendorPlanSettings() {
+  try {
+    const snap = await db.collection(VENDOR_PLAN_SETTINGS_COLLECTION).doc(VENDOR_PLAN_SETTINGS_DOC).get();
+    return snap.exists ? snap.data() || {} : {};
+  } catch (error) {
+    logger.warn('Vendor plan settings unavailable, fallback used', { message: error?.message || String(error) });
+    return {};
+  }
+}
+
+function getVendorProPlanMeta(settings = {}) {
+  const price = toNumber(settings?.proPrice || settings?.proPlanPrice || DEFAULT_VENDOR_PRO_PLAN_PRICE) || DEFAULT_VENDOR_PRO_PLAN_PRICE;
+  return {
+    id: 'pro',
+    label: 'PRO',
+    price,
+    currency: String(settings?.currency || MONCASH_CURRENCY || 'HTG').trim() || 'HTG',
+    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+  };
+}
+
+function isVendorProPlan(vendor = {}) {
+  const planId = String(vendor?.planId || '').trim().toLowerCase();
+  const planLabel = String(vendor?.planLabel || '').trim().toLowerCase();
+  return planId === 'pro' || planLabel.includes('pro');
 }
 
 function isVendorServiceFeeVendor(vendor = {}) {
@@ -2080,6 +2110,56 @@ async function findLatestOpenVendorServiceFee(vendorId = '') {
   return docs[0] || null;
 }
 
+async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amount = 0, currency = '', requestedBy = '', reason = 'renewal', planId = '', planLabel = '' } = {}) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  const feeAmount = Math.max(0, toNumber(amount || getVendorServiceFeeAmount(vendor)));
+  if (!normalizedVendorId || feeAmount <= 0) return null;
+
+  const now = new Date().toISOString();
+  const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
+  const fee = {
+    vendorId: normalizedVendorId,
+    vendorName: vendor.vendorName || vendor.shopName || 'Store vendeur',
+    shopName: vendor.shopName || vendor.vendorName || '',
+    email: vendor.email || '',
+    amount: feeAmount,
+    currency: currency || vendor.planCurrency || MONCASH_CURRENCY,
+    status: 'pending',
+    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+    requestedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    requestedBy,
+    requestSource: reason,
+    paymentMethod: '',
+    paymentProvider: '',
+    paidAt: '',
+    nextDueAt: '',
+    planId: planId || vendor.planId || '',
+    planLabel: planLabel || vendor.planLabel || ''
+  };
+
+  await Promise.all([
+    feeRef.set(fee, { merge: true }),
+    db.collection('vendors').doc(normalizedVendorId).set({
+      serviceFeeStatus: 'pending',
+      serviceFeeCurrentId: feeRef.id,
+      serviceFeeAmount: feeAmount,
+      serviceFeeRequestedAt: now,
+      updatedAt: now
+    }, { merge: true }),
+    db.collection('clients').doc(normalizedVendorId).set({
+      uid: normalizedVendorId,
+      role: 'vendor',
+      serviceFeeStatus: 'pending',
+      serviceFeeCurrentId: feeRef.id,
+      updatedAt: now
+    }, { merge: true })
+  ]);
+
+  return { id: feeRef.id, ref: feeRef, data: fee };
+}
+
 async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method = '', paidAt = '', provider = '', providerDetails = null } = {}) {
   const normalizedVendorId = String(vendorId || '').trim();
   const normalizedFeeId = String(feeId || '').trim();
@@ -2090,6 +2170,21 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
   const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc(normalizedFeeId);
   const vendorRef = db.collection('vendors').doc(normalizedVendorId);
   const clientRef = db.collection('clients').doc(normalizedVendorId);
+  const feeSnap = await feeRef.get();
+  const feeData = feeSnap.exists ? feeSnap.data() || {} : {};
+  const paidPlanId = String(feeData?.planId || '').trim().toLowerCase();
+  const paidPlanLabel = String(feeData?.planLabel || '').trim();
+  const planUpgrade = paidPlanId === 'pro' || paidPlanLabel.toLowerCase().includes('pro');
+  const planUpdate = planUpgrade
+    ? {
+        planId: 'pro',
+        planLabel: paidPlanLabel || 'PRO',
+        planPrice: Math.max(0, toNumber(feeData?.amount)),
+        planCurrency: feeData?.currency || MONCASH_CURRENCY,
+        planPaymentRequired: true,
+        vendorVerified: true
+      }
+    : {};
 
   await db.runTransaction(async (transaction) => {
     transaction.set(feeRef, {
@@ -2103,6 +2198,7 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
     }, { merge: true });
 
     transaction.set(vendorRef, {
+      ...planUpdate,
       status: 'active',
       vendorStatus: 'active',
       serviceFeeStatus: 'paid',
@@ -2114,6 +2210,7 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
     }, { merge: true });
 
     transaction.set(clientRef, {
+      ...planUpdate,
       role: 'vendor',
       vendorStatus: 'active',
       serviceFeeStatus: 'paid',
@@ -2883,10 +2980,16 @@ exports.getVendorServiceFeeStatus = onRequest(
         return;
       }
 
-      const [pending, paid] = await Promise.all([
+      const [pending, paid, planSettings] = await Promise.all([
         findLatestOpenVendorServiceFee(user.uid),
-        findLatestVendorServiceFee(user.uid, 'paid')
+        findLatestVendorServiceFee(user.uid, 'paid'),
+        getVendorPlanSettings()
       ]);
+      const proPlan = getVendorProPlanMeta(planSettings);
+      const isPro = isVendorProPlan(vendor);
+      const nextDueAt = paid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
+      const nextDueMs = toDateMs(nextDueAt);
+      const paymentDue = Boolean(pending) || (isPro && (!nextDueAt || nextDueMs <= Date.now()));
 
       sendJson(res, 200, {
         ok: true,
@@ -2894,10 +2997,19 @@ exports.getVendorServiceFeeStatus = onRequest(
           vendorId: user.uid,
           vendorName: vendor.vendorName || vendor.shopName || '',
           status: vendor.status || vendor.vendorStatus || '',
+          planId: vendor.planId || 'basic',
+          planLabel: vendor.planLabel || (isPro ? 'PRO' : 'BASIC'),
+          planPrice: toNumber(vendor.planPrice),
+          planCurrency: vendor.planCurrency || proPlan.currency,
+          planPaymentRequired: Boolean(vendor.planPaymentRequired),
           serviceFeeStatus: vendor.serviceFeeStatus || '',
           serviceFeeAmount: getVendorServiceFeeAmount(vendor),
-          serviceFeeNextDueAt: vendor.serviceFeeNextDueAt || ''
+          serviceFeeNextDueAt: nextDueAt
         },
+        proPlan,
+        isPro,
+        canUpgradeToPro: !isPro,
+        paymentDue,
         currentFee: pending ? { id: pending.id, ...pending.data } : null,
         lastPayment: paid ? { id: paid.id, ...paid.data } : null
       });
@@ -2932,10 +3044,44 @@ exports.startVendorServiceFeePayment = onRequest(
 
       const body = parseBody(req);
       const method = normalizeVendorServicePaymentMethod(body.method || 'moncash');
-      const pending = await findLatestOpenVendorServiceFee(user.uid);
+      const action = String(body.action || body.intent || '').trim().toLowerCase();
+      const planSettings = await getVendorPlanSettings();
+      const proPlan = getVendorProPlanMeta(planSettings);
+      const isPro = isVendorProPlan(vendor);
+      let pending = await findLatestOpenVendorServiceFee(user.uid);
       if (!pending) {
-        sendJson(res, 400, { ok: false, error: 'no-pending-service-fee', message: 'Aucun frais mensuel en attente pour ce store.' });
-        return;
+        const latestPaid = await findLatestVendorServiceFee(user.uid, 'paid');
+        const nextDueAt = latestPaid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
+        const nextDueMs = toDateMs(nextDueAt);
+        const wantsProUpgrade = action === 'upgrade_pro' || action === 'upgrade-pro' || !isPro;
+        const proRenewalDue = isPro && (!nextDueAt || nextDueMs <= Date.now());
+
+        if (!wantsProUpgrade && !proRenewalDue) {
+          sendJson(res, 400, {
+            ok: false,
+            error: 'service-fee-not-due',
+            message: nextDueAt
+              ? `Aucun paiement requis avant ${nextDueAt}.`
+              : 'Aucun frais mensuel en attente pour ce store.'
+          });
+          return;
+        }
+
+        pending = await createVendorServiceFeeRequest({
+          vendorId: user.uid,
+          vendor,
+          amount: wantsProUpgrade ? proPlan.price : getVendorServiceFeeAmount(vendor) || proPlan.price,
+          currency: proPlan.currency,
+          requestedBy: user.uid,
+          reason: wantsProUpgrade ? 'vendor_pro_upgrade' : 'vendor_pro_renewal',
+          planId: 'pro',
+          planLabel: 'PRO'
+        });
+
+        if (!pending) {
+          sendJson(res, 400, { ok: false, error: 'unable-to-create-service-fee', message: 'Impossible de preparer le paiement Plan Pro.' });
+          return;
+        }
       }
 
       const amount = Math.max(0, toNumber(pending.data?.amount || getVendorServiceFeeAmount(vendor)));
