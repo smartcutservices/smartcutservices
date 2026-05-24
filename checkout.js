@@ -222,6 +222,46 @@ class CheckoutModal {
     )) || null;
   }
 
+  normalizeZoneText(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  resolveHomeDeliveryZone() {
+    const zones = Array.isArray(this.deliveryData.homeZones) ? this.deliveryData.homeZones : [];
+    if (!zones.length) {
+      this.selectedDelivery.home.zoneId = '';
+      return null;
+    }
+
+    const commune = this.normalizeZoneText(this.selectedDelivery.home.commune);
+    const department = this.normalizeZoneText(this.selectedDelivery.home.department);
+    const address = this.normalizeZoneText(this.selectedDelivery.home.address);
+    const selectedZone = zones.find((zone) => zone.id === this.selectedDelivery.home.zoneId);
+    if (selectedZone) return selectedZone;
+
+    const matchedZone = zones.find((zone) => {
+      const city = this.normalizeZoneText(zone.city || zone.name);
+      const zoneName = this.normalizeZoneText(zone.zone);
+      const label = this.normalizeZoneText(zone.displayLabel || `${zone.city || ''} ${zone.zone || ''}`);
+      const candidates = [city, zoneName, label].filter(Boolean);
+      if (commune && candidates.some((candidate) => candidate === commune || candidate.includes(commune) || commune.includes(candidate))) {
+        return true;
+      }
+      if (department && candidates.some((candidate) => candidate === department || candidate.includes(department))) {
+        return true;
+      }
+      return Boolean(address && candidates.some((candidate) => address.includes(candidate)));
+    }) || null;
+
+    this.selectedDelivery.home.zoneId = matchedZone?.id || '';
+    return matchedZone;
+  }
+
   getVendorDeliveryFee() {
     if (this.selectedDelivery.method !== 'home') return 0;
     return this.getVendorDeliveryGroups().reduce((sum, group) => {
@@ -716,13 +756,6 @@ class CheckoutModal {
                   Aucune adresse de livraison enregistree sur ce compte. Ajoutez une adresse maintenant; elle sera sauvegardee pour vos prochains achats.
                 </div>
               `}
-              <label style="font-size:0.9rem;color:#8B7E6B;">Ville / Zone</label>
-              <select class="delivery-home-zone" style="
-                padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-              ">
-                ${this.renderSelectOptions(this.deliveryData.homeZones, 'Aucune zone disponible')}
-              </select>
-              
               <label style="font-size:0.9rem;color:#8B7E6B;">Adresse</label>
               <input type="text" class="delivery-home-address" placeholder="Adresse complete" ${lockAddressFields ? 'readonly' : ''} style="
                 padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};
@@ -1085,15 +1118,6 @@ class CheckoutModal {
       });
     });
     
-    const homeSelect = this.modal.querySelector('.delivery-home-zone');
-    if (homeSelect) {
-      homeSelect.addEventListener('change', () => {
-        this.selectedDelivery.home.zoneId = homeSelect.value;
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    }
-
     const savedAddressSelect = this.modal.querySelector('.delivery-saved-address');
     if (savedAddressSelect) {
       if (savedAddressSelect.value && !this.selectedDelivery.home.savedAddressId) {
@@ -1110,6 +1134,9 @@ class CheckoutModal {
       addressInput.addEventListener('input', () => {
         this.selectedDelivery.home.address = addressInput.value;
         this.selectedDelivery.home.savedAddressId = '';
+        this.selectedDelivery.home.zoneId = '';
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
       });
     }
 
@@ -1120,6 +1147,7 @@ class CheckoutModal {
         this.selectedDelivery.home.department = departmentSelect.value;
         this.selectedDelivery.home.commune = '';
         this.selectedDelivery.home.savedAddressId = '';
+        this.selectedDelivery.home.zoneId = '';
         communeSelect.innerHTML = this.renderCommuneOptions(departmentSelect.value);
         this.updateDeliveryCosts();
         this.updateTotalsUI();
@@ -1127,6 +1155,7 @@ class CheckoutModal {
       communeSelect.addEventListener('change', () => {
         this.selectedDelivery.home.commune = communeSelect.value;
         this.selectedDelivery.home.savedAddressId = '';
+        this.selectedDelivery.home.zoneId = '';
         this.updateDeliveryCosts();
         this.updateTotalsUI();
       });
@@ -1179,7 +1208,7 @@ class CheckoutModal {
   updateDeliveryCosts() {
     let baseFee = 0;
     this.selectedDelivery.method = 'home';
-    const zone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
+    const zone = this.resolveHomeDeliveryZone();
     baseFee = (this.hasSmartCutItems() ? Number(zone?.fee || 0) : 0) + this.getVendorDeliveryFee();
     
     const weightGrams = this.getCartWeight();
@@ -1241,8 +1270,8 @@ class CheckoutModal {
   validateDelivery() {
     this.selectedDelivery.method = 'home';
 
-    if (this.hasSmartCutItems() && !this.selectedDelivery.home.zoneId) {
-      this.showMessage('Veuillez selectionner une ville ou zone', 'error');
+    if (this.hasSmartCutItems() && this.deliveryData.homeZones.length && !this.resolveHomeDeliveryZone()) {
+      this.showMessage('Livraison Smart Cut Services indisponible pour cette adresse.', 'error');
       return false;
     }
     if (!this.selectedDelivery.home.address?.trim()) {
@@ -1313,7 +1342,7 @@ class CheckoutModal {
   }
   
   getDeliveryPayload() {
-    const homeZone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
+    const homeZone = this.resolveHomeDeliveryZone();
     this.selectedDelivery.method = 'home';
     const vendorDeliveryDetails = this.getVendorDeliveryGroups().map((group) => {
       const zone = this.findVendorDeliveryZone(group);
