@@ -1712,7 +1712,7 @@
 
         const status = String(this.vendorContext?.status || this.vendorContext?.vendorStatus || 'approved').trim().toLowerCase();
         const statusLabel = status === 'suspended_service_fee'
-          ? 'Suspendu - frais mensuel requis'
+          ? (this.isVendorProPlan() ? 'Suspendu - frais mensuel requis' : 'Compte approuve')
           : ['approved', 'active'].includes(status)
           ? 'Compte approuve'
           : 'Compte vendeur';
@@ -2316,14 +2316,19 @@
       }
 
       isBasicPlanProductLimitReached() {
-        const planId = String(this.vendorContext?.planId || '').toLowerCase();
-        const planLabel = String(this.vendorContext?.planLabel || '').toLowerCase();
-        const isPro = planId === 'pro' || planLabel.includes('pro');
-        if (isPro) return false;
+        if (this.isVendorProPlan()) return false;
         return (this.products || []).length >= 5;
       }
 
+      isVendorProPlan(vendorOverride = null) {
+        const vendor = vendorOverride || this.vendorServiceFee?.vendor || this.vendorContext || {};
+        const planId = String(vendor.planId || this.vendorContext?.planId || '').trim().toLowerCase();
+        const planLabel = String(vendor.planLabel || this.vendorContext?.planLabel || '').trim().toLowerCase();
+        return planId === 'pro' || planLabel.includes('pro');
+      }
+
       isServiceFeeSuspended() {
+        if (!this.isVendorProPlan()) return false;
         const status = String(this.vendorContext?.status || this.vendorContext?.vendorStatus || '').toLowerCase();
         const feeStatus = String(this.vendorServiceFee?.vendor?.serviceFeeStatus || this.vendorContext?.serviceFeeStatus || '').toLowerCase();
         return status === 'suspended_service_fee' || ['pending', 'payment_pending', 'payment_initiated', 'redirect_ready'].includes(feeStatus);
@@ -2339,7 +2344,7 @@
         const proPlan = this.vendorServiceFee?.proPlan || {};
         const planId = String(vendor.planId || this.vendorContext?.planId || 'basic').toLowerCase();
         const planLabel = vendor.planLabel || this.vendorContext?.planLabel || (planId === 'pro' ? 'PRO' : 'BASIC');
-        const isPro = Boolean(this.vendorServiceFee?.isPro) || planId === 'pro' || String(planLabel || '').toLowerCase().includes('pro');
+        const isPro = Boolean(this.vendorServiceFee?.isPro) || this.isVendorProPlan(vendor);
         const proPrice = Number(proPlan.price || this.vendorContext?.planPrice || 1750);
         const suspended = this.isServiceFeeSuspended();
         const paidAt = lastPayment?.paidAt || this.vendorContext?.serviceFeeLastPaidAt || '';
@@ -2348,8 +2353,8 @@
         const renewalDue = isPro && (!nextDueAt || Number.isNaN(nextDueMs) || nextDueMs <= Date.now());
         const canUpgrade = Boolean(this.vendorServiceFee?.canUpgradeToPro) || !isPro;
         const amount = Number(currentFee?.amount || vendor.serviceFeeAmount || this.vendorContext?.serviceFeeAmount || (isPro ? proPrice : 0));
-        const displayAmount = canUpgrade && !currentFee ? 0 : amount;
-        const paymentDue = Boolean(currentFee) || canUpgrade || renewalDue || Boolean(this.vendorServiceFee?.paymentDue);
+        const displayAmount = isPro ? amount : 0;
+        const paymentDue = canUpgrade || (isPro && (Boolean(currentFee) || renewalDue || Boolean(this.vendorServiceFee?.paymentDue)));
 
         elements.vendorServiceFeeCard.style.display = 'block';
         if (elements.vendorServiceFeePlan) {
