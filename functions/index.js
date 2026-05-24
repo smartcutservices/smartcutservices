@@ -1799,6 +1799,51 @@ async function fetchJson(url, options = {}) {
   return payload;
 }
 
+function buildMoncashPublicKey() {
+  const rawKey = safeSecretValue(MONCASH_SECRET_API_KEY).replace(/\\n/g, '\n').trim();
+  if (!rawKey) {
+    throw new Error('MonCash secret API key is not configured');
+  }
+
+  const compactBody = rawKey.replace(/-----BEGIN [^-]+-----|-----END [^-]+-----|\s+/g, '');
+  const pemBody = compactBody.match(/.{1,64}/g)?.join('\n') || compactBody;
+  const candidates = rawKey.includes('BEGIN')
+    ? [rawKey]
+    : [
+        `-----BEGIN PUBLIC KEY-----\n${pemBody}\n-----END PUBLIC KEY-----`,
+        `-----BEGIN RSA PUBLIC KEY-----\n${pemBody}\n-----END RSA PUBLIC KEY-----`
+      ];
+
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return crypto.createPublicKey(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Unable to parse MonCash secret API key');
+}
+
+function encryptMoncashMiddlewareValue(value) {
+  const publicKey = buildMoncashPublicKey();
+  const keySizeBytes = Math.ceil(Number(publicKey.asymmetricKeyDetails?.modulusLength || 2048) / 8);
+  const valueBuffer = Buffer.from(String(value || ''), 'utf8');
+
+  if (valueBuffer.length > keySizeBytes) {
+    throw new Error('MonCash encrypted value is too long for the configured key');
+  }
+
+  const padded = Buffer.alloc(keySizeBytes);
+  valueBuffer.copy(padded, keySizeBytes - valueBuffer.length);
+
+  return crypto.publicEncrypt({
+    key: publicKey,
+    padding: crypto.constants.RSA_NO_PADDING
+  }, padded).toString('base64');
+}
+
 async function getMoncashAccessToken() {
   if (tokenCache.accessToken && tokenCache.expiresAt > Date.now()) {
     return tokenCache.accessToken;
@@ -1864,7 +1909,7 @@ async function getMoncashAccessToken() {
   return accessToken;
 }
 
-async function createMoncashRedirect(orderId, amount) {
+async function createMoncashApiRedirect(orderId, amount) {
   const accessToken = await getMoncashAccessToken();
   const payload = await fetchJson(`${MONCASH_API_BASE}/v1/CreatePayment`, {
     method: 'POST',
@@ -1874,7 +1919,7 @@ async function createMoncashRedirect(orderId, amount) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      amount,
+      amount: Math.round(toNumber(amount)),
       orderId
     })
   });
@@ -1889,8 +1934,67 @@ async function createMoncashRedirect(orderId, amount) {
   return {
     paymentToken,
     checkoutUrl: `${MONCASH_GATEWAY_BASE}/Payment/Redirect?token=${encodeURIComponent(paymentToken)}`,
+    providerMode: 'api',
     providerResponse: payload
   };
+}
+
+async function createMoncashMiddlewareRedirect(orderId, amount) {
+  const businessKey = safeSecretValue(MONCASH_BUSINESS_KEY);
+  if (!businessKey) {
+    throw new Error('MonCash business key is not configured');
+  }
+
+  const encryptedOrderId = encryptMoncashMiddlewareValue(orderId);
+  const encryptedAmount = encryptMoncashMiddlewareValue(Math.round(toNumber(amount)));
+  const endpoint = `${MONCASH_GATEWAY_BASE}/Checkout/Rest/${encodeURIComponent(businessKey)}`;
+  const payload = await fetchJson(endpoint, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      amount: encryptedAmount,
+      orderId: encryptedOrderId
+    }).toString()
+  });
+
+  const token = String(payload?.token || payload?.payment_token?.token || payload?.paymentToken || '').trim();
+  const redirectPath = String(payload?.redirect || payload?.path || payload?.paymentUrl || payload?.url || '').trim();
+  const checkoutUrl = redirectPath
+    ? (redirectPath.startsWith('http') ? redirectPath : `${MONCASH_GATEWAY_BASE}${redirectPath.startsWith('/') ? '' : '/'}${redirectPath}`)
+    : (token ? `${MONCASH_GATEWAY_BASE}/Checkout/Payment/Redirect/${encodeURIComponent(token)}` : '');
+
+  if (!checkoutUrl) {
+    const error = new Error('MonCash middleware did not return a checkout URL');
+    error.payload = payload;
+    throw error;
+  }
+
+  return {
+    paymentToken: token,
+    checkoutUrl,
+    providerMode: 'middleware',
+    providerResponse: {
+      ...payload,
+      encryptedOrderId,
+      encryptedAmount
+    }
+  };
+}
+
+async function createMoncashRedirect(orderId, amount) {
+  try {
+    return await createMoncashApiRedirect(orderId, amount);
+  } catch (apiError) {
+    logger.warn('MONCASH_CREATE_DEBUG api:create-payment-failed:fallback-middleware', {
+      message: apiError?.message || '',
+      status: apiError?.status || null,
+      payload: apiError?.payload || null
+    });
+    return createMoncashMiddlewareRedirect(orderId, amount);
+  }
 }
 
 async function retrieveMoncashPayment({ orderId = '', transactionId = '' } = {}) {
@@ -2863,6 +2967,7 @@ exports.createMoncashPayment = onRequest(
             status: 'redirect_ready',
             paymentToken: redirect.paymentToken,
             checkoutUrl: redirect.checkoutUrl,
+            providerMode: redirect.providerMode || 'api',
             providerResponse: redirect.providerResponse,
             updatedAt: new Date().toISOString()
           },
@@ -2872,6 +2977,7 @@ exports.createMoncashPayment = onRequest(
           status: 'awaiting_payment',
           paymentStatus: 'redirect_ready',
           moncashCheckoutUrl: redirect.checkoutUrl,
+          moncashProviderMode: redirect.providerMode || 'api',
           updatedAt: new Date().toISOString()
         })
       ]);
@@ -2879,7 +2985,8 @@ exports.createMoncashPayment = onRequest(
       logger.info('MONCASH_CREATE_DEBUG redirect:ready', {
         sessionId,
         orderId,
-        hasCheckoutUrl: Boolean(redirect.checkoutUrl)
+        hasCheckoutUrl: Boolean(redirect.checkoutUrl),
+        providerMode: redirect.providerMode || 'api'
       });
 
       sendJson(res, 200, {
@@ -3240,12 +3347,14 @@ exports.startVendorServiceFeePayment = onRequest(
           status: 'redirect_ready',
           paymentToken: redirect.paymentToken,
           checkoutUrl: redirect.checkoutUrl,
+          providerMode: redirect.providerMode || 'api',
           providerResponse: redirect.providerResponse,
           updatedAt: new Date().toISOString()
         }, { merge: true }),
         pending.ref.set({
           status: 'redirect_ready',
           checkoutUrl: redirect.checkoutUrl,
+          providerMode: redirect.providerMode || 'api',
           updatedAt: new Date().toISOString()
         }, { merge: true })
       ]);
