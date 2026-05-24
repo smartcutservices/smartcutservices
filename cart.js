@@ -807,7 +807,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260524-1');
+      const module = await import('./checkout.js?v=20260524-2');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -861,6 +861,7 @@ class CartManager {
         selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : [],
         vendorId: item?.vendorId || '',
         vendorName: item?.vendorName || '',
+        weightGrams: Math.max(0, Number(item?.weightGrams || item?.weight || 0)),
         productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
         productDeliveryZones: Array.isArray(item?.productDeliveryZones) ? item.productDeliveryZones : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
         vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,
@@ -1422,6 +1423,7 @@ class CartManager {
       image: item?.image || item?.imageUrl || '',
         vendorId: item?.vendorId || '',
         vendorName: item?.vendorName || '',
+        weightGrams: Math.max(0, Number(item?.weightGrams || item?.weight || 0)),
         productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
         productDeliveryZones: Array.isArray(item?.productDeliveryZones)
           ? item.productDeliveryZones

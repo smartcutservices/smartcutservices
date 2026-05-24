@@ -643,11 +643,34 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeDeliveryZoneList(zones = []) {
+  return Array.isArray(zones)
+    ? zones
+        .map((zone) => ({
+          country: String(zone?.country || 'Haiti').trim() || 'Haiti',
+          department: String(zone?.department || '').trim(),
+          commune: String(zone?.commune || '').trim(),
+          fee: Math.max(0, toNumber(zone?.fee))
+        }))
+        .filter((zone) => zone.country && zone.department && zone.commune)
+    : [];
+}
+
 function normalizeItems(items) {
   return Array.isArray(items)
     ? items.map((item) => {
         const quantity = Math.max(1, toNumber(item?.quantity) || 1);
         const price = Math.max(0, toNumber(item?.price));
+        const productDeliveryZones = normalizeDeliveryZoneList(
+          Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
+            ? item.productDeliveryZones
+            : item?.deliveryZones
+        );
+        const vendorDeliveryZones = normalizeDeliveryZoneList(
+          Array.isArray(item?.vendorDeliveryZones) && item.vendorDeliveryZones.length
+            ? item.vendorDeliveryZones
+            : productDeliveryZones
+        );
         return {
           productId: item?.productId || '',
           name: item?.name || 'Produit',
@@ -663,7 +686,15 @@ function normalizeItems(items) {
           sourceCollection: item?.sourceCollection || '',
           categoryId: item?.categoryId || '',
           category: item?.category || '',
-          deliveryMode: item?.deliveryMode || ''
+          deliveryMode: item?.deliveryMode || '',
+          weightGrams: Math.max(0, toNumber(item?.weightGrams ?? item?.weight)),
+          productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+          productDeliveryZones,
+          vendorDeliveryCoverage: item?.vendorDeliveryCoverage || item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+          vendorDeliveryZones,
+          isDigitalProduct: Boolean(item?.isDigitalProduct),
+          digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
+          deliveryDelay: String(item?.deliveryDelay || '').trim()
         };
       })
     : [];
@@ -733,6 +764,16 @@ async function enrichMarketplaceItems(items = []) {
 
       const productData = productSnap.data() || {};
       const resolvedCategory = String(item?.category || productData?.category || productData?.categoryName || '').trim();
+      const productDeliveryCoverage = item?.productDeliveryCoverage || item?.deliveryCoverage || productData?.deliveryCoverage || productData?.productDeliveryCoverage || null;
+      const productDeliveryZones = normalizeDeliveryZoneList(
+        Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
+          ? item.productDeliveryZones
+          : Array.isArray(item?.deliveryZones) && item.deliveryZones.length
+            ? item.deliveryZones
+            : Array.isArray(productData?.deliveryZones) && productData.deliveryZones.length
+              ? productData.deliveryZones
+              : productData?.productDeliveryZones
+      );
       return {
         ...item,
         name: item?.name || productData?.name || 'Produit vendeur',
@@ -746,6 +787,15 @@ async function enrichMarketplaceItems(items = []) {
         categoryId: String(item?.categoryId || productData?.categoryId || '').trim(),
         category: resolvedCategory,
         deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim(),
+        weightGrams: Math.max(0, toNumber(item?.weightGrams ?? item?.weight ?? productData?.weightGrams ?? productData?.weight)),
+        productDeliveryCoverage,
+        productDeliveryZones,
+        vendorDeliveryCoverage: item?.vendorDeliveryCoverage || productDeliveryCoverage || productData?.vendorDeliveryCoverage || null,
+        vendorDeliveryZones: normalizeDeliveryZoneList(
+          Array.isArray(item?.vendorDeliveryZones) && item.vendorDeliveryZones.length
+            ? item.vendorDeliveryZones
+            : productDeliveryZones
+        ),
         isDigitalProduct: Boolean(item?.isDigitalProduct || productData?.isDigitalProduct),
         digitalDownloadLink: String(item?.digitalDownloadLink || productData?.digitalDownloadLink || '').trim(),
         deliveryDelay: String(item?.deliveryDelay || productData?.deliveryDelay || (productData?.isDigitalProduct ? 'Instantanee' : '')).trim()
@@ -794,6 +844,144 @@ function getOrderDeliveryAmount(order = {}) {
   return Math.max(0, toNumber(order?.delivery?.totalFee ?? order?.delivery?.shippingAmount));
 }
 
+function findVendorDeliveryZoneForAddress(item = {}, delivery = {}) {
+  if (!item?.vendorId || item?.isDigitalProduct) return null;
+
+  const country = String(delivery?.country || 'Haiti').trim() || 'Haiti';
+  const department = String(delivery?.department || '').trim();
+  const commune = String(delivery?.commune || '').trim();
+  const coverage = item?.productDeliveryCoverage || item?.deliveryCoverage || item?.vendorDeliveryCoverage || {};
+  const coverageZones = normalizeDeliveryZoneList(coverage?.zones);
+  const zones = coverageZones.length
+    ? coverageZones
+    : normalizeDeliveryZoneList(
+        Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
+          ? item.productDeliveryZones
+          : Array.isArray(item?.deliveryZones) && item.deliveryZones.length
+            ? item.deliveryZones
+            : item?.vendorDeliveryZones
+      );
+
+  if (coverage?.nationwide && String(coverage?.country || 'Haiti').trim() === country) {
+    return {
+      country,
+      department,
+      commune,
+      fee: Math.max(0, toNumber(coverage?.nationwideFee))
+    };
+  }
+
+  return zones.find((zone) => (
+    String(zone.country || 'Haiti').trim() === country &&
+    String(zone.department || '').trim() === department &&
+    String(zone.commune || '').trim() === commune
+  )) || null;
+}
+
+function buildServerVendorDeliveryDetails(items = [], delivery = {}) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => item?.vendorId && !item?.isDigitalProduct)
+    .map((item) => {
+      const quantity = Math.max(1, toNumber(item?.quantity) || 1);
+      const zone = findVendorDeliveryZoneForAddress(item, delivery);
+      if (!zone) {
+        return {
+          ok: false,
+          vendorId: String(item?.vendorId || '').trim(),
+          vendorName: String(item?.vendorName || '').trim(),
+          productId: String(item?.productId || '').trim(),
+          productName: String(item?.name || 'Produit').trim(),
+          quantity,
+          zone: null,
+          fee: 0,
+          unitFee: 0
+        };
+      }
+
+      const unitFee = Math.max(0, toNumber(zone?.fee));
+      return {
+        ok: true,
+        vendorId: String(item?.vendorId || '').trim(),
+        vendorName: String(item?.vendorName || '').trim(),
+        productId: String(item?.productId || '').trim(),
+        productName: String(item?.name || 'Produit').trim(),
+        quantity,
+        zone,
+        fee: unitFee * quantity,
+        unitFee
+      };
+    });
+}
+
+function validateHomeDeliveryPayload(items = [], delivery = {}) {
+  const normalizedDelivery = delivery && typeof delivery === 'object' ? { ...delivery } : {};
+  normalizedDelivery.method = 'home';
+  normalizedDelivery.country = String(normalizedDelivery.country || 'Haiti').trim() || 'Haiti';
+  normalizedDelivery.department = String(normalizedDelivery.department || '').trim();
+  normalizedDelivery.commune = String(normalizedDelivery.commune || '').trim();
+  normalizedDelivery.address = String(normalizedDelivery.address || '').trim();
+  normalizedDelivery.pickupPoint = null;
+  normalizedDelivery.meetupZone = null;
+  normalizedDelivery.meetupProposal = '';
+
+  if (!normalizedDelivery.address || !normalizedDelivery.department || !normalizedDelivery.commune) {
+    return {
+      ok: false,
+      error: 'missing-delivery-address',
+      message: 'Adresse, departement et commune de livraison requis.'
+    };
+  }
+
+  const vendorDetails = buildServerVendorDeliveryDetails(items, normalizedDelivery);
+  const unavailable = vendorDetails.find((entry) => !entry.ok);
+  if (unavailable) {
+    return {
+      ok: false,
+      error: 'vendor-delivery-unavailable',
+      message: `${unavailable.productName} ne peut pas etre livre dans cette commune.`,
+      unavailable
+    };
+  }
+
+  const vendorDeliveryFee = vendorDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
+  const weightFee = Math.max(0, toNumber(normalizedDelivery.weightFee));
+  const requestedTotal = Math.max(0, toNumber(normalizedDelivery.totalFee ?? normalizedDelivery.shippingAmount));
+  normalizedDelivery.vendorDeliveryDetails = vendorDetails.map(({ ok, ...entry }) => entry);
+  normalizedDelivery.vendorDeliveryFee = vendorDeliveryFee;
+  normalizedDelivery.totalFee = Math.max(requestedTotal, vendorDeliveryFee + weightFee);
+  normalizedDelivery.shippingAmount = normalizedDelivery.totalFee;
+  return {
+    ok: true,
+    delivery: normalizedDelivery
+  };
+}
+
+function getVendorDeliveryDetailsForOrder(order = {}, vendorUid = '', relevantItems = []) {
+  const normalizedVendorId = String(vendorUid || '').trim();
+  const relevantProductIds = new Set(
+    (Array.isArray(relevantItems) ? relevantItems : [])
+      .map((item) => String(item?.productId || '').trim())
+      .filter(Boolean)
+  );
+  const details = Array.isArray(order?.delivery?.vendorDeliveryDetails)
+    ? order.delivery.vendorDeliveryDetails
+    : [];
+
+  return details.filter((entry) => (
+    String(entry?.vendorId || '').trim() === normalizedVendorId ||
+    (relevantProductIds.size > 0 && relevantProductIds.has(String(entry?.productId || '').trim()))
+  ));
+}
+
+function getVendorDeliveryAmount(order = {}, vendorUid = '', relevantItems = []) {
+  const details = getVendorDeliveryDetailsForOrder(order, vendorUid, relevantItems);
+  if (details.length) {
+    return details.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.fee)), 0);
+  }
+
+  return isVendorExclusiveOrder(order, vendorUid) ? getOrderDeliveryAmount(order) : 0;
+}
+
 function isVendorExclusiveOrder(order = {}, vendorUid = '') {
   const normalizedVendorId = String(vendorUid || '').trim();
   const items = Array.isArray(order?.items) ? order.items : [];
@@ -807,17 +995,33 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
   if (!relevantItems.length) return null;
 
   const deliveryModes = relevantItems.map((item) => String(item?.deliveryMode || '').trim()).filter(Boolean);
+  const hasVendorItems = relevantItems.some((item) => String(item?.vendorId || '').trim() === String(vendorUid || '').trim());
   const vendorManagedDelivery =
-    deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode)) &&
+    (hasVendorItems || deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode))) &&
     !deliveryModes.some((mode) => smartCutHandlesDeliveryMode(mode));
   const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
   const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
   const productNetAmount = relevantItems.reduce((sum, item) => sum + item.vendorNetAmount, 0);
-  const deliveryAmount = vendorManagedDelivery && isVendorExclusiveOrder(order, vendorUid)
-    ? getOrderDeliveryAmount(order)
+  const vendorDeliveryDetails = vendorManagedDelivery
+    ? getVendorDeliveryDetailsForOrder(order, vendorUid, relevantItems)
+    : [];
+  const deliveryAmount = vendorManagedDelivery
+    ? getVendorDeliveryAmount(order, vendorUid, relevantItems)
     : 0;
   const grossAmount = productGrossAmount + deliveryAmount;
   const vendorNetAmount = productNetAmount + deliveryAmount;
+  const vendorDelivery = vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
+    ? {
+        ...order.delivery,
+        vendorDeliveryDetails,
+        totalFee: deliveryAmount,
+        shippingAmount: deliveryAmount,
+        vendorDeliveryFee: deliveryAmount,
+        pickupPoint: null,
+        meetupZone: null,
+        meetupProposal: ''
+      }
+    : null;
 
   return {
     refPath,
@@ -854,9 +1058,7 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
           address: '',
           city: ''
         },
-    delivery: vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
-      ? order.delivery
-      : null
+    delivery: vendorDelivery
   };
 }
 
@@ -2354,7 +2556,19 @@ exports.createMoncashPayment = onRequest(
       return;
     }
 
-    const totals = buildOrderTotals(items, delivery);
+    const deliveryValidation = validateHomeDeliveryPayload(items, delivery);
+    if (!deliveryValidation.ok) {
+      sendJson(res, 400, {
+        ok: false,
+        error: deliveryValidation.error,
+        message: deliveryValidation.message,
+        unavailable: deliveryValidation.unavailable || null
+      });
+      return;
+    }
+
+    const resolvedDelivery = deliveryValidation.delivery;
+    const totals = buildOrderTotals(items, resolvedDelivery);
     let promoSummary = null;
     if (requestedPromo?.code) {
       promoSummary = await previewPromoForCart({
@@ -2388,7 +2602,7 @@ exports.createMoncashPayment = onRequest(
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
       items,
-      delivery,
+      delivery: resolvedDelivery,
       promoCode: promoSummary ? {
         promoId: promoSummary.promoId,
         code: promoSummary.code,
@@ -2444,6 +2658,7 @@ exports.createMoncashPayment = onRequest(
       customerLastName,
       customerEmail,
       customerPhone,
+      delivery: resolvedDelivery,
       promoCode: promoSummary ? {
         promoId: promoSummary.promoId,
         code: promoSummary.code,

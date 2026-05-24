@@ -1303,6 +1303,7 @@ class PaymentModal {
               selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : [],
               vendorId: item?.vendorId || '',
               vendorName: item?.vendorName || '',
+              weightGrams: Math.max(0, Number(item?.weightGrams || item?.weight || 0)),
               productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
               productDeliveryZones: Array.isArray(item?.productDeliveryZones) ? item.productDeliveryZones : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
               vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,

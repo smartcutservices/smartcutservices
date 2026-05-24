@@ -672,6 +672,7 @@ class CheckoutModal {
   renderDeliverySection() {
     const savedAddresses = this.getSavedDeliveryAddresses();
     const defaultAddress = this.getDefaultDeliveryAddress();
+    const lockAddressFields = savedAddresses.length > 0;
     const savedAddressOptions = savedAddresses.map((address) => `
       <option value="${this.escapeAttribute(address.id || '')}" ${address.id === defaultAddress?.id ? 'selected' : ''}>
         ${this.escapeHtml(this.formatSavedAddress(address))}
@@ -695,7 +696,7 @@ class CheckoutModal {
           Livraison a domicile
         </h3>
         <div style="margin-bottom:1rem;color:#6E6557;font-size:0.95rem;line-height:1.6;">
-          Votre commande sera livree directement a l'adresse indiquee ci-dessous.
+          Votre commande sera livree a l'adresse de livraison choisie dans votre compte.
         </div>
         
         <div class="delivery-panels">
@@ -707,11 +708,14 @@ class CheckoutModal {
                   <select class="delivery-saved-address" style="
                     width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
                   ">
-                    <option value="">Ajouter une nouvelle adresse</option>
                     ${savedAddressOptions}
                   </select>
                 </div>
-              ` : ''}
+              ` : `
+                <div style="padding:.85rem 1rem;border:1px solid rgba(185,28,28,.18);border-radius:.75rem;background:rgba(185,28,28,.06);color:#7F1D1D;font-size:.92rem;line-height:1.55;">
+                  Aucune adresse de livraison enregistree sur ce compte. Ajoutez une adresse maintenant; elle sera sauvegardee pour vos prochains achats.
+                </div>
+              `}
               <label style="font-size:0.9rem;color:#8B7E6B;">Ville / Zone</label>
               <select class="delivery-home-zone" style="
                 padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
@@ -720,20 +724,20 @@ class CheckoutModal {
               </select>
               
               <label style="font-size:0.9rem;color:#8B7E6B;">Adresse</label>
-              <input type="text" class="delivery-home-address" placeholder="Adresse complète" style="
-                padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
+              <input type="text" class="delivery-home-address" placeholder="Adresse complete" ${lockAddressFields ? 'readonly' : ''} style="
+                padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};
               ">
 
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
                   <label style="font-size:0.9rem;color:#8B7E6B;">Departement</label>
-                  <select class="delivery-home-department" style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;">
+                  <select class="delivery-home-department" ${lockAddressFields ? 'disabled' : ''} style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};">
                     ${this.renderDepartmentOptions(this.selectedDelivery.home.department)}
                   </select>
                 </div>
                 <div>
                   <label style="font-size:0.9rem;color:#8B7E6B;">Commune</label>
-                  <select class="delivery-home-commune" style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;">
+                  <select class="delivery-home-commune" ${lockAddressFields ? 'disabled' : ''} style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};">
                     ${this.renderCommuneOptions(this.selectedDelivery.home.department, this.selectedDelivery.home.commune)}
                   </select>
                 </div>
@@ -1097,6 +1101,8 @@ class CheckoutModal {
       }
       savedAddressSelect.addEventListener('change', () => {
         this.applySavedDeliveryAddress(savedAddressSelect.value);
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
       });
     }
     const addressInput = this.modal.querySelector('.delivery-home-address');
@@ -1115,10 +1121,14 @@ class CheckoutModal {
         this.selectedDelivery.home.commune = '';
         this.selectedDelivery.home.savedAddressId = '';
         communeSelect.innerHTML = this.renderCommuneOptions(departmentSelect.value);
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
       });
       communeSelect.addEventListener('change', () => {
         this.selectedDelivery.home.commune = communeSelect.value;
         this.selectedDelivery.home.savedAddressId = '';
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
       });
     }
     
@@ -1569,7 +1579,7 @@ class CheckoutModal {
         return;
       }
       await this.saveCheckoutDeliveryAddress();
-      const module = await import('./payment.js?v=20260520-1');
+      const module = await import('./payment.js?v=20260524-1');
       const PaymentModal = module.default;
       
       await this.close();
