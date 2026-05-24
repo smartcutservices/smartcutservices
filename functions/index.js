@@ -56,6 +56,43 @@ function sanitizeText(value, maxLength = 240) {
   return String(value || '').trim().slice(0, maxLength);
 }
 
+function getSafeMoncashPublicError(error) {
+  const rawMessage = String(error?.message || error?.payload?.message || error?.payload?.error || '').trim();
+  const lowerMessage = rawMessage.toLowerCase();
+  const technicalMarkers = [
+    'jpa entitymanager',
+    'jdbcconnectionexception',
+    'jdbc connection',
+    'hibernate',
+    'org.hibernate',
+    'nested exception',
+    'stack trace',
+    'exception:'
+  ];
+
+  if (!rawMessage || technicalMarkers.some((marker) => lowerMessage.includes(marker))) {
+    return {
+      status: 503,
+      error: 'moncash-temporarily-unavailable',
+      message: 'MonCash est temporairement indisponible. Votre paiement n a pas ete lance. Veuillez reessayer dans quelques minutes.'
+    };
+  }
+
+  if (rawMessage.length > 180) {
+    return {
+      status: 500,
+      error: 'server-error',
+      message: 'Impossible de demarrer le paiement MonCash pour le moment. Veuillez reessayer dans quelques minutes.'
+    };
+  }
+
+  return {
+    status: Number(error?.status || 500) >= 500 ? 500 : 400,
+    error: Number(error?.status || 500) >= 500 ? 'server-error' : 'moncash-request-failed',
+    message: rawMessage
+  };
+}
+
 function sanitizePath(value = '') {
   const text = sanitizeText(value, 320);
   if (!text) return '/';
@@ -2816,6 +2853,7 @@ exports.createMoncashPayment = onRequest(
       });
     } catch (error) {
       logger.error('MonCash create payment failed', error);
+      const publicError = getSafeMoncashPublicError(error);
 
       await Promise.all([
         sessionRef.set(
@@ -2834,10 +2872,10 @@ exports.createMoncashPayment = onRequest(
         })
       ]);
 
-      sendJson(res, 500, {
+      sendJson(res, publicError.status, {
         ok: false,
-        error: 'server-error',
-        message: error?.message || 'Unexpected server error'
+        error: publicError.error,
+        message: publicError.message
       });
     }
   }
@@ -3176,7 +3214,8 @@ exports.startVendorServiceFeePayment = onRequest(
       });
     } catch (error) {
       logger.error('startVendorServiceFeePayment failed', error);
-      sendJson(res, 500, { ok: false, error: 'server-error', message: error?.message || 'Erreur serveur.' });
+      const publicError = getSafeMoncashPublicError(error);
+      sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
     }
   }
 );

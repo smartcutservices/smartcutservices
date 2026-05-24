@@ -4,6 +4,31 @@ import {
   collection, getDocs, addDoc, doc, query
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
+function getSafeMoncashErrorMessage(error) {
+  const rawMessage = String(error?.message || error?.payload?.message || error?.payload?.error || '').trim();
+  const lowerMessage = rawMessage.toLowerCase();
+  const technicalMarkers = [
+    'jpa entitymanager',
+    'jdbcconnectionexception',
+    'jdbc connection',
+    'hibernate',
+    'org.hibernate',
+    'nested exception',
+    'stack trace',
+    'exception:'
+  ];
+
+  if (!rawMessage || technicalMarkers.some(marker => lowerMessage.includes(marker))) {
+    return 'MonCash est temporairement indisponible. Votre paiement n a pas ete lance. Veuillez reessayer dans quelques minutes.';
+  }
+
+  if (rawMessage.length > 180) {
+    return 'Impossible de demarrer le paiement MonCash pour le moment. Veuillez reessayer dans quelques minutes.';
+  }
+
+  return rawMessage;
+}
+
 class PaymentModal {
   constructor(options = {}) {
     this.options = {
@@ -1068,7 +1093,7 @@ class PaymentModal {
         phone: customer.customerPhone
       };
 
-      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260520-1');
+      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260524-2');
       const response = await createMoncashPaymentSession({
         clientId: this.options.client?.id || '',
         clientUid: this.options.client?.uid || '',
@@ -1110,7 +1135,7 @@ class PaymentModal {
         launchBtn.disabled = false;
         launchBtn.textContent = 'Payer avec MonCash';
       }
-      alert(error?.message || 'Impossible de démarrer le paiement MonCash.');
+      alert(getSafeMoncashErrorMessage(error));
     }
   }
   

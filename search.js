@@ -695,7 +695,7 @@ class SearchComponent {
   }
   
   async searchProducts(searchTerm) {
-    const collectionsToTry = ['products', 'vendorProducts', 'categories567'];
+    const collectionsToTry = ['products', 'vendorProducts'];
     const mergedResults = [];
     const seen = new Set();
 

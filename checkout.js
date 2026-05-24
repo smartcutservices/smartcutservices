@@ -1697,7 +1697,7 @@ class CheckoutModal {
         return;
       }
       await this.saveCheckoutDeliveryAddress();
-      const module = await import('./payment.js?v=20260524-1');
+      const module = await import('./payment.js?v=20260524-2');
       const PaymentModal = module.default;
       
       await this.close();
