@@ -35,49 +35,20 @@ function formatOptions(item) {
 
 function getDeliveryLabel(delivery) {
   if (!delivery) return '';
-  if (delivery.method === 'home') return 'Livraison a domicile';
-  if (delivery.method === 'pickup') return 'Retrait en point de vente';
-  if (delivery.method === 'meetup') return 'Rencontre livreur';
-  return 'Livraison';
+  return 'Livraison a domicile';
 }
 
 function buildDeliveryLines(delivery) {
   if (!delivery) return [];
 
   const lines = [`Methode: ${getDeliveryLabel(delivery)}`];
-
-  if (delivery.method === 'home') {
-    const zoneLabel = delivery?.homeZone?.city || delivery?.homeZone?.zone || delivery?.homeZone?.name || '';
-    if (zoneLabel) lines.push(`Zone: ${zoneLabel}`);
-    if (delivery.address) lines.push(`Adresse: ${String(delivery.address)}`);
-    if (delivery.phone) lines.push(`Telephone: ${String(delivery.phone)}`);
-    if (delivery.whatsapp) lines.push(`WhatsApp: ${String(delivery.whatsapp)}`);
-  }
-
-  if (delivery.method === 'pickup') {
-    const pointName =
-      delivery?.pickupPoint?.displayLabel ||
-      delivery?.pickupPoint?.name ||
-      delivery?.pickupPoint?.title ||
-      '';
-    const pointAddress = delivery?.pickupPoint?.address || delivery?.pickupPoint?.location || '';
-    const pointContact = delivery?.pickupPoint?.phone || '';
-    const pointWhatsapp = delivery?.pickupPoint?.whatsapp || '';
-    const pointHours = delivery?.pickupPoint?.hours || delivery?.pickupPoint?.schedule || '';
-    if (pointName) lines.push(`Point de retrait: ${pointName}`);
-    if (pointAddress) lines.push(`Adresse du point: ${pointAddress}`);
-    if (pointContact) lines.push(`Telephone du point: ${pointContact}`);
-    if (pointWhatsapp) lines.push(`WhatsApp du point: ${pointWhatsapp}`);
-    if (pointHours) lines.push(`Horaire: ${pointHours}`);
-  }
-
-  if (delivery.method === 'meetup') {
-    const meetupLabel = delivery?.meetupZone?.zone || delivery?.meetupZone?.city || delivery?.meetupZone?.name || '';
-    if (meetupLabel) lines.push(`Zone de rencontre: ${meetupLabel}`);
-    if (delivery.meetupProposal) lines.push(`Proposition: ${String(delivery.meetupProposal)}`);
-    if (delivery.phone) lines.push(`Telephone: ${String(delivery.phone)}`);
-    if (delivery.whatsapp) lines.push(`WhatsApp: ${String(delivery.whatsapp)}`);
-  }
+  const zoneLabel = delivery?.homeZone?.city || delivery?.homeZone?.zone || delivery?.homeZone?.name || '';
+  if (zoneLabel) lines.push(`Zone: ${zoneLabel}`);
+  if (delivery.address) lines.push(`Adresse: ${String(delivery.address)}`);
+  if (delivery.department) lines.push(`Departement: ${String(delivery.department)}`);
+  if (delivery.commune) lines.push(`Commune: ${String(delivery.commune)}`);
+  if (delivery.phone) lines.push(`Telephone: ${String(delivery.phone)}`);
+  if (delivery.whatsapp) lines.push(`WhatsApp: ${String(delivery.whatsapp)}`);
 
   if (Number(delivery.totalFee || 0) > 0) {
     lines.push(`Frais: ${formatPrice(delivery.totalFee)}`);

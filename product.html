@@ -66,7 +66,9 @@
   <div id="sierra-footer-root"></div>
 
   <script type="module">
-    import './firebase-init.js';
+    const ASSET_VERSION = '20260524-5';
+    window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
+    await import(`./firebase-init.js?v=${ASSET_VERSION}`);
 
     const params = new URLSearchParams(window.location.search);
     const productId = params.get('product') || '';
@@ -82,8 +84,8 @@
       }
     };
 
-    mount('sierra-header-root', () => import('./header.js'));
-    mount('sierra-footer-root', () => import('./footer.js'), {
+    mount('sierra-header-root', () => import(`./header.js?v=${ASSET_VERSION}`));
+    mount('sierra-footer-root', () => import(`./footer.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',
       showSocial: true,
       showContact: true,
@@ -95,7 +97,7 @@
     if (!productId) {
       window.location.replace('./catalogue.html');
     } else {
-      mount('product-page-content', () => import('./product-page.js'), {
+      mount('product-page-content', () => import(`./product-page.js?v=${ASSET_VERSION}`), {
         productId,
         collectionName: 'products',
         imageBasePath: './'

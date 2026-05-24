@@ -1,4 +1,4 @@
-import ProductModal from './product-modal.js';
+import ProductModal from './product-modal.js?v=20260524-5';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {

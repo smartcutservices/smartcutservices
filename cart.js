@@ -816,7 +816,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260524-4');
+      const module = await import('./checkout.js?v=20260524-5');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -1047,20 +1047,14 @@ class CartManager {
 
       const delivery = order.delivery || null;
       if (delivery) {
-        const deliveryLabel = delivery.method === 'home'
-          ? 'Livraison à domicile'
-          : delivery.method === 'pickup'
-            ? 'Retrait en point de vente'
-            : delivery.method === 'meetup'
-              ? 'Rencontre livreur'
-              : 'Livraison';
-        const deliveryTarget = delivery.method === 'home'
-          ? (delivery.homeZone?.city || delivery.homeZone?.zone || '')
-          : delivery.method === 'pickup'
-            ? (delivery.pickupPoint?.name || '')
-            : delivery.method === 'meetup'
-              ? (delivery.meetupZone?.zone || '')
-              : '';
+        const deliveryLabel = 'Livraison a domicile';
+        const deliveryTarget =
+          delivery.homeZone?.city ||
+          delivery.homeZone?.zone ||
+          delivery.commune ||
+          delivery.department ||
+          delivery.address ||
+          '';
 
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
@@ -2013,7 +2007,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js')
+    import('./product-modal.js?v=20260524-5')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {

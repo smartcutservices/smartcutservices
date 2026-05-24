@@ -805,25 +805,6 @@ class CheckoutModal {
     `;
   }
 
-  getAvailableDeliveryMethods() {
-    return [{ key: 'home', label: 'A domicile', icon: 'fa-house' }];
-  }
-
-  renderDeliveryMethodRadio(method) {
-    const id = `${this.uniqueId}_delivery_${method.key}`;
-    return `
-      <label for="${id}" style="
-        display:flex;align-items:center;gap:0.5rem;
-        padding:0.6rem 0.9rem;border:1px solid rgba(198,167,94,0.3);
-        border-radius:999px;background:white;cursor:pointer;font-size:0.9rem;color:#1F1E1C;
-      ">
-        <input type="radio" id="${id}" name="delivery_method_${this.uniqueId}" value="${method.key}" style="accent-color:#C6A75E;">
-        <i class="fas ${method.icon}" style="color:#C6A75E;"></i>
-        ${method.label}
-      </label>
-    `;
-  }
-
   renderSelectOptions(items, emptyLabel) {
     if (!items || items.length === 0) {
       return `<option value="">${emptyLabel}</option>`;
@@ -1116,10 +1097,6 @@ class CheckoutModal {
 
   setDefaultDeliveryMethod() {
     this.selectedDelivery.method = 'home';
-    const defaultRadio = this.modal.querySelector(`input[name="delivery_method_${this.uniqueId}"][value="${this.selectedDelivery.method}"]`);
-    if (defaultRadio) {
-      defaultRadio.checked = true;
-    }
     this.updateDeliveryPanels();
   }
 
@@ -1152,16 +1129,7 @@ class CheckoutModal {
 
   bindDeliveryEvents() {
     this.selectedDelivery.method = 'home';
-    const methodRadios = this.modal.querySelectorAll(`input[name="delivery_method_${this.uniqueId}"]`);
-    methodRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        this.selectedDelivery.method = 'home';
-        this.updateDeliveryPanels();
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    });
-    
+
     const savedAddressSelect = this.modal.querySelector('.delivery-saved-address');
     if (savedAddressSelect) {
       if (savedAddressSelect.value) {
