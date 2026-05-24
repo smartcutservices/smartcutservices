@@ -291,6 +291,13 @@ class CheckoutModal {
     return `Livraison ${commune}: ${this.formatPrice(fee)}`;
   }
 
+  isCartItemDeliveryUnavailable(item) {
+    if (!String(item?.vendorId || '').trim()) return false;
+    const department = String(this.selectedDelivery.home.department || '').trim();
+    const commune = String(this.selectedDelivery.home.commune || '').trim();
+    return Boolean(department && commune && !this.getCartItemDeliveryZone(item));
+  }
+
   escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -393,7 +400,7 @@ class CheckoutModal {
         </div>
         
         <!-- Contenu principal -->
-        <div style="padding: 1.5rem;">
+        <div class="checkout-content-${this.uniqueId}" style="padding: 1.5rem;">
           ${this.cart.length === 0 ? this.renderEmptyCart() : this.renderCheckoutContent()}
         </div>
       </div>
@@ -713,8 +720,9 @@ class CheckoutModal {
     const savedAddresses = this.getSavedDeliveryAddresses();
     const defaultAddress = this.getDefaultDeliveryAddress();
     const lockAddressFields = savedAddresses.length > 0;
+    const selectedSavedAddressId = this.selectedDelivery.home.savedAddressId || defaultAddress?.id || '';
     const savedAddressOptions = savedAddresses.map((address) => `
-      <option value="${this.escapeAttribute(address.id || '')}" ${address.id === defaultAddress?.id ? 'selected' : ''}>
+      <option value="${this.escapeAttribute(address.id || '')}" ${address.id === selectedSavedAddressId ? 'selected' : ''}>
         ${this.escapeHtml(this.formatSavedAddress(address))}
       </option>
     `).join('');
@@ -847,6 +855,7 @@ class CheckoutModal {
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
     const deliveryLabel = this.getCartItemDeliveryLabel(item);
+    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item);
     
     return `
       <tr data-index="${index}">
@@ -869,7 +878,24 @@ class CheckoutModal {
             <div>
               <div style="font-weight: 500;">${item.name || 'Produit'}</div>
               ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
-              ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryLabel.includes('indisponible') ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
+              ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryUnavailable ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
+              <button type="button" data-remove-unavailable-item="${index}" style="
+                display:${deliveryUnavailable ? 'inline-flex' : 'none'};
+                align-items:center;
+                gap:.35rem;
+                margin-top:.45rem;
+                border:1px solid rgba(185,28,28,.28);
+                background:rgba(185,28,28,.07);
+                color:#991B1B;
+                border-radius:999px;
+                padding:.35rem .65rem;
+                font-size:.72rem;
+                font-weight:700;
+                cursor:pointer;
+              ">
+                <i class="fas fa-trash-alt"></i>
+                Retirer
+              </button>
             </div>
           </div>
         </td>
@@ -913,6 +939,7 @@ class CheckoutModal {
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
     const deliveryLabel = this.getCartItemDeliveryLabel(item);
+    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item);
     
     return `
       <div class="checkout-mobile-item" data-index="${index}" style="
@@ -942,7 +969,24 @@ class CheckoutModal {
               <div>
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.name || 'Produit'}</div>
                 ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
-                ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryLabel.includes('indisponible') ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
+                ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryUnavailable ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
+                <button type="button" data-remove-unavailable-item="${index}" style="
+                  display:${deliveryUnavailable ? 'inline-flex' : 'none'};
+                  align-items:center;
+                  gap:.35rem;
+                  margin-top:.5rem;
+                  border:1px solid rgba(185,28,28,.28);
+                  background:rgba(185,28,28,.07);
+                  color:#991B1B;
+                  border-radius:999px;
+                  padding:.42rem .7rem;
+                  font-size:.76rem;
+                  font-weight:800;
+                  cursor:pointer;
+                ">
+                  <i class="fas fa-trash-alt"></i>
+                  Retirer ce produit
+                </button>
               </div>
             </div>
             
@@ -1120,7 +1164,7 @@ class CheckoutModal {
     
     const savedAddressSelect = this.modal.querySelector('.delivery-saved-address');
     if (savedAddressSelect) {
-      if (savedAddressSelect.value && !this.selectedDelivery.home.savedAddressId) {
+      if (savedAddressSelect.value) {
         this.applySavedDeliveryAddress(savedAddressSelect.value);
       }
       savedAddressSelect.addEventListener('change', () => {
@@ -1228,9 +1272,13 @@ class CheckoutModal {
     if (!this.modal) return;
     this.cart.forEach((item, index) => {
       const label = this.getCartItemDeliveryLabel(item);
+      const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item);
       this.modal.querySelectorAll(`[data-item-delivery-label="${index}"]`).forEach((node) => {
         node.textContent = label;
-        node.style.color = label.includes('indisponible') ? '#B91C1C' : '#2E5D3A';
+        node.style.color = deliveryUnavailable ? '#B91C1C' : '#2E5D3A';
+      });
+      this.modal.querySelectorAll(`[data-remove-unavailable-item="${index}"]`).forEach((node) => {
+        node.style.display = deliveryUnavailable ? 'inline-flex' : 'none';
       });
     });
   }
@@ -1378,18 +1426,7 @@ class CheckoutModal {
     };
   }
   
-  attachEvents() {
-    const closeBtn = this.modal.querySelector('.close-checkout');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.close());
-    }
-    
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) {
-        this.close();
-      }
-    });
-    
+  bindCheckoutControls() {
     const applyPromo = this.modal.querySelector('.apply-promo');
     const promoInput = this.modal.querySelector('.promo-code');
     
@@ -1407,6 +1444,29 @@ class CheckoutModal {
     if (payBtn) {
       payBtn.addEventListener('click', () => this.openPaymentModal());
     }
+
+    this.bindDeliveryEvents();
+  }
+
+  attachEvents() {
+    const closeBtn = this.modal.querySelector('.close-checkout');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.close());
+    }
+    
+    this.modal.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest?.('[data-remove-unavailable-item]');
+      if (removeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.removeUnavailableCartItem(Number(removeBtn.dataset.removeUnavailableItem));
+        return;
+      }
+
+      if (e.target === this.modal) {
+        this.close();
+      }
+    });
     
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -1414,7 +1474,68 @@ class CheckoutModal {
       }
     });
 
-    this.bindDeliveryEvents();
+    this.bindCheckoutControls();
+  }
+
+  getCartItemCount() {
+    return this.cart.reduce((sum, item) => sum + (Number(item?.quantity) || 1), 0);
+  }
+
+  getCartTotalPrice() {
+    return this.cart.reduce((sum, item) => sum + ((Number(item?.price) || 0) * (Number(item?.quantity) || 1)), 0);
+  }
+
+  persistCheckoutCart() {
+    try {
+      localStorage.setItem('veltrixa_cart', JSON.stringify(this.cart));
+    } catch (error) {
+      console.warn('Impossible de sauvegarder le panier depuis le checkout:', error);
+    }
+
+    const detail = {
+      cart: this.cart,
+      count: this.getCartItemCount(),
+      total: this.getCartTotalPrice()
+    };
+    document.dispatchEvent(new CustomEvent('checkoutCartSynced', { detail }));
+    document.dispatchEvent(new CustomEvent('cartUpdated', { detail }));
+  }
+
+  refreshCheckoutContent() {
+    if (!this.modal) return;
+    if (!this.cart.length) {
+      this.appliedPromo = null;
+      this.deliveryFees = { base: 0, weightExtra: 0, total: 0 };
+      this.shipping = 0;
+      this.calculateTotals();
+    } else {
+      this.updateDeliveryCosts();
+    }
+
+    const content = this.modal.querySelector(`.checkout-content-${this.uniqueId}`);
+    if (!content) return;
+    content.innerHTML = this.cart.length === 0 ? this.renderEmptyCart() : this.renderCheckoutContent();
+    if (this.cart.length) {
+      this.bindCheckoutControls();
+      this.updateDeliveryPanels();
+      this.updateDeliveryCosts();
+      this.updateTotalsUI();
+    } else {
+      content.querySelector('.close-checkout')?.addEventListener('click', () => this.close());
+    }
+  }
+
+  removeUnavailableCartItem(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= this.cart.length) return;
+    const item = this.cart[index];
+    if (!this.isCartItemDeliveryUnavailable(item)) return;
+
+    this.cart.splice(index, 1);
+    this.appliedPromo = null;
+    this.discountAmount = 0;
+    this.persistCheckoutCart();
+    this.refreshCheckoutContent();
+    this.showMessage(`${item?.name || 'Produit'} retire du checkout.`, 'success');
   }
   
   applyDiscount(percentage) {

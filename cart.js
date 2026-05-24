@@ -749,6 +749,15 @@ class CartManager {
       this.openCheckout(e.detail);
     });
 
+    document.addEventListener('checkoutCartSynced', (e) => {
+      if (!Array.isArray(e?.detail?.cart)) return;
+      this.cart = e.detail.cart;
+      if (this.modal) {
+        this.renderCartModal();
+      }
+      this.emitUpdate();
+    });
+
     document.addEventListener('orderSaved', (e) => {
       const order = e?.detail?.order;
       const clientId = e?.detail?.clientId;
@@ -807,7 +816,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260524-3');
+      const module = await import('./checkout.js?v=20260524-4');
       const CheckoutModal = module.default;
       
       if (this.modal) {
