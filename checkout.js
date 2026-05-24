@@ -187,15 +187,18 @@ class CheckoutModal {
   }
 
   findVendorDeliveryZone(group) {
+    const country = String(this.selectedDelivery.home.country || 'Haiti').trim() || 'Haiti';
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
     const coverage = group.coverage || {};
     const zones = Array.isArray(coverage.zones) && coverage.zones.length ? coverage.zones : group.zones;
     if (coverage.nationwide && zones.length === 0) {
-      return { country: 'Haiti', department: 'Tout Haiti', commune: 'Tout Haiti', fee: Number(coverage.nationwideFee || 0), nationwide: true };
+      const coverageCountry = String(coverage.country || 'Haiti').trim() || 'Haiti';
+      if (coverageCountry !== country) return null;
+      return { country, department: 'Tout Haiti', commune: 'Tout Haiti', fee: Number(coverage.nationwideFee || 0), nationwide: true };
     }
     return (Array.isArray(zones) ? zones : []).find((zone) => (
-      String(zone.country || 'Haiti') === 'Haiti'
+      String(zone.country || 'Haiti').trim() === country
       && String(zone.department || '').trim() === department
       && String(zone.commune || '').trim() === commune
     )) || null;
