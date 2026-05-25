@@ -178,13 +178,20 @@ class CheckoutModal {
   }
 
   hasSmartCutItems() {
-    return this.cart.some((item) => !String(item?.vendorId || '').trim());
+    return this.cart.some((item) => !String(item?.vendorId || '').trim() && !this.isDigitalCartItem(item));
+  }
+
+  isDigitalCartItem(item) {
+    return Boolean(item?.isDigitalProduct)
+      || String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase() === 'digital'
+      || String(item?.deliveryMode || '').toLowerCase().includes('digital');
   }
 
   getVendorDeliveryGroups() {
     return this.cart.map((item, index) => {
       const vendorId = String(item?.vendorId || '').trim();
       if (!vendorId) return null;
+      if (this.isDigitalCartItem(item)) return null;
       const productCoverage = item.productDeliveryCoverage || item.deliveryCoverage || item.vendorDeliveryCoverage || null;
       const productZones = Array.isArray(item.productDeliveryZones)
         ? item.productDeliveryZones
@@ -271,6 +278,9 @@ class CheckoutModal {
   }
 
   getCartItemDeliveryZone(item) {
+    if (this.isDigitalCartItem(item)) {
+      return { country: 'Digital', department: 'Digital', commune: 'Instantanee', fee: 0, digital: true };
+    }
     if (!String(item?.vendorId || '').trim()) return null;
     const group = this.getVendorDeliveryGroups().find((entry) => (
       entry.productId === item.productId
@@ -280,6 +290,7 @@ class CheckoutModal {
   }
 
   getCartItemDeliveryLabel(item) {
+    if (this.isDigitalCartItem(item)) return 'Produit digital: livraison instantanee gratuite.';
     if (!String(item?.vendorId || '').trim()) return '';
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
@@ -292,6 +303,7 @@ class CheckoutModal {
   }
 
   isCartItemDeliveryUnavailable(item) {
+    if (this.isDigitalCartItem(item)) return false;
     if (!String(item?.vendorId || '').trim()) return false;
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();

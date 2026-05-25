@@ -1137,6 +1137,7 @@
           <div class="section-tabs">
             <button class="section-tab active" data-tab="general">Général</button>
             <button class="section-tab" data-tab="delivery">Livraison</button>
+            <button class="section-tab" data-tab="digital">Digital</button>
             <button class="section-tab" data-tab="category">Catégorie & attributs</button>
             <button class="section-tab" data-tab="variations">Variations</button>
             <button class="section-tab" data-tab="gallery">Galerie</button>
@@ -1193,36 +1194,6 @@
                     <div>
                       <label class="block text-sm text-text-secondary mb-1">Stock total</label>
                       <input type="number" id="totalStock" class="form-input" readonly>
-                    </div>
-                  </div>
-
-                  <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-white p-4 space-y-4">
-                    <div class="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <h4 class="font-semibold text-text-primary">Livraison & digital</h4>
-                        <p class="text-sm text-text-secondary mt-1">Indiquez le delai de livraison ou marquez le produit comme article digital avec son lien de telechargement.</p>
-                      </div>
-                      <label class="inline-flex items-center gap-2 rounded-full bg-background px-3 py-2 text-sm font-semibold text-text-primary">
-                        <input type="checkbox" id="isDigitalProduct" class="accent-[#C6A75E]">
-                        Article digital
-                      </label>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Delai de livraison</label>
-                        <input type="text" id="deliveryDelay" class="form-input" placeholder="Ex: 24-48h, 3 jours, instantanee">
-                      </div>
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Lien de telechargement digital</label>
-                        <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
-                      </div>
-                    </div>
-                    <div class="flex items-center justify-between gap-3 flex-wrap rounded-xl border border-[rgba(198,167,94,0.18)] bg-[rgba(198,167,94,0.06)] p-3">
-                      <p class="text-xs text-text-secondary">Pour un article digital, la livraison sera affichee comme instantanee et le lien sera conserve avec la commande apres paiement. Pour les produits physiques, definissez les zones de livraison du produit.</p>
-                      <button type="button" id="configureDeliveryTabBtn" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-truck"></i>
-                        Configurer la livraison
-                      </button>
                     </div>
                   </div>
 
@@ -1306,6 +1277,57 @@
             </div>
 
             <!-- ===== TAB 2: CATÉGORIE & ATTRIBUTS ===== -->
+            <div id="tab-digital" class="tab-content hidden">
+              <div class="content-card">
+                <div class="card-header">
+                  <span>Produit digital</span>
+                  <span class="inline-flex items-center rounded-full bg-white border border-[rgba(16,185,129,0.25)] px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase text-success">
+                    Livraison gratuite et instantanee
+                  </span>
+                </div>
+                <div class="card-body space-y-4">
+                  <div class="rounded-2xl border border-[rgba(16,185,129,0.18)] bg-[rgba(16,185,129,0.06)] p-4 space-y-4">
+                    <div class="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <h4 class="font-semibold text-text-primary">Activer le mode digital</h4>
+                        <p class="text-sm text-text-secondary mt-1">Un produit digital ne demande pas de zone de livraison: frais 0 G, poids 0 g, delai instantane.</p>
+                      </div>
+                      <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-text-primary border border-[rgba(16,185,129,0.2)]">
+                        <input type="checkbox" id="isDigitalProduct" class="accent-[#10B981]">
+                        Article digital
+                      </label>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Delai de livraison</label>
+                        <input type="text" id="deliveryDelay" class="form-input" placeholder="Instantanee" value="Instantanee">
+                      </div>
+                      <div>
+                        <label class="block text-sm text-text-secondary mb-1">Lien de telechargement digital</label>
+                        <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
+                      </div>
+                    </div>
+
+                    <div class="rounded-xl bg-white border border-[rgba(16,185,129,0.16)] p-4 space-y-3">
+                      <div>
+                        <h5 class="font-semibold text-text-primary">Uploader un fichier digital</h5>
+                        <p class="text-sm text-text-secondary mt-1">PDF, ZIP, document, image ou autre fichier jusqu a 20 Mo. Le lien sera ajoute automatiquement.</p>
+                      </div>
+                      <div class="image-name-input-area">
+                        <input type="file" id="digitalProductFileInput" class="image-name-input" accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.webp,.mp3,.mp4,.txt,application/pdf,application/zip,image/*,audio/*,video/*">
+                        <button type="button" id="uploadDigitalProductBtn" class="btn btn-secondary">
+                          <i class="fas fa-cloud-upload-alt"></i>
+                          Uploader le fichier digital
+                        </button>
+                      </div>
+                      <div id="digitalFileInfo" class="text-sm text-text-secondary"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div id="tab-category" class="tab-content hidden">
               <div class="content-card">
                 <div class="card-header">
@@ -1526,7 +1548,7 @@
 
   <script type="module">
     // ========== CONFIGURATION FIREBASE ==========
-    import { uploadImageFile } from './firebase-storage.js';
+    import { uploadImageFile, uploadStorageFile } from './firebase-storage.js';
     import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
     import { NotificationComponent } from './notification.js';
@@ -2022,6 +2044,9 @@
           configureDeliveryTabBtn: document.getElementById('configureDeliveryTabBtn'),
           isDigitalProduct: document.getElementById('isDigitalProduct'),
           digitalDownloadLink: document.getElementById('digitalDownloadLink'),
+          digitalProductFileInput: document.getElementById('digitalProductFileInput'),
+          uploadDigitalProductBtn: document.getElementById('uploadDigitalProductBtn'),
+          digitalFileInfo: document.getElementById('digitalFileInfo'),
           deliveryDelay: document.getElementById('deliveryDelay'),
           discountType: document.getElementById('discountType'),
           discountValue: document.getElementById('discountValue'),
@@ -2135,6 +2160,12 @@
         this.elements.searchProducts.addEventListener('input', () => this.renderProductsList());
         this.elements.configureDeliveryTabBtn?.addEventListener('click', () => {
           this.switchEditorTab('delivery');
+        });
+        this.elements.isDigitalProduct?.addEventListener('change', () => {
+          this.updateDigitalProductUi();
+        });
+        this.elements.uploadDigitalProductBtn?.addEventListener('click', () => {
+          this.uploadDigitalProductFile();
         });
 
         this.elements.requestPayoutBtn?.addEventListener('click', async () => {
@@ -4019,7 +4050,11 @@
           }
           this.elements.isDigitalProduct.checked = Boolean(this.currentProduct.isDigitalProduct);
           this.elements.digitalDownloadLink.value = this.currentProduct.digitalDownloadLink || '';
+          this.elements.digitalDownloadLink.dataset.storagePath = this.currentProduct.digitalDownloadStoragePath || '';
+          this.elements.digitalDownloadLink.dataset.fileName = this.currentProduct.digitalDownloadFileName || '';
           this.elements.deliveryDelay.value = this.currentProduct.deliveryDelay || (this.currentProduct.isDigitalProduct ? 'Instantanee' : '');
+          this.updateDigitalProductUi();
+          this.renderDigitalFileInfo(this.currentProduct);
           this.populateDiscountFields(this.currentProduct);
           this.elements.productStatus.checked = this.currentProduct.status !== 'draft';
           
@@ -4054,7 +4089,12 @@
         this.renderProductDeliveryZones([]);
         this.elements.isDigitalProduct.checked = false;
         this.elements.digitalDownloadLink.value = '';
-        this.elements.deliveryDelay.value = '';
+        this.elements.digitalDownloadLink.dataset.storagePath = '';
+        this.elements.digitalDownloadLink.dataset.fileName = '';
+        if (this.elements.digitalProductFileInput) this.elements.digitalProductFileInput.value = '';
+        this.elements.deliveryDelay.value = 'Instantanee';
+        this.updateDigitalProductUi();
+        this.renderDigitalFileInfo();
         this.populateDiscountFields(null);
         this.elements.totalStock.value = '0';
         this.elements.productStatus.checked = true;
@@ -4089,7 +4129,10 @@
           this.currentProduct?.category ||
           ''
         ).trim();
-        const deliveryCoverage = this.collectProductDeliveryCoverage();
+        const isDigitalProduct = Boolean(this.elements.isDigitalProduct?.checked);
+        const deliveryCoverage = isDigitalProduct
+          ? { country: 'Haiti', mode: 'digital', nationwide: false, nationwideFee: 0, zones: [] }
+          : this.collectProductDeliveryCoverage();
         const productData = {
           name: this.elements.productName.value.trim(),
           sku: this.elements.mainSku.value.trim() || this.generateMainSku(),
@@ -4097,15 +4140,17 @@
           longDescription: this.elements.longDescription.value.trim(),
           price: parseFloat(this.elements.basePrice.value) || 0,
           comparePrice: parseFloat(this.elements.comparePrice.value) || null,
-          isDigitalProduct: Boolean(this.elements.isDigitalProduct?.checked),
+          isDigitalProduct,
           digitalDownloadLink: this.elements.digitalDownloadLink?.value?.trim() || '',
-          deliveryDelay: Boolean(this.elements.isDigitalProduct?.checked)
-            ? (this.elements.deliveryDelay?.value?.trim() || 'Instantanee')
+          digitalDownloadStoragePath: this.elements.digitalDownloadLink?.dataset?.storagePath || this.currentProduct?.digitalDownloadStoragePath || '',
+          digitalDownloadFileName: this.elements.digitalDownloadLink?.dataset?.fileName || this.currentProduct?.digitalDownloadFileName || '',
+          deliveryDelay: isDigitalProduct
+            ? 'Instantanee'
             : (this.elements.deliveryDelay?.value?.trim() || ''),
-          weightGrams: this.collectProductWeightGrams(),
+          weightGrams: isDigitalProduct ? 0 : this.collectProductWeightGrams(),
           deliveryCoverage,
-          deliveryZones: deliveryCoverage.zones,
-          productDeliveryZones: deliveryCoverage.zones,
+          deliveryZones: isDigitalProduct ? [] : deliveryCoverage.zones,
+          productDeliveryZones: isDigitalProduct ? [] : deliveryCoverage.zones,
           discount,
           discountEnabled: Boolean(discount?.enabled),
           discountType: discount?.type || '',
@@ -4129,7 +4174,7 @@
           planLabel: this.vendorContext.planLabel || '',
           vendorVerified: String(this.vendorContext.planId || '').toLowerCase() === 'pro'
             || String(this.vendorContext.planLabel || '').toLowerCase().includes('pro'),
-          deliveryMode: this.vendorContext.deliveryMode || '',
+          deliveryMode: isDigitalProduct ? 'Digital - livraison instantanee' : (this.vendorContext.deliveryMode || ''),
           vendorServiceFeeStatus: this.isServiceFeeSuspended() ? 'suspended' : 'active',
           commissionRule: this.buildCommissionRule(selectedCategoryName, now),
           createdBy: 'vendor_dashboard_products',
@@ -4464,6 +4509,72 @@
 
         await currentUser.getIdToken();
         return currentUser;
+      }
+
+      updateDigitalProductUi() {
+        const isDigital = Boolean(this.elements.isDigitalProduct?.checked);
+        if (this.elements.deliveryDelay) {
+          this.elements.deliveryDelay.readOnly = isDigital;
+          if (isDigital) this.elements.deliveryDelay.value = 'Instantanee';
+        }
+        if (this.elements.productWeightValue) {
+          this.elements.productWeightValue.disabled = isDigital;
+          if (isDigital) this.elements.productWeightValue.value = '0';
+        }
+        if (this.elements.productWeightUnit) {
+          this.elements.productWeightUnit.disabled = isDigital;
+          if (isDigital) this.elements.productWeightUnit.value = 'g';
+        }
+        this.renderDigitalFileInfo(this.currentProduct);
+      }
+
+      renderDigitalFileInfo(product = null) {
+        const info = this.elements.digitalFileInfo;
+        if (!info) return;
+        const link = this.elements.digitalDownloadLink?.value?.trim() || product?.digitalDownloadLink || '';
+        const fileName = this.elements.digitalDownloadLink?.dataset?.fileName || product?.digitalDownloadFileName || '';
+        const storagePath = this.elements.digitalDownloadLink?.dataset?.storagePath || product?.digitalDownloadStoragePath || '';
+        if (!link && !fileName && !storagePath) {
+          info.textContent = 'Aucun fichier digital ajoute pour le moment.';
+          return;
+        }
+        info.innerHTML = `
+          <div class="rounded-lg border border-[rgba(16,185,129,0.18)] bg-white p-3">
+            <div class="font-semibold text-text-primary">${fileName || 'Fichier digital'}</div>
+            <div class="break-all">${storagePath || link}</div>
+          </div>
+        `;
+      }
+
+      async uploadDigitalProductFile() {
+        const file = this.elements.digitalProductFileInput?.files?.[0] || null;
+        if (!file) {
+          this.showToast('Selectionnez un fichier digital a envoyer.', 'error');
+          return;
+        }
+
+        try {
+          await this.ensureUploadAuthReady();
+          if (this.elements.isDigitalProduct) {
+            this.elements.isDigitalProduct.checked = true;
+          }
+          this.updateDigitalProductUi();
+          this.showToast('Upload du fichier digital en cours...', 'info');
+          const upload = await uploadStorageFile(file, `products/${this.vendorContext.uid || auth.currentUser?.uid || 'vendor'}/digital`, { maxSizeMb: 20 });
+          this.elements.digitalDownloadLink.value = upload.url;
+          this.elements.digitalDownloadLink.dataset.storagePath = upload.path;
+          this.elements.digitalDownloadLink.dataset.fileName = upload.name;
+          if (this.elements.digitalProductFileInput) this.elements.digitalProductFileInput.value = '';
+          this.renderDigitalFileInfo({
+            digitalDownloadLink: upload.url,
+            digitalDownloadStoragePath: upload.path,
+            digitalDownloadFileName: upload.name
+          });
+          this.showToast('Fichier digital upload avec succes. Livraison gratuite et instantanee activee.', 'success');
+        } catch (error) {
+          console.error('Erreur upload fichier digital:', error);
+          this.showToast(error?.message || 'Erreur pendant l upload du fichier digital.', 'error');
+        }
       }
 
       async uploadSelectedImages(type) {
