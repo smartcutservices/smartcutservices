@@ -892,8 +892,8 @@ function buildVendorItemMetrics(item = {}) {
   const unitPrice = Number(item?.price || 0);
   const productGrossAmount = unitPrice * quantity;
   const commissionRate = getCommissionRate(item?.commissionRule);
-  const commissionAmount = productGrossAmount * (commissionRate / 100);
-  const vendorNetAmount = Math.max(0, productGrossAmount - commissionAmount);
+  const productCommissionAmount = productGrossAmount * (commissionRate / 100);
+  const productNetAmount = Math.max(0, productGrossAmount - productCommissionAmount);
 
   return {
     ...item,
@@ -902,8 +902,12 @@ function buildVendorItemMetrics(item = {}) {
     productGrossAmount,
     grossAmount: productGrossAmount,
     commissionRate,
-    commissionAmount,
-    vendorNetAmount
+    productCommissionAmount,
+    productNetAmount,
+    commissionBaseAmount: productGrossAmount,
+    commissionAmount: productCommissionAmount,
+    deliveryAmount: 0,
+    vendorNetAmount: productNetAmount
   };
 }
 
@@ -1089,7 +1093,7 @@ function isVendorExclusiveOrder(order = {}, vendorUid = '') {
 }
 
 function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '') {
-  const relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
+  let relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
   if (!relevantItems.length) return null;
 
   const normalizedVendorUid = String(vendorUid || '').trim();
@@ -1101,17 +1105,42 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
   const vendorManagedDelivery =
     (hasVendorItems || deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode))) &&
     !deliveryModes.some((mode) => smartCutHandlesDeliveryMode(mode));
-  const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
-  const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
-  const productNetAmount = relevantItems.reduce((sum, item) => sum + item.vendorNetAmount, 0);
   const vendorDeliveryDetails = vendorManagedDelivery
     ? getVendorDeliveryDetailsForOrder(order, vendorUid, relevantItems)
     : [];
   const deliveryAmount = vendorManagedDelivery
     ? getVendorDeliveryAmount(order, vendorUid, relevantItems)
     : 0;
+  const productGrossBeforeDelivery = relevantItems.reduce((sum, item) => sum + Math.max(0, toNumber(item.productGrossAmount)), 0);
+  relevantItems = relevantItems.map((item) => {
+    const itemProductId = String(item?.productId || '').trim();
+    const itemName = String(item?.name || 'Produit').trim();
+    const matchingDelivery = vendorManagedDelivery
+      ? vendorDeliveryDetails.find((entry) => (
+          (itemProductId && String(entry?.productId || '').trim() === itemProductId) ||
+          String(entry?.productName || '').trim() === itemName
+        ))
+      : null;
+    const fallbackDeliveryShare = vendorManagedDelivery && !vendorDeliveryDetails.length && deliveryAmount > 0 && productGrossBeforeDelivery > 0
+      ? deliveryAmount * (Math.max(0, toNumber(item.productGrossAmount)) / productGrossBeforeDelivery)
+      : 0;
+    const itemDeliveryAmount = Math.max(0, toNumber(matchingDelivery?.fee) || fallbackDeliveryShare);
+    const commissionBaseAmount = Math.max(0, toNumber(item.productGrossAmount) + itemDeliveryAmount);
+    const commissionAmount = commissionBaseAmount * (Number(item.commissionRate || 0) / 100);
+    return {
+      ...item,
+      deliveryAmount: itemDeliveryAmount,
+      commissionBaseAmount,
+      grossAmount: commissionBaseAmount,
+      commissionAmount,
+      vendorNetAmount: Math.max(0, commissionBaseAmount - commissionAmount)
+    };
+  });
+  const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
+  const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
+  const productNetAmount = relevantItems.reduce((sum, item) => sum + item.productNetAmount, 0);
   const grossAmount = productGrossAmount + deliveryAmount;
-  const vendorNetAmount = productNetAmount + deliveryAmount;
+  const vendorNetAmount = Math.max(0, grossAmount - commissionAmount);
   const vendorDelivery = vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
     ? {
         ...order.delivery,
