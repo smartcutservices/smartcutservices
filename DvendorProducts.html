@@ -2237,6 +2237,10 @@
         
         document.querySelector(`.section-tab[data-tab="${tabName}"]`).classList.add('active');
         document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+        if (tabName === 'digital' && this.elements.isDigitalProduct) {
+          this.elements.isDigitalProduct.checked = true;
+          this.updateDigitalProductUi();
+        }
       }
       
       // ========== CHARGEMENT DES DONNÉES ==========
@@ -4106,7 +4110,12 @@
           this.currentProduct?.category ||
           ''
         ).trim();
-        const isDigitalProduct = Boolean(this.elements.isDigitalProduct?.checked);
+        const digitalDownloadLink = this.elements.digitalDownloadLink?.value?.trim() || '';
+        const isDigitalProduct = Boolean(this.elements.isDigitalProduct?.checked) || Boolean(digitalDownloadLink);
+        if (isDigitalProduct && this.elements.isDigitalProduct) {
+          this.elements.isDigitalProduct.checked = true;
+          this.updateDigitalProductUi();
+        }
         const deliveryCoverage = isDigitalProduct
           ? { country: 'Haiti', mode: 'digital', nationwide: false, nationwideFee: 0, zones: [] }
           : this.collectProductDeliveryCoverage();
@@ -4118,7 +4127,7 @@
           price: parseFloat(this.elements.basePrice.value) || 0,
           comparePrice: parseFloat(this.elements.comparePrice.value) || null,
           isDigitalProduct,
-          digitalDownloadLink: this.elements.digitalDownloadLink?.value?.trim() || '',
+          digitalDownloadLink,
           digitalDownloadStoragePath: '',
           digitalDownloadFileName: '',
           deliveryDelay: isDigitalProduct
