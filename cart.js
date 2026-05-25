@@ -113,7 +113,7 @@ class CartManager {
     return {
       id: guestId,
       uid: guestId,
-      name: 'Client invitÃ©',
+      name: 'Client invité',
       email: '',
       phone: '',
       address: '',
@@ -221,10 +221,10 @@ class CartManager {
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <p style="color:#6E6557;line-height:1.8;">Vous pouvez vous connecter pour retrouver vos commandes plus tard, ou continuer comme invitÃ© pour commander immÃ©diatement.</p>
+        <p style="color:#6E6557;line-height:1.8;">Vous pouvez vous connecter pour retrouver vos commandes plus tard, ou continuer comme invité pour commander immédiatement.</p>
         <div style="display:grid;gap:.75rem;">
           <button class="choice-login" style="border:none;border-radius:999px;background:#1F1E1C;color:#F5F1E8;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Se connecter / S'inscrire</button>
-          <button class="choice-guest" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Continuer comme invitÃ©</button>
+          <button class="choice-guest" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Continuer comme invité</button>
         </div>
       </div>
     `;
@@ -558,7 +558,7 @@ class CartManager {
   }
   
   formatTimeLeft(ms) {
-    if (ms <= 0) return 'ExpirÃ©';
+    if (ms <= 0) return 'Expiré';
 
     const totalSeconds = Math.floor(ms / 1000);
     const hours = Math.floor(totalSeconds / 3600);
@@ -679,23 +679,23 @@ class CartManager {
   hideOrderFromClient(orderId) {
     const order = this.orders.find((o) => o.id === orderId);
     if (!order || (!['approved', 'paid', 'rejected'].includes(order.status))) {
-      this.showNotification('âŒ Seules les commandes approuvÃ©es ou rejetÃ©es peuvent Ãªtre masquÃ©es', 'error');
+      this.showNotification('Seules les commandes approuvées ou rejetées peuvent être masquées', 'error');
       return;
     }
 
     const warningMessage = ['approved', 'paid'].includes(order.status)
       ? (
-        'âš ï¸ Attention: si vous supprimez cette commande sans tÃ©lÃ©charger le PDF, vous pouvez perdre le colis.\n\n' +
-        'TÃ©lÃ©chargez dâ€™abord le reÃ§u PDF avec votre code de retrait.\n\n' +
+        'Attention: si vous supprimez cette commande sans télécharger le PDF, vous pouvez perdre le colis.\n\n' +
+        'Téléchargez d abord le reçu PDF avec votre code de retrait.\n\n' +
         'Voulez-vous masquer cette commande sur votre site ?'
       )
-      : 'Voulez-vous masquer cette commande rejetÃ©e sur votre site ?';
+      : 'Voulez-vous masquer cette commande rejetée sur votre site ?';
     const warning = confirm(warningMessage);
     if (!warning) return;
 
     this.hiddenOrderIds.add(String(orderId));
     this.saveHiddenOrders();
-    this.showNotification('âœ… Commande masquÃ©e sur votre site (non supprimÃ©e en base)', 'success');
+    this.showNotification('Commande masquée sur votre site (non supprimée en base)', 'success');
 
     if (this.modal) {
       this.renderCartModal();
@@ -806,7 +806,7 @@ class CartManager {
         mode: cartData?.mode || 'authenticated',
         currentClient: this.currentClient || null
       });
-      this.showNotification('âŒ Impossible de charger le client. RÃ©essayez.');
+      this.showNotification('Impossible de charger le client. Réessayez.');
       return;
     }
     console.info('[CART] openCheckout: client resolu', {
@@ -834,7 +834,7 @@ class CartManager {
           this.cart = [];
           this.saveCart();
           
-          this.showNotification('âœ… Commande soumise avec succÃ¨s !');
+          this.showNotification('Commande soumise avec succès !');
           if (window.veltrixaNotificationCenter?.promptOrderNotificationChoice) {
             setTimeout(() => {
               window.veltrixaNotificationCenter.promptOrderNotificationChoice();
@@ -944,21 +944,21 @@ class CartManager {
     try {
       const order = this.orders.find(o => o.id === orderId);
       if (!order) {
-        this.showNotification('âŒ Commande non trouvÃ©e', 'error');
+        this.showNotification('Commande non trouvée', 'error');
         return;
       }
       
       if (!['approved', 'paid'].includes(order.status)) {
-        this.showNotification('âš ï¸ Cette commande n\'est pas encore approuvÃ©e', 'warning');
+        this.showNotification('Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
       
       if (typeof window.jspdf === 'undefined') {
-        this.showNotification('âŒ BibliothÃ¨que PDF non chargÃ©e', 'error');
+        this.showNotification('Bibliothèque PDF non chargée', 'error');
         return;
       }
       
-      this.showNotification('ðŸ“„ GÃ©nÃ©ration du PDF en cours...', 'info');
+      this.showNotification('Génération du PDF en cours...', 'info');
       
       this.showNotification('Generation du PDF en cours...', 'info');
       await downloadOrderPdfReceipt(
@@ -1016,7 +1016,7 @@ class CartManager {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('REÃ‡U DE PAIEMENT', 20, 60);
+      doc.text('RECU DE PAIEMENT', 20, 60);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -1041,7 +1041,7 @@ class CartManager {
       doc.setFont('helvetica', 'normal');
       doc.text(`Nom: ${order.customerName || this.currentClient?.name || 'N/A'}`, 20, 120);
       doc.text(`Email: ${order.customerEmail || this.currentClient?.email || '-'}`, 20, 130);
-      doc.text(`TÃ©lÃ©phone: ${order.customerPhone || this.currentClient?.phone || '-'}`, 20, 140);
+      doc.text(`Telephone: ${order.customerPhone || this.currentClient?.phone || '-'}`, 20, 140);
       doc.text(`Adresse: ${order.customerAddress || this.currentClient?.address || '-'}`, 20, 150);
       doc.text(`Ville: ${order.customerCity || this.currentClient?.city || '-'}`, 20, 160);
 
@@ -1062,7 +1062,7 @@ class CartManager {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`MÃ©thode: ${deliveryLabel}`, 20, 184);
+        doc.text(`Methode: ${deliveryLabel}`, 20, 184);
         if (deliveryTarget) {
           doc.text(`Zone/Point: ${deliveryTarget}`.slice(0, 110), 20, 192);
         }
@@ -1070,7 +1070,7 @@ class CartManager {
           doc.text(`Adresse: ${delivery.address}`.slice(0, 110), 20, 200);
         }
         if (delivery.phone || delivery.whatsapp) {
-          const contact = [delivery.phone ? `TÃ©l: ${delivery.phone}` : '', delivery.whatsapp ? `WA: ${delivery.whatsapp}` : ''].filter(Boolean).join(' | ');
+          const contact = [delivery.phone ? `Tel: ${delivery.phone}` : '', delivery.whatsapp ? `WA: ${delivery.whatsapp}` : ''].filter(Boolean).join(' | ');
           doc.text(contact.slice(0, 110), 20, 208);
         }
         if (delivery.meetupProposal) {
@@ -1087,7 +1087,7 @@ class CartManager {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`MÃ©thode: ${order.methodName || 'N/A'}`, 20, delivery ? 246 : 186);
+      doc.text(`Methode: ${order.methodName || 'N/A'}`, 20, delivery ? 246 : 186);
       
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
@@ -1098,13 +1098,13 @@ class CartManager {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Produits commandÃ©s', 20, y);
+      doc.text('Produits commandes', 20, y);
       y += 7;
 
       if (orderItems.length === 0) {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('Aucun dÃ©tail produit enregistrÃ©.', 20, y);
+        doc.text('Aucun detail produit enregistre.', 20, y);
         y += 6;
       } else {
         orderItems.forEach((item, index) => {
@@ -1128,7 +1128,7 @@ class CartManager {
 
           doc.setFont('helvetica', 'normal');
           doc.text(
-            `QtÃ©: ${qty} | PU: ${this.formatPrice(unitPrice)} | Total: ${this.formatPrice(lineTotal)}${productId}${sku}`.slice(0, 110),
+            `Qte: ${qty} | PU: ${this.formatPrice(unitPrice)} | Total: ${this.formatPrice(lineTotal)}${productId}${sku}`.slice(0, 110),
             24,
             y
           );
@@ -1162,20 +1162,20 @@ class CartManager {
       
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text('Ce document est un reÃ§u officiel de paiement.', 20, 280);
-      doc.text(`Code de vÃ©rification: ${order.uniqueCode || 'N/A'}`, 20, 285);
+      doc.text('Ce document est un recu officiel de paiement.', 20, 280);
+      doc.text(`Code de verification: ${order.uniqueCode || 'N/A'}`, 20, 285);
       
       doc.save(`recu-${order.uniqueCode || order.id}.pdf`);
       
-      this.showNotification('âœ… PDF tÃ©lÃ©chargÃ© avec succÃ¨s !', 'success');
+      this.showNotification('PDF téléchargé avec succès !', 'success');
       
       setTimeout(() => {
-        this.showNotification('âš ï¸ Conservez ce PDF prÃ©cieusement - il contient votre code unique !', 'warning');
+        this.showNotification('Conservez ce PDF précieusement - il contient votre code unique !', 'warning');
       }, 1000);
       
     } catch (error) {
       console.error('âŒ Erreur gÃ©nÃ©ration PDF:', error);
-      this.showNotification('âŒ Erreur lors de la gÃ©nÃ©ration du PDF', 'error');
+      this.showNotification('Erreur lors de la génération du PDF', 'error');
     }
   }
   
@@ -1183,22 +1183,22 @@ class CartManager {
     try {
       const order = this.orders.find(o => o.id === orderId);
       if (!order) {
-        this.showNotification('âŒ Commande non trouvÃ©e', 'error');
+        this.showNotification('Commande non trouvée', 'error');
         return;
       }
       
       if (!['approved', 'paid'].includes(order.status)) {
-        this.showNotification('âš ï¸ Cette commande n\'est pas encore approuvÃ©e', 'warning');
+        this.showNotification('Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
       
       const confirmDownload = confirm(
-        'âš ï¸ IMPORTANT âš ï¸\n\n' +
-        'Ce PDF contient un code unique qui vous permettra de rÃ©cupÃ©rer votre commande.\n\n' +
-        'âœ… Conservez-le prÃ©cieusement.\n' +
-        'âœ… Il sera demandÃ© lors du retrait/livraison.\n' +
-        'âœ… Ne le partagez pas avec des inconnus.\n\n' +
-        'Voulez-vous tÃ©lÃ©charger votre reÃ§u ?'
+        'IMPORTANT\n\n' +
+        'Ce PDF contient un code unique qui vous permettra de récupérer votre commande.\n\n' +
+        'Conservez-le précieusement.\n' +
+        'Il sera demandé lors du retrait/livraison.\n' +
+        'Ne le partagez pas avec des inconnus.\n\n' +
+        'Voulez-vous télécharger votre reçu ?'
       );
       
       if (!confirmDownload) return;
@@ -1207,7 +1207,7 @@ class CartManager {
       
     } catch (error) {
       console.error('âŒ Erreur tÃ©lÃ©chargement PDF:', error);
-      this.showNotification('âŒ Erreur lors du tÃ©lÃ©chargement', 'error');
+      this.showNotification('Erreur lors du téléchargement', 'error');
     }
   }
   
@@ -1284,7 +1284,7 @@ class CartManager {
         : currentQty + incomingQty;
 
       if (nextQty <= currentQty) {
-        this.showNotification(`âš ï¸ Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
+        this.showNotification(`Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
         return;
       }
 
@@ -1319,13 +1319,13 @@ class CartManager {
       }
       this.showNotification(
         nextQty < currentQty + incomingQty
-          ? `âš ï¸ Stock limitÃ© Ã  ${nextQty} pour ${this.cart[existingIndex].name}`
-          : `ðŸ“¦ QuantitÃ© mise Ã  jour: ${this.cart[existingIndex].name}`
+          ? `Stock limité à ${nextQty} pour ${this.cart[existingIndex].name}`
+          : `Quantité mise à jour: ${this.cart[existingIndex].name}`
       );
     } else {
       const initialQty = Number.isFinite(stockLimit) ? Math.min(stockLimit, incomingQty) : incomingQty;
       if (initialQty <= 0) {
-        this.showNotification(`âš ï¸ Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
+        this.showNotification(`Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
         return;
       }
       this.cart.push({
@@ -1335,8 +1335,8 @@ class CartManager {
       });
       this.showNotification(
         initialQty < incomingQty
-          ? `âš ï¸ ${item.name || 'Produit'} limitÃ© Ã  ${initialQty} unitÃ©(s)`
-          : `âœ… ${item.name || 'Produit'} ajoutÃ© au panier`
+          ? `${item.name || 'Produit'} limité à ${initialQty} unité(s)`
+          : `${item.name || 'Produit'} ajouté au panier`
       );
     }
     
@@ -1348,7 +1348,7 @@ class CartManager {
       const item = this.cart[index];
       this.cart.splice(index, 1);
       this.saveCart();
-      this.showNotification(`ðŸ—‘ï¸ ${item.name || 'Article'} supprimÃ© du panier`, 'info');
+      this.showNotification(`${item.name || 'Article'} supprimé du panier`, 'info');
       if (this.modal) {
         this.renderCartModal();
       }
@@ -1365,7 +1365,7 @@ class CartManager {
           ? Math.min(stockLimit, quantity)
           : quantity;
         if (safeQuantity < quantity) {
-          this.showNotification(`âš ï¸ Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
+          this.showNotification(`Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
         }
         this.cart[index].quantity = safeQuantity;
         this.saveCart();
@@ -1379,10 +1379,10 @@ class CartManager {
   clearCart() {
     if (this.cart.length === 0) return;
     
-    if (confirm('ðŸ—‘ï¸ Vider le panier ?')) {
+    if (confirm('Vider le panier ?')) {
       this.cart = [];
       this.saveCart();
-      this.showNotification('Panier vidÃ©', 'info');
+      this.showNotification('Panier vidé', 'info');
       if (this.modal) {
         this.renderCartModal();
       }
@@ -1489,10 +1489,10 @@ class CartManager {
     const texts = {
       pending: 'En attente',
         review: 'En examen',
-        paid: 'Paiement confirme',
-      approved: 'âœ… ApprouvÃ©',
-      rejected: 'âŒ RejetÃ©',
-      expired: 'â° ExpirÃ©'
+        paid: 'Paiement confirmé',
+      approved: 'Approuvé',
+      rejected: 'Rejeté',
+      expired: 'Expiré'
     };
     return texts[status] || status;
   }
@@ -1511,10 +1511,10 @@ class CartManager {
 
   getFulfillmentStatusText(status) {
     const texts = {
-      ordered: 'CommandÃ©',
-      shipped: 'ExpÃ©diÃ©',
+      ordered: 'Commandé',
+      shipped: 'Expédié',
       in_delivery: 'En cours de livraison',
-      delivered: 'LivrÃ©'
+      delivered: 'Livré'
     };
     return texts[status] || texts.ordered;
   }
@@ -1531,10 +1531,10 @@ class CartManager {
 
   getFulfillmentSteps() {
     return [
-      { key: 'ordered', label: 'CommandÃ©' },
-      { key: 'shipped', label: 'ExpÃ©diÃ©' },
+      { key: 'ordered', label: 'Commandé' },
+      { key: 'shipped', label: 'Expédié' },
       { key: 'in_delivery', label: 'En cours de livraison' },
-      { key: 'delivered', label: 'LivrÃ©' }
+      { key: 'delivered', label: 'Livré' }
     ];
   }
 
@@ -1626,7 +1626,7 @@ class CartManager {
           line-height: 1.5;
         ">
           ${['approved', 'paid'].includes(order.status)
-            ? 'Paiement confirme. Votre commande avance maintenant selon le suivi de livraison.'
+            ? 'Paiement confirmé. Votre commande avance maintenant selon le suivi de livraison.'
             : order.status === 'pending' || order.status === 'review'
               ? 'Votre commande est bien enregistree. Le suivi de livraison se mettra a jour apres validation.'
               : 'Suivi disponible pour cette commande.'}
@@ -1891,7 +1891,7 @@ class CartManager {
               gap: 0.5rem;
             " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
               <i class="fas fa-lock"></i>
-              ProcÃ©der au paiement
+              Procéder au paiement
             </button>
             
             <button class="continue-shopping-btn" style="
@@ -1966,7 +1966,7 @@ class CartManager {
               color:${colors.text.body};
               font-size:0.88rem;
               text-align:center;
-            ">Aucun produit likÃ© pour le moment.</div>
+            ">Aucun produit liké pour le moment.</div>
           ` : `
             <div style="display:flex; flex-direction:column; gap:0.55rem;">
               ${items.map((item) => `
@@ -2054,7 +2054,7 @@ class CartManager {
         </div>
         <h3 style="font-size: 1.2rem; margin-bottom: 0.5rem; color: ${colors.text.title};">Connectez-vous</h3>
         <p style="color: ${colors.text.body}; margin-bottom: 1.5rem;">
-          Connectez-vous pour retrouver vos commandes, ou continuez comme invitÃ© pour commander tout de suite.
+          Connectez-vous pour retrouver vos commandes, ou continuez comme invité pour commander tout de suite.
         </p>
         <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem;">
           <button class="login-btn" style="
@@ -2079,7 +2079,7 @@ class CartManager {
             font-size: 1rem;
             transition: all 0.3s;
           ">
-            Continuer comme invitÃ©
+            Continuer comme invité
           </button>
         </div>
       </div>
@@ -2226,7 +2226,7 @@ class CartManager {
           color: ${colors.text.body};
         ">
           <span>${order.methodName || 'Paiement mobile'}</span>
-          <span>â€¢</span>
+          <span>•</span>
           <span>Code: ${order.uniqueCode || order.id || 'N/A'}</span>
         </div>
 
@@ -2311,7 +2311,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-check-circle"></i>
-            <span style="flex: 1;">Paiement confirmÃ©</span>
+            <span style="flex: 1;">Paiement confirmé</span>
             <button class="download-pdf-btn" data-order-id="${order.id}" style="
               background: #10B981;
               color: white;
@@ -2326,7 +2326,7 @@ class CartManager {
               gap: 0.3rem;
             " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
               <i class="fas fa-file-pdf"></i>
-              TÃ©lÃ©charger le reÃ§u
+              Télécharger le reçu
             </button>
           </div>
           
@@ -2342,7 +2342,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-exclamation-triangle" style="color: #F59E0B;"></i>
-            <span>âš ï¸ Ce PDF contient votre code unique de retrait. Conservez-le prÃ©cieusement !</span>
+            <span>Ce PDF contient votre code unique de retrait. Conservez-le précieusement !</span>
           </div>
         ` : ''}
         
@@ -2359,7 +2359,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-times-circle"></i>
-            <span>Paiement rejetÃ©</span>
+            <span>Paiement rejeté</span>
           </div>
         ` : ''}
         
@@ -2376,7 +2376,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-clock"></i>
-            <span>Demande expirÃ©e</span>
+            <span>Demande expirée</span>
           </div>
         ` : ''}
       </div>
@@ -2442,7 +2442,7 @@ class CartManager {
           font-size: 0.9rem;
           margin-top: 1rem;
         " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-          DÃ©couvrir les produits
+          Découvrir les produits
         </button>
       </div>
     `;

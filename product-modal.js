@@ -952,7 +952,7 @@ class ProductModal {
       }
       el.textContent = available > 0
         ? `${available} unitÃ©(s) encore disponible(s) avant blocage`
-        : 'Stock dÃ©jÃ  atteint dans le panier';
+        : 'Stock déjà atteint dans le panier';
     });
   }
 
@@ -1868,7 +1868,7 @@ class ProductModal {
 
  addToCart() {
   // RÃ©cupÃ©rer l'instance du panier
-  import('./cart.js?v=20260525-2').then(({ getCartManager }) => {
+  import('./cart.js?v=20260525-3').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     
@@ -2088,4 +2088,5 @@ class ProductModal {
 }
 
 export default ProductModal;
+
 

@@ -1075,6 +1075,64 @@ Verification technique:
 - Syntax check script module `DvendorProducts.html`: OK.
 - Syntax check script module dashboard `Dproducts.html`: OK.
 - `node --check vendors-dashboard.js`: OK.
+
+## Correctif orthographe/encoding - Panier et profil
+
+Date:
+
+- 2026-05-25
+
+Probleme observe:
+
+- Dans le panier mobile, le bouton checkout affichait:
+
+```text
+ProcÃ©der au paiement
+```
+
+- Ce texte devait afficher:
+
+```text
+Procéder au paiement
+```
+
+Cause:
+
+- Certains textes du site avaient ete sauvegardes avec un mauvais encodage ou etaient deja en mojibake dans les fichiers JS.
+- Le navigateur affichait donc les accents sous forme `Ã©`, `Ã¨`, etc.
+
+Correction appliquee:
+
+- Correction des textes visibles du panier dans `cart.js`, notamment:
+  - `Procéder au paiement`,
+  - `Paiement confirmé`,
+  - `Télécharger le reçu`,
+  - `Continuer comme invité`,
+  - `Panier vidé`,
+  - `Découvrir les produits`,
+  - statuts de suivi: `Commandé`, `Expédié`, `Livré`.
+- Correction de plusieurs textes visibles dans `profile-panel.js`, notamment:
+  - `invité`,
+  - `déjà`,
+  - `passées`,
+  - `Déconnexion`,
+  - `Vérification`.
+- Correction du message stock dans `product-modal.js`:
+  - `Stock déjà atteint dans le panier`.
+
+Cache/version:
+
+- `ASSET_VERSION` passe a `20260525-3`.
+- Les imports vers `cart.js` passent a `cart.js?v=20260525-3`.
+- Objectif: forcer les navigateurs mobiles a charger la nouvelle version.
+
+Verification technique:
+
+- `node --check cart.js`: OK.
+- `node --check header.js`: OK.
+- `node --check profile-panel.js`: OK.
+- `node --check product-modal.js`: OK.
+- `node --check products.js`: OK.
 - Syntax check script module dashboard `Dproducts.html`: OK.
 
 Tests manuels a faire:

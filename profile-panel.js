@@ -2,7 +2,7 @@
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js?v=20260523-6';
-import { getCartManager } from './cart.js?v=20260525-2';
+import { getCartManager } from './cart.js?v=20260525-3';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -390,7 +390,7 @@ class ProfilePanel {
             <div>
               <h4 style="margin:0;color:${colors.text.title};font-size:1rem;">Adresses supplementaires</h4>
               <p style="margin:0.35rem 0 0;color:${colors.text.body};font-size:0.85rem;line-height:1.55;">
-                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) dÃ©jÃ  sauvegardÃ©e(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
+                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) déjà sauvegardée(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
               </p>
             </div>
             <button type="button" class="profile-add-address-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.75rem 0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.45rem;">
@@ -950,7 +950,7 @@ class ProfilePanel {
         </div>
         <h3 style="margin:0 0 0.35rem;font-size:1.2rem;color:${colors.text.title};">Connectez-vous</h3>
         <p style="margin:0 0 1rem;color:${colors.text.body};line-height:1.6;">
-          Retrouvez vos favoris, votre historique et vos commandes. En invitÃ©, vous pouvez dÃ©jÃ  revoir vos commandes passÃ©es sur cet appareil.
+          Retrouvez vos favoris, votre historique et vos commandes. En invité, vous pouvez déjà revoir vos commandes passées sur cet appareil.
         </p>
         <div style="display:flex;flex-wrap:wrap;gap:0.65rem;">
           <button class="profile-login-btn" style="
@@ -978,7 +978,7 @@ class ProfilePanel {
           line-height:1.55;
         ">
           <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Ce que vous trouverez ici</strong>
-          Favoris, historique de commandes, tÃ©lÃ©chargement des reÃ§us PDF et accÃ¨s rapide Ã  votre compte.
+          Favoris, historique de commandes, téléchargement des reçus PDF et accès rapide à votre compte.
         </div>
         ${guestOrders.length > 0 ? `
           <div style="
@@ -989,8 +989,8 @@ class ProfilePanel {
             color:${colors.text.body};
             line-height:1.55;
           ">
-            <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Commandes invitÃ©</strong>
-            Vos commandes passÃ©es sans connexion restent visibles ici sur cet appareil.
+            <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Commandes invité</strong>
+            Vos commandes passées sans connexion restent visibles ici sur cet appareil.
           </div>
         ` : ''}
       </div>
@@ -1084,9 +1084,9 @@ class ProfilePanel {
                 font-size:1.7rem;
                 color:${colors.text.title};
                 line-height:1;
-              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invitÃ©' : 'Mon compte')}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
               <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'VÃ©rification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connectÃ©') : (this.getVisibleOrders().length > 0 ? 'Historique invitÃ© disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1101,7 +1101,7 @@ class ProfilePanel {
                   cursor:pointer;
                   font-size:0.78rem;
                   font-weight:700;
-                ">DÃ©connexion</button>
+                ">Déconnexion</button>
               ` : ''}
               <button class="close-profile-btn" style="
                 border:none;
@@ -1131,8 +1131,8 @@ class ProfilePanel {
               color:${colors.text.body};
               line-height:1.5;
             ">
-              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vÃ©rification</strong>
-              Votre compte est en cours de restauration. Le profil apparaÃ®tra automatiquement.
+              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vérification</strong>
+              Votre compte est en cours de restauration. Le profil apparaîtra automatiquement.
             </div>
           ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isAuthenticated ? `
             ${this.renderVendorQuickAccess(colors)}
@@ -1400,6 +1400,7 @@ export function getProfilePanel() {
 }
 
 export default ProfilePanel;
+
 
 
 
