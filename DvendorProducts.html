@@ -1290,7 +1290,7 @@
                     <div class="flex items-start justify-between gap-3 flex-wrap">
                       <div>
                         <h4 class="font-semibold text-text-primary">Activer le mode digital</h4>
-                        <p class="text-sm text-text-secondary mt-1">Un produit digital ne demande pas de zone de livraison: frais 0 G, poids 0 g, delai instantane.</p>
+                        <p class="text-sm text-text-secondary mt-1">Un produit digital ne demande ni stock ni zone de livraison: disponible partout, frais 0 G, poids 0 g, delai instantane.</p>
                       </div>
                       <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-text-primary border border-[rgba(16,185,129,0.2)]">
                         <input type="checkbox" id="isDigitalProduct" class="accent-[#10B981]">
@@ -1308,6 +1308,10 @@
                         <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
                         <p class="text-xs text-text-secondary mt-1">Collez ici le lien externe que le client recevra apres paiement. Aucun fichier digital n est stocke sur Smart Cut.</p>
                       </div>
+                    </div>
+                    <div class="rounded-xl bg-white border border-[rgba(16,185,129,0.16)] p-4 text-sm text-text-secondary">
+                      <p class="font-semibold text-text-primary mb-1">Photos du produit digital</p>
+                      <p>Ajoutez les photos dans l'onglet Galerie. Maximum 3 photos, 1 Mo par photo.</p>
                     </div>
                   </div>
                 </div>
@@ -4134,6 +4138,7 @@
             ? 'Instantanee'
             : (this.elements.deliveryDelay?.value?.trim() || ''),
           weightGrams: isDigitalProduct ? 0 : this.collectProductWeightGrams(),
+          stock: isDigitalProduct ? null : Number(this.elements.totalStock?.value || 0),
           deliveryCoverage,
           deliveryZones: isDigitalProduct ? [] : deliveryCoverage.zones,
           productDeliveryZones: isDigitalProduct ? [] : deliveryCoverage.zones,
@@ -4148,11 +4153,11 @@
           categoryId: this.elements.categorySelect.value || null,
           category: selectedCategoryName,
           categorySelections: this.categorySelections,
-          variations: this.currentVariations.map((v, index) => ({
+          variations: isDigitalProduct ? [] : this.currentVariations.map((v, index) => ({
             ...v,
             images: this.currentImages.variations[index] || []
           })),
-          images: this.currentImages.main,
+          images: isDigitalProduct ? this.currentImages.main.slice(0, 3) : this.currentImages.main,
           vendorId: this.vendorContext.uid,
           vendorName: this.vendorContext.vendorName || this.vendorContext.shopName || 'Vendeur',
           shopName: this.vendorContext.shopName || '',
@@ -4191,6 +4196,13 @@
 
         if (productData.isDigitalProduct && !productData.digitalDownloadLink) {
           this.showToast('Ajoutez le lien de telechargement pour cet article digital.', 'error');
+          this.switchEditorTab('digital');
+          return;
+        }
+
+        if (productData.isDigitalProduct && this.currentImages.main.length > 3) {
+          this.showToast('Produit digital: maximum 3 photos.', 'error');
+          this.switchEditorTab('gallery');
           return;
         }
 
@@ -4437,6 +4449,7 @@
         if (type === 'main') {
           const filename = this.elements.mainImageNameInput.value.trim();
           if (filename) {
+            if (!this.validateDigitalMainImages([])) return;
             this.currentImages.main.push(filename);
             this.renderMainImages();
             this.elements.mainImageNameInput.value = '';
@@ -4504,6 +4517,9 @@
             this.elements.deliveryDelay.value = 'Instantanee';
             this.elements.deliveryDelay.readOnly = true;
           }
+          if (this.elements.totalStock) {
+            this.elements.totalStock.value = '0';
+          }
           this.setProductWeightInputs(0);
           this.elements.productWeightValue?.setAttribute('disabled', 'disabled');
           this.elements.productWeightUnit?.setAttribute('disabled', 'disabled');
@@ -4517,12 +4533,36 @@
         }
       }
 
+      isDigitalModeActive() {
+        return Boolean(this.elements.isDigitalProduct?.checked)
+          || Boolean(this.elements.digitalDownloadLink?.value?.trim());
+      }
+
+      validateDigitalMainImages(incomingFiles = []) {
+        if (!this.isDigitalModeActive()) return true;
+        const currentCount = Array.isArray(this.currentImages.main) ? this.currentImages.main.length : 0;
+        if (currentCount + incomingFiles.length > 3) {
+          this.showToast('Produit digital: maximum 3 photos.', 'error');
+          return false;
+        }
+        const tooLarge = incomingFiles.find((file) => Number(file?.size || 0) > 1024 * 1024);
+        if (tooLarge) {
+          this.showToast(`Produit digital: "${tooLarge.name}" depasse 1 Mo.`, 'error');
+          return false;
+        }
+        return true;
+      }
+
       async uploadSelectedImages(type) {
         const fileInput = type === 'main' ? this.elements.mainImageFileInput : this.elements.varImageFileInput;
         const files = Array.from(fileInput?.files || []);
 
         if (files.length === 0) {
           this.showToast('Selectionnez au moins une image a envoyer.', 'error');
+          return;
+        }
+
+        if (type === 'main' && !this.validateDigitalMainImages(files)) {
           return;
         }
 

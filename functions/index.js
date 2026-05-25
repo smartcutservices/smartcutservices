@@ -2190,6 +2190,9 @@ async function decrementInventoryForItems(transaction, items = []) {
     if (!productSnap.exists) continue;
 
     const productData = productSnap.data() || {};
+    if (isDigitalOrderItem(item) || productData?.isDigitalProduct) {
+      continue;
+    }
     const patch = {};
     let touched = false;
 
