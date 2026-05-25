@@ -892,7 +892,7 @@ class SearchComponent {
         
         if (type === 'product') {
           try {
-            const module = await import('./product-modal.js');
+            const module = await import('./product-modal.js?v=20260525-5');
             const ProductModal = module.default;
             
             new ProductModal({

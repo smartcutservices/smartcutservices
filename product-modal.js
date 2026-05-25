@@ -96,7 +96,7 @@ class ProductModal {
           ...docSnap.data()
         };
       } else {
-        console.error('âŒ Produit non trouvÃ©');
+        console.error('Produit non trouvé');
       }
     } catch (error) {
       console.error('âŒ Erreur chargement produit:', error);
@@ -126,7 +126,7 @@ class ProductModal {
         this.relatedProducts = products.slice(0, 6);
       }
     } catch (error) {
-      console.error('âŒ Erreur chargement produits liÃ©s:', error);
+      console.error('Erreur chargement produits liés:', error);
     }
   }
   
@@ -247,7 +247,7 @@ class ProductModal {
         if (opt?.name && opt?.value) parts.push(`${opt.name}: ${opt.value}`);
       });
     }
-    return parts.join(' â€¢ ') || variation?.sku || 'Variation';
+    return parts.join(' - ') || variation?.sku || 'Variation';
   }
 
   toStockLimit(value) {
@@ -354,7 +354,7 @@ class ProductModal {
     const images = this.getProductImages(this.product);
     const mainImage = images[this.currentImageIndex] || '';
     
-    // CrÃ©er l'overlay du modal avec z-index ultra Ã©levÃ©
+    // Créer l'overlay du modal avec z-index ultra élevé
     const modalHTML = `
      <div class="product-modal-overlay-${this.uniqueId}" style="
   position: fixed;
@@ -476,7 +476,7 @@ class ProductModal {
         </div>
       </div>
       
-      <!-- Fullscreen Image Viewer avec z-index encore plus Ã©levÃ© -->
+      <!-- Fullscreen Image Viewer avec z-index encore plus élevé -->
       <div class="fullscreen-viewer-${this.uniqueId}" style="
         position: fixed;
         top: 0;
@@ -578,7 +578,7 @@ class ProductModal {
           background: rgba(198, 167, 94, 0.1) !important;
         }
         
-        /* Scrollbar personnalisÃ©e */
+        /* Scrollbar personnalisée */
         .product-modal-container-${this.uniqueId} ::-webkit-scrollbar {
           width: 6px;
         }
@@ -681,7 +681,7 @@ class ProductModal {
           right: 10px;
         }
         
-        /* Carousel produits liÃ©s */
+        /* Carousel produits liés */
         .related-products-carousel {
           display: flex;
           gap: 1rem;
@@ -759,7 +759,7 @@ class ProductModal {
           animation: pulse 2s infinite;
         }
         
-        /* EmpÃªcher le scroll du body */
+        /* Empêcher le scroll du body */
         body.modal-open {
           overflow: hidden !important;
         }
@@ -890,7 +890,7 @@ class ProductModal {
       ? `${variation?.stock ?? 0} en stock`
       : 'Stock disponible';
     const availabilityLabel = Number.isFinite(maxAllowed)
-      ? (maxAllowed > 0 ? ` â€¢ ${maxAllowed} restant(s) avant blocage` : ' â€¢ Stock atteint')
+      ? (maxAllowed > 0 ? ` - ${maxAllowed} restant(s) avant blocage` : ' - Stock atteint')
       : '';
 
     this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${variationIndex}"]`).forEach((el) => {
@@ -901,7 +901,7 @@ class ProductModal {
       el.style.opacity = Number.isFinite(maxAllowed) && maxAllowed <= 0 && safeQty <= 0 ? '0.72' : '1';
     });
     this.modalElement.querySelectorAll(`.variation-stock-meta[data-variation-index="${variationIndex}"]`).forEach((el) => {
-      el.textContent = `${this.formatPrice(this.getVariationEffectivePrice(variation, this.product))} â€¢ ${stockLabel}${availabilityLabel}`;
+      el.textContent = `${this.formatPrice(this.getVariationEffectivePrice(variation, this.product))} - ${stockLabel}${availabilityLabel}`;
     });
     this.modalElement.querySelectorAll(`.variation-qty-inc[data-variation-index="${variationIndex}"]`).forEach((btn) => {
       btn.disabled = !canIncrease;
@@ -951,7 +951,7 @@ class ProductModal {
         return;
       }
       el.textContent = available > 0
-        ? `${available} unitÃ©(s) encore disponible(s) avant blocage`
+        ? `${available} unit\u00e9(s) encore disponible(s) avant blocage`
         : 'Stock déjà atteint dans le panier';
     });
   }
@@ -1065,7 +1065,7 @@ class ProductModal {
         ${this.renderOptions()}
 
         ${variationsCount > 0 ? '' : `
-          <!-- QuantitÃ© -->
+          <!-- Quantité -->
           <div style="
             display: flex;
             align-items: center;
@@ -1076,7 +1076,7 @@ class ProductModal {
             border-radius: 0.75rem;
             background: white;
           ">
-            <span style="font-weight: 500; color: #1F1E1C;">QuantitÃ©</span>
+            <span style="font-weight: 500; color: #1F1E1C;">Quantité</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <button type="button" class="qty-decrease-btn" style="
                 width: 32px;
@@ -1209,7 +1209,7 @@ class ProductModal {
                     </div>
                   ` : ''}
                   <span style="font-size: 0.8rem; font-weight: 600; color: #1F1E1C;">${label}</span>
-                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` â€¢ Stock: ${variation.stock}` : ''}</span>
+                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` - Stock: ${variation.stock}` : ''}</span>
                   <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.25rem;">
                     <button type="button" class="variation-qty-dec" data-variation-index="${index}" style="width:26px; height:26px; border:1px solid rgba(198,167,94,0.4); background:#F5F1E8; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-minus" style="font-size:0.7rem;"></i>
@@ -1278,7 +1278,7 @@ class ProductModal {
       `);
     }
     
-    // Options personnalisÃ©es
+    // Options personnalisées
     if (this.product.customOptions && this.product.customOptions.length > 0) {
       this.product.customOptions.forEach(option => {
         options.push(`
@@ -1306,11 +1306,11 @@ class ProductModal {
       });
     }
     
-    // Mettre carrÃ©
+    // Mettre carré
     if (this.product.squareOption === 'yes' && this.product.squareOptions?.length > 0) {
       options.push(`
         <div class="option-group">
-          <h4 style="font-weight: 500; margin-bottom: 0.5rem;">Options mettre carrÃ©</h4>
+          <h4 style="font-weight: 500; margin-bottom: 0.5rem;">Options mettre carré</h4>
           <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
             ${this.product.squareOptions.map(opt => `
               <div class="option-item" 
@@ -1398,8 +1398,8 @@ class ProductModal {
           text-align: center;
         ">
           <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #7F1D1D; margin-bottom: 1rem;"></i>
-          <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; margin-bottom: 0.5rem;">Produit non trouvÃ©</h3>
-          <p style="color: #8B7E6B; margin-bottom: 1.5rem;">Le produit que vous recherchez n'existe pas ou a Ã©tÃ© supprimÃ©.</p>
+          <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; margin-bottom: 0.5rem;">Produit non trouvé</h3>
+          <p style="color: #8B7E6B; margin-bottom: 1.5rem;">Le produit que vous recherchez n'existe pas ou a été supprimé.</p>
           <button class="close-modal-btn" style="
             background: #1F1E1C;
             color: #F5F1E8;
@@ -1467,14 +1467,14 @@ class ProductModal {
     this.bindImageInteractionEvents();
     this.bindMobileNavigationEvents();
     
-    // SÃ©lection des options
+    // Sélection des options
     this.modalElement.querySelectorAll('.option-item').forEach(item => {
       item.addEventListener('click', () => {
         const type = item.dataset.type;
         if (type === 'variation') return;
         const group = item.closest('.option-group');
         
-        // DÃ©sÃ©lectionner les autres dans le mÃªme groupe
+        // Désélectionner les autres dans le même groupe
         if (group) {
           group.querySelectorAll('.option-item').forEach(opt => {
             opt.classList.remove('selected');
@@ -1482,11 +1482,11 @@ class ProductModal {
           });
         }
         
-        // SÃ©lectionner l'option cliquÃ©e
+        // Sélectionner l'option cliquée
         item.classList.add('selected');
         item.style.borderColor = '#C6A75E';
         
-        // Sauvegarder la sÃ©lection
+        // Sauvegarder la sélection
         const value = {
           type: type,
           value: item.dataset.value,
@@ -1507,7 +1507,7 @@ class ProductModal {
       });
     });
 
-    // SÃ©lection visuelle et preview pour variations (multi-quantitÃ©s)
+    // Sélection visuelle et preview pour variations (multi-quantités)
     this.modalElement.querySelectorAll('.variation-item').forEach((item) => {
       item.addEventListener('click', () => {
         const idx = parseInt(item.dataset.variationIndex, 10);
@@ -1657,7 +1657,7 @@ class ProductModal {
       });
     });
     
-    // Produits liÃ©s
+    // Produits liés
     this.modalElement.querySelectorAll('.product-card').forEach(card => {
       card.addEventListener('click', () => {
         const productId = card.dataset.productId;
@@ -1749,7 +1749,7 @@ class ProductModal {
       this.fullscreenHistoryActive = true;
     }
     
-    // DÃ©sactiver le scroll du body (dÃ©jÃ  fait mais on renforce)
+    // Désactiver le scroll du body (déjà fait mais on renforce)
     document.body.style.overflow = 'hidden';
   }
   
@@ -1867,12 +1867,12 @@ class ProductModal {
 }
 
  addToCart() {
-  // RÃ©cupÃ©rer l'instance du panier
+  // Récupérer l'instance du panier
   import('./cart.js?v=20260525-3').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     
-    // Collecter les images des options sÃ©lectionnÃ©es
+    // Collecter les images des options sélectionnées
     const selectedOptionsWithImages = Array.from(this.selectedOptions.entries())
       .filter(([key]) => key !== 'variation')
       .map(([key, value]) => {
@@ -1994,7 +1994,7 @@ class ProductModal {
     const btns = this.modalElement.querySelectorAll('.add-to-cart-btn');
     btns.forEach((btn) => {
       const originalText = btn.innerHTML;
-      btn.innerHTML = '<i class="fas fa-check"></i> AjoutÃ© !';
+      btn.innerHTML = '<i class="fas fa-check"></i> Ajouté !';
       btn.style.background = '#2E5D3A';
       btn.style.color = 'white';
       setTimeout(() => {

@@ -1,4 +1,4 @@
-﻿import ProductModal from './product-modal.js?v=20260525-2';
+﻿import ProductModal from './product-modal.js?v=20260525-5';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {
@@ -372,8 +372,8 @@ class ProductPage extends ProductModal {
           box-shadow: 0 18px 48px rgba(31,30,28,0.08);
         ">
           <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #7F1D1D; margin-bottom: 1rem;"></i>
-          <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2rem; margin-bottom: 0.65rem;">Produit non trouvÃ©</h2>
-          <p style="color: #7A746B; margin-bottom: 1.4rem;">Le produit que vous recherchez n'est pas disponible ou a Ã©tÃ© supprimÃ©.</p>
+          <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2rem; margin-bottom: 0.65rem;">Produit non trouvé</h2>
+          <p style="color: #7A746B; margin-bottom: 1.4rem;">Le produit que vous recherchez n'est pas disponible ou a été supprimé.</p>
           <a href="./catalogue.html" style="
             display: inline-flex;
             align-items: center;

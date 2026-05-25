@@ -1002,6 +1002,51 @@ Verification technique:
 - Syntax check script module `dashboard-/DvendorProducts.html`: OK.
 - Syntax check `functions/index.js`: OK.
 
+## 2026-05-25 - Correction orthographe / mojibake dans produits
+
+Probleme observe:
+
+- Dans le formulaire de creation produit, certains accents etaient casses:
+  - `GÃ©nÃ©ral` au lieu de `General`,
+  - `CatÃ©gorie` au lieu de `Categorie`,
+  - `GÃ©nÃ©rÃ© automatiquement` au lieu de `Genere automatiquement`,
+  - `Prix barrÃ©` au lieu de `Prix barre`.
+- Dans la modal produit, le separateur de stock apparaissait comme `â€¢`.
+- Le message sous les variations affichait aussi des caracteres casses.
+
+Cause probable:
+
+- Melange de textes deja encodes en UTF-8 avec des bouts de texte sauvegardes en mojibake.
+- Certains navigateurs/cache pouvaient continuer a servir une ancienne version du script produit.
+
+Corrections appliquees:
+
+- Dans `DvendorProducts.html`, correction des textes casses visibles dans le dashboard vendeur.
+- Dans `dashboard-/DvendorProducts.html` et `dashboard-/Dproducts.html`, les labels HTML importants utilisent maintenant des entities HTML:
+  - `G&eacute;n&eacute;ral`,
+  - `Cat&eacute;gorie`,
+  - `Informations g&eacute;n&eacute;rales`,
+  - `G&eacute;n&eacute;r&eacute; automatiquement`,
+  - `Prix barr&eacute;`.
+- Les entities HTML evitent que les accents cassent meme si le navigateur interprete mal l'encodage.
+- Dans `product-modal.js`, le separateur special `•` a ete remplace par un separateur ASCII ` - ` pour eviter `â€¢`.
+- Les textes visibles de la modal produit ont ete corriges.
+- Cache bust:
+  - `product.html` passe a `ASSET_VERSION = 20260525-5`,
+  - `product-page.js` importe `product-modal.js?v=20260525-5`,
+  - `cart.js` importe `product-modal.js?v=20260525-5`,
+  - `search.js` importe `product-modal.js?v=20260525-5`.
+
+Verification technique:
+
+- `node --check product-modal.js`: OK.
+- `node --check product-page.js`: OK.
+- `node --check cart.js`: OK.
+- `node --check search.js`: OK.
+- Syntax check script module `DvendorProducts.html`: OK.
+- Syntax check script module `dashboard-/DvendorProducts.html`: OK.
+- Syntax check script module `dashboard-/Dproducts.html`: OK.
+
 ## Correctif UX - Produit digital sans stock + bouton Smart Cut
 
 Date:
