@@ -911,8 +911,14 @@ function getOrderDeliveryAmount(order = {}) {
   return Math.max(0, toNumber(order?.delivery?.totalFee ?? order?.delivery?.shippingAmount));
 }
 
-function findVendorDeliveryZoneForAddress(item = {}, delivery = {}) {
-  if (!item?.vendorId || item?.isDigitalProduct) return null;
+function isDigitalOrderItem(item = {}) {
+  return Boolean(item?.isDigitalProduct) ||
+    String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase() === 'digital' ||
+    String(item?.deliveryMode || '').toLowerCase().includes('digital');
+}
+
+function findProductDeliveryZoneForAddress(item = {}, delivery = {}) {
+  if (isDigitalOrderItem(item)) return null;
 
   const country = String(delivery?.country || 'Haiti').trim() || 'Haiti';
   const department = String(delivery?.department || '').trim();
@@ -945,20 +951,29 @@ function findVendorDeliveryZoneForAddress(item = {}, delivery = {}) {
   )) || null;
 }
 
-function buildServerVendorDeliveryDetails(items = [], delivery = {}) {
+function findVendorDeliveryZoneForAddress(item = {}, delivery = {}) {
+  if (!item?.vendorId) return null;
+  return findProductDeliveryZoneForAddress(item, delivery);
+}
+
+function buildServerProductDeliveryDetails(items = [], delivery = {}) {
   return (Array.isArray(items) ? items : [])
-    .filter((item) => item?.vendorId && !item?.isDigitalProduct)
+    .filter((item) => !isDigitalOrderItem(item))
     .map((item) => {
       const quantity = Math.max(1, toNumber(item?.quantity) || 1);
-      const zone = findVendorDeliveryZoneForAddress(item, delivery);
+      const vendorId = String(item?.vendorId || '').trim();
+      const ownerType = vendorId ? 'vendor' : 'smartcut';
+      const zone = findProductDeliveryZoneForAddress(item, delivery);
       if (!zone) {
         return {
           ok: false,
-          vendorId: String(item?.vendorId || '').trim(),
-          vendorName: String(item?.vendorName || '').trim(),
+          ownerType,
+          vendorId,
+          vendorName: vendorId ? String(item?.vendorName || '').trim() : 'Smart Cut Services',
           productId: String(item?.productId || '').trim(),
           productName: String(item?.name || 'Produit').trim(),
           quantity,
+          deliveryDelay: String(item?.deliveryDelay || '').trim(),
           zone: null,
           fee: 0,
           unitFee: 0
@@ -968,16 +983,23 @@ function buildServerVendorDeliveryDetails(items = [], delivery = {}) {
       const unitFee = Math.max(0, toNumber(zone?.fee));
       return {
         ok: true,
-        vendorId: String(item?.vendorId || '').trim(),
-        vendorName: String(item?.vendorName || '').trim(),
+        ownerType,
+        vendorId,
+        vendorName: vendorId ? String(item?.vendorName || '').trim() : 'Smart Cut Services',
         productId: String(item?.productId || '').trim(),
         productName: String(item?.name || 'Produit').trim(),
         quantity,
+        deliveryDelay: String(item?.deliveryDelay || '').trim(),
         zone,
         fee: unitFee * quantity,
         unitFee
       };
     });
+}
+
+function buildServerVendorDeliveryDetails(items = [], delivery = {}) {
+  return buildServerProductDeliveryDetails(items, delivery)
+    .filter((entry) => entry.ownerType === 'vendor');
 }
 
 function validateHomeDeliveryPayload(items = [], delivery = {}) {
@@ -999,23 +1021,32 @@ function validateHomeDeliveryPayload(items = [], delivery = {}) {
     };
   }
 
-  const vendorDetails = buildServerVendorDeliveryDetails(items, normalizedDelivery);
-  const unavailable = vendorDetails.find((entry) => !entry.ok);
+  const productDetails = buildServerProductDeliveryDetails(items, normalizedDelivery);
+  const unavailable = productDetails.find((entry) => !entry.ok);
   if (unavailable) {
     return {
       ok: false,
-      error: 'vendor-delivery-unavailable',
+      error: 'product-delivery-unavailable',
       message: `${unavailable.productName} ne peut pas etre livre dans cette commune.`,
       unavailable
     };
   }
 
+  const sanitizedProductDetails = productDetails.map(({ ok, ...entry }) => entry);
+  const vendorDetails = sanitizedProductDetails.filter((entry) => entry.ownerType === 'vendor');
+  const smartCutDetails = sanitizedProductDetails.filter((entry) => entry.ownerType === 'smartcut');
+  const productDeliveryFee = productDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
   const vendorDeliveryFee = vendorDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
+  const smartCutDeliveryFee = smartCutDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
   const weightFee = Math.max(0, toNumber(normalizedDelivery.weightFee));
   const requestedTotal = Math.max(0, toNumber(normalizedDelivery.totalFee ?? normalizedDelivery.shippingAmount));
-  normalizedDelivery.vendorDeliveryDetails = vendorDetails.map(({ ok, ...entry }) => entry);
+  normalizedDelivery.productDeliveryDetails = sanitizedProductDetails;
+  normalizedDelivery.vendorDeliveryDetails = vendorDetails;
+  normalizedDelivery.smartCutDeliveryDetails = smartCutDetails;
+  normalizedDelivery.productDeliveryFee = productDeliveryFee;
   normalizedDelivery.vendorDeliveryFee = vendorDeliveryFee;
-  normalizedDelivery.totalFee = Math.max(requestedTotal, vendorDeliveryFee + weightFee);
+  normalizedDelivery.smartCutDeliveryFee = smartCutDeliveryFee;
+  normalizedDelivery.totalFee = Math.max(requestedTotal, productDeliveryFee + weightFee);
   normalizedDelivery.shippingAmount = normalizedDelivery.totalFee;
   return {
     ok: true,

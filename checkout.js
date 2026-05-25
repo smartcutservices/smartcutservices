@@ -187,10 +187,9 @@ class CheckoutModal {
       || String(item?.deliveryMode || '').toLowerCase().includes('digital');
   }
 
-  getVendorDeliveryGroups() {
+  getProductDeliveryGroups() {
     return this.cart.map((item, index) => {
       const vendorId = String(item?.vendorId || '').trim();
-      if (!vendorId) return null;
       if (this.isDigitalCartItem(item)) return null;
       const productCoverage = item.productDeliveryCoverage || item.deliveryCoverage || item.vendorDeliveryCoverage || null;
       const productZones = Array.isArray(item.productDeliveryZones)
@@ -204,14 +203,24 @@ class CheckoutModal {
         productName: item.name || 'Produit',
         quantity: Math.max(1, Number(item.quantity) || 1),
         vendorId,
-        vendorName: item.vendorName || 'Vendeur',
+        vendorName: vendorId ? (item.vendorName || 'Vendeur') : 'Smart Cut Services',
+        ownerType: vendorId ? 'vendor' : 'smartcut',
+        deliveryDelay: item.deliveryDelay || '',
         coverage: productCoverage,
         zones: productZones
       };
     }).filter(Boolean);
   }
 
-  findVendorDeliveryZone(group) {
+  getVendorDeliveryGroups() {
+    return this.getProductDeliveryGroups().filter((group) => group.ownerType === 'vendor');
+  }
+
+  getSmartCutDeliveryGroups() {
+    return this.getProductDeliveryGroups().filter((group) => group.ownerType === 'smartcut');
+  }
+
+  findProductDeliveryZone(group) {
     const country = String(this.selectedDelivery.home.country || 'Haiti').trim() || 'Haiti';
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
@@ -227,6 +236,10 @@ class CheckoutModal {
       && String(zone.department || '').trim() === department
       && String(zone.commune || '').trim() === commune
     )) || null;
+  }
+
+  findVendorDeliveryZone(group) {
+    return this.findProductDeliveryZone(group);
   }
 
   normalizeZoneText(value) {
@@ -272,42 +285,59 @@ class CheckoutModal {
   getVendorDeliveryFee() {
     if (this.selectedDelivery.method !== 'home') return 0;
     return this.getVendorDeliveryGroups().reduce((sum, group) => {
-      const zone = this.findVendorDeliveryZone(group);
+      const zone = this.findProductDeliveryZone(group);
       return sum + (Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1));
     }, 0);
   }
 
-  getCartItemDeliveryZone(item) {
+  getProductDeliveryFee() {
+    if (this.selectedDelivery.method !== 'home') return 0;
+    return this.getProductDeliveryGroups().reduce((sum, group) => {
+      const zone = this.findProductDeliveryZone(group);
+      return sum + (Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1));
+    }, 0);
+  }
+
+  getCartItemDeliveryGroup(item, index = null) {
+    const groups = this.getProductDeliveryGroups();
+    if (Number.isInteger(index)) {
+      const byIndex = groups.find((entry) => entry.cartIndex === index);
+      if (byIndex) return byIndex;
+    }
+    const vendorId = String(item?.vendorId || '').trim();
+    return groups.find((entry) => (
+      entry.productId === item.productId
+      && entry.productName === (item.name || 'Produit')
+      && entry.vendorId === vendorId
+    )) || null;
+  }
+
+  getCartItemDeliveryZone(item, index = null) {
     if (this.isDigitalCartItem(item)) {
       return { country: 'Digital', department: 'Digital', commune: 'Instantanee', fee: 0, digital: true };
     }
-    if (!String(item?.vendorId || '').trim()) return null;
-    const group = this.getVendorDeliveryGroups().find((entry) => (
-      entry.productId === item.productId
-      && entry.productName === (item.name || 'Produit')
-    ));
-    return group ? this.findVendorDeliveryZone(group) : null;
+    const group = this.getCartItemDeliveryGroup(item, index);
+    return group ? this.findProductDeliveryZone(group) : null;
   }
 
-  getCartItemDeliveryLabel(item) {
+  getCartItemDeliveryLabel(item, index = null) {
     if (this.isDigitalCartItem(item)) return 'Produit digital: livraison instantanee gratuite.';
-    if (!String(item?.vendorId || '').trim()) return '';
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
     if (!department || !commune) return 'Livraison calculee apres choix de votre adresse.';
-    const zone = this.getCartItemDeliveryZone(item);
+    const zone = this.getCartItemDeliveryZone(item, index);
     if (!zone) return `Livraison indisponible a ${commune}.`;
     const qty = Math.max(1, Number(item.quantity) || 1);
     const fee = Number(zone.fee || 0) * qty;
-    return `Livraison ${commune}: ${this.formatPrice(fee)}`;
+    const delay = String(item?.deliveryDelay || '').trim();
+    return `Livraison ${commune}: ${this.formatPrice(fee)}${delay ? ` - Delai: ${delay}` : ''}`;
   }
 
-  isCartItemDeliveryUnavailable(item) {
+  isCartItemDeliveryUnavailable(item, index = null) {
     if (this.isDigitalCartItem(item)) return false;
-    if (!String(item?.vendorId || '').trim()) return false;
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
-    return Boolean(department && commune && !this.getCartItemDeliveryZone(item));
+    return Boolean(department && commune && !this.getCartItemDeliveryZone(item, index));
   }
 
   escapeHtml(value) {
@@ -847,8 +877,8 @@ class CheckoutModal {
     const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
-    const deliveryLabel = this.getCartItemDeliveryLabel(item);
-    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item);
+    const deliveryLabel = this.getCartItemDeliveryLabel(item, index);
+    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item, index);
     
     return `
       <tr data-index="${index}">
@@ -931,8 +961,8 @@ class CheckoutModal {
     const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
-    const deliveryLabel = this.getCartItemDeliveryLabel(item);
-    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item);
+    const deliveryLabel = this.getCartItemDeliveryLabel(item, index);
+    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item, index);
     
     return `
       <div class="checkout-mobile-item" data-index="${index}" style="
@@ -1230,10 +1260,8 @@ class CheckoutModal {
   }
 
   updateDeliveryCosts() {
-    let baseFee = 0;
     this.selectedDelivery.method = 'home';
-    const zone = this.resolveHomeDeliveryZone();
-    baseFee = (this.hasSmartCutItems() ? Number(zone?.fee || 0) : 0) + this.getVendorDeliveryFee();
+    const baseFee = this.getProductDeliveryFee();
     
     const weightGrams = this.getCartWeight();
     const weightFee = this.getCartWeightFee();
@@ -1251,8 +1279,8 @@ class CheckoutModal {
   refreshCartDeliveryLabels() {
     if (!this.modal) return;
     this.cart.forEach((item, index) => {
-      const label = this.getCartItemDeliveryLabel(item);
-      const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item);
+      const label = this.getCartItemDeliveryLabel(item, index);
+      const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item, index);
       this.modal.querySelectorAll(`[data-item-delivery-label="${index}"]`).forEach((node) => {
         node.textContent = label;
         node.style.color = deliveryUnavailable ? '#B91C1C' : '#2E5D3A';
@@ -1298,10 +1326,6 @@ class CheckoutModal {
   validateDelivery() {
     this.selectedDelivery.method = 'home';
 
-    if (this.hasSmartCutItems() && this.deliveryData.homeZones.length && !this.resolveHomeDeliveryZone()) {
-      this.showMessage('Livraison Smart Cut Services indisponible pour cette adresse.', 'error');
-      return false;
-    }
     if (!this.selectedDelivery.home.address?.trim()) {
       this.showMessage('Veuillez saisir votre adresse', 'error');
       return false;
@@ -1310,9 +1334,9 @@ class CheckoutModal {
       this.showMessage('Veuillez choisir votre departement et votre commune', 'error');
       return false;
     }
-    const unavailableVendor = this.getVendorDeliveryGroups().find((group) => !this.findVendorDeliveryZone(group));
-    if (unavailableVendor) {
-      this.showMessage(`${unavailableVendor.productName} ne peut pas etre livre dans cette commune.`, 'error');
+    const unavailableProduct = this.getProductDeliveryGroups().find((group) => !this.findProductDeliveryZone(group));
+    if (unavailableProduct) {
+      this.showMessage(`${unavailableProduct.productName} ne peut pas etre livre dans cette commune.`, 'error');
       return false;
     }
     if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
@@ -1372,19 +1396,23 @@ class CheckoutModal {
   getDeliveryPayload() {
     const homeZone = this.resolveHomeDeliveryZone();
     this.selectedDelivery.method = 'home';
-    const vendorDeliveryDetails = this.getVendorDeliveryGroups().map((group) => {
-      const zone = this.findVendorDeliveryZone(group);
+    const productDeliveryDetails = this.getProductDeliveryGroups().map((group) => {
+      const zone = this.findProductDeliveryZone(group);
       return {
+        ownerType: group.ownerType,
         vendorId: group.vendorId,
         vendorName: group.vendorName,
         productId: group.productId,
         productName: group.productName,
         quantity: group.quantity,
+        deliveryDelay: group.deliveryDelay || '',
         zone: zone || null,
         fee: Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1),
         unitFee: Number(zone?.fee || 0)
       };
     });
+    const vendorDeliveryDetails = productDeliveryDetails.filter((entry) => entry.ownerType === 'vendor');
+    const smartCutDeliveryDetails = productDeliveryDetails.filter((entry) => entry.ownerType === 'smartcut');
     return {
       method: 'home',
       address: this.selectedDelivery.home.address || '',
@@ -1398,7 +1426,9 @@ class CheckoutModal {
       homeZone: homeZone || null,
       pickupPoint: null,
       meetupZone: null,
+      productDeliveryDetails,
       vendorDeliveryDetails,
+      smartCutDeliveryDetails,
       weightGrams: this.getCartWeight(),
       baseFee: this.deliveryFees.base,
       weightFee: this.deliveryFees.weightExtra,
@@ -1508,7 +1538,7 @@ class CheckoutModal {
   removeUnavailableCartItem(index) {
     if (!Number.isInteger(index) || index < 0 || index >= this.cart.length) return;
     const item = this.cart[index];
-    if (!this.isCartItemDeliveryUnavailable(item)) return;
+    if (!this.isCartItemDeliveryUnavailable(item, index)) return;
 
     this.cart.splice(index, 1);
     this.appliedPromo = null;
