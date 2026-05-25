@@ -1,4 +1,4 @@
-// ============= PRODUCTS COMPONENT - CAROUSEL HORIZONTAL =============
+﻿// ============= PRODUCTS COMPONENT - CAROUSEL HORIZONTAL =============
 import { db } from './firebase-init.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
@@ -14,11 +14,11 @@ class SierraProducts {
     this.container = document.getElementById(containerId);
     
     if (!this.container) {
-      console.error(`❌ Products: Container #${containerId} non trouvé`);
+      console.error(`âŒ Products: Container #${containerId} non trouvÃ©`);
       return;
     }
     
-    // Options par défaut
+    // Options par dÃ©faut
     this.options = {
       collectionName: 'products',
       filterActive: true,
@@ -35,7 +35,7 @@ class SierraProducts {
       ...options
     };
     
-    // États
+    // Ã‰tats
     this.products = [];
     this.uniqueId = 'products_' + Math.random().toString(36).substr(2, 9);
     this.currentImageIndex = new Map(); // Pour suivre l'image par produit/variation
@@ -57,7 +57,7 @@ class SierraProducts {
       this.initScrollIndicators();
       this.listenForModalEvents();
     } catch (error) {
-      console.error('❌ Products: Erreur init', error);
+      console.error('âŒ Products: Erreur init', error);
       this.renderError();
     }
   }
@@ -88,10 +88,10 @@ class SierraProducts {
       this.products = this.products.slice(0, this.options.maxDisplayCount);
     }
     
-    // Initialiser l'index d'image pour chaque produit (première variation)
+    // Initialiser l'index d'image pour chaque produit (premiÃ¨re variation)
     this.products.forEach(product => {
       if (product.variations && product.variations.length > 0) {
-        // Utiliser la première variation par défaut
+        // Utiliser la premiÃ¨re variation par dÃ©faut
         this.currentImageIndex.set(product.id, {
           variationIndex: 0,
           imageIndex: 0
@@ -212,7 +212,7 @@ class SierraProducts {
         }
       });
     }
-    return parts.join(' • ') || variation?.sku || 'Variation';
+    return parts.join(' â€¢ ') || variation?.sku || 'Variation';
   }
 
   toStockLimit(value) {
@@ -248,9 +248,11 @@ class SierraProducts {
       ? variationPrice
       : this.toNumber(product?.price, 0);
     const finalPrice = getProductPricing(product, basePrice).currentPrice;
-    const stockLimit = variation
-      ? this.toStockLimit(variation?.stock)
-      : this.toStockLimit(product?.stock);
+    const stockLimit = product?.isDigitalProduct
+      ? null
+      : (variation
+        ? this.toStockLimit(variation?.stock)
+        : this.toStockLimit(product?.stock));
     const selectedOptions = [];
 
     if (variation) {
@@ -278,6 +280,9 @@ class SierraProducts {
       categoryId: String(product?.categoryId || '').trim(),
       category: String(product?.category || product?.categoryName || '').trim(),
       deliveryMode: String(product?.deliveryMode || '').trim(),
+      isDigitalProduct: Boolean(product?.isDigitalProduct),
+      digitalDownloadLink: String(product?.digitalDownloadLink || '').trim(),
+      deliveryDelay: String(product?.deliveryDelay || (product?.isDigitalProduct ? 'Instantanee' : '')).trim(),
       productDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || null,
       productDeliveryZones: Array.isArray(product?.deliveryZones)
         ? product.deliveryZones
@@ -302,14 +307,14 @@ class SierraProducts {
     if (!item) return;
 
     try {
-      const { getCartManager } = await import('./cart.js?v=20260525-1');
+      const { getCartManager } = await import('./cart.js?v=20260525-2');
       const cart = getCartManager();
       if (cart && typeof cart.addItem === 'function') {
         cart.addItem(item);
         return;
       }
     } catch (error) {
-      console.error('❌ Erreur quick add panier:', error);
+      console.error('âŒ Erreur quick add panier:', error);
     }
 
     document.dispatchEvent(new CustomEvent('addToCart', { detail: item }));
@@ -333,7 +338,7 @@ class SierraProducts {
 
     const html = `
       <div class="products-wrapper-${this.uniqueId} w-full relative">
-        <!-- En-tête avec indicateur de scroll -->
+        <!-- En-tÃªte avec indicateur de scroll -->
         <div class="flex justify-between items-center mb-6 px-4 md:px-6">
           <h2 class="font-primary text-2xl md:text-3xl text-luxury">
             ${this.options.sectionTitle}
@@ -348,7 +353,7 @@ class SierraProducts {
         
         <!-- Carousel Container -->
         <div class="relative group">
-          <!-- Flèches navigation desktop -->
+          <!-- FlÃ¨ches navigation desktop -->
           <button class="scroll-left-${this.uniqueId} hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 bg-luxury/80 text-ivory rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:bg-secondary">
             <i class="fas fa-chevron-left"></i>
           </button>
@@ -652,7 +657,7 @@ class SierraProducts {
     const hasVariations = product.variations && product.variations.length > 0;
     const activeVariation = this.getActiveVariation(product);
     
-    // Images à afficher (règle stricte: products.images uniquement)
+    // Images Ã  afficher (rÃ¨gle stricte: products.images uniquement)
     let images = [];
     let currentImageIndex = 0;
     let currentVariationIndex = 0;
@@ -852,7 +857,7 @@ class SierraProducts {
         }
       });
       
-      // Navigation flèches
+      // Navigation flÃ¨ches
       const leftBtn = this.container.querySelector(`.scroll-left-${this.uniqueId}`);
       const rightBtn = this.container.querySelector(`.scroll-right-${this.uniqueId}`);
       
@@ -923,7 +928,7 @@ class SierraProducts {
     // Clic sur la carte produit pour ouvrir la page produit
     this.container.querySelectorAll('.product-content').forEach(wrapper => {
       wrapper.addEventListener('click', (e) => {
-        // Éviter de déclencher si on clique sur les flèches ou les dots
+        // Ã‰viter de dÃ©clencher si on clique sur les flÃ¨ches ou les dots
         if (e.target.closest('.prev-image') || 
             e.target.closest('.next-image') || 
             e.target.closest('.variation-dot')) {
@@ -946,10 +951,10 @@ class SierraProducts {
     
     const state = this.currentImageIndex.get(productId) || { variationIndex: 0, imageIndex: 0 };
     state.variationIndex = variationIndex;
-    state.imageIndex = 0; // Reset à la première image de la nouvelle variation
+    state.imageIndex = 0; // Reset Ã  la premiÃ¨re image de la nouvelle variation
     this.currentImageIndex.set(productId, state);
     
-    // Mettre à jour l'affichage
+    // Mettre Ã  jour l'affichage
     const productCard = this.container.querySelector(`.product-card-${this.uniqueId}[data-product-id="${productId}"]`);
     if (productCard) {
       const variation = product.variations[variationIndex];
@@ -965,7 +970,7 @@ class SierraProducts {
         counter.textContent = `1/${images.length}`;
       }
       
-      // Mettre à jour les dots
+      // Mettre Ã  jour les dots
       productCard.querySelectorAll('.variation-dot').forEach((dot, i) => {
         if (i === variationIndex) {
           dot.classList.add('active');
@@ -993,7 +998,7 @@ class SierraProducts {
     
     const state = this.currentImageIndex.get(productId) || { variationIndex: 0, imageIndex: 0 };
     
-    // Déterminer les images à utiliser (variation active ou produit)
+    // DÃ©terminer les images Ã  utiliser (variation active ou produit)
     let images = this.getVariationImages(product, state.variationIndex);
     
     if (images.length <= 1) return;
@@ -1006,7 +1011,7 @@ class SierraProducts {
     
     this.currentImageIndex.set(productId, state);
     
-    // Mettre à jour l'image
+    // Mettre Ã  jour l'image
     const productCard = this.container.querySelector(`.product-card-${this.uniqueId}[data-product-id="${productId}"]`);
     if (productCard) {
       const img = productCard.querySelector('.product-main-image');
@@ -1039,14 +1044,14 @@ class SierraProducts {
   }
   
   listenForModalEvents() {
-    // Écouter les événements d'ouverture de produit (pour les produits liés)
+    // Ã‰couter les Ã©vÃ©nements d'ouverture de produit (pour les produits liÃ©s)
     document.addEventListener('openProductModal', (e) => {
       if (e.detail?.productId) {
         this.openProductModal(e.detail.productId);
       }
     });
     
-    // Écouter les mises à jour du panier
+    // Ã‰couter les mises Ã  jour du panier
     document.addEventListener('cartUpdated', (e) => {
     });
 
@@ -1145,7 +1150,7 @@ class SierraProducts {
   }
   
   initAnimations() {
-    // Conservé pour compatibilité, désormais l'animation principale est au scroll
+    // ConservÃ© pour compatibilitÃ©, dÃ©sormais l'animation principale est au scroll
     const carousel = this.container.querySelector(`.products-carousel-${this.uniqueId}`);
     if (carousel && this.products.length > this.options.visibleProductsMobile) {
       setTimeout(() => {
@@ -1162,12 +1167,12 @@ class SierraProducts {
       <div class="products-error-${this.uniqueId} text-center py-16 text-danger">
         <i class="fas fa-exclamation-triangle text-5xl mb-4"></i>
         <p class="text-lg">Erreur de chargement des produits</p>
-        <p class="text-sm text-accent mt-2">Veuillez rafraîchir la page</p>
+        <p class="text-sm text-accent mt-2">Veuillez rafraÃ®chir la page</p>
       </div>
     `;
   }
   
-  // Méthode publique pour recharger les produits
+  // MÃ©thode publique pour recharger les produits
   async reload() {
     await this.loadProducts();
     this.render();
@@ -1176,12 +1181,12 @@ class SierraProducts {
     this.initAnimations();
   }
   
-  // Méthode publique pour obtenir un produit par ID
+  // MÃ©thode publique pour obtenir un produit par ID
   getProductById(id) {
     return this.products.find(p => p.id === id);
   }
   
-  // Méthode publique pour filtrer les produits
+  // MÃ©thode publique pour filtrer les produits
   filterProducts(callback) {
     return this.products.filter(callback);
   }
@@ -1192,3 +1197,4 @@ class SierraProducts {
 }
 
 export default SierraProducts;
+

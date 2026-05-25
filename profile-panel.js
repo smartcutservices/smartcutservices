@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=20260523-6';
+﻿import { auth, db } from './firebase-init.js?v=20260523-6';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js?v=20260523-6';
-import { getCartManager } from './cart.js?v=20260524-7';
+import { getCartManager } from './cart.js?v=20260525-2';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -326,7 +326,7 @@ class ProfilePanel {
       { label: 'Email', value: user?.email || client.email || '-' },
       { label: 'Telephone', value: client.phone || '-' },
       { label: 'Adresse principale', value: savedAddressParts.join(', ') || addressParts.join(', ') || '-' },
-      { label: 'Nombre d adresses sauvegardées', value: Array.isArray(client.addresses) ? String(client.addresses.length) : '0' }
+      { label: 'Nombre d adresses sauvegardÃ©es', value: Array.isArray(client.addresses) ? String(client.addresses.length) : '0' }
     ];
   }
 
@@ -360,7 +360,7 @@ class ProfilePanel {
       <form class="profile-personal-form" style="display:grid;gap:0.85rem;">
         <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;">
           <h3 style="margin:0;font-family:${fonts.primary};font-size:1.35rem;color:${colors.text.title};">Modifier mes informations</h3>
-          <p style="margin:0.4rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">Vos modifications seront sauvegardées sur votre compte.</p>
+          <p style="margin:0.4rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">Vos modifications seront sauvegardÃ©es sur votre compte.</p>
         </div>
 
         ${this.renderProfileInput('Username', 'profileEditUsername', fullName, colors)}
@@ -390,7 +390,7 @@ class ProfilePanel {
             <div>
               <h4 style="margin:0;color:${colors.text.title};font-size:1rem;">Adresses supplementaires</h4>
               <p style="margin:0.35rem 0 0;color:${colors.text.body};font-size:0.85rem;line-height:1.55;">
-                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) déjà sauvegardée(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
+                ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) dÃ©jÃ  sauvegardÃ©e(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
               </p>
             </div>
             <button type="button" class="profile-add-address-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.75rem 0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.45rem;">
@@ -419,7 +419,7 @@ class ProfilePanel {
   renderSavedAddressForm(address, index, colors) {
     return `
       <div data-saved-address-index="${index}" data-saved-address-id="${this.escape(address.id || '')}" style="border:1px solid ${colors.background.button}26;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.card};">
-        <strong style="color:${colors.text.title};font-size:0.92rem;">Adresse sauvegardée ${index + 1}</strong>
+        <strong style="color:${colors.text.title};font-size:0.92rem;">Adresse sauvegardÃ©e ${index + 1}</strong>
         ${this.renderProfileInput('Adresse', `profileSavedAddress_${index}`, address.address || '', colors)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
           <label style="display:grid;gap:0.35rem;">
@@ -503,7 +503,7 @@ class ProfilePanel {
           </div>
           <h3 style="margin:0;font-family:${fonts.primary};font-size:1.45rem;color:${colors.text.title};">Informations personnelles</h3>
           <p style="margin:0.45rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">
-            Retrouvez ici les informations associées a votre compte Smart Cut Services.
+            Retrouvez ici les informations associÃ©es a votre compte Smart Cut Services.
           </p>
         </div>
 
@@ -607,7 +607,7 @@ class ProfilePanel {
     });
 
     if (savedAddressUpdates.some((address) => !address.address || !address.department || !address.commune)) {
-      this.authManager.showToast('Merci de compléter chaque adresse sauvegardée.', 'error');
+      this.authManager.showToast('Merci de complÃ©ter chaque adresse sauvegardÃ©e.', 'error');
       return;
     }
 
@@ -626,7 +626,7 @@ class ProfilePanel {
     }).filter((item) => item.hasAnyValue);
 
     if (extraAddresses.some((address) => !address.address || !address.department || !address.commune)) {
-      this.authManager.showToast('Merci de compléter chaque nouvelle adresse ajoutée.', 'error');
+      this.authManager.showToast('Merci de complÃ©ter chaque nouvelle adresse ajoutÃ©e.', 'error');
       return;
     }
 
@@ -652,7 +652,7 @@ class ProfilePanel {
       const updatedSavedAddress = {
         ...(update.original || {}),
         id: update.id,
-        label: update.original?.label || 'Adresse sauvegardée',
+        label: update.original?.label || 'Adresse sauvegardÃ©e',
         address: update.address,
         country: 'Haiti',
         department: update.department,
@@ -711,7 +711,7 @@ class ProfilePanel {
     };
     this.isEditingPersonalInfo = false;
     this.additionalAddressForms = 0;
-    this.authManager.showToast('Informations personnelles mises à jour.', 'success');
+    this.authManager.showToast('Informations personnelles mises Ã  jour.', 'success');
     this.render();
   }
 
@@ -758,9 +758,9 @@ class ProfilePanel {
         ">
           <i class="fas fa-envelope-circle-check"></i>
         </div>
-        <h3 style="margin:0;font-family:${fonts.primary};font-size:1.75rem;line-height:1;color:${colors.text.title};">Lien envoyé</h3>
+        <h3 style="margin:0;font-family:${fonts.primary};font-size:1.75rem;line-height:1;color:${colors.text.title};">Lien envoyÃ©</h3>
         <p style="margin:0.8rem 0 0;color:${colors.text.body};line-height:1.65;">
-          Un lien pour changer votre mot de passe a été envoyé à:
+          Un lien pour changer votre mot de passe a Ã©tÃ© envoyÃ© Ã :
         </p>
         <strong style="display:block;margin:0.65rem 0;color:${colors.text.title};word-break:break-word;">${this.escape(email)}</strong>
         <div style="
@@ -773,7 +773,7 @@ class ProfilePanel {
           line-height:1.55;
           font-size:0.9rem;
         ">
-          Si vous ne le voyez pas dans votre boîte de réception, vérifiez aussi vos spams ou courriers indésirables.
+          Si vous ne le voyez pas dans votre boÃ®te de rÃ©ception, vÃ©rifiez aussi vos spams ou courriers indÃ©sirables.
         </div>
         <button type="button" class="password-reset-sent-close" style="
           margin-top:1rem;
@@ -844,7 +844,7 @@ class ProfilePanel {
         accent: colors.icon.hover
       },
       {
-        label: 'Confirmées',
+        label: 'ConfirmÃ©es',
         value: paidOrders.length,
         icon: 'fa-circle-check',
         accent: '#10B981'
@@ -950,7 +950,7 @@ class ProfilePanel {
         </div>
         <h3 style="margin:0 0 0.35rem;font-size:1.2rem;color:${colors.text.title};">Connectez-vous</h3>
         <p style="margin:0 0 1rem;color:${colors.text.body};line-height:1.6;">
-          Retrouvez vos favoris, votre historique et vos commandes. En invité, vous pouvez déjà revoir vos commandes passées sur cet appareil.
+          Retrouvez vos favoris, votre historique et vos commandes. En invitÃ©, vous pouvez dÃ©jÃ  revoir vos commandes passÃ©es sur cet appareil.
         </p>
         <div style="display:flex;flex-wrap:wrap;gap:0.65rem;">
           <button class="profile-login-btn" style="
@@ -978,7 +978,7 @@ class ProfilePanel {
           line-height:1.55;
         ">
           <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Ce que vous trouverez ici</strong>
-          Favoris, historique de commandes, téléchargement des reçus PDF et accès rapide à votre compte.
+          Favoris, historique de commandes, tÃ©lÃ©chargement des reÃ§us PDF et accÃ¨s rapide Ã  votre compte.
         </div>
         ${guestOrders.length > 0 ? `
           <div style="
@@ -989,8 +989,8 @@ class ProfilePanel {
             color:${colors.text.body};
             line-height:1.55;
           ">
-            <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Commandes invité</strong>
-            Vos commandes passées sans connexion restent visibles ici sur cet appareil.
+            <strong style="color:${colors.text.title};display:block;margin-bottom:0.3rem;">Commandes invitÃ©</strong>
+            Vos commandes passÃ©es sans connexion restent visibles ici sur cet appareil.
           </div>
         ` : ''}
       </div>
@@ -1084,9 +1084,9 @@ class ProfilePanel {
                 font-size:1.7rem;
                 color:${colors.text.title};
                 line-height:1;
-              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invitÃ©' : 'Mon compte')}</h2>
               <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'VÃ©rification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connectÃ©') : (this.getVisibleOrders().length > 0 ? 'Historique invitÃ© disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1101,7 +1101,7 @@ class ProfilePanel {
                   cursor:pointer;
                   font-size:0.78rem;
                   font-weight:700;
-                ">Déconnexion</button>
+                ">DÃ©connexion</button>
               ` : ''}
               <button class="close-profile-btn" style="
                 border:none;
@@ -1131,8 +1131,8 @@ class ProfilePanel {
               color:${colors.text.body};
               line-height:1.5;
             ">
-              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vérification</strong>
-              Votre compte est en cours de restauration. Le profil apparaîtra automatiquement.
+              <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vÃ©rification</strong>
+              Votre compte est en cours de restauration. Le profil apparaÃ®tra automatiquement.
             </div>
           ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isAuthenticated ? `
             ${this.renderVendorQuickAccess(colors)}
@@ -1400,6 +1400,7 @@ export function getProfilePanel() {
 }
 
 export default ProfilePanel;
+
 
 
 

@@ -979,6 +979,56 @@ Verification technique:
 - Syntax check script module `DvendorProducts.html`: OK.
 - Syntax check script module dashboard `Dproducts.html`: OK.
 - Aucun deploiement Firebase requis, car il s'agit d'une correction frontend/dashboard.
+
+## Correctif panier - Produit digital bloque par stock 0
+
+Date:
+
+- 2026-05-25
+
+Probleme observe:
+
+- Un produit digital ajoute depuis le dashboard vendeur apparaissait correctement comme `Article digital - livraison instantanee`.
+- Mais dans la modal produit, la quantite restait a `0`.
+- Le message affiche etait:
+
+```text
+Stock deja atteint dans le panier
+```
+
+- Le bouton `Ajouter au panier` etait desactive.
+
+Cause exacte:
+
+- Pour un produit digital, le dashboard sauvegarde volontairement `stock: null`.
+- Dans la modal produit, la fonction de calcul de stock faisait `Number(null)`, ce qui donne `0`.
+- Le systeme croyait donc que le produit digital avait un stock de zero.
+- Cela appliquait une regle de produit physique sur un produit numerique.
+
+Correction appliquee:
+
+- Dans `product-modal.js`, si `product.isDigitalProduct === true`, le stock disponible est considere comme illimite.
+- Dans `cart.js`, si `item.isDigitalProduct === true`, le panier ignore la limite de stock.
+- Dans `products.js`, le quick-add transmet maintenant les informations digitales:
+  - `isDigitalProduct`,
+  - `digitalDownloadLink`,
+  - `deliveryDelay`.
+- Les produits digitaux ne sont donc plus bloques par `stock: null` ou `stock: 0`.
+
+Cache/version:
+
+- `ASSET_VERSION` du site passe a `20260525-2`.
+- Les imports internes de `cart.js` et `product-modal.js` passent a `20260525-2`.
+- Objectif: forcer les navigateurs a prendre la nouvelle logique au lieu d'une ancienne version en cache.
+
+Verification technique:
+
+- `node --check product-modal.js`: OK.
+- `node --check cart.js`: OK.
+- `node --check products.js`: OK.
+- `node --check product-page.js`: OK.
+- `node --check header.js`: OK.
+- `node --check profile-panel.js`: OK.
 - Syntax check script module dashboard `Dproducts.html`: OK.
 
 Tests manuels a faire:
