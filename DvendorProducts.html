@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>Smart Cut Services · Dashboard Produits Vendeur</title>
+  <title>Smart Cut Services Â· Dashboard Produits Vendeur</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -866,6 +866,11 @@
             <span class="flex-1">Produits</span>
             <span class="text-xs bg-background px-2 py-1 rounded-full" id="products-count">0</span>
           </button>
+
+          <button id="uploadDigitalProductNav" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors sidebar-nav" type="button">
+            <i class="fas fa-bolt w-5 text-text-secondary"></i>
+            <span class="flex-1">Upload Produit Digital</span>
+          </button>
           
         </nav>
       </div>
@@ -873,7 +878,7 @@
       <div class="absolute bottom-0 left-0 right-0 p-6 border-t border-border">
         <div class="flex items-center gap-3">
           <div class="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-          <span class="text-sm text-text-secondary">é</span>
+          <span class="text-sm text-text-secondary">Ã©</span>
         </div>
       </div>
     </aside>
@@ -1092,7 +1097,7 @@
             </div>
             <div class="card-body">
               <div id="recent-products" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Injecté par JS -->
+                <!-- InjectÃ© par JS -->
               </div>
             </div>
           </div>
@@ -1113,7 +1118,7 @@
 
           <!-- Liste des produits -->
           <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Injecté par JS -->
+            <!-- InjectÃ© par JS -->
           </div>
         </div>
 
@@ -1135,10 +1140,10 @@
 
           <!-- Tabs de navigation -->
           <div class="section-tabs">
-            <button class="section-tab active" data-tab="general">Général</button>
+            <button class="section-tab active" data-tab="general">GÃ©nÃ©ral</button>
             <button class="section-tab" data-tab="delivery">Livraison</button>
             <button class="section-tab" data-tab="digital">Digital</button>
-            <button class="section-tab" data-tab="category">Catégorie & attributs</button>
+            <button class="section-tab" data-tab="category">CatÃ©gorie & attributs</button>
             <button class="section-tab" data-tab="variations">Variations</button>
             <button class="section-tab" data-tab="gallery">Galerie</button>
           </div>
@@ -1147,11 +1152,11 @@
           <form id="productForm">
             <input type="hidden" id="productId">
             
-            <!-- ===== TAB 1: GÉNÉRAL ===== -->
+            <!-- ===== TAB 1: GÃ‰NÃ‰RAL ===== -->
             <div id="tab-general" class="tab-content active">
               <div class="content-card">
                 <div class="card-header">
-                  <span>Informations générales</span>
+                  <span>Informations gÃ©nÃ©rales</span>
                   <div class="flex items-center gap-3">
                     <span class="text-sm text-text-secondary">Statut</span>
                     <label class="relative inline-flex items-center cursor-pointer">
@@ -1168,7 +1173,7 @@
                     </div>
                     <div>
                       <label class="block text-sm text-text-secondary mb-1">SKU principal</label>
-                      <input type="text" id="mainSku" class="form-input" placeholder="Généré automatiquement">
+                      <input type="text" id="mainSku" class="form-input" placeholder="GÃ©nÃ©rÃ© automatiquement">
                     </div>
                   </div>
                   
@@ -1188,7 +1193,7 @@
                       <input type="number" id="basePrice" step="0.01" class="form-input">
                     </div>
                     <div>
-                      <label class="block text-sm text-text-secondary mb-1">Prix barré</label>
+                      <label class="block text-sm text-text-secondary mb-1">Prix barrÃ©</label>
                       <input type="number" id="comparePrice" step="0.01" class="form-input">
                     </div>
                     <div>
@@ -1276,7 +1281,7 @@
               </div>
             </div>
 
-            <!-- ===== TAB 2: CATÉGORIE & ATTRIBUTS ===== -->
+            <!-- ===== TAB 2: CATÃ‰GORIE & ATTRIBUTS ===== -->
             <div id="tab-digital" class="tab-content hidden">
               <div class="content-card">
                 <div class="card-header">
@@ -1321,24 +1326,24 @@
             <div id="tab-category" class="tab-content hidden">
               <div class="content-card">
                 <div class="card-header">
-                  <span>Sélection des catégories et lignes</span>
+                  <span>SÃ©lection des catÃ©gories et lignes</span>
                 </div>
                 <div class="card-body">
                   <div class="mb-4">
-                    <label class="block text-sm text-text-secondary mb-2">Catégorie</label>
+                    <label class="block text-sm text-text-secondary mb-2">CatÃ©gorie</label>
                     <select id="categorySelect" class="form-select">
-                      <option value="">Choisir une catégorie</option>
+                      <option value="">Choisir une catÃ©gorie</option>
                     </select>
                   </div>
                   
                   <div id="categoryAttributesContainer" class="category-tree">
-                    <!-- Injecté dynamiquement -->
+                    <!-- InjectÃ© dynamiquement -->
                   </div>
                   
                   <div id="selectedLinesContainer" class="mt-4 p-4 bg-background rounded-lg">
-                    <h4 class="font-medium mb-2">Lignes sélectionnées</h4>
+                    <h4 class="font-medium mb-2">Lignes sÃ©lectionnÃ©es</h4>
                     <div id="selectedLinesList" class="flex flex-wrap gap-2">
-                      <!-- Injecté dynamiquement -->
+                      <!-- InjectÃ© dynamiquement -->
                     </div>
                   </div>
                 </div>
@@ -1357,7 +1362,7 @@
                 </div>
                 <div class="card-body">
                   <div id="variationsContainer" class="space-y-4">
-                    <!-- Injecté dynamiquement -->
+                    <!-- InjectÃ© dynamiquement -->
                   </div>
                   
                   <div id="noVariations" class="text-center py-8 text-text-secondary">
@@ -1379,7 +1384,7 @@
                   <div>
                     <label class="block text-sm text-text-secondary mb-2">Images principales</label>
                     <div id="mainImagesContainer" class="image-grid">
-                      <!-- Injecté dynamiquement -->
+                      <!-- InjectÃ© dynamiquement -->
                     </div>
                     
                     <div class="image-name-input-area">
@@ -1397,12 +1402,12 @@
                         Ajouter
                       </button>
                     </div>
-                    <p class="text-xs text-text-secondary mt-1">L'image doit être placée dans le même dossier que le dashboard</p>
+                    <p class="text-xs text-text-secondary mt-1">L'image doit Ãªtre placÃ©e dans le mÃªme dossier que le dashboard</p>
                   </div>
                   
                   <div class="mt-6">
                     <h4 class="font-medium mb-2">Images par variation</h4>
-                    <p class="text-sm text-text-secondary mb-4">Les images spécifiques sont gérées dans chaque variation</p>
+                    <p class="text-sm text-text-secondary mb-4">Les images spÃ©cifiques sont gÃ©rÃ©es dans chaque variation</p>
                   </div>
                 </div>
               </div>
@@ -1414,7 +1419,7 @@
         <div id="categories-view" class="view hidden">
           <div class="text-center py-12">
             <i class="fas fa-sitemap text-4xl text-text-tertiary mb-3"></i>
-            <p class="text-text-secondary">La structure des catégories est gérée par l'administration.</p>
+            <p class="text-text-secondary">La structure des catÃ©gories est gÃ©rÃ©e par l'administration.</p>
           </div>
         </div>
       </div>
@@ -1458,16 +1463,16 @@
               <input type="text" id="varSku" class="form-input" required>
               <button type="button" id="generateSkuBtn" class="btn-secondary btn-sm whitespace-nowrap">
                 <i class="fas fa-sync-alt"></i>
-                Générer
+                GÃ©nÃ©rer
               </button>
             </div>
           </div>
         </div>
         
-        <!-- Options personnalisées -->
+        <!-- Options personnalisÃ©es -->
         <div>
           <div class="flex justify-between items-center mb-2">
-            <label class="text-sm text-text-secondary">Options personnalisées</label>
+            <label class="text-sm text-text-secondary">Options personnalisÃ©es</label>
             <button type="button" id="addCustomOptionBtn" class="btn-secondary btn-sm">
               <i class="fas fa-plus"></i> Ajouter
             </button>
@@ -1480,7 +1485,7 @@
         <!-- Prix et stock -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label class="block text-sm text-text-secondary mb-1">Prix spécifique</label>
+            <label class="block text-sm text-text-secondary mb-1">Prix spÃ©cifique</label>
             <input type="number" id="varPrice" step="0.01" class="form-input" placeholder="Optionnel">
           </div>
           <div>
@@ -1501,7 +1506,7 @@
         
         <!-- Images -->
         <div>
-          <label class="block text-sm text-text-secondary mb-2">Images spécifiques (noms des fichiers)</label>
+          <label class="block text-sm text-text-secondary mb-2">Images spÃ©cifiques (noms des fichiers)</label>
           <div id="varImagesContainer" class="image-grid">
             <!-- Images dynamiques -->
           </div>
@@ -1521,7 +1526,7 @@
               Ajouter
             </button>
           </div>
-          <p class="text-xs text-text-secondary mt-1">L'image doit être placée dans le même dossier que le dashboard</p>
+          <p class="text-xs text-text-secondary mt-1">L'image doit Ãªtre placÃ©e dans le mÃªme dossier que le dashboard</p>
         </div>
         
         <div class="flex gap-3 pt-4">
@@ -1625,6 +1630,7 @@
           main: [], // Noms des images principales
           variations: {} // { variationIndex: [nomsImages] }
         };
+        this.editorMode = 'physical';
         this.vendorContext = null;
         
         this.init();
@@ -1640,7 +1646,7 @@
         this.cacheElements();
         this.renderVendorHeader();
         this.setupEventListeners();
-        this.setupModalEvents(); // Configuration spécifique de la modale
+        this.setupModalEvents(); // Configuration spÃ©cifique de la modale
         await Promise.all([
           this.loadProducts(),
           this.loadCategories(),
@@ -1746,7 +1752,7 @@
         `;
         this.elements.vendorHeaderStatus.innerHTML = `
           <i class="fas fa-circle-check"></i>
-          <span>${this.escape(statusLabel)}${activeSince !== '-' ? ` · depuis ${this.escape(activeSince)}` : ''}</span>
+          <span>${this.escape(statusLabel)}${activeSince !== '-' ? ` Â· depuis ${this.escape(activeSince)}` : ''}</span>
         `;
       }
 
@@ -1965,6 +1971,7 @@
           sidebar: document.getElementById('sidebar'),
           menuToggle: document.getElementById('menuToggle'),
           sidebarNav: document.querySelectorAll('.sidebar-nav'),
+          uploadDigitalProductNav: document.getElementById('uploadDigitalProductNav'),
           views: {
             dashboard: document.getElementById('dashboard-view'),
             products: document.getElementById('products-view'),
@@ -2115,6 +2122,7 @@
         // Navigation produit
         this.elements.addProductBtn.addEventListener('click', () => this.newProduct());
         this.elements.newProductBtn.addEventListener('click', () => this.newProduct());
+        this.elements.uploadDigitalProductNav?.addEventListener('click', () => this.newDigitalProduct());
         this.elements.backToProducts.addEventListener('click', () => this.switchView('products'));
         
         // Sauvegarde
@@ -2129,7 +2137,7 @@
           });
         });
         
-        // Catégorie select
+        // CatÃ©gorie select
         this.elements.categorySelect.addEventListener('change', () => this.loadCategoryAttributes());
         
         // Variation
@@ -2181,7 +2189,7 @@
       }
       
       setupModalEvents() {
-        // Empêcher la fermeture quand on clique dans la modale
+        // EmpÃªcher la fermeture quand on clique dans la modale
         const modalContainer = this.elements.variationModal.querySelector('.modal-container');
         if (modalContainer) {
           modalContainer.addEventListener('click', (e) => {
@@ -2230,12 +2238,16 @@
         const titles = {
           dashboard: 'Vue globale vendeur',
           products: 'Produits vendeur',
-          categories: 'Catégories'
+          categories: 'CatÃ©gories'
         };
         this.elements.currentViewTitle.textContent = titles[view] || 'Produits vendeur';
       }
       
       switchEditorTab(tabName) {
+        const targetTab = document.querySelector(`.section-tab[data-tab="${tabName}"]`);
+        if (targetTab?.classList.contains('hidden')) {
+          tabName = this.editorMode === 'digital' ? 'general' : 'general';
+        }
         this.elements.sectionTabs.forEach(t => t.classList.remove('active'));
         this.elements.tabContents.forEach(c => c.classList.add('hidden'));
         
@@ -2246,8 +2258,33 @@
           this.updateDigitalProductUi();
         }
       }
+
+      setEditorMode(mode = 'physical') {
+        this.editorMode = mode === 'digital' ? 'digital' : 'physical';
+        const hiddenTabs = this.editorMode === 'digital'
+          ? ['delivery', 'category', 'variations']
+          : ['digital'];
+        const visibleTabs = this.editorMode === 'digital'
+          ? ['general', 'digital', 'gallery']
+          : ['general', 'delivery', 'category', 'variations', 'gallery'];
+
+        this.elements.sectionTabs.forEach((tab) => {
+          const tabName = tab.dataset.tab;
+          tab.classList.toggle('hidden', hiddenTabs.includes(tabName));
+          tab.style.display = visibleTabs.includes(tabName) ? '' : 'none';
+        });
+
+        if (this.editorMode === 'digital' && this.elements.isDigitalProduct) {
+          this.elements.isDigitalProduct.checked = true;
+          this.updateDigitalProductUi();
+        }
+        if (this.editorMode === 'physical' && this.elements.isDigitalProduct) {
+          this.elements.isDigitalProduct.checked = false;
+          this.updateDigitalProductUi();
+        }
+      }
       
-      // ========== CHARGEMENT DES DONNÉES ==========
+      // ========== CHARGEMENT DES DONNÃ‰ES ==========
       
       async loadProducts() {
         try {
@@ -2283,7 +2320,7 @@
           
           this.updateCategorySelect();
         } catch (error) {
-          console.error('Erreur chargement catégories:', error);
+          console.error('Erreur chargement catÃ©gories:', error);
         }
       }
 
@@ -2779,7 +2816,7 @@
           this.elements.productsGrid.innerHTML = `
             <div class="col-span-full text-center py-12">
               <i class="fas fa-box-open text-4xl text-text-tertiary mb-3"></i>
-              <p class="text-text-secondary">Aucun produit trouvé</p>
+              <p class="text-text-secondary">Aucun produit trouvÃ©</p>
             </div>
           `;
           return;
@@ -2823,9 +2860,9 @@
                     ${statusLabel}
                   </span>
                 </div>
-                <p class="text-sm text-text-secondary mb-2">${product.sku || 'SKU non défini'}</p>
+                <p class="text-sm text-text-secondary mb-2">${product.sku || 'SKU non dÃ©fini'}</p>
                 <div class="flex justify-between items-center text-sm">
-                  <span>${product.price ? new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(product.price)) : 'Prix non défini'}</span>
+                  <span>${product.price ? new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(product.price)) : 'Prix non dÃ©fini'}</span>
                   <span class="text-text-secondary">Stock: ${totalStock}</span>
                 </div>
                 <div class="flex justify-between items-center text-sm mt-2">
@@ -2833,7 +2870,7 @@
                     <i class="fas fa-heart text-danger"></i>
                     ${likes.length} like(s)
                   </span>
-                  <button class="view-likes btn-icon" data-id="${product.id}" title="Voir qui a liké">
+                  <button class="view-likes btn-icon" data-id="${product.id}" title="Voir qui a likÃ©">
                     <i class="fas fa-users"></i>
                   </button>
                 </div>
@@ -2856,7 +2893,7 @@
           `;
         }).join('');
 
-        // Attacher événements
+        // Attacher Ã©vÃ©nements
         this.attachImageDebugListeners(this.elements.productsGrid);
 
         document.querySelectorAll('.edit-product').forEach(btn => {
@@ -2904,7 +2941,7 @@
               <div class="px-5 py-4 border-b border-border flex justify-between items-center">
                 <div>
                   <h3 class="text-lg font-semibold">Likes produit</h3>
-                  <p class="text-sm text-text-secondary">${product?.name || 'Produit'} "¢ ${likes.length} like(s)</p>
+                  <p class="text-sm text-text-secondary">${product?.name || 'Produit'} "Â¢ ${likes.length} like(s)</p>
                 </div>
                 <button id="closeLikesModalBtn" class="btn-icon"><i class="fas fa-times"></i></button>
               </div>
@@ -2952,7 +2989,7 @@
       async loadCategoryAttributes() {
         const categoryId = this.elements.categorySelect.value;
         if (!categoryId) {
-          this.elements.categoryAttributesContainer.innerHTML = '<p class="text-text-secondary">Sélectionnez une catégorie</p>';
+          this.elements.categoryAttributesContainer.innerHTML = '<p class="text-text-secondary">SÃ©lectionnez une catÃ©gorie</p>';
           return;
         }
         
@@ -2984,9 +3021,9 @@
           html += `</div>`;
         }
         
-        this.elements.categoryAttributesContainer.innerHTML = html || '<p class="text-text-secondary">Aucune colonne dans cette catégorie</p>';
+        this.elements.categoryAttributesContainer.innerHTML = html || '<p class="text-text-secondary">Aucune colonne dans cette catÃ©gorie</p>';
         
-        // Attacher événements
+        // Attacher Ã©vÃ©nements
         document.querySelectorAll('.line-checkbox').forEach(el => {
           el.addEventListener('click', () => {
             const columnId = el.dataset.column;
@@ -3002,14 +3039,14 @@
             }
             
             this.renderSelectedLines();
-            this.loadCategoryAttributes(); // Re-rendre pour mettre à jour les icônes
+            this.loadCategoryAttributes(); // Re-rendre pour mettre Ã  jour les icÃ´nes
           });
         });
       }
       
       renderSelectedLines() {
         if (this.categorySelections.length === 0) {
-          this.elements.selectedLinesList.innerHTML = '<span class="text-text-secondary text-sm">Aucune ligne sélectionnée</span>';
+          this.elements.selectedLinesList.innerHTML = '<span class="text-text-secondary text-sm">Aucune ligne sÃ©lectionnÃ©e</span>';
           return;
         }
         
@@ -3032,7 +3069,7 @@
             if (index !== -1) {
               this.categorySelections.splice(index, 1);
               this.renderSelectedLines();
-              this.loadCategoryAttributes(); // Re-rendre pour mettre à jour les icônes
+              this.loadCategoryAttributes(); // Re-rendre pour mettre Ã  jour les icÃ´nes
             }
           });
         });
@@ -3080,7 +3117,7 @@
                 </div>
                 <div>
                   <span class="text-text-secondary">Poids:</span>
-                  <span class="ml-2 font-medium">${Number(varia.weightGrams || 0) > 0 ? `${Number(varia.weightGrams)} g` : 'Non défini'}</span>
+                  <span class="ml-2 font-medium">${Number(varia.weightGrams || 0) > 0 ? `${Number(varia.weightGrams)} g` : 'Non dÃ©fini'}</span>
                 </div>
               </div>
               
@@ -3099,7 +3136,7 @@
               
               ${varia.customOptions && varia.customOptions.length > 0 ? `
                 <div class="mt-2 pt-2 border-t border-border">
-                  <p class="text-xs text-text-secondary mb-1">Options personnalisées:</p>
+                  <p class="text-xs text-text-secondary mb-1">Options personnalisÃ©es:</p>
                   <div class="flex flex-wrap gap-2">
                     ${varia.customOptions.map(opt => `
                       <span class="attribute-pill text-xs">
@@ -3114,7 +3151,7 @@
           `;
         }).join('');
         
-        // Attacher événements
+        // Attacher Ã©vÃ©nements
         this.attachImageDebugListeners(this.elements.variationsContainer);
 
         document.querySelectorAll('.edit-variation').forEach(btn => {
@@ -3412,7 +3449,7 @@
 
       updateCategorySelect() {
         const select = this.elements.categorySelect;
-        select.innerHTML = '<option value="">Choisir une catégorie</option>';
+        select.innerHTML = '<option value="">Choisir une catÃ©gorie</option>';
         
         this.categories.forEach(cat => {
           const option = document.createElement('option');
@@ -3441,7 +3478,7 @@
         this.elements.statsOutStock.textContent = outStock;
         this.elements.statsWithVariations.textContent = withVariations;
         
-        // Produits récents
+        // Produits rÃ©cents
         const recent = this.products.slice(0, 4);
         this.elements.recentProducts.innerHTML = recent.map(p => `
           <div class="flex items-center gap-3 p-3 bg-background rounded-lg cursor-pointer" onclick="window.productManager.editProduct('${p.id}')">
@@ -3526,7 +3563,7 @@
         } else if (nextRequestAt && !canRequest) {
           this.elements.vendorPayoutsSummary.textContent = `Prochaine demande possible a partir du ${this.formatDateTime(nextRequestAt)}. Net actuellement disponible: ${this.formatCurrency(pendingNet)}.`;
         } else {
-          this.elements.vendorPayoutsSummary.textContent = `Net disponible: ${this.formatCurrency(pendingNet)} · ${paidCount} decaissement(s) deja traite(s).`;
+          this.elements.vendorPayoutsSummary.textContent = `Net disponible: ${this.formatCurrency(pendingNet)} Â· ${paidCount} decaissement(s) deja traite(s).`;
         }
 
         this.elements.requestPayoutBtn.disabled = !canRequest;
@@ -3708,7 +3745,7 @@
                   <strong style="display:block;color:var(--text-primary);">${this.escape(item?.name || 'Produit')}</strong>
                   ${item?.isDigitalProduct ? '<span style="display:block;color:var(--success);font-size:.8rem;">Article digital - livraison instantanee</span>' : ''}
                   ${item?.deliveryDelay ? `<span style="display:block;color:var(--text-secondary);font-size:.8rem;">Delai: ${this.escape(item.deliveryDelay)}</span>` : ''}
-                  <span style="display:block;color:var(--text-secondary);font-size:.82rem;">Qte ${Number(item?.quantity || 0)} · Commission ${Number(item?.commissionRate || 0)}%</span>
+                  <span style="display:block;color:var(--text-secondary);font-size:.82rem;">Qte ${Number(item?.quantity || 0)} Â· Commission ${Number(item?.commissionRate || 0)}%</span>
                 </div>
                 <strong style="white-space:nowrap;">${this.escape(this.formatCurrency(Number(item?.vendorNetAmount || 0)))}</strong>
               </div>
@@ -3994,9 +4031,37 @@
           variations: {}
         };
         this.resetForm();
+        this.setEditorMode('physical');
         this.switchView('editor');
         this.elements.editorTitle.textContent = 'Nouveau produit';
         this.switchEditorTab('general');
+      }
+
+      newDigitalProduct() {
+        if (this.isServiceFeeSuspended()) {
+          this.showToast('Store suspendu: payez le frais de service mensuel avant d ajouter un produit digital.', 'error');
+          return;
+        }
+        if (this.isBasicPlanProductLimitReached()) {
+          this.showToast('Plan Basic: limite de 5 produits atteinte. Passez au Plan Pro pour ajouter plus de produits.', 'error');
+          return;
+        }
+        this.currentProduct = null;
+        this.currentVariations = [];
+        this.categorySelections = [];
+        this.currentImages = {
+          main: [],
+          variations: {}
+        };
+        this.resetForm();
+        this.setEditorMode('digital');
+        this.switchView('editor');
+        this.elements.sidebarNav.forEach(btn => btn.classList.remove('active', 'bg-background'));
+        this.elements.uploadDigitalProductNav?.classList.add('active', 'bg-background');
+        this.elements.currentViewTitle.textContent = 'Upload Produit Digital';
+        this.elements.editorTitle.textContent = 'Upload Produit Digital';
+        this.switchEditorTab('general');
+        this.showToast('Mode produit digital active: ajoutez description, prix, lien et photos.', 'info');
       }
       
       async editProduct(id) {
@@ -4005,7 +4070,7 @@
           const docSnap = await getDoc(docRef);
           
           if (!docSnap.exists()) {
-            this.showToast('Produit non trouvé', 'error');
+            this.showToast('Produit non trouvÃ©', 'error');
             return;
           }
           
@@ -4013,7 +4078,7 @@
           this.currentVariations = this.currentProduct.variations || [];
           this.categorySelections = this.currentProduct.categorySelections || [];
           
-          // Charger les images (noms de fichiers stockés)
+          // Charger les images (noms de fichiers stockÃ©s)
           this.currentImages = {
             main: this.currentProduct.images || [],
             variations: {}
@@ -4043,6 +4108,7 @@
           this.elements.isDigitalProduct.checked = Boolean(this.currentProduct.isDigitalProduct);
           this.elements.digitalDownloadLink.value = this.currentProduct.digitalDownloadLink || '';
           this.elements.deliveryDelay.value = this.currentProduct.deliveryDelay || (this.currentProduct.isDigitalProduct ? 'Instantanee' : '');
+          this.setEditorMode(this.currentProduct.isDigitalProduct ? 'digital' : 'physical');
           this.updateDigitalProductUi();
           this.populateDiscountFields(this.currentProduct);
           this.elements.productStatus.checked = this.currentProduct.status !== 'draft';
@@ -4057,7 +4123,7 @@
           this.renderSelectedLines();
           
           this.switchView('editor');
-          this.elements.editorTitle.textContent = `Édition: ${this.currentProduct.name || 'Produit'}`;
+          this.elements.editorTitle.textContent = `${this.currentProduct.isDigitalProduct ? 'Edition produit digital' : 'Edition'}: ${this.currentProduct.name || 'Produit'}`;
           this.switchEditorTab('general');
           
         } catch (error) {
@@ -4267,7 +4333,7 @@
             this.resetForm();
           }
           this.switchView('products');
-          this.showToast('Produit supprimé');
+          this.showToast('Produit supprimÃ©');
         } catch (error) {
           console.error('Erreur suppression:', error);
           this.showToast('Erreur lors de la suppression', 'error');
@@ -4298,7 +4364,7 @@
               this.renderVariationImages(index);
             }
             
-            // Options personnalisées
+            // Options personnalisÃ©es
             if (varia.customOptions) {
               varia.customOptions.forEach(opt => this.addCustomOptionField(opt));
             }
@@ -4319,12 +4385,12 @@
       deleteVariation(index) {
         this.currentVariations.splice(index, 1);
         
-        // Supprimer les images associées
+        // Supprimer les images associÃ©es
         if (this.currentImages.variations[index]) {
           delete this.currentImages.variations[index];
         }
         
-        // Réindexer les images des variations suivantes
+        // RÃ©indexer les images des variations suivantes
         const newVariationsImages = {};
         Object.keys(this.currentImages.variations).forEach(key => {
           const keyNum = parseInt(key);
@@ -4401,7 +4467,7 @@
         const div = document.createElement('div');
         div.className = 'flex gap-2 items-center';
         div.innerHTML = `
-          <input type="text" class="form-input text-sm flex-1" placeholder="Nom (ex: Matière)" value="${option?.name || ''}">
+          <input type="text" class="form-input text-sm flex-1" placeholder="Nom (ex: MatiÃ¨re)" value="${option?.name || ''}">
           <input type="text" class="form-input text-sm flex-1" placeholder="Valeur (ex: Cuir)" value="${option?.value || ''}">
           <button type="button" class="remove-option text-danger">
             <i class="fas fa-times"></i>
@@ -4453,7 +4519,7 @@
             this.currentImages.main.push(filename);
             this.renderMainImages();
             this.elements.mainImageNameInput.value = '';
-            this.showToast(`Image "${filename}" ajoutée`);
+            this.showToast(`Image "${filename}" ajoutÃ©e`);
           } else {
             this.showToast('Veuillez entrer un nom de fichier', 'error');
           }
@@ -4467,7 +4533,7 @@
           }
           
           if (isNaN(variationIndex) || variationIndex < 0) {
-            this.showToast('Veuillez d\'abord créer la variation', 'error');
+            this.showToast('Veuillez d\'abord crÃ©er la variation', 'error');
             return;
           }
           
@@ -4478,7 +4544,7 @@
           this.currentImages.variations[variationIndex].push(filename);
           this.renderVariationImages(variationIndex);
           this.elements.varImageNameInput.value = '';
-          this.showToast(`Image "${filename}" ajoutée à la variation`);
+          this.showToast(`Image "${filename}" ajoutÃ©e Ã  la variation`);
         }
       }
 
@@ -4629,24 +4695,24 @@
           const filename = this.currentImages.main[index];
           this.currentImages.main.splice(index, 1);
           this.renderMainImages();
-          this.showToast(`Image "${filename}" retirée`);
+          this.showToast(`Image "${filename}" retirÃ©e`);
         } else if (variationIndex !== null) {
           const filename = this.currentImages.variations[variationIndex][index];
           this.currentImages.variations[variationIndex].splice(index, 1);
           this.renderVariationImages(variationIndex);
-          this.showToast(`Image "${filename}" retirée de la variation`);
+          this.showToast(`Image "${filename}" retirÃ©e de la variation`);
         }
       }
       
       getImagePath(filename) {
         if (!filename) return '';
         
-        // Si c'est déjà une URL complète (pour compatibilité)
+        // Si c'est dÃ©jÃ  une URL complÃ¨te (pour compatibilitÃ©)
         if (filename.startsWith('http')) {
           return filename;
         }
         
-        // Sinon, c'est un nom de fichier à chercher à la racine
+        // Sinon, c'est un nom de fichier Ã  chercher Ã  la racine
         return `./${filename}`;
       }
       
@@ -4728,10 +4794,11 @@
 
     // ========== INITIALISATION ==========
     const productManager = new ProductManager();
-    window.productManager = productManager; // Pour accès global
+    window.productManager = productManager; // Pour accÃ¨s global
   </script>
 </body>
 </html>
+
 
 
 
