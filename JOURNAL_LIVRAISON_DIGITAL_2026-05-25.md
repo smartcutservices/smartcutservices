@@ -930,6 +930,78 @@ Verification technique:
 
 - Syntax check script module `DvendorProducts.html`: OK.
 
+## 2026-05-25 - Commandes multi-vendeurs et notifications vendeur
+
+Objectif:
+
+- Quand un client achete des produits de plusieurs vendeurs dans une meme commande, chaque vendeur doit voir uniquement la partie de commande qui le concerne.
+- Chaque vendeur doit recevoir une notification quand une commande contient ses produits.
+- Smart Cut et les vendeurs externes doivent pouvoir gerer leur livraison separement, sans melanger les produits ni les suivis.
+
+Ce qui existe cote backend:
+
+- `functions/index.js` contient deja `buildVendorOrderNotifications(order, sessionId)`.
+- Cette fonction groupe les articles par `vendorId`.
+- Pour chaque vendeur trouve dans la commande, elle cree une notification separee dans `notificationBroadcasts`.
+- Chaque notification contient:
+  - `type: vendor-order`,
+  - `target: user`,
+  - `targetUid: vendorId`,
+  - les informations de commande,
+  - les articles appartenant uniquement a ce vendeur,
+  - l'URL du dashboard vendeur.
+
+Ce qui existe cote dashboard vendeur:
+
+- `getVendorDashboardOrders` filtre les commandes par vendeur connecte.
+- `getRelevantVendorOrderContext` reconstruit la partie de commande propre au vendeur:
+  - articles du vendeur,
+  - livraison du vendeur,
+  - commission du vendeur,
+  - net vendeur.
+- Le dashboard vendeur ne doit donc pas afficher les articles d'un autre store.
+
+Correction appliquee cote notification:
+
+- Ajout d'une carte dans `DvendorProducts.html`:
+
+```text
+Notifications commandes vendeur
+Activer les notifications
+```
+
+- Le vendeur doit cliquer sur ce bouton depuis son telephone ou son navigateur.
+- Le navigateur demande alors la permission de notification.
+- Si le vendeur accepte, on sauvegarde:
+
+```text
+smartcut_vendor_order_notif_enabled = 1
+```
+
+- Les notifications vendeur utilisent maintenant uniquement les broadcasts de type commande vendeur.
+- Les notifications de nouveaux produits sont desactivees dans le dashboard vendeur pour eviter de melanger les alertes.
+
+Fichiers modifies:
+
+- `DvendorProducts.html`
+- `notification.js`
+- `dashboard-/DvendorProducts.html`
+- `dashboard-/notification.js`
+
+Important:
+
+- Sur telephone, une notification navigateur/PWA ne peut pas etre forcee sans action utilisateur.
+- Le vendeur doit donc ouvrir son dashboard vendeur une fois, cliquer sur `Activer les notifications`, puis accepter la permission du navigateur.
+- Ensuite, quand une commande payee contient ses produits, il recoit une notification vendeur.
+
+Verification technique:
+
+- Syntax check `notification.js`: OK.
+- Syntax check `dashboard-/notification.js`: OK.
+- Syntax check script module `DvendorProducts.html`: OK.
+- Syntax check script module `dashboard-/DvendorProducts.html`: OK.
+- Syntax check `functions/index.js`: OK.
+
 ## Correctif UX - Produit digital sans stock + bouton Smart Cut
 
 Date:

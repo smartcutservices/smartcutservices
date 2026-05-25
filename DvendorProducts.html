@@ -936,6 +936,24 @@
           </div>
         </div>
 
+        <div class="content-card mb-6" id="vendor-notification-card" style="display:none;">
+          <div class="card-body" style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+            <div style="display:flex;align-items:flex-start;gap:1rem;min-width:260px;flex:1;">
+              <div style="width:44px;height:44px;border-radius:14px;background:rgba(16,185,129,0.12);color:#047857;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+                <i class="fas fa-bell"></i>
+              </div>
+              <div>
+                <h3 style="font-size:1rem;font-weight:700;margin:0 0 .35rem;">Notifications commandes vendeur</h3>
+                <p id="vendor-notification-summary" style="margin:0;color:var(--text-secondary);line-height:1.7;">Activez les notifications pour recevoir une alerte quand une commande contient vos produits.</p>
+              </div>
+            </div>
+            <button type="button" id="vendor-enable-notifications-btn" class="btn btn-primary">
+              <i class="fas fa-bell"></i>
+              Activer les notifications
+            </button>
+          </div>
+        </div>
+
         <div class="content-card mb-6" id="vendor-service-fee-card" style="display:none;">
           <div class="card-header">
             <div>
@@ -1546,7 +1564,7 @@
     import { uploadImageFile } from './firebase-storage.js';
     import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-    import { NotificationComponent } from './notification.js';
+    import { NotificationComponent } from './notification.js?v=20260525-4';
     import { 
       getFirestore, 
       collection, 
@@ -1580,7 +1598,10 @@
     const dashboardNotifier = new NotificationComponent({
       mode: 'dashboard',
       defaultUrl: './DvendorProducts.html',
-      listenDashboardOrders: false
+      enabledStorageKey: 'smartcut_vendor_order_notif_enabled',
+      listenDashboardOrders: false,
+      listenNewProducts: false,
+      listenBroadcasts: true
     });
     dashboardNotifier.init();
     const VENDOR_SESSION_KEY = 'smartcut-vendor-session';
@@ -1657,6 +1678,7 @@
         ]);
         this.setupRealtimeListener();
         this.setupLikesListener();
+        this.updateVendorNotificationCard();
       }
 
       async consumeVendorAccessToken() {
@@ -2002,6 +2024,9 @@
             vendorPayoutsList: document.getElementById('vendor-payouts-list'),
             vendorOrdersSummary: document.getElementById('vendor-orders-summary'),
             vendorOrdersList: document.getElementById('vendor-orders-list'),
+            vendorNotificationCard: document.getElementById('vendor-notification-card'),
+            vendorNotificationSummary: document.getElementById('vendor-notification-summary'),
+            vendorEnableNotificationsBtn: document.getElementById('vendor-enable-notifications-btn'),
             vendorServiceFeeCard: document.getElementById('vendor-service-fee-card'),
             vendorServiceFeeSummary: document.getElementById('vendor-service-fee-summary'),
             vendorServiceFeeBadge: document.getElementById('vendor-service-fee-badge'),
@@ -2176,6 +2201,9 @@
         this.elements.vendorServiceFeePayBtn?.addEventListener('click', async () => {
           await this.startVendorServiceFeePayment();
         });
+        this.elements.vendorEnableNotificationsBtn?.addEventListener('click', async () => {
+          await this.enableVendorOrderNotifications();
+        });
 
         window.addEventListener('smartcut-notification', (event) => {
           const type = String(event?.detail?.data?.broadcastType || '').trim().toLowerCase();
@@ -2186,6 +2214,67 @@
           this.loadProducts();
           this.showToast('Nouvelle commande vendeur recue.', 'info');
         });
+      }
+
+      getNotificationPermissionStatus() {
+        if (!('Notification' in window)) return 'unsupported';
+        return Notification.permission || 'default';
+      }
+
+      updateVendorNotificationCard() {
+        const card = this.elements?.vendorNotificationCard;
+        const summary = this.elements?.vendorNotificationSummary;
+        const button = this.elements?.vendorEnableNotificationsBtn;
+        if (!card || !summary || !button) return;
+
+        card.style.display = '';
+        const permission = this.getNotificationPermissionStatus();
+        const enabled = localStorage.getItem('smartcut_vendor_order_notif_enabled') === '1';
+
+        if (permission === 'unsupported') {
+          summary.textContent = 'Ce navigateur ne supporte pas les notifications push.';
+          button.disabled = true;
+          button.style.display = 'none';
+          return;
+        }
+
+        if (permission === 'denied') {
+          summary.textContent = 'Les notifications sont bloquees dans ce navigateur. Activez-les dans les parametres du navigateur pour recevoir les commandes vendeur.';
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-ban"></i> Notifications bloquees';
+          return;
+        }
+
+        if (permission === 'granted' && enabled) {
+          summary.textContent = 'Notifications activees. Vous recevrez une alerte quand une commande contient vos produits.';
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-check"></i> Notifications activees';
+          return;
+        }
+
+        summary.textContent = permission === 'granted'
+          ? 'Autorisation deja accordee. Cliquez pour activer les alertes commandes vendeur sur cet appareil.'
+          : 'Activez les notifications pour recevoir une alerte sur cet appareil quand une commande contient vos produits.';
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-bell"></i> Activer les notifications';
+      }
+
+      async enableVendorOrderNotifications() {
+        const permission = await dashboardNotifier.requestPermission();
+        if (permission === 'granted') {
+          dashboardNotifier.setEnabled(true);
+          localStorage.setItem('smartcut_vendor_order_notif_enabled', '1');
+          localStorage.setItem('smartcut_vendor_order_notif_enabled_at', new Date().toISOString());
+          await dashboardNotifier.notify(
+            'Notifications vendeur activees',
+            'Vous recevrez une alerte quand une commande contient vos produits.',
+            { url: './DvendorProducts.html', tag: 'vendor_notif_enabled' }
+          );
+          this.showToast('Notifications vendeur activees sur cet appareil.', 'success');
+        } else {
+          this.showToast('Notifications non activees. Verifiez les permissions du navigateur.', 'error');
+        }
+        this.updateVendorNotificationCard();
       }
       
       setupModalEvents() {

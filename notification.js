@@ -48,6 +48,8 @@ export class NotificationComponent {
       defaultUrl: '/',
       enabledStorageKey: null,
       listenDashboardOrders: true,
+      listenNewProducts: true,
+      listenBroadcasts: true,
       ...options
     };
     this.unsubscribers = [];
@@ -71,8 +73,8 @@ export class NotificationComponent {
     if (this.options.mode === 'dashboard' && this.options.listenDashboardOrders) {
       this.listenNewOrdersForDashboard();
     } else {
-      this.listenNewProducts();
-      this.listenBroadcasts();
+      if (this.options.listenNewProducts) this.listenNewProducts();
+      if (this.options.listenBroadcasts) this.listenBroadcasts();
     }
   }
 
