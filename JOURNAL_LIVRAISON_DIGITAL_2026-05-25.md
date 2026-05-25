@@ -1029,6 +1029,52 @@ Verification technique:
 - `node --check product-page.js`: OK.
 - `node --check header.js`: OK.
 - `node --check profile-panel.js`: OK.
+
+## Correctif commission - Categorie obligatoire pour produit digital
+
+Date:
+
+- 2026-05-25
+
+Probleme observe:
+
+- Un produit digital vendeur arrivait dans le dashboard admin avec:
+  - `Categorie non definie`,
+  - `Stock 0`,
+  - commission `A definir`,
+  - source commission: `Aucune regle de categorie trouvee`.
+
+Cause exacte:
+
+- On avait separe le flow `Upload Produit Digital` pour eviter les conflits avec livraison, stock et variations.
+- Mais on avait aussi cache le tab `Categorie & attributs`.
+- Sans categorie, le dashboard admin ne pouvait pas retrouver la regle de commission liee a la categorie du produit.
+
+Correction appliquee:
+
+- Le flow digital vendeur affiche maintenant:
+  - General,
+  - Digital,
+  - Categorie & attributs,
+  - Galerie.
+- Le flow digital Smart Cut admin affiche aussi:
+  - General,
+  - Digital,
+  - Categorie & attributs,
+  - Galerie.
+- Les tabs qui restent caches pour digital:
+  - Livraison,
+  - Variations.
+- A l'enregistrement d'un produit digital vendeur, si aucune categorie n'est choisie, le systeme bloque la sauvegarde et renvoie vers `Categorie & attributs`.
+- A l'enregistrement d'un produit digital Smart Cut, si aucune categorie n'est choisie, le systeme bloque la sauvegarde et renvoie vers `Categorie & attributs`.
+- Dans le dashboard admin de revue vendeur, le stock des produits digitaux affiche maintenant `Produit digital` au lieu de `0`.
+- `dashboard-vendors.html` importe maintenant `vendors-dashboard.js?v=20260525-1` pour eviter que le navigateur garde l'ancien JS en cache.
+
+Verification technique:
+
+- Syntax check script module `DvendorProducts.html`: OK.
+- Syntax check script module dashboard `Dproducts.html`: OK.
+- `node --check vendors-dashboard.js`: OK.
 - Syntax check script module dashboard `Dproducts.html`: OK.
 
 Tests manuels a faire:

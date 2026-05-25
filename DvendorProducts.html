@@ -2262,10 +2262,10 @@
       setEditorMode(mode = 'physical') {
         this.editorMode = mode === 'digital' ? 'digital' : 'physical';
         const hiddenTabs = this.editorMode === 'digital'
-          ? ['delivery', 'category', 'variations']
+          ? ['delivery', 'variations']
           : ['digital'];
         const visibleTabs = this.editorMode === 'digital'
-          ? ['general', 'digital', 'gallery']
+          ? ['general', 'digital', 'category', 'gallery']
           : ['general', 'delivery', 'category', 'variations', 'gallery'];
 
         this.elements.sectionTabs.forEach((tab) => {
@@ -4185,6 +4185,11 @@
         if (isDigitalProduct && this.elements.isDigitalProduct) {
           this.elements.isDigitalProduct.checked = true;
           this.updateDigitalProductUi();
+        }
+        if (isDigitalProduct && !this.elements.categorySelect.value) {
+          this.showToast('Selectionnez une categorie pour appliquer la commission du produit digital.', 'error');
+          this.switchEditorTab('category');
+          return;
         }
         const deliveryCoverage = isDigitalProduct
           ? { country: 'Haiti', mode: 'digital', nationwide: false, nationwideFee: 0, zones: [] }
