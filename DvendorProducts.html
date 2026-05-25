@@ -2863,7 +2863,7 @@
                 <p class="text-sm text-text-secondary mb-2">${product.sku || 'SKU non dÃ©fini'}</p>
                 <div class="flex justify-between items-center text-sm">
                   <span>${product.price ? new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(product.price)) : 'Prix non dÃ©fini'}</span>
-                  <span class="text-text-secondary">Stock: ${totalStock}</span>
+                  <span class="text-text-secondary">${product.isDigitalProduct ? 'Produit digital' : `Stock: ${totalStock}`}</span>
                 </div>
                 <div class="flex justify-between items-center text-sm mt-2">
                   <span class="text-text-secondary">
@@ -4578,6 +4578,10 @@
 
       updateDigitalProductUi() {
         const isDigital = Boolean(this.elements.isDigitalProduct?.checked);
+        const stockField = this.elements.totalStock?.closest('div');
+        if (stockField) {
+          stockField.style.display = isDigital ? 'none' : '';
+        }
         if (isDigital) {
           if (this.elements.deliveryDelay) {
             this.elements.deliveryDelay.value = 'Instantanee';
