@@ -1239,6 +1239,42 @@ function buildVendorOrderNotifications(order = {}, sessionId = '') {
   });
 }
 
+function isSmartCutOrderItem(item = {}) {
+  const vendorId = String(item?.vendorId || '').trim();
+  const ownerType = String(item?.ownerType || '').trim().toLowerCase();
+  const sourceType = String(item?.sourceType || '').trim().toLowerCase();
+  if (vendorId || ownerType === 'vendor' || sourceType === 'vendor') return false;
+  return true;
+}
+
+function buildSmartCutOrderNotification(order = {}, sessionId = '') {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const smartCutItemCount = items
+    .filter(isSmartCutOrderItem)
+    .reduce((sum, item) => sum + Math.max(1, Number(item?.quantity || 1)), 0);
+
+  if (!smartCutItemCount) return null;
+
+  const itemLabel = smartCutItemCount > 1 ? `${smartCutItemCount} articles` : '1 article';
+  const uniqueCode = String(order?.uniqueCode || order?.id || '').trim();
+  const orderKey = String(sessionId || order?.paymentSessionId || order?.id || uniqueCode || Date.now()).trim();
+  const dashboardUrl = new URL('/dashboard-orders.html', 'https://smartcutservices.github.io/dashboard-/').toString();
+
+  return {
+    id: `smartcut-order-${orderKey}`,
+    title: 'Nouvelle commande Smart Cut',
+    body: uniqueCode
+      ? `La commande ${uniqueCode} contient ${itemLabel} Smart Cut.`
+      : `Une nouvelle commande contient ${itemLabel} Smart Cut.`,
+    type: 'smartcut-order',
+    target: 'admin',
+    targetUid: null,
+    url: dashboardUrl,
+    createdBy: 'payment_system',
+    createdAt: new Date().toISOString()
+  };
+}
+
 function createPayoutReportNumber(seed = '') {
   const date = new Date();
   const y = date.getFullYear();
@@ -2578,6 +2614,7 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       const orderData = orderSnap.data() || {};
       const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
       const vendorNotifications = !alreadyApplied ? buildVendorOrderNotifications(orderData, session.id) : [];
+      const smartCutNotification = !alreadyApplied ? buildSmartCutOrderNotification(orderData, session.id) : null;
       const promoCode = freshSessionData.promoCode && typeof freshSessionData.promoCode === 'object'
         ? freshSessionData.promoCode
         : orderData?.promoCode && typeof orderData.promoCode === 'object'
@@ -2726,6 +2763,11 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         const notificationRef = db.collection('notificationBroadcasts').doc(notification.id);
         transaction.set(notificationRef, notification, { merge: true });
       });
+
+      if (smartCutNotification) {
+        const smartCutNotificationRef = db.collection('notificationBroadcasts').doc(smartCutNotification.id);
+        transaction.set(smartCutNotificationRef, smartCutNotification, { merge: true });
+      }
     });
   } else {
     await Promise.all([

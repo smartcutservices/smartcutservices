@@ -1047,6 +1047,56 @@ Verification technique:
 - Syntax check script module `dashboard-/DvendorProducts.html`: OK.
 - Syntax check script module `dashboard-/Dproducts.html`: OK.
 
+## 2026-05-25 - Notification admin pour commandes Smart Cut
+
+Besoin:
+
+- Quand une commande contient des produits Smart Cut Services, les admins Smart Cut doivent le savoir clairement.
+- Cela doit rester separe des notifications vendeurs externes.
+- Les clients ne doivent jamais recevoir une notification admin.
+
+Solution appliquee:
+
+- Ajout de `buildSmartCutOrderNotification(order, sessionId)` dans `functions/index.js`.
+- Lorsqu'un paiement MonCash est confirme et que l'inventaire n'a pas encore ete applique, la fonction verifie les items de la commande.
+- Si au moins un item n'a pas de `vendorId` et n'est pas marque comme `vendor`, la commande est consideree comme contenant des produits Smart Cut.
+- Le backend cree alors un document dans `notificationBroadcasts` avec:
+
+```text
+type: smartcut-order
+target: admin
+title: Nouvelle commande Smart Cut
+url: https://smartcutservices.github.io/dashboard-/dashboard-orders.html
+```
+
+- `notification.js` comprend maintenant `target: admin`.
+- Seuls les composants en `mode: dashboard` peuvent recevoir ces broadcasts admin.
+- Les dashboards continuent aussi a ecouter les nouvelles commandes normales, mais ils peuvent maintenant recevoir une alerte Smart Cut specifique.
+
+Fichiers modifies:
+
+- `functions/index.js`
+- `notification.js`
+- `dashboard-/notification.js`
+- `DvendorProducts.html`
+- `dashboard-/DvendorProducts.html`
+- `dashboard-/Dproducts.html`
+- `dashboard-/Dpayment.html`
+
+Cache:
+
+- Les imports dashboard de `notification.js` passent a `v=20260525-6`.
+
+Verification technique:
+
+- `node --check functions/index.js`: OK.
+- `node --check notification.js`: OK.
+- `node --check dashboard-/notification.js`: OK.
+- Syntax check script module `DvendorProducts.html`: OK.
+- Syntax check script module `dashboard-/DvendorProducts.html`: OK.
+- Syntax check script module `dashboard-/Dproducts.html`: OK.
+- Syntax check script module `dashboard-/Dpayment.html`: OK.
+
 ## Correctif UX - Produit digital sans stock + bouton Smart Cut
 
 Date:

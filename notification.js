@@ -70,12 +70,13 @@ export class NotificationComponent {
     this.loadSeenState();
     await this.registerServiceWorker();
     this.listenAuth();
-    if (this.options.mode === 'dashboard' && this.options.listenDashboardOrders) {
-      this.listenNewOrdersForDashboard();
-    } else {
-      if (this.options.listenNewProducts) this.listenNewProducts();
+    if (this.options.mode === 'dashboard') {
+      if (this.options.listenDashboardOrders) this.listenNewOrdersForDashboard();
       if (this.options.listenBroadcasts) this.listenBroadcasts();
+      return;
     }
+    if (this.options.listenNewProducts) this.listenNewProducts();
+    if (this.options.listenBroadcasts) this.listenBroadcasts();
   }
 
   destroy() {
@@ -321,7 +322,9 @@ export class NotificationComponent {
         if (this.seenBroadcastIds.has(id)) return;
         const data = change.doc.data() || {};
         if (data.target === 'user' && !this.currentUser) return;
-        const allowed = data.target === 'all' || (this.currentUser && data.targetUid && data.targetUid === this.currentUser.uid);
+        const allowed = data.target === 'all' ||
+          (this.options.mode === 'dashboard' && data.target === 'admin') ||
+          (this.currentUser && data.targetUid && data.targetUid === this.currentUser.uid);
         if (!allowed) {
           this.seenBroadcastIds.add(id);
           this.saveSeenState();
