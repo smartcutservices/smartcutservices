@@ -1262,7 +1262,7 @@
                       <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
                         <div>
                           <h5 class="font-semibold text-text-primary">Zones et prix de livraison</h5>
-                          <p class="text-sm text-text-secondary mt-1">Ajoutez une ou plusieurs zones: pays, departement, commune et prix de livraison.</p>
+                          <p class="text-sm text-text-secondary mt-1">Ajoutez une ou plusieurs zones: pays, departement, commune, prix et delai de livraison.</p>
                         </div>
                         <button type="button" id="addProductDeliveryZoneBtn" class="btn btn-secondary btn-sm">
                           <i class="fas fa-plus"></i>
@@ -3295,7 +3295,7 @@
 
       renderProductDeliveryZoneRow(zone = {}, index = 0) {
         return `
-          <div data-product-delivery-zone="${index}" class="grid grid-cols-1 md:grid-cols-[130px_1fr_1fr_120px_auto] gap-3 items-end rounded-xl border border-[rgba(198,167,94,0.18)] bg-white p-3">
+          <div data-product-delivery-zone="${index}" class="grid grid-cols-1 md:grid-cols-[110px_1fr_1fr_110px_150px_auto] gap-3 items-end rounded-xl border border-[rgba(198,167,94,0.18)] bg-white p-3">
             <div>
               <label class="block text-sm text-text-secondary mb-1">Pays</label>
               <select data-product-zone-field="country" class="form-input">
@@ -3318,6 +3318,10 @@
               <label class="block text-sm text-text-secondary mb-1">Prix HTG</label>
               <input data-product-zone-field="fee" type="number" min="0" step="1" value="${Number(zone.fee || 0) || ''}" class="form-input" placeholder="500">
             </div>
+            <div>
+              <label class="block text-sm text-text-secondary mb-1">Delai</label>
+              <input data-product-zone-field="deliveryDelay" type="text" value="${this.escape(zone.deliveryDelay || zone.delay || '')}" class="form-input" placeholder="24-48h">
+            </div>
             <button type="button" data-remove-product-delivery-zone class="btn btn-secondary btn-sm text-danger">
               Retirer
             </button>
@@ -3330,7 +3334,7 @@
         if (!list) return;
         const normalizedZones = Array.isArray(zones) && zones.length
           ? zones
-          : [{ country: 'Haiti', department: '', commune: '', fee: '' }];
+          : [{ country: 'Haiti', department: '', commune: '', fee: '', deliveryDelay: '' }];
         list.innerHTML = normalizedZones.map((zone, index) => this.renderProductDeliveryZoneRow(zone, index)).join('');
         this.bindProductDeliveryZoneEvents();
       }
@@ -3367,7 +3371,8 @@
             country: row.querySelector('[data-product-zone-field="country"]')?.value || 'Haiti',
             department: row.querySelector('[data-product-zone-field="department"]')?.value || '',
             commune: row.querySelector('[data-product-zone-field="commune"]')?.value || '',
-            fee: Number(row.querySelector('[data-product-zone-field="fee"]')?.value || 0)
+            fee: Number(row.querySelector('[data-product-zone-field="fee"]')?.value || 0),
+            deliveryDelay: row.querySelector('[data-product-zone-field="deliveryDelay"]')?.value?.trim() || ''
           }))
           .filter((zone) => zone.country && zone.department && zone.commune && Number.isFinite(zone.fee) && zone.fee >= 0);
         return {

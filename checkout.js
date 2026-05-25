@@ -229,7 +229,14 @@ class CheckoutModal {
     if (coverage.nationwide && zones.length === 0) {
       const coverageCountry = String(coverage.country || 'Haiti').trim() || 'Haiti';
       if (coverageCountry !== country) return null;
-      return { country, department: 'Tout Haiti', commune: 'Tout Haiti', fee: Number(coverage.nationwideFee || 0), nationwide: true };
+      return {
+        country,
+        department: 'Tout Haiti',
+        commune: 'Tout Haiti',
+        fee: Number(coverage.nationwideFee || 0),
+        deliveryDelay: String(coverage.deliveryDelay || '').trim(),
+        nationwide: true
+      };
     }
     return (Array.isArray(zones) ? zones : []).find((zone) => (
       String(zone.country || 'Haiti').trim() === country
@@ -329,7 +336,7 @@ class CheckoutModal {
     if (!zone) return `Livraison indisponible a ${commune}.`;
     const qty = Math.max(1, Number(item.quantity) || 1);
     const fee = Number(zone.fee || 0) * qty;
-    const delay = String(item?.deliveryDelay || '').trim();
+    const delay = String(zone?.deliveryDelay || zone?.delay || item?.deliveryDelay || '').trim();
     return `Livraison ${commune}: ${this.formatPrice(fee)}${delay ? ` - Delai: ${delay}` : ''}`;
   }
 
@@ -1405,7 +1412,7 @@ class CheckoutModal {
         productId: group.productId,
         productName: group.productName,
         quantity: group.quantity,
-        deliveryDelay: group.deliveryDelay || '',
+        deliveryDelay: String(zone?.deliveryDelay || zone?.delay || group.deliveryDelay || '').trim(),
         zone: zone || null,
         fee: Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1),
         unitFee: Number(zone?.fee || 0)

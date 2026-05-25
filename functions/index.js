@@ -717,7 +717,8 @@ function normalizeDeliveryZoneList(zones = []) {
           country: String(zone?.country || 'Haiti').trim() || 'Haiti',
           department: String(zone?.department || '').trim(),
           commune: String(zone?.commune || '').trim(),
-          fee: Math.max(0, toNumber(zone?.fee))
+          fee: Math.max(0, toNumber(zone?.fee)),
+          deliveryDelay: String(zone?.deliveryDelay || zone?.delay || '').trim()
         }))
         .filter((zone) => zone.country && zone.department && zone.commune)
     : [];
@@ -944,7 +945,8 @@ function findProductDeliveryZoneForAddress(item = {}, delivery = {}) {
       country,
       department,
       commune,
-      fee: Math.max(0, toNumber(coverage?.nationwideFee))
+      fee: Math.max(0, toNumber(coverage?.nationwideFee)),
+      deliveryDelay: String(coverage?.deliveryDelay || '').trim()
     };
   }
 
@@ -993,7 +995,7 @@ function buildServerProductDeliveryDetails(items = [], delivery = {}) {
         productId: String(item?.productId || '').trim(),
         productName: String(item?.name || 'Produit').trim(),
         quantity,
-        deliveryDelay: String(item?.deliveryDelay || '').trim(),
+        deliveryDelay: String(zone?.deliveryDelay || zone?.delay || item?.deliveryDelay || '').trim(),
         zone,
         fee: unitFee * quantity,
         unitFee
