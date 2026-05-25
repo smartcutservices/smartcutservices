@@ -816,7 +816,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260524-7');
+      const module = await import('./checkout.js?v=20260525-1');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -2007,7 +2007,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js?v=20260524-7')
+    import('./product-modal.js?v=20260525-1')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {

@@ -187,6 +187,65 @@ class CheckoutModal {
       || String(item?.deliveryMode || '').toLowerCase().includes('digital');
   }
 
+  getCartProductCollection(item) {
+    const sourceCollection = String(item?.sourceCollection || '').trim().toLowerCase();
+    const sourceType = String(item?.sourceType || '').trim().toLowerCase();
+    const vendorId = String(item?.vendorId || '').trim();
+    return vendorId || sourceCollection === 'vendorproducts' || sourceType.includes('vendor')
+      ? 'vendorProducts'
+      : 'products';
+  }
+
+  needsDeliveryHydration(item) {
+    if (!item?.productId || this.isDigitalCartItem(item)) return false;
+    const coverageZones = Array.isArray(item?.productDeliveryCoverage?.zones)
+      ? item.productDeliveryCoverage.zones
+      : (Array.isArray(item?.deliveryCoverage?.zones) ? item.deliveryCoverage.zones : []);
+    const itemZones = Array.isArray(item?.productDeliveryZones)
+      ? item.productDeliveryZones
+      : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []);
+    return !coverageZones.length && !itemZones.length;
+  }
+
+  async enrichCartDeliveryData() {
+    const itemsToHydrate = this.cart.filter((item) => this.needsDeliveryHydration(item));
+    if (!itemsToHydrate.length) return;
+
+    await Promise.all(itemsToHydrate.map(async (item) => {
+      try {
+        const collectionName = this.getCartProductCollection(item);
+        const snap = await getDoc(doc(db, collectionName, String(item.productId)));
+        if (!snap.exists()) return;
+
+        const product = snap.data() || {};
+        const coverage = product.deliveryCoverage || product.productDeliveryCoverage || null;
+        const zones = Array.isArray(coverage?.zones) && coverage.zones.length
+          ? coverage.zones
+          : (Array.isArray(product.deliveryZones) && product.deliveryZones.length
+            ? product.deliveryZones
+            : (Array.isArray(product.productDeliveryZones) ? product.productDeliveryZones : []));
+
+        item.productDeliveryCoverage = coverage;
+        item.deliveryCoverage = coverage;
+        item.productDeliveryZones = zones;
+        item.deliveryZones = zones;
+        item.vendorDeliveryCoverage = item.vendorDeliveryCoverage || coverage;
+        item.vendorDeliveryZones = Array.isArray(item.vendorDeliveryZones) && item.vendorDeliveryZones.length
+          ? item.vendorDeliveryZones
+          : zones;
+        item.weightGrams = Number(item.weightGrams || item.weight || product.weightGrams || product.weight || 0);
+        item.deliveryDelay = String(item.deliveryDelay || product.deliveryDelay || '').trim();
+        item.isDigitalProduct = Boolean(item.isDigitalProduct || product.isDigitalProduct);
+        item.digitalDownloadLink = String(item.digitalDownloadLink || product.digitalDownloadLink || '').trim();
+      } catch (error) {
+        console.warn('[CHECKOUT_DELIVERY] Impossible de charger les zones produit', {
+          productId: item?.productId || '',
+          message: error?.message || String(error)
+        });
+      }
+    }));
+  }
+
   getProductDeliveryGroups() {
     return this.cart.map((item, index) => {
       const vendorId = String(item?.vendorId || '').trim();
@@ -1067,6 +1126,7 @@ class CheckoutModal {
 
   async initDelivery() {
     try {
+      await this.enrichCartDeliveryData();
       await this.loadDeliverySettings();
       await this.loadDeliveryData();
       this.refreshDeliverySection();
