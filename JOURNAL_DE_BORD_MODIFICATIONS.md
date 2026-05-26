@@ -477,3 +477,469 @@ Fichiers mis a jour:
 Etat GitHub:
 
 - Aucun push n'a ete fait.
+
+## Mise a jour modal Espace profil
+
+Date: 19 mai 2026
+
+Objectif:
+
+- Ajouter un bouton `Informations personnelles` dans la modal `Espace profil`.
+- Quand l'utilisateur clique dessus, cacher le contenu habituel du compte.
+- Afficher une vue dediee avec les informations personnelles du client.
+- Ajouter une fleche retour en haut pour revenir a la vue normale de l'espace compte.
+- Ajouter un bouton pour changer le mot de passe.
+
+Fichier modifie:
+
+- `profile-panel.js`
+- `.tmp-main-cleancopy/profile-panel.js`
+
+Informations affichees dans la nouvelle vue:
+
+- Username
+- Nom
+- Prenom
+- Date de naissance
+- Email
+- Telephone
+- Adresse principale
+- Nombre d'adresses sauvegardees
+
+Comportement ajoute:
+
+- Le bouton `Informations personnelles` passe la modal en vue personnelle.
+- La fleche gauche `Retour` ramene la modal vers la vue compte normale.
+- Le bouton `Changer mon mot de passe` envoie un email Firebase de reinitialisation/changement de mot de passe a l'adresse email du compte connecte.
+
+Verification:
+
+```powershell
+node --check profile-panel.js
+node --check .tmp-main-cleancopy\profile-panel.js
+```
+
+Resultat:
+
+- Les deux checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette modification.
+
+## Correctifs et edition des informations personnelles
+
+Date: 19 mai 2026
+
+Probleme signale:
+
+- Dans la vue `Informations personnelles`, les champs `Nom`, `Prenom`, `Date de naissance` ne s'affichaient pas.
+- Le nombre d'adresses sauvegardees affichait `0`.
+
+Cause identifiee:
+
+- `profile-panel.js` lisait principalement les donnees depuis `cartManager.currentClient`.
+- Dans `cart.js`, quand le client etait recharge depuis Firestore, l'objet `currentClient` etait reconstruit avec seulement quelques champs:
+- `name`
+- `email`
+- `phone`
+- `address`
+- `city`
+
+Consequence:
+
+- Les champs plus recents comme `firstName`, `lastName`, `birthDate`, `addresses`, `department`, `commune` etaient perdus localement meme s'ils existaient dans Firestore.
+
+Correctifs appliques:
+
+- `cart.js` conserve maintenant tous les champs existants du document client Firestore grace a la preservation de `...existing`.
+- `profile-panel.js` charge directement le document `clients/{uid}` depuis Firestore avec `ensureProfileClientLoaded`.
+- Quand les informations personnelles sont ouvertes, la vue se recharge apres lecture Firestore pour afficher les donnees les plus completes.
+- `profile-panel.js` synchronise aussi `cartManager.currentClient` avec les donnees completes chargees depuis Firestore.
+
+Nouvelle fonctionnalite ajoutee:
+
+- L'utilisateur peut maintenant modifier ses informations personnelles depuis la modal.
+
+Champs modifiables:
+
+- Username
+- Nom
+- Prenom
+- Numero de telephone
+- Adresse principale
+- Departement
+- Commune
+
+Comportement de sauvegarde:
+
+- Les modifications sont sauvegardees dans Firestore dans `clients/{uid}`.
+- Le `displayName` Firebase est mis a jour avec le username.
+- L'adresse principale est mise a jour dans:
+- `address`
+- `country`
+- `department`
+- `commune`
+- `city`
+- `addresses`
+- `defaultDeliveryAddressId`
+
+Details techniques:
+
+- Ajout de `setDoc` dans `profile-panel.js`.
+- Ajout de `updateProfile` Firebase Auth dans `profile-panel.js`.
+- Ajout d'une liste locale des departements/communes d'Haiti dans `profile-panel.js` pour editer l'adresse proprement.
+- Ajout d'un mode edition controle par `isEditingPersonalInfo`.
+- Ajout d'un formulaire `profile-personal-form`.
+- Ajout du bouton `Modifier mes informations`.
+- Ajout du bouton `Annuler`.
+- Ajout de la validation des champs obligatoires avant sauvegarde.
+
+Fichiers modifies:
+
+- `profile-panel.js`
+- `cart.js`
+- `.tmp-main-cleancopy/profile-panel.js`
+- `.tmp-main-cleancopy/cart.js`
+
+Verification:
+
+```powershell
+node --check profile-panel.js
+node --check cart.js
+node --check .tmp-main-cleancopy\profile-panel.js
+node --check .tmp-main-cleancopy\cart.js
+```
+
+Resultat:
+
+- Tous les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour ces derniers correctifs.
+
+## Plans vendeur avant candidature
+
+Date: 19 mai 2026
+
+Objectif:
+
+- Avant de voir le formulaire de candidature vendeur, un utilisateur connecte qui n'est pas deja vendeur doit choisir entre deux plans.
+- Le choix du plan est sauvegarde avec la candidature.
+- L'admin doit pouvoir modifier le prix du Plan PRO a tout moment.
+
+Plans ajoutes:
+
+- `BASIC`
+- Gratuit
+- Pour tous les vendeurs
+- Mise en ligne de 5 produits
+- Acces au tableau de bord vendeur
+- Gestion des commandes
+- Paiement via MonCash / NatCash / Carte bancaire
+- Support standard reponse sous 24-48h
+- Request payment tous les 30 jours par defaut
+
+- `PRO`
+- Prix par defaut: `1750 HTG`
+- Payable via MonCash / NatCash
+- Pour vendeurs actifs qui veulent plus de visibilite
+- Tout du Plan Basic
+- Mise en ligne illimitee de produits
+- Badge Vendeur Verifie
+- Position amelioree dans les recherches
+- Paiement via MonCash / NatCash / Carte bancaire
+- Statistiques de ventes avancees
+- Support prioritaire reponse sous 12h
+- Request payment tous les 30 jours par defaut
+
+Fichiers modifies:
+
+- `vendor-application.js`
+- `.tmp-main-cleancopy/vendor-application.js`
+- `.tmp-dashboard-sync/vendors-dashboard.js`
+
+Donnees sauvegardees avec la candidature:
+
+- `planId`
+- `planLabel`
+- `planPrice`
+- `planCurrency`
+- `planPaymentRequired`
+- `planPaymentStatus`
+- `payoutRequestIntervalDays`
+
+Reglage admin ajoute:
+
+- Collection/document Firestore: `vendorPlanSettings/main`
+- `proPrice`
+- `currency`
+- `payoutDelayDays`
+
+Dans le dashboard admin vendeur, une section permet maintenant de modifier:
+
+- Prix du Plan PRO
+- Devise
+- Nombre de jours entre chaque request payment
+
+Quand une candidature est approuvee, le profil vendeur dans `vendors/{vendorId}` conserve aussi les informations de plan.
+
+Verification:
+
+```powershell
+node --check vendor-application.js
+node --check .tmp-main-cleancopy\vendor-application.js
+node --check .tmp-dashboard-sync\vendors-dashboard.js
+```
+
+Resultat:
+
+- Tous les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
+
+## 2026-05-26 - Nettoyage definitif du formulaire vendeur
+
+Contexte:
+
+- Le formulaire pour devenir vendeur avait accumule trop de champs au fil des iterations: zones de livraison, KYC, champs entreprise, reseaux sociaux et autres informations qui ne doivent plus etre demandees au moment de la candidature.
+- La livraison se definit maintenant par produit, pas dans la candidature vendeur.
+- Le KYC a ete abandonne pour ce formulaire.
+
+Champs conserves dans `vendor-application.js`:
+
+- `Nom complet`
+- `Email`
+- `Telephone`
+- `Adresse`
+- `Ville`
+- `Identification` avec options `CIN`, `NIF`, `Licence`, `Passeport`
+- `Numero`
+- `Nom de la boutique`
+- `Banque` avec options `UNIBANK`, `SOGEBANK`, `BNC`, `CAPITAL BANK`, `BUH`
+- `Devise` avec options `Gourdes`, `USD`
+- `Nom du compte`
+- `Numero du compte`
+- `Presentation de votre activite`
+
+Changements effectues:
+
+- `mergeRequiredVendorFields()` force maintenant cette liste officielle, meme si l ancienne configuration Firestore contient encore d anciens champs.
+- Les anciennes fonctions de zones de livraison de candidature vendeur ont ete retirees de `vendor-application.js`.
+- Le payload conserve une livraison par produit par defaut (`mode: per_product`, zones vides) pour rester compatible avec la logique checkout actuelle.
+- Le fichier `vendor-application.html` charge maintenant `vendor-application.js?v=20260526-1` pour eviter que le navigateur serve l ancienne version.
+
+Verification:
+
+```powershell
+node --check vendor-application.js
+```
+
+Resultat:
+
+- Check syntaxe OK.
+- Les champs livraison/KYC ne sont plus dans le formulaire vendeur.
+
+## Correction identite client dans dashboard admin et commandes
+
+Date: 19 mai 2026
+
+Objectif:
+
+- Eviter que le nom utilisateur remplace le vrai nom client dans le dashboard admin.
+- Afficher les informations du formulaire inscription dans la fiche client admin.
+- Faire monter dans les commandes: Nom, Prenom, Email, Adresse.
+
+Cause trouvee:
+
+- `profile-panel.js` sauvegardait `name` avec la valeur du username.
+- Le dashboard admin utilisait `client.name` et `order.customerName` avant `firstName` / `lastName`.
+
+Corrections appliquees:
+
+- `profile-panel.js`: `name` redevient `Prenom Nom`; le username est sauvegarde separement dans `username` et `displayName`.
+- `cart.js`: les commandes manuelles sauvegardent maintenant `customerFirstName`, `customerLastName`, `customerUsername`.
+- `payment.js`: les commandes MonCash et paiements manuels envoient aussi `customerFirstName` et `customerLastName`.
+- `functions/index.js`: les commandes MonCash stockent `customerFirstName` et `customerLastName`.
+- `Dpayment.html`: la fiche client admin affiche Nom, Prenom, Nom utilisateur, Email, Telephone, Date naissance, Adresse, nombre d adresses, commandes et total depense.
+- `Dpayment.html`: la table commandes, details commande et PDF admin utilisent `Nom + Prenom` avant username.
+- `dashboard-orders.js`: le module commandes separe utilise aussi `Nom + Prenom`, Email et Adresse reelle.
+
+Verification:
+
+```powershell
+node --check cart.js
+node --check payment.js
+node --check profile-panel.js
+node --check functions\index.js
+node --check dashboard-orders.js
+```
+
+Resultat:
+
+- Les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
+
+## Frais de service mensuel vendeur
+
+Date: 19 mai 2026
+
+Objectif:
+
+- Ajouter un module admin `Frais de service mensuel`.
+- Permettre a l admin de demander le paiement mensuel d un store abonne.
+- Suspendre automatiquement le store tant que le frais mensuel n est pas paye.
+- Reactiver automatiquement le store apres paiement confirme.
+- Afficher le paiement dans le dashboard vendeur avec date, heure et methode.
+
+Fichiers modifies:
+
+- `.tmp-dashboard-sync/vendors-dashboard.js`
+- `.tmp-main-cleancopy/DvendorProducts.html`
+- `.tmp-main-cleancopy/functions/index.js`
+- `.tmp-main-cleancopy/moncash/return/moncash-return.js`
+- `.tmp-main-cleancopy/catalog-products.js`
+- `DvendorProducts.html`
+- `functions/index.js`
+- `moncash/return/moncash-return.js`
+- `catalog-products.js`
+
+Comportement admin ajoute:
+
+- Nouvelle section `Frais mensuel` dans le dashboard vendeurs.
+- Liste des stores avec abonnement mensuel.
+- Bouton `Request frais de service mensuel`.
+- Si le store a deja paye son cycle courant, le bouton reste bloque jusqu aux 30 jours suivants.
+- Si le store n a pas paye, le message `Request payment for this store` apparait en rouge.
+- L admin voit le montant, le statut store, la date de paiement, la methode et la prochaine echeance.
+- Bouton `Marquer paye` disponible pour confirmer manuellement NatCash ou Carte bancaire si necessaire.
+
+Comportement vendeur ajoute:
+
+- Carte `Frais de service mensuel` dans le dashboard vendeur.
+- Le vendeur voit montant, dernier paiement, prochaine echeance et methode.
+- Si le store est suspendu, un message rouge explique que le paiement est requis.
+- Le vendeur peut choisir MonCash, NatCash ou Carte bancaire.
+- MonCash lance un paiement securise et reactive le store apres verification serveur.
+- NatCash / Carte bancaire enregistrent une demande de verification admin.
+- Les produits d un store suspendu sont marques `vendorServiceFeeStatus: suspended` et ne sont plus visibles dans le catalogue public.
+
+Backend ajoute:
+
+- `requestVendorServiceFee`
+- `getVendorServiceFeeStatus`
+- `startVendorServiceFeePayment`
+
+Collections Firestore utilisees:
+
+- `vendorServiceFees`
+- `vendors`
+- `clients`
+- `paymentSessions`
+
+Regle business:
+
+- Cycle de paiement: 30 jours.
+- Store non paye: `suspended_service_fee`.
+- Store paye: `active`.
+- Prochaine echeance: `paidAt + 30 jours`.
+
+Verification:
+
+```powershell
+node --check functions\index.js
+node --check vendors-dashboard.js
+node --check moncash\return\moncash-return.js
+```
+
+Resultat:
+
+- Les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
+
+## Verification KYC vendeur
+
+Date: 19 mai 2026
+
+Objectif:
+
+- Ajouter une verification KYC dans le formulaire pour devenir vendeur.
+- Permettre au vendeur de telecharger sa carte d'identite.
+- Demander obligatoirement le recto et le verso.
+- Preparer les informations qui pourront etre demandees par Stripe.
+
+Fichiers modifies:
+
+- `vendor-application.js`
+- `.tmp-main-cleancopy/vendor-application.js`
+
+Comportement ajoute:
+
+- Un bloc `Verification KYC` apparait dans le formulaire vendeur.
+- Le bouton `Faire la verification KYC` ouvre une modal full screen.
+- La modal demande:
+- `Recto *`
+- `Verso *`
+
+Formats acceptes:
+
+- JPG
+- PNG
+- WEBP
+- PDF
+
+Stockage:
+
+- Les documents sont uploades dans Firebase Storage.
+- Chemin utilise:
+
+```text
+vendor-kyc/{uid}/recto
+vendor-kyc/{uid}/verso
+```
+
+Donnees sauvegardees avec la candidature:
+
+- `kycStatus`
+- `kycDocuments.recto`
+- `kycDocuments.verso`
+
+Chaque document KYC contient:
+
+- `side`
+- `url`
+- `path`
+- `name`
+- `originalName`
+- `contentType`
+- `size`
+- `uploadedAt`
+
+Validation:
+
+- Le formulaire vendeur ne peut pas etre envoye si le recto ou le verso manque.
+- La modal affiche une erreur si le format est invalide ou si un upload echoue.
+
+Verification:
+
+```powershell
+node --check vendor-application.js
+node --check .tmp-main-cleancopy\vendor-application.js
+```
+
+Resultat:
+
+- Les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
