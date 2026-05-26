@@ -930,6 +930,55 @@ Verification technique:
 
 - Syntax check script module `DvendorProducts.html`: OK.
 
+## 2026-05-25 - Profil client: afficher tous les produits d'une commande multi-store
+
+Probleme observe:
+
+- Le client achete plusieurs produits dans un meme paiement, par exemple un produit Smart Cut et un produit vendeur.
+- Le PDF contient bien tous les produits.
+- Chaque store recoit bien sa partie de commande.
+- Mais dans l'espace profil client, la carte commande ne montrait pas clairement tous les produits achetes.
+- Cela donnait l'impression qu'un seul produit etait monte dans le profil.
+
+Correction appliquee:
+
+- Ajout de `renderOrderProductsSummary(orderItems, colors)` dans `cart.js`.
+- Chaque carte commande affiche maintenant une section:
+
+```text
+Produits commandes (N)
+```
+
+- Les produits sont groupes par store:
+  - Smart Cut Services,
+  - nom du vendeur si `vendorName` existe.
+- Pour chaque produit, le profil montre:
+  - image,
+  - nom produit,
+  - SKU,
+  - quantite,
+  - type digital si applicable,
+  - options,
+  - total ligne.
+
+Important:
+
+- Le compteur `Mes commandes (1)` reste normal quand le client a fait un seul paiement global.
+- La difference est que la commande affiche maintenant tous les articles contenus dans ce paiement.
+
+Cache:
+
+- `index.html` passe a `ASSET_VERSION = 20260525-6`.
+- `product.html` passe a `ASSET_VERSION = 20260525-6`.
+- `header.js` importe `cart.js?v=20260525-6` et `profile-panel.js?v=20260525-6`.
+- `profile-panel.js` importe `cart.js?v=20260525-6`.
+
+Verification technique:
+
+- `node --check cart.js`: OK.
+- `node --check profile-panel.js`: OK.
+- `node --check header.js`: OK.
+
 ## 2026-05-25 - Commandes multi-vendeurs et notifications vendeur
 
 Objectif:

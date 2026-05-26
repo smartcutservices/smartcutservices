@@ -2173,6 +2173,118 @@ class CartManager {
       </div>
     `;
   }
+
+  renderOrderProductsSummary(orderItems, colors) {
+    const items = Array.isArray(orderItems) ? orderItems : [];
+    if (!items.length) return '';
+
+    const grouped = new Map();
+    items.forEach((item) => {
+      const storeName = String(item.vendorName || item.storeName || item.shopName || '').trim() || 'Smart Cut Services';
+      if (!grouped.has(storeName)) grouped.set(storeName, []);
+      grouped.get(storeName).push(item);
+    });
+
+    return `
+      <div style="
+        margin: 0.75rem 0;
+        padding: 0.75rem;
+        border: 1px solid ${colors.background.button}18;
+        border-radius: 0.75rem;
+        background: ${colors.background.general}66;
+        display: grid;
+        gap: 0.75rem;
+      ">
+        <strong style="
+          color: ${colors.text.title};
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 0.9rem;
+        ">
+          <i class="fas fa-box-open" style="color:${colors.icon.hover};"></i>
+          Produits commandés (${items.length})
+        </strong>
+
+        ${Array.from(grouped.entries()).map(([storeName, storeItems]) => `
+          <div style="display:grid;gap:0.55rem;">
+            <div style="
+              color:${colors.text.body};
+              font-size:0.78rem;
+              font-weight:800;
+              letter-spacing:0.08em;
+              text-transform:uppercase;
+            ">${this.escapeHtml(storeName)}</div>
+            ${storeItems.map((item) => {
+              const imagePath = this.getImagePath(item.image || '');
+              const itemTotal = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+              const options = this.getCustomerVisibleOptions(item.selectedOptions || []);
+              return `
+                <div style="
+                  display:grid;
+                  grid-template-columns:48px 1fr auto;
+                  gap:0.7rem;
+                  align-items:center;
+                  background:${colors.background.card};
+                  border:1px solid ${colors.background.button}14;
+                  border-radius:0.7rem;
+                  padding:0.55rem;
+                ">
+                  <div style="
+                    width:48px;
+                    height:48px;
+                    border-radius:0.55rem;
+                    overflow:hidden;
+                    background:${colors.background.general};
+                    border:1px solid ${colors.background.button}16;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    color:${colors.text.body};
+                  ">
+                    ${imagePath ? `<img src="${this.escapeHtml(imagePath)}" alt="${this.escapeHtml(item.name || 'Produit')}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas fa-image\\'></i>'">` : `<i class="fas fa-image"></i>`}
+                  </div>
+                  <div style="min-width:0;">
+                    <div style="
+                      color:${colors.text.title};
+                      font-weight:800;
+                      font-size:0.88rem;
+                      line-height:1.35;
+                      overflow-wrap:anywhere;
+                    ">${this.escapeHtml(item.name || 'Produit')}</div>
+                    <div style="
+                      margin-top:0.2rem;
+                      color:${colors.text.body};
+                      font-size:0.76rem;
+                      display:flex;
+                      flex-wrap:wrap;
+                      gap:0.35rem 0.55rem;
+                    ">
+                      ${item.sku ? `<span>SKU: ${this.escapeHtml(item.sku)}</span>` : ''}
+                      <span>Qté: ${Number(item.quantity) || 1}</span>
+                      ${item.isDigitalProduct ? '<span>Digital</span>' : ''}
+                    </div>
+                    ${options.length ? `
+                      <div style="margin-top:0.25rem;color:${colors.text.body};font-size:0.72rem;">
+                        Options: ${options.map((opt) => this.escapeHtml(opt.value || opt)).join(', ')}
+                      </div>
+                    ` : ''}
+                  </div>
+                  <div style="
+                    color:${colors.text.title};
+                    font-weight:900;
+                    font-size:0.82rem;
+                    white-space:nowrap;
+                    text-align:right;
+                  ">${this.formatPrice(itemTotal)}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
   
   renderOrderItem(order, colors, fonts) {
     const statusColor = this.getStatusColor(order.status);
@@ -2229,6 +2341,8 @@ class CartManager {
           <span>•</span>
           <span>Code: ${order.uniqueCode || order.id || 'N/A'}</span>
         </div>
+
+        ${this.renderOrderProductsSummary(orderItems, colors)}
 
         ${this.renderFulfillmentTracker(order, colors)}
 
