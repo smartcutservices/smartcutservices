@@ -11,6 +11,7 @@ import {
   ensureValidPaperSelection,
   ensureValidDimensionSelection
 } from './printing-config-utils.js';
+import { PrintingDeliveryController } from './printing-delivery-utils.js';
 
 const PHOTO_DIMENSIONS = [
   { label: '4x5', enabled: true, price: 15 },
@@ -66,12 +67,23 @@ class PrintingPhotoPage {
       copies: 1
     };
     this.cart = getCartManager({ imageBasePath: './' });
+    this.deliveryController = new PrintingDeliveryController({
+      getContainer: () => this.container,
+      escape: (value) => this.escape(value),
+      formatPrice: (value) => this.formatPrice(value),
+      onChange: () => {
+        this.render();
+        this.attachEvents();
+        this.refreshQuote();
+      }
+    });
     if (!this.container) return;
     this.init();
   }
 
   async init() {
     await this.loadConfig();
+    await this.deliveryController.init();
     this.render();
     this.attachEvents();
   }
@@ -260,8 +272,11 @@ class PrintingPhotoPage {
           <div class="printing-quiz-summary-row"><span>Prix par image</span><strong>${this.formatPrice(quote.pricePerImage)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Prix par tirage</span><strong id="photoQuoteUnit">${this.formatPrice(quote.printUnitPrice)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Tirages</span><strong id="photoQuoteCopies">${quote.copies}</strong></div>
-          <div class="printing-quiz-summary-total"><span>Total</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Total impression</span><strong id="photoPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Frais reception</span><strong id="photoDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
+          <div class="printing-quiz-summary-total"><span>Total a payer</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
         </div>
+        ${this.deliveryController.renderSection()}
         ${this.config.notes ? `<div class="printing-quiz-note">${this.escape(this.config.notes)}</div>` : ''}
         <div class="printing-quiz-actions">
           <button type="button" class="printing-quiz-btn ghost" data-prev-step="2">Modifier mes choix</button>
@@ -371,6 +386,7 @@ class PrintingPhotoPage {
       await this.handleSubmit();
     });
     this.container.querySelector('#openCartFromPhoto')?.addEventListener('click', () => document.dispatchEvent(new CustomEvent('openCart')));
+    this.deliveryController.bind();
   }
 
   async handleImageSelection(file) {
@@ -414,10 +430,14 @@ class PrintingPhotoPage {
     const copiesEl = this.container.querySelector('#photoQuoteCopies');
     const unitEl = this.container.querySelector('#photoQuoteUnit');
     const totalEl = this.container.querySelector('#photoQuoteTotal');
+    const printTotalEl = this.container.querySelector('#photoPrintTotal');
+    const deliveryFeeEl = this.container.querySelector('#photoDeliveryFee');
     const nextButton = this.container.querySelector('[data-next-step="3"]');
     if (copiesEl) copiesEl.textContent = String(quote.copies);
     if (unitEl) unitEl.textContent = this.formatPrice(quote.printUnitPrice);
-    if (totalEl) totalEl.textContent = this.formatPrice(quote.totalPrice);
+    if (printTotalEl) printTotalEl.textContent = this.formatPrice(quote.totalPrice);
+    if (deliveryFeeEl) deliveryFeeEl.textContent = this.formatPrice(this.deliveryController.getFee());
+    if (totalEl) totalEl.textContent = this.formatPrice(quote.totalPrice + this.deliveryController.getFee());
     if (nextButton) nextButton.disabled = !this.getStepValidity(2) || this.config.enabled === false;
   }
 
@@ -436,19 +456,34 @@ class PrintingPhotoPage {
       if (statusEl) statusEl.textContent = 'Choisissez une dimension et un papier.';
       return;
     }
+    if (!this.deliveryController.isValid()) {
+      if (statusEl) {
+        statusEl.textContent = 'Choisissez un point de retrait ou une zone de livraison disponible.';
+        statusEl.style.color = '#b91c1c';
+      }
+      return;
+    }
 
     try {
       this.isBusy = true;
       if (statusEl) statusEl.textContent = 'Upload image et ajout au panier...';
       const uploaded = await uploadImageFile(this.file, 'printing-photo', { maxSizeMb: 20 });
+      const deliveryPayload = this.deliveryController.getCartPayload();
+      const deliveryFee = Number(deliveryPayload.fee || 0);
+      const payableTotal = quote.totalPrice + deliveryFee;
       document.dispatchEvent(new CustomEvent('addToCart', {
         detail: {
           productId: 'printing-photo',
           name: `Impression photo ${dimensionLabel}`,
-          price: quote.totalPrice,
+          price: payableTotal,
           quantity: 1,
           sku: `PHOTO-${Date.now()}`,
           image: PRODUCT_IMAGE,
+          sourceType: 'printing',
+          deliveryMode: deliveryPayload.method === 'pickup' ? 'Impression - point de retrait' : 'Impression - livraison a domicile',
+          deliveryCoverage: { country: 'Haiti', mode: 'printing_prepaid', nationwide: true, nationwideFee: 0, zones: [] },
+          productDeliveryCoverage: { country: 'Haiti', mode: 'printing_prepaid', nationwide: true, nationwideFee: 0, zones: [] },
+          printingDelivery: deliveryPayload,
           selectedOptions: [
             { label: 'Type de papier', value: paperLabel },
             { label: 'Dimension', value: dimensionLabel },
@@ -457,6 +492,8 @@ class PrintingPhotoPage {
             { label: 'Prix / image', value: this.formatPrice(quote.pricePerImage) },
             { label: 'Prix par tirage', value: this.formatPrice(quote.printUnitPrice) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
+            ...this.deliveryController.getSummaryLines(),
+            { label: 'Total a payer', value: this.formatPrice(payableTotal) },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },
             { label: 'Chemin storage', value: uploaded.path }

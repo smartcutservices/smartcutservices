@@ -1,15 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <link rel="icon" href="/ico/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="/ico/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/ico/favicon-16x16.png">
-  <link rel="apple-touch-icon" href="/ico/apple-touch-icon.png">
-  <link rel="manifest" href="/ico/site.webmanifest">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Smart Cut">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="msapplication-TileColor" content="#1F1E1C">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#1F1E1C">
@@ -46,7 +37,7 @@
       }
     };
     mount('sierra-header-root', () => import('./header.js'));
-    mount('printing-cad-root', () => import('./printing-cad.js'));
+    mount('printing-cad-root', () => import('./printing-cad.js?v=20260528-1'));
     mount('sierra-footer-root', () => import('./footer.js'), {
       imageBasePath: './',
       showSocial: true,
@@ -56,6 +47,5 @@
       showCopyright: true
     });
   </script>
-<script src="/pwa-install.js" defer></script>
 </body>
 </html>

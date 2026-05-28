@@ -743,6 +743,94 @@ Resultat:
 - Check syntaxe OK.
 - Les champs livraison/KYC ne sont plus dans le formulaire vendeur.
 
+## 2026-05-28 - Livraison pour le module Impression
+
+Contexte:
+
+- Les modules impression (`documents`, `photo`, `CAD`) ajoutaient deja des demandes au panier, mais il n'y avait pas de logique claire de reception/livraison.
+- La livraison marketplace ne doit pas etre reutilisee telle quelle pour l'impression, car un client peut simplement vouloir imprimer un CV et passer le recuperer dans un point de retrait.
+- Le module `grand-format` reste un workflow de devis WhatsApp manuel et n'entre pas dans ce flux panier.
+
+Nouvelle logique:
+
+- Les points de retrait impression sont gratuits.
+- L'admin peut ajouter/retirer des points de retrait via le dashboard.
+- Chaque point de retrait contient:
+  - `Nom du point`
+  - `Adresse`
+  - `Telephone`
+  - `Actif`
+- L'admin peut aussi definir des zones de livraison a domicile pour l'impression:
+  - `Pays`
+  - `Departement`
+  - `Commune`
+  - `Prix`
+  - `Delai`
+  - `Actif`
+- Les reglages sont stockes dans:
+
+```text
+printingDeliverySettings/main
+```
+
+Changements cote site:
+
+- Ajout de `printing-delivery-utils.js`.
+- Les pages suivantes affichent maintenant un bloc `Reception de votre impression` dans l'etape tarif:
+  - `printing-documents.js`
+  - `printing-photo.js`
+  - `printing-cad.js`
+- Le client peut choisir:
+  - `Point de retrait gratuit`
+  - `Livraison a domicile`
+- Si le client est connecte, ses adresses sauvegardees sont proposees pour la livraison domicile.
+- Si la zone choisie n'existe pas dans les reglages admin, la livraison domicile est refusee et le client doit choisir un point de retrait.
+- Le prix final ajoute:
+
+```text
+Total a payer = Total impression + Frais reception
+```
+
+Changements panier/checkout:
+
+- Les items impression sont ajoutes avec `sourceType: printing`.
+- Le choix de reception est sauvegarde dans `printingDelivery`.
+- Les frais de reception sont inclus directement dans le prix de l'item impression.
+- `checkout.js` reconnait les items impression et ne leur applique pas la livraison marketplace une deuxieme fois.
+- Les options du panier/PDF affichent:
+  - Methode de reception
+  - Point de retrait ou adresse de livraison
+  - Frais reception
+  - Total a payer
+
+Fichiers modifies:
+
+- `printing-delivery-utils.js`
+- `printing-documents.js`
+- `printing-documents.html`
+- `printing-photo.js`
+- `printing-photo.html`
+- `printing-cad.js`
+- `printing-cad.html`
+- `checkout.js`
+- `JOURNAL_DE_BORD_MODIFICATIONS.md`
+
+Verification:
+
+```powershell
+node --check printing-delivery-utils.js
+node --check printing-documents.js
+node --check printing-photo.js
+node --check printing-cad.js
+node --check checkout.js
+```
+
+Precautions:
+
+- Ne pas brancher les items impression sur les zones de livraison produit marketplace, sinon le checkout peut bloquer les commandes inutilement.
+- Les frais impression sont calcules avant ajout au panier et doivent rester dans le prix de l'item.
+- Si on veut plus tard que le choix reception se fasse dans la modal checkout, il faudra creer un flux checkout dedie a `sourceType: printing`.
+
 ## Correction identite client dans dashboard admin et commandes
 
 Date: 19 mai 2026

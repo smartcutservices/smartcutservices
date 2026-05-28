@@ -178,13 +178,21 @@ class CheckoutModal {
   }
 
   hasSmartCutItems() {
-    return this.cart.some((item) => !String(item?.vendorId || '').trim() && !this.isDigitalCartItem(item));
+    return this.cart.some((item) => !String(item?.vendorId || '').trim() && !this.isDigitalCartItem(item) && !this.isPrintingCartItem(item));
   }
 
   isDigitalCartItem(item) {
     return Boolean(item?.isDigitalProduct)
       || String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase() === 'digital'
       || String(item?.deliveryMode || '').toLowerCase().includes('digital');
+  }
+
+  isPrintingCartItem(item) {
+    const mode = String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase();
+    return String(item?.sourceType || '').toLowerCase() === 'printing'
+      || String(item?.productId || '').toLowerCase().startsWith('printing-')
+      || mode === 'printing_prepaid'
+      || Boolean(item?.printingDelivery);
   }
 
   getCartProductCollection(item) {
@@ -197,7 +205,7 @@ class CheckoutModal {
   }
 
   needsDeliveryHydration(item) {
-    if (!item?.productId || this.isDigitalCartItem(item)) return false;
+    if (!item?.productId || this.isDigitalCartItem(item) || this.isPrintingCartItem(item)) return false;
     const coverageZones = Array.isArray(item?.productDeliveryCoverage?.zones)
       ? item.productDeliveryCoverage.zones
       : (Array.isArray(item?.deliveryCoverage?.zones) ? item.deliveryCoverage.zones : []);
@@ -249,7 +257,7 @@ class CheckoutModal {
   getProductDeliveryGroups() {
     return this.cart.map((item, index) => {
       const vendorId = String(item?.vendorId || '').trim();
-      if (this.isDigitalCartItem(item)) return null;
+      if (this.isDigitalCartItem(item) || this.isPrintingCartItem(item)) return null;
       const productCoverage = item.productDeliveryCoverage || item.deliveryCoverage || item.vendorDeliveryCoverage || null;
       const productZones = Array.isArray(item.productDeliveryZones)
         ? item.productDeliveryZones
@@ -382,12 +390,21 @@ class CheckoutModal {
     if (this.isDigitalCartItem(item)) {
       return { country: 'Digital', department: 'Digital', commune: 'Instantanee', fee: 0, digital: true };
     }
+    if (this.isPrintingCartItem(item)) {
+      return { country: 'Impression', department: 'Impression', commune: 'Prepayee', fee: 0, printing: true };
+    }
     const group = this.getCartItemDeliveryGroup(item, index);
     return group ? this.findProductDeliveryZone(group) : null;
   }
 
   getCartItemDeliveryLabel(item, index = null) {
     if (this.isDigitalCartItem(item)) return 'Produit digital: livraison instantanee gratuite.';
+    if (this.isPrintingCartItem(item)) {
+      const delivery = item?.printingDelivery || {};
+      return delivery.method === 'home'
+        ? `Impression: livraison deja incluse${delivery.homeZone?.delay ? ` - Delai: ${delivery.homeZone.delay}` : ''}.`
+        : 'Impression: point de retrait gratuit.';
+    }
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
     if (!department || !commune) return 'Livraison calculee apres choix de votre adresse.';
@@ -401,6 +418,7 @@ class CheckoutModal {
 
   isCartItemDeliveryUnavailable(item, index = null) {
     if (this.isDigitalCartItem(item)) return false;
+    if (this.isPrintingCartItem(item)) return false;
     const department = String(this.selectedDelivery.home.department || '').trim();
     const commune = String(this.selectedDelivery.home.commune || '').trim();
     return Boolean(department && commune && !this.getCartItemDeliveryZone(item, index));
