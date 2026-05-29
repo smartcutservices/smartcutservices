@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260523-6';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -17,6 +17,37 @@ import {
   setDoc,
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
+const HAITI_DEPARTMENTS = {
+  'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+  'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+  'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+  'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+  'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+  'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+  'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+  'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+  'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+  'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
+};
+
+const AUTH_DEBUG_VERSION = '20260523-6';
+
+function getAuthDebugSnapshot(extra = {}) {
+  return {
+    version: AUTH_DEBUG_VERSION,
+    href: window.location.href,
+    readyState: document.readyState,
+    authCurrentUid: auth?.currentUser?.uid || null,
+    authCurrentEmail: auth?.currentUser?.email || null,
+    authCurrentAnonymous: Boolean(auth?.currentUser?.isAnonymous),
+    ...extra
+  };
+}
+
+function logAuthDebug(stage, extra = {}) {
+  console.info('[AUTH_DEBUG]', getAuthDebugSnapshot({ stage, ...extra }));
+}
+
 class AuthManager {
   constructor(options = {}) {
     this.options = {
@@ -33,25 +64,71 @@ class AuthManager {
     this.modalOpenedAt = 0;
     this.isAuthReady = false;
     this.pendingGoogleRedirect = false;
+    this.isExplicitLogout = false;
+    this.lastSuccessfulAuthAt = 0;
+    this.authChangeCallbacks = new Set();
+    this.authUnsubscribe = null;
+    if (typeof this.options.onAuthChange === 'function') {
+      this.authChangeCallbacks.add(this.options.onAuthChange);
+    }
+    logAuthDebug('manager:constructor', {
+      hasInitialCallback: typeof this.options.onAuthChange === 'function'
+    });
     
     this.init();
   }
   
   init() {
+    logAuthDebug('manager:init');
     authReadyPromise
-      .catch(() => {})
+      .catch((error) => {
+        logAuthDebug('manager:authReadyPromise:error', {
+          message: error?.message || String(error),
+          code: error?.code || null
+        });
+      })
       .finally(async () => {
         this.isAuthReady = true;
+        logAuthDebug('manager:ready');
         await this.handleRedirectResult();
       });
 
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, (user) => {
+      if (!this.isAuthReady && !user) {
+        console.info('[AUTH] State null ignore avant persistence');
+        logAuthDebug('state:null-ignored-before-ready');
+        return;
+      }
+
       const previousUser = this.currentUser;
+      const hadAuthenticatedUser = !!previousUser && !previousUser.isAnonymous;
+      if (!user && hadAuthenticatedUser && !this.isExplicitLogout) {
+        console.warn('[AUTH] Null state ignore: utilisateur connecte conserve en memoire', {
+          previousUid: previousUser.uid,
+          firebaseUid: auth?.currentUser?.uid || null,
+          ageMs: this.lastSuccessfulAuthAt ? Date.now() - this.lastSuccessfulAuthAt : null
+        });
+        logAuthDebug('state:null-ignored-after-success', {
+          previousUid: previousUser.uid,
+          ageMs: this.lastSuccessfulAuthAt ? Date.now() - this.lastSuccessfulAuthAt : null
+        });
+        this.emitAuthChange(previousUser, 'firebase-null-ignored');
+        return;
+      }
+
       this.currentUser = user;
       const wasAuthenticated = !!previousUser && !previousUser.isAnonymous;
       const isAuthenticated = !!user && !user.isAnonymous;
       const isAnonymous = !!user?.isAnonymous;
+      logAuthDebug('state:received', {
+        uid: user?.uid || null,
+        email: user?.email || null,
+        isAnonymous,
+        previousUid: previousUser?.uid || null,
+        managerReady: this.isAuthReady,
+        hasAuthInitialized: this.hasAuthInitialized
+      });
 
       if (this.hasAuthInitialized) {
         if (!wasAuthenticated && isAuthenticated) {
@@ -63,28 +140,75 @@ class AuthManager {
       }
 
       this.hasAuthInitialized = true;
-      
-      // Émettre un événement
-      const event = new CustomEvent('authChanged', { 
-        detail: { 
-          user: user,
-          isAuthenticated,
-          isAnonymous,
-          email: user?.email,
-          displayName: user?.displayName,
-          uid: user?.uid
-        }
-      });
-      document.dispatchEvent(event);
-      
-      if (this.options.onAuthChange) {
-        this.options.onAuthChange(user);
+      this.emitAuthChange(user, 'firebase-listener');
+      if (!user && this.isExplicitLogout) {
+        this.isExplicitLogout = false;
       }
     });
+  }
+
+  emitAuthChange(user, source = 'unknown') {
+    const isAuthenticated = !!user && !user.isAnonymous;
+    const isAnonymous = !!user?.isAnonymous;
+    if (isAuthenticated) {
+      this.lastSuccessfulAuthAt = Date.now();
+      this.isExplicitLogout = false;
+    }
+    logAuthDebug('state:emit', {
+      source,
+      uid: user?.uid || null,
+      email: user?.email || null,
+      isAuthenticated,
+      isAnonymous,
+      listenerCount: this.authChangeCallbacks.size
+    });
+
+    const event = new CustomEvent('authChanged', {
+      detail: {
+        user,
+        isAuthenticated,
+        isAnonymous,
+        email: user?.email,
+        displayName: user?.displayName,
+        uid: user?.uid,
+        source
+      }
+    });
+    document.dispatchEvent(event);
+
+    for (const callback of this.authChangeCallbacks) {
+      try {
+        callback(user);
+      } catch (error) {
+        console.error('[AUTH] Erreur callback auth:', error);
+      }
+    }
+  }
+
+  addAuthChangeListener(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.authChangeCallbacks.add(callback);
+    logAuthDebug('manager:add-listener', {
+      listenerCount: this.authChangeCallbacks.size,
+      hasAuthInitialized: this.hasAuthInitialized
+    });
+    if (this.hasAuthInitialized) {
+      try {
+        callback(this.getCurrentUser());
+      } catch (error) {
+        console.error('[AUTH] Erreur callback auth initial:', error);
+      }
+    }
+    return () => this.authChangeCallbacks.delete(callback);
   }
   
   // Ouvrir le modal de connexion
   openAuthModal(mode = 'login') {
+    logAuthDebug('modal:open-request', {
+      mode,
+      isModalOpen: this.isModalOpen,
+      isModalClosing: this.isModalClosing
+    });
     // Éviter d'ouvrir plusieurs modals
     if (this.isModalOpen) {
       return;
@@ -103,6 +227,15 @@ class AuthManager {
     this.renderAuthModal(mode);
     document.body.appendChild(this.modal);
     this.revealAuthModal();
+    logAuthDebug('modal:rendered', {
+      mode,
+      hasModal: Boolean(this.modal),
+      hasOverlay: Boolean(this.modal.querySelector('.auth-overlay')),
+      hasContainer: Boolean(this.modal.querySelector('.auth-container')),
+      hasForm: Boolean(this.modal.querySelector('#authForm')),
+      hasEmailInput: Boolean(this.modal.querySelector('#email')),
+      hasSubmitButton: Boolean(this.modal.querySelector('#submitAuth'))
+    });
     
     // Forcer le style display: flex sur l'overlay
     const overlay = this.modal.querySelector('.auth-overlay');
@@ -194,10 +327,7 @@ class AuthManager {
   }
 
   shouldUseGoogleRedirect() {
-    if (typeof window === 'undefined') return false;
-    const touchCapable = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.matchMedia('(max-width: 1024px)').matches;
-    return touchCapable || isSmallScreen;
+    return false;
   }
 
   async handleRedirectResult() {
@@ -209,6 +339,9 @@ class AuthManager {
 
       this.pendingGoogleRedirect = false;
       await this.ensureClientProfileForGoogle(result.user);
+      this.currentUser = result.user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(result.user, 'google-redirect-direct-success');
       this.closeAuthModal();
     } catch (error) {
       this.pendingGoogleRedirect = false;
@@ -294,6 +427,34 @@ class AuthManager {
           <!-- Formulaire -->
           <form id="authForm" class="space-y-4">
             ${mode === 'register' ? `
+              <div class="new-profile-fields" style="display:grid;gap:0.75rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                  <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Nom *</label>
+                    <input type="text" id="lastName" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Dupont">
+                  </div>
+                  <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Prenom *</label>
+                    <input type="text" id="firstName" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Jean">
+                  </div>
+                </div>
+                <div>
+                  <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Date de naissance *</label>
+                  <input type="date" id="birthDate" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">
+                </div>
+                <div>
+                  <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Telephone *</label>
+                  <input type="tel" id="newPhone" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Ex: 37 00 00 00">
+                </div>
+                <div style="padding:0.9rem;border:1px solid rgba(198,167,94,0.25);border-radius:0.75rem;background:rgba(198,167,94,0.07);">
+                  <h4 style="margin:0 0 0.75rem 0;color:#1F1E1C;font-size:1rem;">Adresse</h4>
+                  ${this.renderAddressFields('register')}
+                  <label style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.75rem;color:#8B7E6B;font-size:0.9rem;">
+                    <input type="checkbox" id="registerUseAsDelivery" checked style="margin-top:0.15rem;accent-color:#C6A75E;">
+                    Utiliser cette adresse comme adresse de livraison
+                  </label>
+                </div>
+              </div>
               <div>
                 <label style="
                   display: block;
@@ -391,7 +552,7 @@ class AuthManager {
                 margin-bottom: 0.5rem;
                 font-size: 0.9rem;
                 color: #8B7E6B;
-              ">Mot de passe</label>
+              ">Rentrez votre mot de passe *</label>
               <input type="password" id="password" required style="
                 width: 100%;
                 padding: 0.75rem;
@@ -401,7 +562,26 @@ class AuthManager {
                 background: white;
               " placeholder="••••••••">
             </div>
-            
+
+            ${mode === 'register' ? `
+              <div>
+                <label style="
+                  display: block;
+                  margin-bottom: 0.5rem;
+                  font-size: 0.9rem;
+                  color: #8B7E6B;
+                ">Confirmez votre mot de passe *</label>
+                <input type="password" id="confirmPassword" required style="
+                  width: 100%;
+                  padding: 0.75rem;
+                  border: 1px solid rgba(198, 167, 94, 0.3);
+                  border-radius: 0.5rem;
+                  font-size: 1rem;
+                  background: white;
+                " placeholder="Confirmez votre mot de passe">
+              </div>
+            ` : ''}
+
             ${mode === 'login' ? `
               <div style="text-align: right;">
                 <button type="button" id="forgotPassword" style="
@@ -546,9 +726,83 @@ class AuthManager {
     
     this.attachAuthEvents(mode);
   }
+
+  renderAddressFields(prefix, values = {}) {
+    const departments = Object.keys(HAITI_DEPARTMENTS);
+    const selectedDepartment = values.department || '';
+    const communes = selectedDepartment ? (HAITI_DEPARTMENTS[selectedDepartment] || []) : [];
+    const departmentOptions = ['<option value="">Choisir un département...</option>']
+      .concat(departments.map((department) => `<option value="${department}" ${selectedDepartment === department ? 'selected' : ''}>${department}</option>`))
+      .join('');
+    const communeOptions = ['<option value="">Choisir une commune...</option>']
+      .concat(communes.map((commune) => `<option value="${commune}" ${values.commune === commune ? 'selected' : ''}>${commune}</option>`))
+      .join('');
+
+    return `
+      <div style="display:grid;gap:0.75rem;">
+        <div>
+          <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Adresse *</label>
+          <input type="text" id="${prefix}Address" value="${this.escapeAttribute(values.address || '')}" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Rue, numéro, quartier">
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Pays *</label>
+          <select id="${prefix}Country" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">
+            <option value="Haiti" selected>Haiti</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div>
+            <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Departement *</label>
+            <select id="${prefix}Department" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">${departmentOptions}</select>
+          </div>
+          <div>
+            <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Commune *</label>
+            <select id="${prefix}Commune" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">${communeOptions}</select>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  escapeAttribute(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  bindAddressSelectors(prefix) {
+    const root = this.modal || document;
+    const departmentSelect = root.querySelector(`#${prefix}Department`);
+    const communeSelect = root.querySelector(`#${prefix}Commune`);
+    if (!departmentSelect || !communeSelect) return;
+    departmentSelect.addEventListener('change', () => {
+      const communes = HAITI_DEPARTMENTS[departmentSelect.value] || [];
+      communeSelect.innerHTML = '<option value="">Choisir une commune...</option>' + communes.map((commune) => `<option value="${commune}">${commune}</option>`).join('');
+    });
+  }
+
+  collectAddress(prefix) {
+    const root = this.modal || document;
+    return {
+      id: 'addr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+      label: 'Adresse principale',
+      address: root.querySelector(`#${prefix}Address`)?.value?.trim() || '',
+      country: root.querySelector(`#${prefix}Country`)?.value?.trim() || 'Haiti',
+      department: root.querySelector(`#${prefix}Department`)?.value?.trim() || '',
+      commune: root.querySelector(`#${prefix}Commune`)?.value?.trim() || '',
+      isDelivery: Boolean(root.querySelector('#registerUseAsDelivery')?.checked),
+      createdAt: new Date().toISOString()
+    };
+  }
   
   // Attacher les événements du modal
   attachAuthEvents(mode) {
+    if (mode === 'register') {
+      this.modal.querySelectorAll('#displayName, #age, #phone, #sexe').forEach((field) => {
+        field.required = false;
+        field.closest('div')?.remove();
+      });
+      this.bindAddressSelectors('register');
+    }
+
     const closeBtn = this.modal.querySelector('.close-auth');
     const overlay = this.modal.querySelector('.auth-overlay');
     const container = this.modal.querySelector('.auth-container');
@@ -556,6 +810,18 @@ class AuthManager {
     const form = this.modal.querySelector('#authForm');
     const forgotBtn = this.modal.querySelector('#forgotPassword');
     const googleBtn = this.modal.querySelector('#googleSignIn');
+    const submitBtn = this.modal.querySelector('#submitAuth');
+    logAuthDebug('modal:events-attach', {
+      mode,
+      hasCloseBtn: Boolean(closeBtn),
+      hasOverlay: Boolean(overlay),
+      hasContainer: Boolean(container),
+      hasSwitchBtn: Boolean(switchBtn),
+      hasForm: Boolean(form),
+      hasForgotBtn: Boolean(forgotBtn),
+      hasGoogleBtn: Boolean(googleBtn),
+      hasSubmitBtn: Boolean(submitBtn)
+    });
     
     container?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -598,13 +864,34 @@ class AuthManager {
     if (googleBtn) {
       googleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        logAuthDebug('google-button:click', {
+          mode,
+          innerWidth: window.innerWidth,
+          maxTouchPoints: navigator.maxTouchPoints || 0
+        });
         this.handleGoogleSignIn();
+      });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        logAuthDebug('submit-button:click', {
+          mode,
+          hasEmail: Boolean(this.modal.querySelector('#email')?.value),
+          passwordLength: this.modal.querySelector('#password')?.value?.length || 0,
+          innerWidth: window.innerWidth
+        });
       });
     }
     
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      logAuthDebug('auth-form:submit', {
+        mode,
+        hasEmail: Boolean(this.modal.querySelector('#email')?.value),
+        passwordLength: this.modal.querySelector('#password')?.value?.length || 0
+      });
       if (mode === 'login') {
         this.handleLogin();
       } else {
@@ -619,18 +906,57 @@ class AuthManager {
     const email = this.modal.querySelector('#email').value;
     const password = this.modal.querySelector('#password').value;
     const errorDiv = this.modal.querySelector('#authError');
+    logAuthDebug('login:start', {
+      hasEmail: Boolean(email),
+      email,
+      passwordLength: password?.length || 0
+    });
 
     if (!auth) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Firebase Auth n est pas disponible pour le moment.';
+      errorDiv.textContent = 'Firebase Auth n’est pas disponible pour le moment.';
       return;
     }
     
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.info('[AUTH] Login email reussi', {
+        uid: userCredential?.user?.uid || null,
+        email: userCredential?.user?.email || null,
+        currentUid: auth?.currentUser?.uid || null
+      });
+      logAuthDebug('login:success', {
+        uid: userCredential?.user?.uid || null,
+        email: userCredential?.user?.email || null,
+        providerId: userCredential?.providerId || null
+      });
+      try {
+        const token = await userCredential?.user?.getIdToken?.(true);
+        logAuthDebug('login:token-refreshed', {
+          uid: userCredential?.user?.uid || null,
+          tokenLength: token?.length || 0
+        });
+      } catch (tokenError) {
+        logAuthDebug('login:token-refresh-error', {
+          message: tokenError?.message || String(tokenError),
+          code: tokenError?.code || null
+        });
+      }
+      this.currentUser = userCredential.user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(userCredential.user, 'login-direct-success');
+      logAuthDebug('login:direct-state-applied', {
+        uid: userCredential?.user?.uid || null,
+        currentUid: this.currentUser?.uid || null,
+        firebaseUid: auth?.currentUser?.uid || null
+      });
       this.closeAuthModal();
     } catch (error) {
       console.error('❌ Erreur connexion:', error);
+      logAuthDebug('login:error', {
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
       errorDiv.style.display = 'block';
       errorDiv.textContent = this.getErrorMessage(error.code);
     }
@@ -641,31 +967,43 @@ class AuthManager {
     await this.waitForAuthReady();
     const email = this.modal.querySelector('#email').value;
     const password = this.modal.querySelector('#password').value;
-    const displayName = this.modal.querySelector('#displayName')?.value?.trim();
-    const ageRaw = this.modal.querySelector('#age')?.value;
-    const phone = this.modal.querySelector('#phone')?.value?.trim();
-    const sexe = this.modal.querySelector('#sexe')?.value?.trim();
+    const confirmPassword = this.modal.querySelector('#confirmPassword')?.value || '';
+    const lastName = this.modal.querySelector('#lastName')?.value?.trim();
+    const firstName = this.modal.querySelector('#firstName')?.value?.trim();
+    const birthDate = this.modal.querySelector('#birthDate')?.value;
+    const phone = this.modal.querySelector('#newPhone')?.value?.trim();
+    const address = this.collectAddress('register');
+    const displayName = `${firstName || ''} ${lastName || ''}`.trim();
     const errorDiv = this.modal.querySelector('#authError');
 
-    const age = parseInt(ageRaw, 10);
     if (!auth) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Firebase Auth n est pas disponible pour le moment.';
+      errorDiv.textContent = 'Firebase Auth n’est pas disponible pour le moment.';
       return;
     }
-    if (!Number.isInteger(age) || age < 1 || age > 120) {
+    if (!lastName || !firstName) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Veuillez saisir un âge valide (1-120).';
+      errorDiv.textContent = 'Veuillez saisir votre nom et votre prenom.';
       return;
     }
-    if (!sexe) {
+    if (!birthDate) {
       errorDiv.style.display = 'block';
-      errorDiv.textContent = 'Veuillez sélectionner votre sexe.';
+      errorDiv.textContent = 'Veuillez saisir votre date de naissance.';
       return;
     }
     if (!phone) {
       errorDiv.style.display = 'block';
       errorDiv.textContent = 'Veuillez saisir votre numéro téléphone.';
+      return;
+    }
+    if (!address.address || !address.country || !address.department || !address.commune) {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = 'Veuillez compléter votre adresse.';
+      return;
+    }
+    if (password !== confirmPassword) {
+      errorDiv.style.display = 'block';
+      errorDiv.textContent = 'Les mots de passe ne correspondent pas.';
       return;
     }
     
@@ -681,16 +1019,23 @@ class AuthManager {
 
       try {
         await this.saveClientProfile(user, {
+          firstName,
+          lastName,
           name: displayName || user.displayName || '',
           email: user.email || email,
-          age,
           phone,
-          sexe
+          birthDate,
+          addresses: [address],
+          defaultDeliveryAddressId: address.isDelivery ? address.id : ''
         });
       } catch (profileError) {
         console.error('❌ Erreur sauvegarde profil client:', profileError);
-        this.showToast('Compte cree, mais le profil client n a pas pu etre synchronise completement.', 'info');
+        this.showToast('Compte créé, mais le profil client n’a pas pu être synchronisé complètement.', 'info');
       }
+
+      this.currentUser = user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(user, 'register-direct-success');
       
       this.closeAuthModal();
     } catch (error) {
@@ -707,15 +1052,33 @@ class AuthManager {
     const clientRef = doc(db, 'clients', user.uid);
     const existingSnap = await getDoc(clientRef);
     const existing = existingSnap.exists() ? existingSnap.data() : {};
+    const incomingAddresses = Array.isArray(profile.addresses) ? profile.addresses : [];
+    const existingAddresses = Array.isArray(existing.addresses) ? existing.addresses : [];
+    const addresses = incomingAddresses.length > 0 ? incomingAddresses : existingAddresses;
+    const defaultDeliveryAddressId = profile.defaultDeliveryAddressId
+      || existing.defaultDeliveryAddressId
+      || addresses.find((address) => address?.isDelivery)?.id
+      || addresses[0]?.id
+      || '';
+    const defaultAddress = addresses.find((address) => address?.id === defaultDeliveryAddressId) || addresses[0] || {};
+    const firstName = profile.firstName || existing.firstName || '';
+    const lastName = profile.lastName || existing.lastName || '';
+    const name = profile.name || existing.name || `${firstName} ${lastName}`.trim() || user.displayName || '';
     const payload = {
       uid: user.uid,
-      name: profile.name || existing.name || user.displayName || '',
+      firstName,
+      lastName,
+      name,
       email: profile.email || existing.email || user.email || '',
-      age: Number.isFinite(Number(profile.age)) ? Number(profile.age) : (existing.age ?? null),
-      sexe: profile.sexe || existing.sexe || '',
+      birthDate: profile.birthDate || existing.birthDate || '',
       phone: profile.phone || existing.phone || '',
-      address: existing.address || '',
-      city: existing.city || '',
+      addresses,
+      defaultDeliveryAddressId,
+      address: defaultAddress.address || existing.address || '',
+      country: defaultAddress.country || existing.country || 'Haiti',
+      department: defaultAddress.department || existing.department || '',
+      commune: defaultAddress.commune || existing.commune || '',
+      city: defaultAddress.commune || existing.city || '',
       createdAt: existing.createdAt || now,
       updatedAt: now
     };
@@ -727,6 +1090,12 @@ class AuthManager {
   async handleGoogleSignIn() {
     const errorDiv = this.modal.querySelector('#authError');
     await this.waitForAuthReady();
+    logAuthDebug('google:start', {
+      useRedirect: this.shouldUseGoogleRedirect(),
+      innerWidth: window.innerWidth,
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+      authUid: auth?.currentUser?.uid || null
+    });
 
     if (!auth || !googleProvider) {
       errorDiv.style.display = 'block';
@@ -743,14 +1112,28 @@ class AuthManager {
       }
 
       const result = await signInWithPopup(auth, googleProvider);
+      logAuthDebug('google:popup-success', {
+        uid: result?.user?.uid || null,
+        email: result?.user?.email || null
+      });
       await this.ensureClientProfileForGoogle(result.user);
+      this.currentUser = result.user;
+      this.hasAuthInitialized = true;
+      this.emitAuthChange(result.user, 'google-popup-direct-success');
       this.closeAuthModal();
     } catch (error) {
       console.error('❌ Erreur Google:', error);
+      logAuthDebug('google:error', {
+        code: error?.code || null,
+        message: error?.message || String(error)
+      });
       if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
         try {
           this.pendingGoogleRedirect = true;
-          this.showToast('Popup Google bloquee. Redirection en cours...', 'info');
+          this.showToast('Popup Google bloquée. Redirection en cours...', 'info');
+          logAuthDebug('google:fallback-redirect-start', {
+            code: error?.code || null
+          });
           await signInWithRedirect(auth, googleProvider);
           return;
         } catch (redirectError) {
@@ -776,12 +1159,13 @@ class AuthManager {
     const clientSnap = await getDoc(clientRef);
     const existing = clientSnap.exists() ? clientSnap.data() : {};
 
-    const age = Number(existing.age);
-    const hasAge = Number.isFinite(age) && age >= 1 && age <= 120;
-    const hasSexe = typeof existing.sexe === 'string' && existing.sexe.trim() !== '';
+    const hasName = Boolean((existing.firstName || '').trim() && (existing.lastName || '').trim());
+    const hasBirthDate = typeof existing.birthDate === 'string' && existing.birthDate.trim() !== '';
     const hasPhone = typeof existing.phone === 'string' && existing.phone.trim() !== '';
+    const hasAddress = Array.isArray(existing.addresses)
+      && existing.addresses.some((address) => address?.address && address?.country && address?.department && address?.commune);
 
-    if (hasAge && hasSexe && hasPhone) {
+    if (hasName && hasBirthDate && hasPhone && hasAddress) {
       await this.saveClientProfile(user, {
         name: existing.name || user.displayName || '',
         email: existing.email || user.email || ''
@@ -796,15 +1180,118 @@ class AuthManager {
     }
 
     await this.saveClientProfile(user, {
-      name: existing.name || user.displayName || '',
+      firstName: completion.firstName,
+      lastName: completion.lastName,
+      name: `${completion.firstName || ''} ${completion.lastName || ''}`.trim() || existing.name || user.displayName || '',
       email: existing.email || user.email || '',
-      age: completion.age,
-      sexe: completion.sexe,
-      phone: completion.phone
+      birthDate: completion.birthDate,
+      phone: completion.phone,
+      addresses: [completion.address],
+      defaultDeliveryAddressId: completion.address?.isDelivery ? completion.address.id : ''
     });
   }
 
   requestAdditionalProfileData(existing = {}) {
+    return this.requestRequiredClientData(existing);
+  }
+
+  requestRequiredClientData(existing = {}) {
+    const existingAddress = Array.isArray(existing.addresses) ? existing.addresses[0] || {} : {};
+    const nameParts = String(existing.name || '').trim().split(/\s+/).filter(Boolean);
+    const firstNameValue = existing.firstName || nameParts.slice(0, -1).join(' ') || nameParts[0] || '';
+    const lastNameValue = existing.lastName || (nameParts.length > 1 ? nameParts[nameParts.length - 1] : '');
+    const birthDateValue = typeof existing.birthDate === 'string' ? existing.birthDate : '';
+    const phoneValue = typeof existing.phone === 'string' ? existing.phone : '';
+
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(4px);
+        z-index: 1000002;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      `;
+
+      overlay.innerHTML = `
+        <div style="width:100%;max-width:460px;max-height:90vh;overflow:auto;background:#F5F1E8;border-radius:1rem;box-shadow:0 20px 40px rgba(0,0,0,0.25);padding:1.25rem;">
+          <h3 style="margin:0 0 0.35rem 0;font-size:1.2rem;color:#1F1E1C;">Compléter votre profil</h3>
+          <p style="margin:0 0 1rem 0;color:#8B7E6B;font-size:0.9rem;">Nom, date de naissance, téléphone et adresse sont requis.</p>
+
+          <div style="display:flex;flex-direction:column;gap:0.75rem;">
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Nom *</label>
+              <input id="googleExtraLastName" type="text" value="${this.escapeAttribute(lastNameValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Prenom *</label>
+              <input id="googleExtraFirstName" type="text" value="${this.escapeAttribute(firstNameValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Date de naissance *</label>
+              <input id="googleExtraBirthDate" type="date" value="${this.escapeAttribute(birthDateValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Telephone *</label>
+              <input id="googleExtraPhone" type="tel" value="${this.escapeAttribute(phoneValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
+            </div>
+            ${this.renderAddressFields('googleExtra', existingAddress)}
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <input type="checkbox" id="googleExtraUseAsDelivery" checked style="accent-color:#C6A75E;">
+              <label for="googleExtraUseAsDelivery" style="color:#8B7E6B;font-size:0.9rem;">Utiliser cette adresse comme adresse de livraison</label>
+            </div>
+          </div>
+
+          <div id="googleExtraError" style="display:none;margin-top:0.8rem;padding:0.6rem;border-radius:0.5rem;background:#FEE2E2;color:#991B1B;font-size:0.85rem;"></div>
+
+          <div style="display:flex;gap:0.6rem;justify-content:flex-end;margin-top:1rem;">
+            <button type="button" id="googleExtraCancel" style="padding:0.65rem 0.9rem;border:1px solid rgba(198,167,94,0.4);background:#fff;color:#1F1E1C;border-radius:0.5rem;cursor:pointer;">Annuler</button>
+            <button type="button" id="googleExtraSave" style="padding:0.65rem 0.9rem;border:none;background:#1F1E1C;color:#F5F1E8;border-radius:0.5rem;cursor:pointer;">Enregistrer</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+      const previousModal = this.modal;
+      this.modal = overlay;
+      this.bindAddressSelectors('googleExtra');
+      this.modal = previousModal;
+
+      const showError = (message) => {
+        const errorDiv = overlay.querySelector('#googleExtraError');
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = message;
+      };
+      const close = (value) => {
+        overlay.remove();
+        resolve(value);
+      };
+
+      overlay.querySelector('#googleExtraCancel')?.addEventListener('click', () => close(null));
+      overlay.querySelector('#googleExtraSave')?.addEventListener('click', () => {
+        const firstName = overlay.querySelector('#googleExtraFirstName')?.value?.trim() || '';
+        const lastName = overlay.querySelector('#googleExtraLastName')?.value?.trim() || '';
+        const birthDate = overlay.querySelector('#googleExtraBirthDate')?.value || '';
+        const phone = overlay.querySelector('#googleExtraPhone')?.value?.trim() || '';
+        const previousModalForCollect = this.modal;
+        this.modal = overlay;
+        const address = this.collectAddress('googleExtra');
+        this.modal = previousModalForCollect;
+        address.isDelivery = Boolean(overlay.querySelector('#googleExtraUseAsDelivery')?.checked);
+
+        if (!lastName || !firstName) return showError('Veuillez saisir votre nom et votre prenom.');
+        if (!birthDate) return showError('Veuillez saisir votre date de naissance.');
+        if (!phone) return showError('Veuillez saisir votre numéro de téléphone.');
+        if (!address.address || !address.country || !address.department || !address.commune) return showError('Veuillez compléter votre adresse.');
+
+        close({ firstName, lastName, birthDate, phone, address });
+      });
+    });
+
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.style.cssText = `
@@ -938,10 +1425,10 @@ class AuthManager {
       'auth/invalid-email': 'Email invalide',
       'auth/too-many-requests': 'Trop de tentatives. Réessayez plus tard',
       'auth/network-request-failed': 'Erreur réseau. Vérifiez votre connexion',
-      'auth/operation-not-allowed': 'La méthode email/mot de passe ou Google n est pas active dans Firebase Auth.',
+      'auth/operation-not-allowed': 'La méthode email/mot de passe ou Google n’est pas active dans Firebase Auth.',
       'auth/invalid-credential': 'Identifiants invalides ou compte inexistant.',
-      'auth/unauthorized-domain': 'Ce domaine n est pas autorise dans Firebase Auth. Ajoutez-le dans les domaines autorises.',
-      'auth/account-exists-with-different-credential': 'Un compte existe deja avec cet email via une autre methode de connexion.',
+      'auth/unauthorized-domain': 'Ce domaine n’est pas autorisé dans Firebase Auth. Ajoutez-le dans les domaines autorisés.',
+      'auth/account-exists-with-different-credential': 'Un compte existe déjà avec cet email via une autre méthode de connexion.',
       'auth/popup-closed-by-user': 'Fenêtre de connexion fermée',
       'auth/cancelled-popup-request': 'Connexion annulée',
       'auth/popup-blocked': 'La popup a été bloquée par le navigateur',
@@ -954,20 +1441,25 @@ class AuthManager {
   // Déconnexion
   async logout() {
     try {
+      logAuthDebug('logout:requested');
+      console.trace('[AUTH_DEBUG] logout stack');
+      this.isExplicitLogout = true;
       await signOut(auth);
     } catch (error) {
+      this.isExplicitLogout = false;
       console.error('❌ Erreur déconnexion:', error);
     }
   }
   
   // Obtenir l'utilisateur courant
   getCurrentUser() {
-    return this.currentUser;
+    return this.currentUser || auth?.currentUser || null;
   }
   
   // Vérifier si l'utilisateur est connecté
   isAuthenticated() {
-    return !!this.currentUser && !this.currentUser.isAnonymous;
+    const user = this.getCurrentUser();
+    return !!user && !user.isAnonymous;
   }
 
   showToast(message, type = 'success') {
@@ -1015,12 +1507,27 @@ class AuthManager {
 }
 
 let authInstance = null;
+const AUTH_MANAGER_KEY = '__SMART_CUT_AUTH_MANAGER__';
 
 export function getAuthManager(options = {}) {
+  if (globalThis[AUTH_MANAGER_KEY]) {
+    authInstance = globalThis[AUTH_MANAGER_KEY];
+    if (typeof options.onAuthChange === 'function') {
+      authInstance.addAuthChangeListener(options.onAuthChange);
+    }
+    return authInstance;
+  }
+
   if (!authInstance) {
     authInstance = new AuthManager(options);
+    globalThis[AUTH_MANAGER_KEY] = authInstance;
+  } else if (typeof options.onAuthChange === 'function') {
+    authInstance.addAuthChangeListener(options.onAuthChange);
   }
   return authInstance;
 }
 
 export default AuthManager;
+
+
+

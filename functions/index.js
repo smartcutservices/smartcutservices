@@ -12,6 +12,9 @@ const db = admin.firestore();
 const PROJECT_ID = 'smartcutservices-9ce54';
 const REGION = process.env.FUNCTION_REGION || 'us-central1';
 const SITE_BASE_URL = normalizeBaseUrl(process.env.PUBLIC_SITE_URL || 'https://smartcutservices.com');
+const REPO_CDN_BASE_URL = normalizeBaseUrl(
+  process.env.PRODUCT_ASSET_CDN_BASE || 'https://cdn.jsdelivr.net/gh/smartcutservices/smartcutservices@main'
+);
 const MONCASH_API_BASE = normalizeBaseUrl(
   process.env.MONCASH_API_BASE || 'https://moncashbutton.digicelgroup.com/Api'
 );
@@ -21,6 +24,11 @@ const MONCASH_GATEWAY_BASE = normalizeBaseUrl(
 const MONCASH_CURRENCY = process.env.MONCASH_CURRENCY || 'HTG';
 const DEFAULT_RETURN_URL = `${SITE_BASE_URL}/moncash/return`;
 const DEFAULT_ALERT_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/moncashAlert`;
+const VENDOR_SERVICE_FEES_COLLECTION = 'vendorServiceFees';
+const VENDOR_SERVICE_FEE_INTERVAL_DAYS = 30;
+const VENDOR_PLAN_SETTINGS_COLLECTION = 'vendorPlanSettings';
+const VENDOR_PLAN_SETTINGS_DOC = 'main';
+const DEFAULT_VENDOR_PRO_PLAN_PRICE = 1750;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
@@ -46,6 +54,43 @@ function clampNumber(value, min, max, fallback) {
 
 function sanitizeText(value, maxLength = 240) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function getSafeMoncashPublicError(error) {
+  const rawMessage = String(error?.message || error?.payload?.message || error?.payload?.error || '').trim();
+  const lowerMessage = rawMessage.toLowerCase();
+  const technicalMarkers = [
+    'jpa entitymanager',
+    'jdbcconnectionexception',
+    'jdbc connection',
+    'hibernate',
+    'org.hibernate',
+    'nested exception',
+    'stack trace',
+    'exception:'
+  ];
+
+  if (!rawMessage || technicalMarkers.some((marker) => lowerMessage.includes(marker))) {
+    return {
+      status: 503,
+      error: 'moncash-temporarily-unavailable',
+      message: 'MonCash est temporairement indisponible. Votre paiement n a pas ete lance. Veuillez reessayer dans quelques minutes.'
+    };
+  }
+
+  if (rawMessage.length > 180) {
+    return {
+      status: 500,
+      error: 'server-error',
+      message: 'Impossible de demarrer le paiement MonCash pour le moment. Veuillez reessayer dans quelques minutes.'
+    };
+  }
+
+  return {
+    status: Number(error?.status || 500) >= 500 ? 500 : 400,
+    error: Number(error?.status || 500) >= 500 ? 'server-error' : 'moncash-request-failed',
+    message: rawMessage
+  };
 }
 
 function sanitizePath(value = '') {
@@ -223,6 +268,66 @@ async function isAdminUser(uid) {
   return String(clientSnap.data()?.role || '').toLowerCase() === 'admin';
 }
 
+async function deleteDocumentRefs(refs = []) {
+  const uniqueRefs = new Map();
+  refs.forEach((ref) => {
+    if (ref?.path) uniqueRefs.set(ref.path, ref);
+  });
+
+  const values = Array.from(uniqueRefs.values());
+  for (let index = 0; index < values.length; index += 450) {
+    const batch = db.batch();
+    values.slice(index, index + 450).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+  }
+
+  return values.length;
+}
+
+async function collectVendorLinkedProductRefs(vendorId) {
+  const fields = ['vendorId', 'uid', 'sellerUid', 'ownerUid'];
+  const snapshots = await Promise.all(fields.map((field) => (
+    db.collection('vendorProducts').where(field, '==', vendorId).get().catch((error) => {
+      logger.warn('deleteClientAccount vendorProducts lookup failed', {
+        vendorId,
+        field,
+        message: error?.message || ''
+      });
+      return null;
+    })
+  )));
+
+  return snapshots
+    .filter(Boolean)
+    .flatMap((snapshot) => snapshot.docs.map((item) => item.ref));
+}
+
+async function deleteLinkedVendorAccount(vendorId) {
+  if (!vendorId) {
+    return { vendorDeleted: false, vendorApplicationDeleted: false, vendorProductsDeleted: 0 };
+  }
+
+  const vendorRef = db.collection('vendors').doc(vendorId);
+  const applicationRef = db.collection('vendorApplications').doc(vendorId);
+  const [vendorSnap, applicationSnap, productRefs] = await Promise.all([
+    vendorRef.get(),
+    applicationRef.get(),
+    collectVendorLinkedProductRefs(vendorId)
+  ]);
+
+  await deleteDocumentRefs([
+    ...(vendorSnap.exists ? [vendorRef] : []),
+    ...(applicationSnap.exists ? [applicationRef] : []),
+    ...productRefs
+  ]);
+
+  return {
+    vendorDeleted: vendorSnap.exists,
+    vendorApplicationDeleted: applicationSnap.exists,
+    vendorProductsDeleted: new Set(productRefs.map((ref) => ref.path)).size
+  };
+}
+
 function isApprovedVendorProfile(profile) {
   if (!profile) return false;
   const role = String(profile.role || '').toLowerCase();
@@ -254,6 +359,95 @@ function toMonthKey(value) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
+}
+
+function addDaysIso(value, days = 30) {
+  const base = value ? new Date(value) : new Date();
+  const date = Number.isNaN(base.getTime()) ? new Date() : base;
+  date.setDate(date.getDate() + Number(days || 0));
+  return date.toISOString();
+}
+
+function normalizeVendorServicePaymentMethod(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized.includes('nat')) return 'natcash';
+  if (normalized.includes('card') || normalized.includes('carte')) return 'card';
+  return 'moncash';
+}
+
+function getVendorServiceFeeAmount(vendor = {}) {
+  const configured = toNumber(vendor?.monthlyServiceFee || vendor?.serviceFeeAmount);
+  if (configured > 0) return configured;
+  const planPrice = toNumber(vendor?.planPrice);
+  const planId = String(vendor?.planId || '').trim().toLowerCase();
+  const planPaymentRequired = Boolean(vendor?.planPaymentRequired);
+  if ((planPaymentRequired || planId === 'pro') && planPrice > 0) return planPrice;
+  return 0;
+}
+
+async function getVendorPlanSettings() {
+  try {
+    const snap = await db.collection(VENDOR_PLAN_SETTINGS_COLLECTION).doc(VENDOR_PLAN_SETTINGS_DOC).get();
+    return snap.exists ? snap.data() || {} : {};
+  } catch (error) {
+    logger.warn('Vendor plan settings unavailable, fallback used', { message: error?.message || String(error) });
+    return {};
+  }
+}
+
+function getVendorProPlanMeta(settings = {}) {
+  const price = toNumber(settings?.proPrice || settings?.proPlanPrice || DEFAULT_VENDOR_PRO_PLAN_PRICE) || DEFAULT_VENDOR_PRO_PLAN_PRICE;
+  return {
+    id: 'pro',
+    label: 'PRO',
+    price,
+    currency: String(settings?.currency || MONCASH_CURRENCY || 'HTG').trim() || 'HTG',
+    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+  };
+}
+
+function isVendorProPlan(vendor = {}) {
+  const planId = String(vendor?.planId || '').trim().toLowerCase();
+  const planLabel = String(vendor?.planLabel || '').trim().toLowerCase();
+  return planId === 'pro' || planLabel.includes('pro');
+}
+
+function isVendorServiceFeeVendor(vendor = {}) {
+  return getVendorServiceFeeAmount(vendor) > 0;
+}
+
+async function updateVendorProductsServiceStatus(vendorId = '', status = 'active') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return;
+
+  const snap = await db
+    .collection('vendorProducts')
+    .where('vendorId', '==', normalizedVendorId)
+    .get();
+
+  if (snap.empty) return;
+
+  const now = new Date().toISOString();
+  const batches = [];
+  let batch = db.batch();
+  let count = 0;
+
+  snap.docs.forEach((docSnap) => {
+    batch.set(docSnap.ref, {
+      vendorServiceFeeStatus: status,
+      vendorServiceFeeUpdatedAt: now,
+      updatedAt: now
+    }, { merge: true });
+    count += 1;
+    if (count === 450) {
+      batches.push(batch.commit());
+      batch = db.batch();
+      count = 0;
+    }
+  });
+
+  if (count > 0) batches.push(batch.commit());
+  await Promise.all(batches);
 }
 
 function createMonthBuckets(months = 6) {
@@ -318,6 +512,20 @@ function buildProductPageAbsoluteUrl(productId = '') {
   return url.toString();
 }
 
+function extractSharedProductId(req) {
+  const fromQuery = String(req.query.product || req.query.id || '').trim();
+  if (fromQuery) return fromQuery;
+
+  const path = String(req.path || req.originalUrl || '').split('?')[0];
+  const segments = path.split('/').filter(Boolean);
+  const pIndex = segments.findIndex((segment) => segment === 'p');
+  if (pIndex >= 0 && segments[pIndex + 1]) {
+    return decodeURIComponent(String(segments[pIndex + 1] || '').trim());
+  }
+
+  return '';
+}
+
 async function findPublicProductDocument(productId = '', preferredCollection = '') {
   const trimmedId = String(productId || '').trim();
   if (!trimmedId) return null;
@@ -344,22 +552,32 @@ async function findPublicProductDocument(productId = '', preferredCollection = '
 }
 
 function getPrimaryProductImage(product = {}) {
+  const normalizeImageUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith('//')) return `https:${raw}`;
+    const normalizedPath = raw.replace(/^\.?\//, '');
+    if (!normalizedPath) return '';
+    return new URL(`/${normalizedPath}`, `${REPO_CDN_BASE_URL}/`).toString();
+  };
+
   if (Array.isArray(product.images) && product.images[0]) {
-    return String(product.images[0]).trim();
+    return normalizeImageUrl(product.images[0]);
   }
 
   if (Array.isArray(product.variations)) {
     for (const variation of product.variations) {
       if (Array.isArray(variation?.images) && variation.images[0]) {
-        return String(variation.images[0]).trim();
+        return normalizeImageUrl(variation.images[0]);
       }
       if (variation?.image) {
-        return String(variation.image).trim();
+        return normalizeImageUrl(variation.image);
       }
     }
   }
 
-  return `${SITE_BASE_URL}/logo.png`;
+  return normalizeImageUrl('/logo.png');
 }
 
 function buildProductShareHtml(product = {}, productUrl = '') {
@@ -492,11 +710,35 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function normalizeDeliveryZoneList(zones = []) {
+  return Array.isArray(zones)
+    ? zones
+        .map((zone) => ({
+          country: String(zone?.country || 'Haiti').trim() || 'Haiti',
+          department: String(zone?.department || '').trim(),
+          commune: String(zone?.commune || '').trim(),
+          fee: Math.max(0, toNumber(zone?.fee)),
+          deliveryDelay: String(zone?.deliveryDelay || zone?.delay || '').trim()
+        }))
+        .filter((zone) => zone.country && zone.department && zone.commune)
+    : [];
+}
+
 function normalizeItems(items) {
   return Array.isArray(items)
     ? items.map((item) => {
         const quantity = Math.max(1, toNumber(item?.quantity) || 1);
         const price = Math.max(0, toNumber(item?.price));
+        const productDeliveryZones = normalizeDeliveryZoneList(
+          Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
+            ? item.productDeliveryZones
+            : item?.deliveryZones
+        );
+        const vendorDeliveryZones = normalizeDeliveryZoneList(
+          Array.isArray(item?.vendorDeliveryZones) && item.vendorDeliveryZones.length
+            ? item.vendorDeliveryZones
+            : productDeliveryZones
+        );
         return {
           productId: item?.productId || '',
           name: item?.name || 'Produit',
@@ -512,7 +754,15 @@ function normalizeItems(items) {
           sourceCollection: item?.sourceCollection || '',
           categoryId: item?.categoryId || '',
           category: item?.category || '',
-          deliveryMode: item?.deliveryMode || ''
+          deliveryMode: item?.deliveryMode || '',
+          weightGrams: Math.max(0, toNumber(item?.weightGrams ?? item?.weight)),
+          productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+          productDeliveryZones,
+          vendorDeliveryCoverage: item?.vendorDeliveryCoverage || item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+          vendorDeliveryZones,
+          isDigitalProduct: Boolean(item?.isDigitalProduct),
+          digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
+          deliveryDelay: String(item?.deliveryDelay || '').trim()
         };
       })
     : [];
@@ -582,6 +832,16 @@ async function enrichMarketplaceItems(items = []) {
 
       const productData = productSnap.data() || {};
       const resolvedCategory = String(item?.category || productData?.category || productData?.categoryName || '').trim();
+      const productDeliveryCoverage = item?.productDeliveryCoverage || item?.deliveryCoverage || productData?.deliveryCoverage || productData?.productDeliveryCoverage || null;
+      const productDeliveryZones = normalizeDeliveryZoneList(
+        Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
+          ? item.productDeliveryZones
+          : Array.isArray(item?.deliveryZones) && item.deliveryZones.length
+            ? item.deliveryZones
+            : Array.isArray(productData?.deliveryZones) && productData.deliveryZones.length
+              ? productData.deliveryZones
+              : productData?.productDeliveryZones
+      );
       return {
         ...item,
         name: item?.name || productData?.name || 'Produit vendeur',
@@ -594,7 +854,19 @@ async function enrichMarketplaceItems(items = []) {
         sourceType: isVendorItem ? 'vendor' : 'smartcut',
         categoryId: String(item?.categoryId || productData?.categoryId || '').trim(),
         category: resolvedCategory,
-        deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim()
+        deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim(),
+        weightGrams: Math.max(0, toNumber(item?.weightGrams ?? item?.weight ?? productData?.weightGrams ?? productData?.weight)),
+        productDeliveryCoverage,
+        productDeliveryZones,
+        vendorDeliveryCoverage: item?.vendorDeliveryCoverage || productDeliveryCoverage || productData?.vendorDeliveryCoverage || null,
+        vendorDeliveryZones: normalizeDeliveryZoneList(
+          Array.isArray(item?.vendorDeliveryZones) && item.vendorDeliveryZones.length
+            ? item.vendorDeliveryZones
+            : productDeliveryZones
+        ),
+        isDigitalProduct: Boolean(item?.isDigitalProduct || productData?.isDigitalProduct),
+        digitalDownloadLink: String(item?.digitalDownloadLink || productData?.digitalDownloadLink || '').trim(),
+        deliveryDelay: String(item?.deliveryDelay || productData?.deliveryDelay || (productData?.isDigitalProduct ? 'Instantanee' : '')).trim()
       };
     } catch (error) {
       logger.warn('Unable to enrich vendor marketplace item', {
@@ -621,8 +893,8 @@ function buildVendorItemMetrics(item = {}) {
   const unitPrice = Number(item?.price || 0);
   const productGrossAmount = unitPrice * quantity;
   const commissionRate = getCommissionRate(item?.commissionRule);
-  const commissionAmount = productGrossAmount * (commissionRate / 100);
-  const vendorNetAmount = Math.max(0, productGrossAmount - commissionAmount);
+  const productCommissionAmount = productGrossAmount * (commissionRate / 100);
+  const productNetAmount = Math.max(0, productGrossAmount - productCommissionAmount);
 
   return {
     ...item,
@@ -631,13 +903,187 @@ function buildVendorItemMetrics(item = {}) {
     productGrossAmount,
     grossAmount: productGrossAmount,
     commissionRate,
-    commissionAmount,
-    vendorNetAmount
+    productCommissionAmount,
+    productNetAmount,
+    commissionBaseAmount: productGrossAmount,
+    commissionAmount: productCommissionAmount,
+    deliveryAmount: 0,
+    vendorNetAmount: productNetAmount
   };
 }
 
 function getOrderDeliveryAmount(order = {}) {
   return Math.max(0, toNumber(order?.delivery?.totalFee ?? order?.delivery?.shippingAmount));
+}
+
+function isDigitalOrderItem(item = {}) {
+  return Boolean(item?.isDigitalProduct) ||
+    String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase() === 'digital' ||
+    String(item?.deliveryMode || '').toLowerCase().includes('digital');
+}
+
+function findProductDeliveryZoneForAddress(item = {}, delivery = {}) {
+  if (isDigitalOrderItem(item)) return null;
+
+  const country = String(delivery?.country || 'Haiti').trim() || 'Haiti';
+  const department = String(delivery?.department || '').trim();
+  const commune = String(delivery?.commune || '').trim();
+  const coverage = item?.productDeliveryCoverage || item?.deliveryCoverage || item?.vendorDeliveryCoverage || {};
+  const coverageZones = normalizeDeliveryZoneList(coverage?.zones);
+  const zones = coverageZones.length
+    ? coverageZones
+    : normalizeDeliveryZoneList(
+        Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
+          ? item.productDeliveryZones
+          : Array.isArray(item?.deliveryZones) && item.deliveryZones.length
+            ? item.deliveryZones
+            : item?.vendorDeliveryZones
+      );
+
+  if (coverage?.nationwide && String(coverage?.country || 'Haiti').trim() === country) {
+    return {
+      country,
+      department,
+      commune,
+      fee: Math.max(0, toNumber(coverage?.nationwideFee)),
+      deliveryDelay: String(coverage?.deliveryDelay || '').trim()
+    };
+  }
+
+  return zones.find((zone) => (
+    String(zone.country || 'Haiti').trim() === country &&
+    String(zone.department || '').trim() === department &&
+    String(zone.commune || '').trim() === commune
+  )) || null;
+}
+
+function findVendorDeliveryZoneForAddress(item = {}, delivery = {}) {
+  if (!item?.vendorId) return null;
+  return findProductDeliveryZoneForAddress(item, delivery);
+}
+
+function buildServerProductDeliveryDetails(items = [], delivery = {}) {
+  return (Array.isArray(items) ? items : [])
+    .filter((item) => !isDigitalOrderItem(item))
+    .map((item) => {
+      const quantity = Math.max(1, toNumber(item?.quantity) || 1);
+      const vendorId = String(item?.vendorId || '').trim();
+      const ownerType = vendorId ? 'vendor' : 'smartcut';
+      const zone = findProductDeliveryZoneForAddress(item, delivery);
+      if (!zone) {
+        return {
+          ok: false,
+          ownerType,
+          vendorId,
+          vendorName: vendorId ? String(item?.vendorName || '').trim() : 'Smart Cut Services',
+          productId: String(item?.productId || '').trim(),
+          productName: String(item?.name || 'Produit').trim(),
+          quantity,
+          deliveryDelay: String(item?.deliveryDelay || '').trim(),
+          zone: null,
+          fee: 0,
+          unitFee: 0
+        };
+      }
+
+      const unitFee = Math.max(0, toNumber(zone?.fee));
+      return {
+        ok: true,
+        ownerType,
+        vendorId,
+        vendorName: vendorId ? String(item?.vendorName || '').trim() : 'Smart Cut Services',
+        productId: String(item?.productId || '').trim(),
+        productName: String(item?.name || 'Produit').trim(),
+        quantity,
+        deliveryDelay: String(zone?.deliveryDelay || zone?.delay || item?.deliveryDelay || '').trim(),
+        zone,
+        fee: unitFee * quantity,
+        unitFee
+      };
+    });
+}
+
+function buildServerVendorDeliveryDetails(items = [], delivery = {}) {
+  return buildServerProductDeliveryDetails(items, delivery)
+    .filter((entry) => entry.ownerType === 'vendor');
+}
+
+function validateHomeDeliveryPayload(items = [], delivery = {}) {
+  const normalizedDelivery = delivery && typeof delivery === 'object' ? { ...delivery } : {};
+  normalizedDelivery.method = 'home';
+  normalizedDelivery.country = String(normalizedDelivery.country || 'Haiti').trim() || 'Haiti';
+  normalizedDelivery.department = String(normalizedDelivery.department || '').trim();
+  normalizedDelivery.commune = String(normalizedDelivery.commune || '').trim();
+  normalizedDelivery.address = String(normalizedDelivery.address || '').trim();
+  normalizedDelivery.pickupPoint = null;
+  normalizedDelivery.meetupZone = null;
+  normalizedDelivery.meetupProposal = '';
+
+  if (!normalizedDelivery.address || !normalizedDelivery.department || !normalizedDelivery.commune) {
+    return {
+      ok: false,
+      error: 'missing-delivery-address',
+      message: 'Adresse, departement et commune de livraison requis.'
+    };
+  }
+
+  const productDetails = buildServerProductDeliveryDetails(items, normalizedDelivery);
+  const unavailable = productDetails.find((entry) => !entry.ok);
+  if (unavailable) {
+    return {
+      ok: false,
+      error: 'product-delivery-unavailable',
+      message: `${unavailable.productName} ne peut pas etre livre dans cette commune.`,
+      unavailable
+    };
+  }
+
+  const sanitizedProductDetails = productDetails.map(({ ok, ...entry }) => entry);
+  const vendorDetails = sanitizedProductDetails.filter((entry) => entry.ownerType === 'vendor');
+  const smartCutDetails = sanitizedProductDetails.filter((entry) => entry.ownerType === 'smartcut');
+  const productDeliveryFee = productDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
+  const vendorDeliveryFee = vendorDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
+  const smartCutDeliveryFee = smartCutDetails.reduce((sum, entry) => sum + Math.max(0, toNumber(entry.fee)), 0);
+  const weightFee = Math.max(0, toNumber(normalizedDelivery.weightFee));
+  const requestedTotal = Math.max(0, toNumber(normalizedDelivery.totalFee ?? normalizedDelivery.shippingAmount));
+  normalizedDelivery.productDeliveryDetails = sanitizedProductDetails;
+  normalizedDelivery.vendorDeliveryDetails = vendorDetails;
+  normalizedDelivery.smartCutDeliveryDetails = smartCutDetails;
+  normalizedDelivery.productDeliveryFee = productDeliveryFee;
+  normalizedDelivery.vendorDeliveryFee = vendorDeliveryFee;
+  normalizedDelivery.smartCutDeliveryFee = smartCutDeliveryFee;
+  normalizedDelivery.totalFee = Math.max(requestedTotal, productDeliveryFee + weightFee);
+  normalizedDelivery.shippingAmount = normalizedDelivery.totalFee;
+  return {
+    ok: true,
+    delivery: normalizedDelivery
+  };
+}
+
+function getVendorDeliveryDetailsForOrder(order = {}, vendorUid = '', relevantItems = []) {
+  const normalizedVendorId = String(vendorUid || '').trim();
+  const relevantProductIds = new Set(
+    (Array.isArray(relevantItems) ? relevantItems : [])
+      .map((item) => String(item?.productId || '').trim())
+      .filter(Boolean)
+  );
+  const details = Array.isArray(order?.delivery?.vendorDeliveryDetails)
+    ? order.delivery.vendorDeliveryDetails
+    : [];
+
+  return details.filter((entry) => (
+    String(entry?.vendorId || '').trim() === normalizedVendorId ||
+    (relevantProductIds.size > 0 && relevantProductIds.has(String(entry?.productId || '').trim()))
+  ));
+}
+
+function getVendorDeliveryAmount(order = {}, vendorUid = '', relevantItems = []) {
+  const details = getVendorDeliveryDetailsForOrder(order, vendorUid, relevantItems);
+  if (details.length) {
+    return details.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.fee)), 0);
+  }
+
+  return isVendorExclusiveOrder(order, vendorUid) ? getOrderDeliveryAmount(order) : 0;
 }
 
 function isVendorExclusiveOrder(order = {}, vendorUid = '') {
@@ -649,28 +1095,74 @@ function isVendorExclusiveOrder(order = {}, vendorUid = '') {
 }
 
 function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '') {
-  const relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
+  let relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
   if (!relevantItems.length) return null;
 
+  const normalizedVendorUid = String(vendorUid || '').trim();
+  const vendorFulfillment = order?.vendorFulfillments && typeof order.vendorFulfillments === 'object'
+    ? order.vendorFulfillments[normalizedVendorUid] || null
+    : null;
   const deliveryModes = relevantItems.map((item) => String(item?.deliveryMode || '').trim()).filter(Boolean);
+  const hasVendorItems = relevantItems.some((item) => String(item?.vendorId || '').trim() === normalizedVendorUid);
   const vendorManagedDelivery =
-    deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode)) &&
+    (hasVendorItems || deliveryModes.some((mode) => vendorHandlesDeliveryMode(mode))) &&
     !deliveryModes.some((mode) => smartCutHandlesDeliveryMode(mode));
+  const vendorDeliveryDetails = vendorManagedDelivery
+    ? getVendorDeliveryDetailsForOrder(order, vendorUid, relevantItems)
+    : [];
+  const deliveryAmount = vendorManagedDelivery
+    ? getVendorDeliveryAmount(order, vendorUid, relevantItems)
+    : 0;
+  const productGrossBeforeDelivery = relevantItems.reduce((sum, item) => sum + Math.max(0, toNumber(item.productGrossAmount)), 0);
+  relevantItems = relevantItems.map((item) => {
+    const itemProductId = String(item?.productId || '').trim();
+    const itemName = String(item?.name || 'Produit').trim();
+    const matchingDelivery = vendorManagedDelivery
+      ? vendorDeliveryDetails.find((entry) => (
+          (itemProductId && String(entry?.productId || '').trim() === itemProductId) ||
+          String(entry?.productName || '').trim() === itemName
+        ))
+      : null;
+    const fallbackDeliveryShare = vendorManagedDelivery && !vendorDeliveryDetails.length && deliveryAmount > 0 && productGrossBeforeDelivery > 0
+      ? deliveryAmount * (Math.max(0, toNumber(item.productGrossAmount)) / productGrossBeforeDelivery)
+      : 0;
+    const itemDeliveryAmount = Math.max(0, toNumber(matchingDelivery?.fee) || fallbackDeliveryShare);
+    const commissionBaseAmount = Math.max(0, toNumber(item.productGrossAmount) + itemDeliveryAmount);
+    const commissionAmount = commissionBaseAmount * (Number(item.commissionRate || 0) / 100);
+    return {
+      ...item,
+      deliveryAmount: itemDeliveryAmount,
+      commissionBaseAmount,
+      grossAmount: commissionBaseAmount,
+      commissionAmount,
+      vendorNetAmount: Math.max(0, commissionBaseAmount - commissionAmount)
+    };
+  });
   const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
   const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
-  const productNetAmount = relevantItems.reduce((sum, item) => sum + item.vendorNetAmount, 0);
-  const deliveryAmount = vendorManagedDelivery && isVendorExclusiveOrder(order, vendorUid)
-    ? getOrderDeliveryAmount(order)
-    : 0;
+  const productNetAmount = relevantItems.reduce((sum, item) => sum + item.productNetAmount, 0);
   const grossAmount = productGrossAmount + deliveryAmount;
-  const vendorNetAmount = productNetAmount + deliveryAmount;
+  const vendorNetAmount = Math.max(0, grossAmount - commissionAmount);
+  const vendorDelivery = vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
+    ? {
+        ...order.delivery,
+        vendorDeliveryDetails,
+        totalFee: deliveryAmount,
+        shippingAmount: deliveryAmount,
+        vendorDeliveryFee: deliveryAmount,
+        pickupPoint: null,
+        meetupZone: null,
+        meetupProposal: ''
+      }
+    : null;
 
   return {
     refPath,
     orderId: String(order?.id || '').trim(),
     uniqueCode: String(order?.uniqueCode || order?.id || '').trim(),
     status: normalizeOrderStatus(order),
-    fulfillmentStatus: String(order?.fulfillmentStatus || 'ordered').trim(),
+    fulfillmentStatus: String(vendorFulfillment?.status || order?.fulfillmentStatus || 'ordered').trim(),
+    vendorFulfillment: vendorFulfillment || null,
     paymentStatus: String(order?.paymentStatus || order?.status || '').trim(),
     createdAt: order?.createdAt || '',
     updatedAt: order?.updatedAt || '',
@@ -700,9 +1192,7 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
           address: '',
           city: ''
         },
-    delivery: vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
-      ? order.delivery
-      : null
+    delivery: vendorDelivery
   };
 }
 
@@ -747,6 +1237,42 @@ function buildVendorOrderNotifications(order = {}, sessionId = '') {
       createdAt: new Date().toISOString()
     };
   });
+}
+
+function isSmartCutOrderItem(item = {}) {
+  const vendorId = String(item?.vendorId || '').trim();
+  const ownerType = String(item?.ownerType || '').trim().toLowerCase();
+  const sourceType = String(item?.sourceType || '').trim().toLowerCase();
+  if (vendorId || ownerType === 'vendor' || sourceType === 'vendor') return false;
+  return true;
+}
+
+function buildSmartCutOrderNotification(order = {}, sessionId = '') {
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const smartCutItemCount = items
+    .filter(isSmartCutOrderItem)
+    .reduce((sum, item) => sum + Math.max(1, Number(item?.quantity || 1)), 0);
+
+  if (!smartCutItemCount) return null;
+
+  const itemLabel = smartCutItemCount > 1 ? `${smartCutItemCount} articles` : '1 article';
+  const uniqueCode = String(order?.uniqueCode || order?.id || '').trim();
+  const orderKey = String(sessionId || order?.paymentSessionId || order?.id || uniqueCode || Date.now()).trim();
+  const dashboardUrl = new URL('/dashboard-orders.html', 'https://smartcutservices.github.io/dashboard-/').toString();
+
+  return {
+    id: `smartcut-order-${orderKey}`,
+    title: 'Nouvelle commande Smart Cut',
+    body: uniqueCode
+      ? `La commande ${uniqueCode} contient ${itemLabel} Smart Cut.`
+      : `Une nouvelle commande contient ${itemLabel} Smart Cut.`,
+    type: 'smartcut-order',
+    target: 'admin',
+    targetUid: null,
+    url: dashboardUrl,
+    createdBy: 'payment_system',
+    createdAt: new Date().toISOString()
+  };
 }
 
 function createPayoutReportNumber(seed = '') {
@@ -953,8 +1479,137 @@ function normalizePromoLookupValue(value = '') {
   return normalizePromoCode(value).replace(/[^A-Z0-9]/g, '');
 }
 
+function normalizeCategoryToken(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
 function buildPromoUsageId(promoId = '', clientKey = '') {
   return `${String(promoId || '').trim()}__${String(clientKey || '').trim()}`.replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function isAffiliatePromoCode(promo = {}) {
+  return Boolean(
+    promo?.affiliateEnabled === true ||
+    promo?.affiliateMemberId ||
+    promo?.affiliateMemberName ||
+    promo?.affiliatePhone
+  );
+}
+
+function normalizeAffiliateMemberId(value = '') {
+  return sanitizeText(value, 80).toUpperCase().replace(/\s+/g, '').replace(/[^A-Z0-9_-]/g, '');
+}
+
+function normalizeAffiliateMemberStatus(value = '') {
+  return String(value || '').trim().toLowerCase() === 'inactive' ? 'inactive' : 'active';
+}
+
+function normalizeAffiliateSex(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['m', 'male', 'masculin', 'homme'].includes(normalized)) return 'Masculin';
+  if (['f', 'female', 'feminin', 'feminin', 'femme'].includes(normalized)) return 'Feminin';
+  if (['other', 'autre'].includes(normalized)) return 'Autre';
+  return sanitizeText(value, 32);
+}
+
+function buildAffiliateMemberDocId(promoCode = '') {
+  return normalizePromoCode(promoCode);
+}
+
+function buildAffiliateEarningId(promoUsageId = '') {
+  return String(promoUsageId || '').trim().replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+function createAffiliatePayoutReportNumber(seed = '') {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const suffix = createUniqueCode(seed).replace('SCS-', '');
+  return `AFF-${y}${m}${d}-${suffix}`;
+}
+
+function buildAffiliateMemberSnapshot(member = {}) {
+  const firstName = String(member?.firstName || '').trim();
+  const lastName = String(member?.lastName || '').trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  return {
+    memberId: String(member?.memberId || '').trim(),
+    firstName,
+    lastName,
+    fullName: fullName || String(member?.fullName || '').trim() || 'Membre affiliation',
+    sex: String(member?.sex || '').trim(),
+    phone: String(member?.phone || '').trim(),
+    promoCode: String(member?.promoCode || '').trim(),
+    status: normalizeAffiliateMemberStatus(member?.status)
+  };
+}
+
+function normalizeAffiliatePayoutStatus(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['paid', 'completed', 'complete'].includes(normalized)) return 'paid';
+  return 'paid';
+}
+
+function getAffiliatePayoutEventMs(payout = {}) {
+  return toDateMs(
+    payout?.paidAt ||
+    payout?.updatedAt ||
+    payout?.createdAt
+  );
+}
+
+function mapAffiliatePayoutSummary(id, payout = {}) {
+  return {
+    id,
+    reportNumber: String(payout?.reportNumber || '').trim(),
+    status: normalizeAffiliatePayoutStatus(payout?.status),
+    promoCode: String(payout?.promoCode || '').trim(),
+    memberId: String(payout?.memberId || '').trim(),
+    firstName: String(payout?.firstName || '').trim(),
+    lastName: String(payout?.lastName || '').trim(),
+    fullName: String(payout?.fullName || '').trim(),
+    sex: String(payout?.sex || '').trim(),
+    phone: String(payout?.phone || '').trim(),
+    affiliateRate: Math.max(0, toNumber(payout?.affiliateRate)),
+    ratesUsed: Array.isArray(payout?.ratesUsed) ? payout.ratesUsed.map((value) => Math.max(0, toNumber(value))).filter((value) => value > 0) : [],
+    eligibleSubtotalAmount: Math.max(0, toNumber(payout?.eligibleSubtotalAmount)),
+    discountAmount: Math.max(0, toNumber(payout?.discountAmount)),
+    amount: Math.max(0, toNumber(payout?.amount ?? payout?.netAmount)),
+    usageCount: Math.max(0, toNumber(payout?.usageCount)),
+    periodStart: String(payout?.periodStart || '').trim(),
+    periodEnd: String(payout?.periodEnd || '').trim(),
+    paidAt: String(payout?.paidAt || '').trim(),
+    createdAt: String(payout?.createdAt || '').trim(),
+    updatedAt: String(payout?.updatedAt || '').trim(),
+    orderIds: Array.isArray(payout?.orderIds) ? payout.orderIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    earningIds: Array.isArray(payout?.earningIds) ? payout.earningIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    paidBy: String(payout?.paidBy || '').trim()
+  };
+}
+
+async function resolvePromoCategoryNames(categoryIds = []) {
+  const uniqueIds = Array.from(new Set((Array.isArray(categoryIds) ? categoryIds : []).map((value) => String(value || '').trim()).filter(Boolean)));
+  if (!uniqueIds.length) return [];
+
+  const docs = await Promise.all(
+    uniqueIds.map(async (categoryId) => {
+      try {
+        const snap = await db.collection('categories_list').doc(categoryId).get();
+        if (!snap.exists) return '';
+        return String(snap.data()?.name || '').trim();
+      } catch (_) {
+        return '';
+      }
+    })
+  );
+
+  return Array.from(new Set(docs.filter(Boolean)));
 }
 
 function isPromoActive(promo = {}, now = Date.now()) {
@@ -984,12 +1639,18 @@ function getPromoEligibleItems(items = [], promo = {}) {
   const allowedCategoryIds = Array.isArray(promo?.categoryIds)
     ? promo.categoryIds.map((value) => String(value || '').trim()).filter(Boolean)
     : [];
+  const allowedCategoryNames = Array.isArray(promo?.categoryNames)
+    ? promo.categoryNames.map((value) => normalizeCategoryToken(value)).filter(Boolean)
+    : [];
 
   return items.filter((item) => {
     if (!isSmartCutCartItem(item)) return false;
-    if (!allowedCategoryIds.length) return true;
+    if (!allowedCategoryIds.length && !allowedCategoryNames.length) return true;
     const itemCategoryId = String(item?.categoryId || '').trim();
-    return Boolean(itemCategoryId) && allowedCategoryIds.includes(itemCategoryId);
+    const itemCategoryName = normalizeCategoryToken(item?.category || item?.categoryName || '');
+    if (Boolean(itemCategoryId) && allowedCategoryIds.includes(itemCategoryId)) return true;
+    if (itemCategoryName && allowedCategoryNames.includes(itemCategoryName)) return true;
+    return false;
   });
 }
 
@@ -1031,7 +1692,7 @@ async function findPromoByCode(code = '') {
     return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
   }
 
-  const fallbackSnap = await db.collection('promoCodes').limit(200).get();
+  const fallbackSnap = await db.collection('promoCodes').get();
   const fallbackDoc = fallbackSnap.docs.find((docSnap) => {
     const data = docSnap.data() || {};
     return (
@@ -1100,9 +1761,10 @@ async function previewPromoForCart({ code = '', clientId = '', clientUid = '', i
     throw new Error('Client manquant pour verifier ce code promo.');
   }
 
+  const affiliatePromo = isAffiliatePromoCode(promo);
   const usageRef = db.collection('promoCodeUsages').doc(buildPromoUsageId(promoRecord.id, clientKey));
   const usageSnap = await usageRef.get();
-  if (usageSnap.exists) {
+  if (usageSnap.exists && !affiliatePromo) {
     logger.warn('PROMO_DEBUG preview:already-used', {
       promoId: promoRecord.id,
       clientKey
@@ -1158,6 +1820,10 @@ async function previewPromoForCart({ code = '', clientId = '', clientUid = '', i
     type: normalizePromoType(promo?.type),
     value: Math.max(0, toNumber(promo?.value ?? promo?.amount ?? promo?.rate)),
     categoryIds: Array.isArray(promo?.categoryIds) ? promo.categoryIds.map((value) => String(value || '').trim()).filter(Boolean) : [],
+    affiliateEnabled: affiliatePromo,
+    affiliateMemberId: String(promo?.affiliateMemberId || '').trim(),
+    affiliateMemberName: String(promo?.affiliateMemberName || '').trim(),
+    affiliatePhone: String(promo?.affiliatePhone || '').trim(),
     eligibleSubtotal,
     discountAmount: Math.min(eligibleSubtotal, discountAmount),
     discountedSubtotal: Math.max(0, eligibleSubtotal - discountAmount),
@@ -1236,6 +1902,51 @@ async function fetchJson(url, options = {}) {
   return payload;
 }
 
+function buildMoncashPublicKey() {
+  const rawKey = safeSecretValue(MONCASH_SECRET_API_KEY).replace(/\\n/g, '\n').trim();
+  if (!rawKey) {
+    throw new Error('MonCash secret API key is not configured');
+  }
+
+  const compactBody = rawKey.replace(/-----BEGIN [^-]+-----|-----END [^-]+-----|\s+/g, '');
+  const pemBody = compactBody.match(/.{1,64}/g)?.join('\n') || compactBody;
+  const candidates = rawKey.includes('BEGIN')
+    ? [rawKey]
+    : [
+        `-----BEGIN PUBLIC KEY-----\n${pemBody}\n-----END PUBLIC KEY-----`,
+        `-----BEGIN RSA PUBLIC KEY-----\n${pemBody}\n-----END RSA PUBLIC KEY-----`
+      ];
+
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      return crypto.createPublicKey(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('Unable to parse MonCash secret API key');
+}
+
+function encryptMoncashMiddlewareValue(value) {
+  const publicKey = buildMoncashPublicKey();
+  const keySizeBytes = Math.ceil(Number(publicKey.asymmetricKeyDetails?.modulusLength || 2048) / 8);
+  const valueBuffer = Buffer.from(String(value || ''), 'utf8');
+
+  if (valueBuffer.length > keySizeBytes) {
+    throw new Error('MonCash encrypted value is too long for the configured key');
+  }
+
+  const padded = Buffer.alloc(keySizeBytes);
+  valueBuffer.copy(padded, keySizeBytes - valueBuffer.length);
+
+  return crypto.publicEncrypt({
+    key: publicKey,
+    padding: crypto.constants.RSA_NO_PADDING
+  }, padded).toString('base64');
+}
+
 async function getMoncashAccessToken() {
   if (tokenCache.accessToken && tokenCache.expiresAt > Date.now()) {
     return tokenCache.accessToken;
@@ -1301,7 +2012,7 @@ async function getMoncashAccessToken() {
   return accessToken;
 }
 
-async function createMoncashRedirect(orderId, amount) {
+async function createMoncashApiRedirect(orderId, amount) {
   const accessToken = await getMoncashAccessToken();
   const payload = await fetchJson(`${MONCASH_API_BASE}/v1/CreatePayment`, {
     method: 'POST',
@@ -1311,7 +2022,7 @@ async function createMoncashRedirect(orderId, amount) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      amount,
+      amount: Math.round(toNumber(amount)),
       orderId
     })
   });
@@ -1326,8 +2037,67 @@ async function createMoncashRedirect(orderId, amount) {
   return {
     paymentToken,
     checkoutUrl: `${MONCASH_GATEWAY_BASE}/Payment/Redirect?token=${encodeURIComponent(paymentToken)}`,
+    providerMode: 'api',
     providerResponse: payload
   };
+}
+
+async function createMoncashMiddlewareRedirect(orderId, amount) {
+  const businessKey = safeSecretValue(MONCASH_BUSINESS_KEY);
+  if (!businessKey) {
+    throw new Error('MonCash business key is not configured');
+  }
+
+  const encryptedOrderId = encryptMoncashMiddlewareValue(orderId);
+  const encryptedAmount = encryptMoncashMiddlewareValue(Math.round(toNumber(amount)));
+  const endpoint = `${MONCASH_GATEWAY_BASE}/Checkout/Rest/${encodeURIComponent(businessKey)}`;
+  const payload = await fetchJson(endpoint, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      amount: encryptedAmount,
+      orderId: encryptedOrderId
+    }).toString()
+  });
+
+  const token = String(payload?.token || payload?.payment_token?.token || payload?.paymentToken || '').trim();
+  const redirectPath = String(payload?.redirect || payload?.path || payload?.paymentUrl || payload?.url || '').trim();
+  const checkoutUrl = redirectPath
+    ? (redirectPath.startsWith('http') ? redirectPath : `${MONCASH_GATEWAY_BASE}${redirectPath.startsWith('/') ? '' : '/'}${redirectPath}`)
+    : (token ? `${MONCASH_GATEWAY_BASE}/Checkout/Payment/Redirect/${encodeURIComponent(token)}` : '');
+
+  if (!checkoutUrl) {
+    const error = new Error('MonCash middleware did not return a checkout URL');
+    error.payload = payload;
+    throw error;
+  }
+
+  return {
+    paymentToken: token,
+    checkoutUrl,
+    providerMode: 'middleware',
+    providerResponse: {
+      ...payload,
+      encryptedOrderId,
+      encryptedAmount
+    }
+  };
+}
+
+async function createMoncashRedirect(orderId, amount) {
+  try {
+    return await createMoncashApiRedirect(orderId, amount);
+  } catch (apiError) {
+    logger.warn('MONCASH_CREATE_DEBUG api:create-payment-failed:fallback-middleware', {
+      message: apiError?.message || '',
+      status: apiError?.status || null,
+      payload: apiError?.payload || null
+    });
+    return createMoncashMiddlewareRedirect(orderId, amount);
+  }
 }
 
 async function retrieveMoncashPayment({ orderId = '', transactionId = '' } = {}) {
@@ -1438,6 +2208,8 @@ function getSelectedSizeValue(item) {
 }
 
 async function decrementInventoryForItems(transaction, items = []) {
+  const inventoryEntries = [];
+
   for (const item of items) {
     const productId = String(item?.productId || '').trim();
     if (!productId) continue;
@@ -1446,9 +2218,17 @@ async function decrementInventoryForItems(transaction, items = []) {
     const collectionName = getProductCollectionName(item);
     const productRef = db.collection(collectionName).doc(productId);
     const productSnap = await transaction.get(productRef);
+    inventoryEntries.push({ item, quantity, productRef, productSnap });
+  }
+
+  for (const entry of inventoryEntries) {
+    const { item, quantity, productRef, productSnap } = entry;
     if (!productSnap.exists) continue;
 
     const productData = productSnap.data() || {};
+    if (isDigitalOrderItem(item) || productData?.isDigitalProduct) {
+      continue;
+    }
     const patch = {};
     let touched = false;
 
@@ -1528,6 +2308,251 @@ async function findSessionByTransactionId(transactionId) {
   return { id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} };
 }
 
+async function findVendorServiceFeeById(feeId = '') {
+  const id = String(feeId || '').trim();
+  if (!id) return null;
+  const snap = await db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ref: snap.ref, data: snap.data() || {} };
+}
+
+async function findLatestVendorServiceFee(vendorId = '', status = '') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return null;
+
+  let ref = db
+    .collection(VENDOR_SERVICE_FEES_COLLECTION)
+    .where('vendorId', '==', normalizedVendorId);
+
+  if (status) {
+    ref = ref.where('status', '==', String(status || '').trim());
+  }
+
+  const snap = await ref.get();
+  if (snap.empty) return null;
+
+  const docs = snap.docs
+    .map((docSnap) => ({ id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} }))
+    .sort((a, b) => toDateMs(b.data?.createdAt || b.data?.requestedAt || b.data?.paidAt) - toDateMs(a.data?.createdAt || a.data?.requestedAt || a.data?.paidAt));
+
+  return docs[0] || null;
+}
+
+async function findLatestOpenVendorServiceFee(vendorId = '') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return null;
+
+  const snap = await db
+    .collection(VENDOR_SERVICE_FEES_COLLECTION)
+    .where('vendorId', '==', normalizedVendorId)
+    .get();
+
+  if (snap.empty) return null;
+  const openStatuses = new Set(['pending', 'payment_pending', 'payment_initiated', 'redirect_ready', 'payment_failed']);
+  const docs = snap.docs
+    .map((docSnap) => ({ id: docSnap.id, ref: docSnap.ref, data: docSnap.data() || {} }))
+    .filter((item) => openStatuses.has(String(item.data?.status || '').trim().toLowerCase()))
+    .sort((a, b) => toDateMs(b.data?.createdAt || b.data?.requestedAt || b.data?.updatedAt) - toDateMs(a.data?.createdAt || a.data?.requestedAt || a.data?.updatedAt));
+
+  return docs[0] || null;
+}
+
+async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amount = 0, currency = '', requestedBy = '', reason = 'renewal', planId = '', planLabel = '' } = {}) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  const feeAmount = Math.max(0, toNumber(amount || getVendorServiceFeeAmount(vendor)));
+  if (!normalizedVendorId || feeAmount <= 0) return null;
+
+  const now = new Date().toISOString();
+  const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
+  const fee = {
+    vendorId: normalizedVendorId,
+    vendorName: vendor.vendorName || vendor.shopName || 'Store vendeur',
+    shopName: vendor.shopName || vendor.vendorName || '',
+    email: vendor.email || '',
+    amount: feeAmount,
+    currency: currency || vendor.planCurrency || MONCASH_CURRENCY,
+    status: 'pending',
+    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+    requestedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    requestedBy,
+    requestSource: reason,
+    paymentMethod: '',
+    paymentProvider: '',
+    paidAt: '',
+    nextDueAt: '',
+    planId: planId || vendor.planId || '',
+    planLabel: planLabel || vendor.planLabel || ''
+  };
+
+  await Promise.all([
+    feeRef.set(fee, { merge: true }),
+    db.collection('vendors').doc(normalizedVendorId).set({
+      serviceFeeStatus: 'pending',
+      serviceFeeCurrentId: feeRef.id,
+      serviceFeeAmount: feeAmount,
+      serviceFeeRequestedAt: now,
+      updatedAt: now
+    }, { merge: true }),
+    db.collection('clients').doc(normalizedVendorId).set({
+      uid: normalizedVendorId,
+      role: 'vendor',
+      serviceFeeStatus: 'pending',
+      serviceFeeCurrentId: feeRef.id,
+      updatedAt: now
+    }, { merge: true })
+  ]);
+
+  return { id: feeRef.id, ref: feeRef, data: fee };
+}
+
+async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method = '', paidAt = '', provider = '', providerDetails = null } = {}) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  const normalizedFeeId = String(feeId || '').trim();
+  if (!normalizedVendorId || !normalizedFeeId) return null;
+
+  const now = paidAt || new Date().toISOString();
+  const nextDueAt = addDaysIso(now, VENDOR_SERVICE_FEE_INTERVAL_DAYS);
+  const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc(normalizedFeeId);
+  const vendorRef = db.collection('vendors').doc(normalizedVendorId);
+  const clientRef = db.collection('clients').doc(normalizedVendorId);
+  const feeSnap = await feeRef.get();
+  const feeData = feeSnap.exists ? feeSnap.data() || {} : {};
+  const paidPlanId = String(feeData?.planId || '').trim().toLowerCase();
+  const paidPlanLabel = String(feeData?.planLabel || '').trim();
+  const planUpgrade = paidPlanId === 'pro' || paidPlanLabel.toLowerCase().includes('pro');
+  const planUpdate = planUpgrade
+    ? {
+        planId: 'pro',
+        planLabel: paidPlanLabel || 'PRO',
+        planPrice: Math.max(0, toNumber(feeData?.amount)),
+        planCurrency: feeData?.currency || MONCASH_CURRENCY,
+        planPaymentRequired: true,
+        vendorVerified: true
+      }
+    : {};
+
+  await db.runTransaction(async (transaction) => {
+    transaction.set(feeRef, {
+      status: 'paid',
+      paidAt: now,
+      nextDueAt,
+      paymentMethod: normalizeVendorServicePaymentMethod(method),
+      paymentProvider: provider || normalizeVendorServicePaymentMethod(method),
+      providerDetails: providerDetails || null,
+      updatedAt: now
+    }, { merge: true });
+
+    transaction.set(vendorRef, {
+      ...planUpdate,
+      status: 'active',
+      vendorStatus: 'active',
+      serviceFeeStatus: 'paid',
+      serviceFeeCurrentId: normalizedFeeId,
+      serviceFeeLastPaidAt: now,
+      serviceFeeNextDueAt: nextDueAt,
+      serviceFeePaymentMethod: normalizeVendorServicePaymentMethod(method),
+      updatedAt: now
+    }, { merge: true });
+
+    transaction.set(clientRef, {
+      ...planUpdate,
+      role: 'vendor',
+      vendorStatus: 'active',
+      serviceFeeStatus: 'paid',
+      serviceFeeCurrentId: normalizedFeeId,
+      serviceFeeLastPaidAt: now,
+      serviceFeeNextDueAt: nextDueAt,
+      updatedAt: now
+    }, { merge: true });
+  });
+
+  await updateVendorProductsServiceStatus(normalizedVendorId, 'active');
+
+  return {
+    feeId: normalizedFeeId,
+    vendorId: normalizedVendorId,
+    paidAt: now,
+    nextDueAt
+  };
+}
+
+async function syncVendorServiceFeePayment({ session, details, source = '' }) {
+  const now = new Date().toISOString();
+  const paymentStatus = derivePaymentStatus(details);
+  const sessionData = session?.data || {};
+  const feeId = String(sessionData.feeId || sessionData.vendorServiceFeeId || '').trim();
+  const vendorId = String(sessionData.vendorId || '').trim();
+
+  if (!session || !feeId || !vendorId) {
+    return {
+      sessionId: session?.id || '',
+      orderId: details?.orderId || '',
+      paymentStatus,
+      updated: false
+    };
+  }
+
+  const sessionPatch = {
+    status: paymentStatus,
+    providerOrderId: details.orderId || sessionData.orderId || '',
+    providerTransactionId: details.transactionId || null,
+    payer: details.payer || null,
+    providerMessage: details.message || '',
+    providerResponse: details.providerResponse || null,
+    updatedAt: now
+  };
+
+  if (paymentStatus === 'paid') {
+    await activateVendorAfterServiceFee({
+      vendorId,
+      feeId,
+      method: 'moncash',
+      paidAt: now,
+      provider: 'moncash',
+      providerDetails: {
+        orderId: details.orderId || sessionData.orderId || '',
+        transactionId: details.transactionId || null,
+        payer: details.payer || null,
+        source,
+        raw: details.providerResponse || null
+      }
+    });
+    sessionPatch.paidAt = now;
+  } else {
+    const fee = await findVendorServiceFeeById(feeId);
+    await Promise.all([
+      session.ref.set(sessionPatch, { merge: true }),
+      fee?.ref?.set({
+        status: paymentStatus === 'failed' ? 'payment_failed' : 'payment_pending',
+        paymentMethod: 'moncash',
+        paymentProvider: 'moncash',
+        providerDetails: {
+          orderId: details.orderId || sessionData.orderId || '',
+          transactionId: details.transactionId || null,
+          payer: details.payer || null,
+          source,
+          raw: details.providerResponse || null
+        },
+        updatedAt: now
+      }, { merge: true })
+    ]);
+  }
+
+  await session.ref.set(sessionPatch, { merge: true });
+
+  return {
+    sessionId: session.id,
+    orderId: details.orderId || sessionData.orderId || '',
+    paymentStatus,
+    updated: true,
+    paymentType: 'vendor_service_fee',
+    feeId,
+    vendorId
+  };
+}
+
 function derivePaymentStatus(details) {
   if (details?.ok) return 'paid';
 
@@ -1543,6 +2568,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   const now = new Date().toISOString();
   const paymentStatus = derivePaymentStatus(details);
   const sessionData = session?.data || {};
+  if (String(sessionData.paymentType || '').trim() === 'vendor_service_fee') {
+    return syncVendorServiceFeePayment({ session, details, source });
+  }
   const clientId = sessionData.clientId || '';
   const orderId = sessionData.orderId || details.orderId || '';
 
@@ -1586,29 +2614,52 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       const orderData = orderSnap.data() || {};
       const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
       const vendorNotifications = !alreadyApplied ? buildVendorOrderNotifications(orderData, session.id) : [];
+      const smartCutNotification = !alreadyApplied ? buildSmartCutOrderNotification(orderData, session.id) : null;
       const promoCode = freshSessionData.promoCode && typeof freshSessionData.promoCode === 'object'
         ? freshSessionData.promoCode
         : orderData?.promoCode && typeof orderData.promoCode === 'object'
           ? orderData.promoCode
           : null;
       const clientPromoKey = String(sessionData.clientUid || clientId || '').trim();
-      const promoUsageId = promoCode?.promoId && clientPromoKey
-        ? buildPromoUsageId(promoCode.promoId, clientPromoKey)
+      const affiliatePromo = isAffiliatePromoCode(promoCode || {});
+      const promoUsageClientKey = affiliatePromo
+        ? [clientPromoKey, orderId || session.id || Date.now()].filter(Boolean).join('__')
+        : clientPromoKey;
+      const promoUsageId = promoCode?.promoId && promoUsageClientKey
+        ? buildPromoUsageId(promoCode.promoId, promoUsageClientKey)
         : '';
       const promoUsageRef = promoUsageId ? db.collection('promoCodeUsages').doc(promoUsageId) : null;
+      const affiliateMemberDocId = buildAffiliateMemberDocId(promoCode?.code || '');
+      const affiliateMemberRef = affiliateMemberDocId ? db.collection('affiliateMembers').doc(affiliateMemberDocId) : null;
+      const affiliateEarningRef = promoUsageId ? db.collection('affiliateEarnings').doc(buildAffiliateEarningId(promoUsageId)) : null;
       const shouldRecordPromoUsage = Boolean(
         promoUsageRef &&
         promoCode?.applied &&
         promoCode?.discountAmount > 0 &&
         !freshSessionData.promoUsageRecordedAt
       );
+      const existingUsageSnap = shouldRecordPromoUsage
+        ? await transaction.get(promoUsageRef)
+        : null;
+      const shouldCheckAffiliate = Boolean(
+        shouldRecordPromoUsage &&
+        existingUsageSnap &&
+        !existingUsageSnap.exists &&
+        affiliateMemberRef &&
+        affiliateEarningRef
+      );
+      const affiliateMemberSnap = shouldCheckAffiliate
+        ? await transaction.get(affiliateMemberRef)
+        : null;
+      const existingAffiliateEarningSnap = shouldCheckAffiliate
+        ? await transaction.get(affiliateEarningRef)
+        : null;
 
       if (!alreadyApplied) {
         await decrementInventoryForItems(transaction, orderData.items || []);
       }
 
       if (shouldRecordPromoUsage) {
-        const existingUsageSnap = await transaction.get(promoUsageRef);
         if (!existingUsageSnap.exists) {
           transaction.set(promoUsageRef, {
             promoId: promoCode.promoId,
@@ -1617,7 +2668,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
             clientUid: sessionData.clientUid || '',
             orderId,
             sessionId: session.id,
+            eligibleSubtotal: Math.max(0, toNumber(promoCode.eligibleSubtotal)),
             discountAmount: Math.max(0, toNumber(promoCode.discountAmount)),
+            discountedSubtotal: Math.max(0, toNumber(promoCode.discountedSubtotal)),
             usedAt: now
           }, { merge: true });
 
@@ -1628,6 +2681,65 @@ async function syncMoncashPayment({ session, details, source = '' }) {
               lastUsedAt: now,
               updatedAt: now
             }, { merge: true });
+          }
+
+          if (affiliateMemberRef && affiliateEarningRef) {
+            if (affiliateMemberSnap.exists) {
+              const affiliateMember = affiliateMemberSnap.data() || {};
+              const affiliateStatus = normalizeAffiliateMemberStatus(affiliateMember?.status);
+              const affiliateRate = Math.max(
+                0,
+                toNumber(affiliateMember?.affiliateRate || promoCode?.value)
+              );
+              const eligibleSubtotal = Math.max(0, toNumber(promoCode?.eligibleSubtotal));
+              const discountAmount = Math.max(0, toNumber(promoCode?.discountAmount));
+              const promoType = normalizePromoType(promoCode?.type);
+
+              if (affiliateStatus === 'active' && promoType === 'percentage' && affiliateRate > 0 && eligibleSubtotal > 0) {
+                if (!existingAffiliateEarningSnap.exists) {
+                  const affiliateSnapshot = buildAffiliateMemberSnapshot({
+                    ...affiliateMember,
+                    promoCode: String(promoCode.code || '').trim()
+                  });
+                  const affiliateAmount = Math.max(0, eligibleSubtotal * (affiliateRate / 100));
+
+                  transaction.set(affiliateEarningRef, {
+                    memberRef: affiliateMemberRef.path,
+                    promoId: String(promoCode.promoId || '').trim(),
+                    promoCode: affiliateSnapshot.promoCode,
+                    memberId: affiliateSnapshot.memberId,
+                    firstName: affiliateSnapshot.firstName,
+                    lastName: affiliateSnapshot.lastName,
+                    fullName: affiliateSnapshot.fullName,
+                    sex: affiliateSnapshot.sex,
+                    phone: affiliateSnapshot.phone,
+                    clientId,
+                    clientUid: sessionData.clientUid || '',
+                    orderId,
+                    sessionId: session.id,
+                    affiliateRate,
+                    eligibleSubtotal,
+                    discountAmount,
+                    amount: affiliateAmount,
+                    status: 'pending',
+                    createdAt: now,
+                    updatedAt: now,
+                    paidAt: '',
+                    payoutId: ''
+                  }, { merge: true });
+
+                  transaction.set(affiliateMemberRef, {
+                    promoCode: affiliateSnapshot.promoCode,
+                    affiliateRate,
+                    lastUsedAt: now,
+                    lastOrderId: orderId,
+                    totalUses: admin.firestore.FieldValue.increment(1),
+                    pendingAmount: admin.firestore.FieldValue.increment(affiliateAmount),
+                    updatedAt: now
+                  }, { merge: true });
+                }
+              }
+            }
           }
         }
       }
@@ -1651,6 +2763,11 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         const notificationRef = db.collection('notificationBroadcasts').doc(notification.id);
         transaction.set(notificationRef, notification, { merge: true });
       });
+
+      if (smartCutNotification) {
+        const smartCutNotificationRef = db.collection('notificationBroadcasts').doc(smartCutNotification.id);
+        transaction.set(smartCutNotificationRef, smartCutNotification, { merge: true });
+      }
     });
   } else {
     await Promise.all([
@@ -1724,6 +2841,7 @@ async function resolveAndSyncPayment({ sessionId = '', orderId = '', transaction
 function buildStatusResponse({ session, details, syncResult, fallbackSessionId = '', order = null }) {
   const sessionData = session?.data || {};
   const orderData = order?.data || {};
+  const paymentType = String(sessionData.paymentType || syncResult?.paymentType || '').trim();
   return {
     ok: true,
     sessionId: session?.id || fallbackSessionId || '',
@@ -1731,6 +2849,9 @@ function buildStatusResponse({ session, details, syncResult, fallbackSessionId =
     amount: details?.amount || sessionData.amount || 0,
     currency: sessionData.currency || MONCASH_CURRENCY,
     orderId: details?.orderId || sessionData.orderId || '',
+    paymentType,
+    feeId: sessionData.feeId || syncResult?.feeId || '',
+    vendorId: sessionData.vendorId || syncResult?.vendorId || '',
     transactionId: details?.transactionId || sessionData.providerTransactionId || '',
     uniqueCode: orderData.uniqueCode || sessionData.uniqueCode || '',
     orderStatus: syncResult?.paymentStatus === 'paid' ? 'paid' : (sessionData.status || ''),
@@ -1760,6 +2881,8 @@ exports.createMoncashPayment = onRequest(
     const localClientId = String(body.clientId || '').trim();
     const clientUid = String(body.clientUid || '').trim();
     const customerName = String(body.customerName || '').trim();
+    const customerFirstName = String(body.customerFirstName || '').trim();
+    const customerLastName = String(body.customerLastName || '').trim();
     const customerEmail = String(body.customerEmail || '').trim();
     const customerPhone = String(body.customerPhone || '').trim();
     const customerAddress = String(body.customerAddress || '').trim();
@@ -1768,22 +2891,56 @@ exports.createMoncashPayment = onRequest(
     const items = await enrichMarketplaceItems(body.items);
     const requestedPromo = body.promo && typeof body.promo === 'object' ? body.promo : null;
 
+    logger.info('MONCASH_CREATE_DEBUG request:start', {
+      clientId: localClientId,
+      clientUid,
+      itemCount: items.length,
+      hasCustomerName: Boolean(customerName),
+      hasCustomerEmail: Boolean(customerEmail),
+      deliveryDepartment: delivery?.department || '',
+      deliveryCommune: delivery?.commune || '',
+      hasPromo: Boolean(requestedPromo?.code)
+    });
+
     if (!localClientId) {
+      logger.warn('MONCASH_CREATE_DEBUG request:missing-client-id');
       sendJson(res, 400, { ok: false, error: 'missing-client-id' });
       return;
     }
 
     if (!customerName || !customerEmail) {
+      logger.warn('MONCASH_CREATE_DEBUG request:missing-customer-identity', {
+        hasCustomerName: Boolean(customerName),
+        hasCustomerEmail: Boolean(customerEmail)
+      });
       sendJson(res, 400, { ok: false, error: 'missing-customer-identity' });
       return;
     }
 
     if (items.length === 0) {
+      logger.warn('MONCASH_CREATE_DEBUG request:missing-items');
       sendJson(res, 400, { ok: false, error: 'missing-items' });
       return;
     }
 
-    const totals = buildOrderTotals(items, delivery);
+    const deliveryValidation = validateHomeDeliveryPayload(items, delivery);
+    if (!deliveryValidation.ok) {
+      logger.warn('MONCASH_CREATE_DEBUG request:delivery-invalid', {
+        error: deliveryValidation.error,
+        message: deliveryValidation.message,
+        unavailable: deliveryValidation.unavailable || null
+      });
+      sendJson(res, 400, {
+        ok: false,
+        error: deliveryValidation.error,
+        message: deliveryValidation.message,
+        unavailable: deliveryValidation.unavailable || null
+      });
+      return;
+    }
+
+    const resolvedDelivery = deliveryValidation.delivery;
+    const totals = buildOrderTotals(items, resolvedDelivery);
     let promoSummary = null;
     if (requestedPromo?.code) {
       promoSummary = await previewPromoForCart({
@@ -1796,6 +2953,12 @@ exports.createMoncashPayment = onRequest(
     const discountAmount = Math.max(0, Number(promoSummary?.discountAmount || 0));
     const finalTotal = Math.max(0, totals.total - discountAmount);
     if (finalTotal <= 0) {
+      logger.warn('MONCASH_CREATE_DEBUG request:invalid-total', {
+        subtotal: totals.subtotal,
+        shippingAmount: totals.shippingAmount,
+        discountAmount,
+        finalTotal
+      });
       sendJson(res, 400, { ok: false, error: 'invalid-total' });
       return;
     }
@@ -1817,7 +2980,7 @@ exports.createMoncashPayment = onRequest(
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
       items,
-      delivery,
+      delivery: resolvedDelivery,
       promoCode: promoSummary ? {
         promoId: promoSummary.promoId,
         code: promoSummary.code,
@@ -1825,6 +2988,10 @@ exports.createMoncashPayment = onRequest(
         type: promoSummary.type,
         value: promoSummary.value,
         categoryIds: promoSummary.categoryIds,
+        affiliateEnabled: Boolean(promoSummary.affiliateEnabled),
+        affiliateMemberId: promoSummary.affiliateMemberId || '',
+        affiliateMemberName: promoSummary.affiliateMemberName || '',
+        affiliatePhone: promoSummary.affiliatePhone || '',
         eligibleSubtotal: promoSummary.eligibleSubtotal,
         discountAmount: promoSummary.discountAmount,
         applied: true
@@ -1838,6 +3005,8 @@ exports.createMoncashPayment = onRequest(
       methodId: String(body.methodId || ''),
       methodName: String(body.methodName || 'MonCash'),
       customerName,
+      customerFirstName,
+      customerLastName,
       customerEmail,
       customerPhone,
       customerAddress,
@@ -1863,8 +3032,11 @@ exports.createMoncashPayment = onRequest(
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
       customerName,
+      customerFirstName,
+      customerLastName,
       customerEmail,
       customerPhone,
+      delivery: resolvedDelivery,
       promoCode: promoSummary ? {
         promoId: promoSummary.promoId,
         code: promoSummary.code,
@@ -1872,6 +3044,10 @@ exports.createMoncashPayment = onRequest(
         type: promoSummary.type,
         value: promoSummary.value,
         categoryIds: promoSummary.categoryIds,
+        affiliateEnabled: Boolean(promoSummary.affiliateEnabled),
+        affiliateMemberId: promoSummary.affiliateMemberId || '',
+        affiliateMemberName: promoSummary.affiliateMemberName || '',
+        affiliatePhone: promoSummary.affiliatePhone || '',
         eligibleSubtotal: promoSummary.eligibleSubtotal,
         discountAmount: promoSummary.discountAmount,
         applied: true
@@ -1889,6 +3065,12 @@ exports.createMoncashPayment = onRequest(
         sessionRef.set(sessionData, { merge: true })
       ]);
 
+      logger.info('MONCASH_CREATE_DEBUG redirect:start', {
+        sessionId,
+        orderId,
+        amount: finalTotal
+      });
+
       const redirect = await createMoncashRedirect(orderId, finalTotal);
 
       await Promise.all([
@@ -1897,6 +3079,7 @@ exports.createMoncashPayment = onRequest(
             status: 'redirect_ready',
             paymentToken: redirect.paymentToken,
             checkoutUrl: redirect.checkoutUrl,
+            providerMode: redirect.providerMode || 'api',
             providerResponse: redirect.providerResponse,
             updatedAt: new Date().toISOString()
           },
@@ -1906,9 +3089,17 @@ exports.createMoncashPayment = onRequest(
           status: 'awaiting_payment',
           paymentStatus: 'redirect_ready',
           moncashCheckoutUrl: redirect.checkoutUrl,
+          moncashProviderMode: redirect.providerMode || 'api',
           updatedAt: new Date().toISOString()
         })
       ]);
+
+      logger.info('MONCASH_CREATE_DEBUG redirect:ready', {
+        sessionId,
+        orderId,
+        hasCheckoutUrl: Boolean(redirect.checkoutUrl),
+        providerMode: redirect.providerMode || 'api'
+      });
 
       sendJson(res, 200, {
         ok: true,
@@ -1921,6 +3112,14 @@ exports.createMoncashPayment = onRequest(
       });
     } catch (error) {
       logger.error('MonCash create payment failed', error);
+      const publicError = getSafeMoncashPublicError(error);
+      logger.warn('MONCASH_CREATE_DEBUG redirect:error', {
+        status: publicError.status,
+        publicError: publicError.error,
+        publicMessage: publicError.message,
+        rawMessage: error?.message || '',
+        payload: error?.payload || null
+      });
 
       await Promise.all([
         sessionRef.set(
@@ -1939,11 +3138,375 @@ exports.createMoncashPayment = onRequest(
         })
       ]);
 
-      sendJson(res, 500, {
+      sendJson(res, publicError.status, {
         ok: false,
-        error: 'server-error',
-        message: error?.message || 'Unexpected server error'
+        error: publicError.error,
+        message: publicError.message
       });
+    }
+  }
+);
+
+exports.requestVendorServiceFee = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user || !(await isAdminUser(user.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-required' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const vendorId = String(body.vendorId || '').trim();
+      if (!vendorId) {
+        sendJson(res, 400, { ok: false, error: 'missing-vendor-id' });
+        return;
+      }
+
+      const vendorSnap = await db.collection('vendors').doc(vendorId).get();
+      if (!vendorSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'vendor-not-found' });
+        return;
+      }
+
+      const vendor = { id: vendorSnap.id, ...(vendorSnap.data() || {}) };
+      const amount = getVendorServiceFeeAmount(vendor);
+      if (amount <= 0) {
+        sendJson(res, 400, { ok: false, error: 'vendor-has-no-monthly-subscription' });
+        return;
+      }
+
+      const latestPaid = await findLatestVendorServiceFee(vendorId, 'paid');
+      const nextDueMs = toDateMs(latestPaid?.data?.nextDueAt || vendor?.serviceFeeNextDueAt || '');
+      if (latestPaid && nextDueMs > Date.now()) {
+        sendJson(res, 200, {
+          ok: true,
+          alreadyPaid: true,
+          message: 'Ce store a deja paye son cycle courant.',
+          fee: { id: latestPaid.id, ...latestPaid.data }
+        });
+        return;
+      }
+
+      const activePending = await findLatestOpenVendorServiceFee(vendorId);
+      if (activePending) {
+        sendJson(res, 200, {
+          ok: true,
+          alreadyRequested: true,
+          fee: { id: activePending.id, ...activePending.data }
+        });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
+      const fee = {
+        vendorId,
+        vendorName: vendor.vendorName || vendor.shopName || 'Store vendeur',
+        shopName: vendor.shopName || vendor.vendorName || '',
+        email: vendor.email || '',
+        amount,
+        currency: vendor.planCurrency || MONCASH_CURRENCY,
+        status: 'pending',
+        cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+        requestedAt: now,
+        createdAt: now,
+        updatedAt: now,
+        requestedBy: user.uid,
+        paymentMethod: '',
+        paymentProvider: '',
+        paidAt: '',
+        nextDueAt: '',
+        planId: vendor.planId || '',
+        planLabel: vendor.planLabel || ''
+      };
+
+      await Promise.all([
+        feeRef.set(fee, { merge: true }),
+        db.collection('vendors').doc(vendorId).set({
+          status: 'suspended_service_fee',
+          vendorStatus: 'suspended_service_fee',
+          serviceFeeStatus: 'pending',
+          serviceFeeCurrentId: feeRef.id,
+          serviceFeeAmount: amount,
+          serviceFeeRequestedAt: now,
+          updatedAt: now
+        }, { merge: true }),
+        db.collection('clients').doc(vendorId).set({
+          uid: vendorId,
+          role: 'vendor',
+          vendorStatus: 'suspended_service_fee',
+          serviceFeeStatus: 'pending',
+          serviceFeeCurrentId: feeRef.id,
+          updatedAt: now
+        }, { merge: true })
+      ]);
+
+      await updateVendorProductsServiceStatus(vendorId, 'suspended');
+
+      sendJson(res, 200, {
+        ok: true,
+        fee: { id: feeRef.id, ...fee }
+      });
+    } catch (error) {
+      logger.error('requestVendorServiceFee failed', error);
+      sendJson(res, 500, { ok: false, error: 'server-error', message: error?.message || 'Erreur serveur.' });
+    }
+  }
+);
+
+exports.getVendorServiceFeeStatus = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+
+      const vendor = await getVendorProfile(user.uid);
+      if (!vendor || String(vendor.role || '').toLowerCase() !== 'vendor') {
+        sendJson(res, 403, { ok: false, error: 'vendor-required' });
+        return;
+      }
+
+      const [pending, paid, planSettings] = await Promise.all([
+        findLatestOpenVendorServiceFee(user.uid),
+        findLatestVendorServiceFee(user.uid, 'paid'),
+        getVendorPlanSettings()
+      ]);
+      const proPlan = getVendorProPlanMeta(planSettings);
+      const isPro = isVendorProPlan(vendor);
+      const nextDueAt = paid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
+      const nextDueMs = toDateMs(nextDueAt);
+      const paymentDue = Boolean(pending) || (isPro && (!nextDueAt || nextDueMs <= Date.now()));
+
+      sendJson(res, 200, {
+        ok: true,
+        vendor: {
+          vendorId: user.uid,
+          vendorName: vendor.vendorName || vendor.shopName || '',
+          status: vendor.status || vendor.vendorStatus || '',
+          planId: vendor.planId || 'basic',
+          planLabel: vendor.planLabel || (isPro ? 'PRO' : 'BASIC'),
+          planPrice: toNumber(vendor.planPrice),
+          planCurrency: vendor.planCurrency || proPlan.currency,
+          planPaymentRequired: Boolean(vendor.planPaymentRequired),
+          serviceFeeStatus: vendor.serviceFeeStatus || '',
+          serviceFeeAmount: getVendorServiceFeeAmount(vendor),
+          serviceFeeNextDueAt: nextDueAt
+        },
+        proPlan,
+        isPro,
+        canUpgradeToPro: !isPro,
+        paymentDue,
+        currentFee: pending ? { id: pending.id, ...pending.data } : null,
+        lastPayment: paid ? { id: paid.id, ...paid.data } : null
+      });
+    } catch (error) {
+      logger.error('getVendorServiceFeeStatus failed', error);
+      sendJson(res, 500, { ok: false, error: 'server-error', message: error?.message || 'Erreur serveur.' });
+    }
+  }
+);
+
+exports.startVendorServiceFeePayment = onRequest(
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+
+      const vendor = await getVendorProfile(user.uid);
+      if (!vendor || String(vendor.role || '').toLowerCase() !== 'vendor') {
+        sendJson(res, 403, { ok: false, error: 'vendor-required' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const method = normalizeVendorServicePaymentMethod(body.method || 'moncash');
+      const action = String(body.action || body.intent || '').trim().toLowerCase();
+      const planSettings = await getVendorPlanSettings();
+      const proPlan = getVendorProPlanMeta(planSettings);
+      const isPro = isVendorProPlan(vendor);
+      const wantsProUpgrade = action === 'upgrade_pro' || action === 'upgrade-pro' || !isPro;
+      const now = new Date().toISOString();
+      let pending = await findLatestOpenVendorServiceFee(user.uid);
+      if (pending && wantsProUpgrade) {
+        const pendingAmount = toNumber(pending.data?.amount);
+        const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
+        const needsUpgradeSync = pendingAmount !== proPlan.price || pendingPlanId !== 'pro';
+        if (needsUpgradeSync) {
+          const patch = {
+            amount: proPlan.price,
+            currency: proPlan.currency,
+            requestSource: 'vendor_pro_upgrade',
+            planId: 'pro',
+            planLabel: 'PRO',
+            updatedAt: now
+          };
+          await pending.ref.set(patch, { merge: true });
+          pending = {
+            ...pending,
+            data: {
+              ...pending.data,
+              ...patch
+            }
+          };
+        }
+      }
+      if (!pending) {
+        const latestPaid = await findLatestVendorServiceFee(user.uid, 'paid');
+        const nextDueAt = latestPaid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
+        const nextDueMs = toDateMs(nextDueAt);
+        const proRenewalDue = isPro && (!nextDueAt || nextDueMs <= Date.now());
+
+        if (!wantsProUpgrade && !proRenewalDue) {
+          sendJson(res, 400, {
+            ok: false,
+            error: 'service-fee-not-due',
+            message: nextDueAt
+              ? `Aucun paiement requis avant ${nextDueAt}.`
+              : 'Aucun frais mensuel en attente pour ce store.'
+          });
+          return;
+        }
+
+        pending = await createVendorServiceFeeRequest({
+          vendorId: user.uid,
+          vendor,
+          amount: wantsProUpgrade ? proPlan.price : getVendorServiceFeeAmount(vendor) || proPlan.price,
+          currency: proPlan.currency,
+          requestedBy: user.uid,
+          reason: wantsProUpgrade ? 'vendor_pro_upgrade' : 'vendor_pro_renewal',
+          planId: 'pro',
+          planLabel: 'PRO'
+        });
+
+        if (!pending) {
+          sendJson(res, 400, { ok: false, error: 'unable-to-create-service-fee', message: 'Impossible de preparer le paiement Plan Pro.' });
+          return;
+        }
+      }
+
+      const amount = Math.max(0, toNumber(pending.data?.amount || getVendorServiceFeeAmount(vendor)));
+      if (amount <= 0) {
+        sendJson(res, 400, { ok: false, error: 'invalid-service-fee-amount' });
+        return;
+      }
+
+      if (method !== 'moncash') {
+        await pending.ref.set({
+          status: 'payment_pending',
+          paymentMethod: method,
+          paymentProvider: method,
+          paymentRequestedAt: now,
+          updatedAt: now
+        }, { merge: true });
+
+        sendJson(res, 200, {
+          ok: true,
+          status: 'payment_pending',
+          method,
+          fee: { id: pending.id, ...pending.data, status: 'payment_pending', paymentMethod: method }
+        });
+        return;
+      }
+
+      const clientId = safeSecretValue(MONCASH_CLIENT_ID);
+      const clientSecret = safeSecretValue(MONCASH_CLIENT_SECRET);
+      if (!clientId || !clientSecret) {
+        sendJson(res, 500, { ok: false, error: 'missing-moncash-credentials' });
+        return;
+      }
+
+      const sessionId = createSessionId();
+      const providerOrderId = `VSF-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+      const sessionRef = db.collection('paymentSessions').doc(sessionId);
+      const sessionData = {
+        identifier: sessionId,
+        paymentType: 'vendor_service_fee',
+        feeId: pending.id,
+        vendorId: user.uid,
+        vendorName: vendor.vendorName || vendor.shopName || '',
+        orderId: providerOrderId,
+        provider: 'moncash',
+        status: 'initiated',
+        amount,
+        currency: pending.data?.currency || MONCASH_CURRENCY,
+        returnUrl: DEFAULT_RETURN_URL,
+        alertUrl: DEFAULT_ALERT_URL,
+        uniqueCode: providerOrderId,
+        createdAt: now,
+        updatedAt: now
+      };
+
+      await Promise.all([
+        sessionRef.set(sessionData, { merge: true }),
+        pending.ref.set({
+          status: 'payment_initiated',
+          paymentMethod: 'moncash',
+          paymentProvider: 'moncash',
+          paymentSessionId: sessionId,
+          providerOrderId,
+          updatedAt: now
+        }, { merge: true })
+      ]);
+
+      const redirect = await createMoncashRedirect(providerOrderId, amount);
+      await Promise.all([
+        sessionRef.set({
+          status: 'redirect_ready',
+          paymentToken: redirect.paymentToken,
+          checkoutUrl: redirect.checkoutUrl,
+          providerMode: redirect.providerMode || 'api',
+          providerResponse: redirect.providerResponse,
+          updatedAt: new Date().toISOString()
+        }, { merge: true }),
+        pending.ref.set({
+          status: 'redirect_ready',
+          checkoutUrl: redirect.checkoutUrl,
+          providerMode: redirect.providerMode || 'api',
+          updatedAt: new Date().toISOString()
+        }, { merge: true })
+      ]);
+
+      sendJson(res, 200, {
+        ok: true,
+        sessionId,
+        orderId: providerOrderId,
+        checkoutUrl: redirect.checkoutUrl,
+        returnUrl: DEFAULT_RETURN_URL,
+        alertUrl: DEFAULT_ALERT_URL,
+        amount
+      });
+    } catch (error) {
+      logger.error('startVendorServiceFeePayment failed', error);
+      const publicError = getSafeMoncashPublicError(error);
+      sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
     }
   }
 );
@@ -1989,6 +3552,692 @@ exports.previewPromoCode = onRequest(
         error: 'promo-preview-failed',
         message: error?.message || 'Impossible de verifier ce code promo.'
       });
+    }
+  }
+);
+
+exports.listPromoCodes = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const snapshot = await db.collection('promoCodes').orderBy('updatedAt', 'desc').limit(200).get();
+      logger.info('PROMO_ADMIN_DEBUG list:success', {
+        adminUid: decodedUser.uid,
+        count: snapshot.size,
+        ids: snapshot.docs.map((entry) => entry.id),
+        promos: snapshot.docs.map((entry) => {
+          const data = entry.data() || {};
+          return {
+            id: entry.id,
+            code: data.code || '',
+            label: data.label || data.name || '',
+            updatedAt: data.updatedAt || '',
+            createdAt: data.createdAt || '',
+            active: data.active !== false
+          };
+        })
+      });
+      sendJson(res, 200, {
+        ok: true,
+        promos: snapshot.docs.map((entry) => ({ id: entry.id, ...(entry.data() || {}) }))
+      });
+    } catch (error) {
+      logger.error('PROMO_ADMIN list:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'promo-list-failed', message: 'Impossible de charger les codes promo.' });
+    }
+  }
+);
+
+exports.savePromoCode = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const code = normalizePromoCode(body?.code);
+      const label = sanitizeText(body?.label || body?.name || '', 160);
+      const type = normalizePromoType(body?.type);
+      const value = Math.max(0, toNumber(body?.value ?? body?.amount ?? body?.rate));
+      const startAt = String(body?.startAt || '').trim();
+      const endAt = String(body?.endAt || '').trim();
+      const categoryIds = Array.from(new Set((Array.isArray(body?.categoryIds) ? body.categoryIds : []).map((value) => String(value || '').trim()).filter(Boolean)));
+      const now = new Date().toISOString();
+      const previousId = normalizePromoCode(body?.previousCode || body?.currentPromoId || '');
+      logger.info('PROMO_ADMIN_DEBUG save:start', {
+        adminUid: decodedUser.uid,
+        previousId,
+        code,
+        label,
+        type,
+        value,
+        startAt,
+        endAt,
+        categoryIds,
+        active: body?.active !== false
+      });
+
+      if (!code) {
+        sendJson(res, 400, { ok: false, error: 'missing-code', message: 'Le code promo est requis.' });
+        return;
+      }
+      if (!label) {
+        sendJson(res, 400, { ok: false, error: 'missing-label', message: 'Le libelle du code promo est requis.' });
+        return;
+      }
+      if (!Number.isFinite(value) || value <= 0) {
+        sendJson(res, 400, { ok: false, error: 'invalid-value', message: 'La valeur de la remise doit etre superieure a 0.' });
+        return;
+      }
+      if (startAt && endAt && toDateMs(endAt) <= toDateMs(startAt)) {
+        sendJson(res, 400, { ok: false, error: 'invalid-range', message: 'La date de fin doit etre apres la date de debut.' });
+        return;
+      }
+
+      const targetRef = db.collection('promoCodes').doc(code);
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists && code !== previousId) {
+        logger.warn('PROMO_ADMIN_DEBUG save:duplicate-doc-id', {
+          adminUid: decodedUser.uid,
+          previousId,
+          code
+        });
+        sendJson(res, 400, { ok: false, error: 'duplicate-code', message: 'Ce code promo existe deja.' });
+        return;
+      }
+
+      const duplicateSnapshot = await db.collection('promoCodes').where('code', '==', code).limit(5).get();
+      const duplicate = duplicateSnapshot.docs.find((entry) => entry.id !== previousId && entry.id !== code);
+      if (duplicate) {
+        logger.warn('PROMO_ADMIN_DEBUG save:duplicate-field', {
+          adminUid: decodedUser.uid,
+          previousId,
+          code,
+          duplicateId: duplicate.id
+        });
+        sendJson(res, 400, { ok: false, error: 'duplicate-code', message: 'Ce code promo existe deja.' });
+        return;
+      }
+
+      const existingData = targetSnap.exists ? (targetSnap.data() || {}) : {};
+      const categoryNames = await resolvePromoCategoryNames(categoryIds);
+      const payload = {
+        code,
+        label,
+        name: label,
+        type,
+        value,
+        active: body?.active !== false,
+        startAt,
+        endAt,
+        description: sanitizeText(body?.description || '', 500),
+        categoryIds,
+        categoryNames,
+        usageCount: Number(existingData?.usageCount || 0),
+        createdAt: existingData?.createdAt || now,
+        updatedAt: now
+      };
+
+      await targetRef.set(payload, { merge: true });
+      const savedSnap = await targetRef.get();
+
+      if (previousId && previousId !== code) {
+        await db.collection('promoCodes').doc(previousId).delete().catch(() => null);
+      }
+
+      logger.info('PROMO_ADMIN_DEBUG save:success', {
+        adminUid: decodedUser.uid,
+        previousId,
+        code,
+        existsAfterSave: savedSnap.exists,
+        savedData: savedSnap.exists ? (savedSnap.data() || {}) : null
+      });
+
+      sendJson(res, 200, { ok: true, promo: { id: code, ...payload } });
+    } catch (error) {
+      logger.error('PROMO_ADMIN save:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'promo-save-failed', message: 'Impossible d enregistrer ce code promo.' });
+    }
+  }
+);
+
+exports.deletePromoCode = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (!['POST', 'DELETE'].includes(req.method)) {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const code = normalizePromoCode(body?.code || req.query.code || '');
+      if (!code) {
+        sendJson(res, 400, { ok: false, error: 'missing-code', message: 'Le code promo est requis.' });
+        return;
+      }
+
+      logger.info('PROMO_ADMIN_DEBUG delete:start', {
+        adminUid: decodedUser.uid,
+        code
+      });
+      await db.collection('promoCodes').doc(code).delete();
+      logger.info('PROMO_ADMIN_DEBUG delete:success', {
+        adminUid: decodedUser.uid,
+        code
+      });
+      sendJson(res, 200, { ok: true, code });
+    } catch (error) {
+      logger.error('PROMO_ADMIN delete:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'promo-delete-failed', message: 'Impossible de supprimer ce code promo.' });
+    }
+  }
+);
+
+exports.getAffiliateDashboardData = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'GET') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const [membersSnap, earningsSnap, payoutsSnap] = await Promise.all([
+        db.collection('affiliateMembers').get(),
+        db.collection('affiliateEarnings').get(),
+        db.collection('affiliatePayouts').get()
+      ]);
+
+      const memberMetrics = new Map();
+      membersSnap.docs.forEach((snap) => {
+        const data = snap.data() || {};
+        memberMetrics.set(snap.id, {
+          id: snap.id,
+          ...buildAffiliateMemberSnapshot({ ...data, promoCode: snap.id }),
+          affiliateRate: Math.max(0, toNumber(data?.affiliateRate)),
+          promoId: String(data?.promoId || '').trim(),
+          promoLabel: String(data?.promoLabel || '').trim(),
+          promoType: normalizePromoType(data?.promoType),
+          status: normalizeAffiliateMemberStatus(data?.status),
+          createdAt: String(data?.createdAt || '').trim(),
+          updatedAt: String(data?.updatedAt || '').trim(),
+          lastUsedAt: String(data?.lastUsedAt || '').trim(),
+          lastPaidAt: String(data?.lastPaidAt || '').trim(),
+          pendingAmount: 0,
+          pendingUses: 0,
+          totalEarnedAmount: 0,
+          totalPaidAmount: 0,
+          totalUses: 0,
+          nextSuggestedPayoutAt: ''
+        });
+      });
+
+      const earnings = earningsSnap.docs.map((snap) => {
+        const data = snap.data() || {};
+        const promoCode = String(data?.promoCode || '').trim();
+        return {
+          id: snap.id,
+          promoCode,
+          memberId: String(data?.memberId || '').trim(),
+          firstName: String(data?.firstName || '').trim(),
+          lastName: String(data?.lastName || '').trim(),
+          fullName: String(data?.fullName || '').trim(),
+          sex: String(data?.sex || '').trim(),
+          phone: String(data?.phone || '').trim(),
+          clientId: String(data?.clientId || '').trim(),
+          clientUid: String(data?.clientUid || '').trim(),
+          orderId: String(data?.orderId || '').trim(),
+          sessionId: String(data?.sessionId || '').trim(),
+          promoId: String(data?.promoId || '').trim(),
+          affiliateRate: Math.max(0, toNumber(data?.affiliateRate)),
+          eligibleSubtotal: Math.max(0, toNumber(data?.eligibleSubtotal)),
+          discountAmount: Math.max(0, toNumber(data?.discountAmount)),
+          amount: Math.max(0, toNumber(data?.amount)),
+          status: String(data?.status || 'pending').trim().toLowerCase() === 'paid' ? 'paid' : 'pending',
+          createdAt: String(data?.createdAt || '').trim(),
+          updatedAt: String(data?.updatedAt || '').trim(),
+          paidAt: String(data?.paidAt || '').trim(),
+          payoutId: String(data?.payoutId || '').trim()
+        };
+      }).sort((a, b) => toDateMs(b.createdAt) - toDateMs(a.createdAt));
+
+      earnings.forEach((earning) => {
+        const metrics = memberMetrics.get(earning.promoCode);
+        if (!metrics) return;
+        metrics.totalEarnedAmount += earning.amount;
+        metrics.totalUses += 1;
+        if (earning.status === 'paid') {
+          metrics.totalPaidAmount += earning.amount;
+        } else {
+          metrics.pendingAmount += earning.amount;
+          metrics.pendingUses += 1;
+        }
+        if (!metrics.lastUsedAt || toDateMs(earning.createdAt) > toDateMs(metrics.lastUsedAt)) {
+          metrics.lastUsedAt = earning.createdAt;
+        }
+      });
+
+      const payouts = payoutsSnap.docs
+        .map((snap) => mapAffiliatePayoutSummary(snap.id, snap.data() || {}))
+        .sort((a, b) => getAffiliatePayoutEventMs(b) - getAffiliatePayoutEventMs(a));
+
+      payouts.forEach((payout) => {
+        const metrics = memberMetrics.get(payout.promoCode);
+        if (!metrics) return;
+        if (!metrics.lastPaidAt || toDateMs(payout.paidAt) > toDateMs(metrics.lastPaidAt)) {
+          metrics.lastPaidAt = payout.paidAt;
+        }
+      });
+
+      const members = Array.from(memberMetrics.values())
+        .map((member) => {
+          const nextSuggestedPayoutAt = member.lastPaidAt
+            ? new Date(toDateMs(member.lastPaidAt) + (30 * 24 * 60 * 60 * 1000)).toISOString()
+            : '';
+          return {
+            ...member,
+            pendingAmount: Math.max(0, member.pendingAmount),
+            totalEarnedAmount: Math.max(0, member.totalEarnedAmount),
+            totalPaidAmount: Math.max(0, member.totalPaidAmount),
+            nextSuggestedPayoutAt
+          };
+        })
+        .sort((a, b) => {
+          const pendingDiff = b.pendingAmount - a.pendingAmount;
+          if (pendingDiff !== 0) return pendingDiff;
+          return toDateMs(b.updatedAt || b.createdAt) - toDateMs(a.updatedAt || a.createdAt);
+        });
+
+      sendJson(res, 200, {
+        ok: true,
+        members,
+        earnings: earnings.slice(0, 300),
+        payouts: payouts.slice(0, 200)
+      });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN list:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-dashboard-failed', message: 'Impossible de charger le module affiliation.' });
+    }
+  }
+);
+
+exports.saveAffiliateMember = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const promoCode = buildAffiliateMemberDocId(body?.promoCode);
+      const previousPromoCode = buildAffiliateMemberDocId(body?.previousPromoCode || body?.currentPromoId || '');
+      const memberId = normalizeAffiliateMemberId(body?.memberId);
+      const firstName = sanitizeText(body?.firstName, 120);
+      const lastName = sanitizeText(body?.lastName, 120);
+      const sex = normalizeAffiliateSex(body?.sex);
+      const phone = sanitizeText(body?.phone, 40);
+      const status = normalizeAffiliateMemberStatus(body?.status);
+      const now = new Date().toISOString();
+
+      if (!promoCode) {
+        sendJson(res, 400, { ok: false, error: 'missing-promo-code', message: 'Le code promo du membre est requis.' });
+        return;
+      }
+      if (!memberId) {
+        sendJson(res, 400, { ok: false, error: 'missing-member-id', message: 'L ID membre est requis.' });
+        return;
+      }
+      if (!firstName || !lastName) {
+        sendJson(res, 400, { ok: false, error: 'missing-member-name', message: 'Le nom et le prenom du membre sont requis.' });
+        return;
+      }
+
+      const promoRef = db.collection('promoCodes').doc(promoCode);
+      const promoSnap = await promoRef.get();
+      if (!promoSnap.exists) {
+        sendJson(res, 400, { ok: false, error: 'promo-not-found', message: 'Le code promo associe a ce membre est introuvable.' });
+        return;
+      }
+
+      const promoData = promoSnap.data() || {};
+      const promoType = normalizePromoType(promoData?.type);
+      const affiliateRate = Math.max(0, toNumber(promoData?.value ?? promoData?.amount ?? promoData?.rate));
+      if (promoType !== 'percentage' || affiliateRate <= 0) {
+        sendJson(res, 400, { ok: false, error: 'invalid-affiliate-promo', message: 'Le code promo affiliation doit etre un pourcentage actif et superieur a 0.' });
+        return;
+      }
+
+      const duplicateMemberSnap = await db.collection('affiliateMembers').where('memberId', '==', memberId).limit(5).get();
+      const duplicateMember = duplicateMemberSnap.docs.find((entry) => entry.id !== promoCode && entry.id !== previousPromoCode);
+      if (duplicateMember) {
+        sendJson(res, 400, { ok: false, error: 'duplicate-member-id', message: 'Cet ID membre est deja utilise.' });
+        return;
+      }
+
+      const targetRef = db.collection('affiliateMembers').doc(promoCode);
+      const targetSnap = await targetRef.get();
+      if (targetSnap.exists && promoCode !== previousPromoCode) {
+        sendJson(res, 400, { ok: false, error: 'duplicate-promo-code', message: 'Ce code promo est deja rattache a un autre membre.' });
+        return;
+      }
+
+      const existingData = targetSnap.exists ? (targetSnap.data() || {}) : {};
+      const payload = {
+        promoCode,
+        memberId,
+        firstName,
+        lastName,
+        sex,
+        phone,
+        status,
+        promoId: String(promoData?.code || promoCode).trim(),
+        promoLabel: sanitizeText(promoData?.label || promoData?.name || 'Code promo', 160),
+        promoType,
+        affiliateRate,
+        createdAt: existingData?.createdAt || now,
+        updatedAt: now,
+        lastUsedAt: existingData?.lastUsedAt || '',
+        lastPaidAt: existingData?.lastPaidAt || '',
+        pendingAmount: Math.max(0, toNumber(existingData?.pendingAmount)),
+        totalUses: Math.max(0, toNumber(existingData?.totalUses))
+      };
+
+      await targetRef.set(payload, { merge: true });
+      await promoRef.set({
+        affiliateEnabled: true,
+        affiliateMemberId: memberId,
+        affiliateMemberName: `${firstName} ${lastName}`.trim(),
+        affiliatePhone: phone,
+        updatedAt: now
+      }, { merge: true });
+
+      if (previousPromoCode && previousPromoCode !== promoCode) {
+        const previousEarningsSnap = await db.collection('affiliateEarnings').where('promoCode', '==', previousPromoCode).get();
+        if (!previousEarningsSnap.empty) {
+          const batch = db.batch();
+          previousEarningsSnap.docs.forEach((entry) => {
+            batch.set(entry.ref, {
+              promoCode,
+              memberId,
+              firstName,
+              lastName,
+              fullName: `${firstName} ${lastName}`.trim(),
+              sex,
+              phone,
+              affiliateRate,
+              updatedAt: now
+            }, { merge: true });
+          });
+          await batch.commit();
+        }
+
+        await db.collection('affiliateMembers').doc(previousPromoCode).delete().catch(() => null);
+        await db.collection('promoCodes').doc(previousPromoCode).set({
+          affiliateEnabled: false,
+          affiliateMemberId: '',
+          affiliateMemberName: '',
+          affiliatePhone: '',
+          updatedAt: now
+        }, { merge: true }).catch(() => null);
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        member: {
+          id: promoCode,
+          ...buildAffiliateMemberSnapshot(payload),
+          affiliateRate,
+          promoId: payload.promoId,
+          promoLabel: payload.promoLabel,
+          promoType,
+          createdAt: payload.createdAt,
+          updatedAt: payload.updatedAt,
+          status
+        }
+      });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN save:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-save-failed', message: 'Impossible d enregistrer ce membre affiliation.' });
+    }
+  }
+);
+
+exports.deleteAffiliateMember = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (!['POST', 'DELETE'].includes(req.method)) {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const promoCode = buildAffiliateMemberDocId(body?.promoCode || req.query.promoCode || '');
+      if (!promoCode) {
+        sendJson(res, 400, { ok: false, error: 'missing-promo-code', message: 'Le code promo du membre est requis.' });
+        return;
+      }
+
+      await db.collection('affiliateMembers').doc(promoCode).delete();
+      await db.collection('promoCodes').doc(promoCode).set({
+        affiliateEnabled: false,
+        affiliateMemberId: '',
+        affiliateMemberName: '',
+        affiliatePhone: '',
+        updatedAt: new Date().toISOString()
+      }, { merge: true }).catch(() => null);
+
+      sendJson(res, 200, { ok: true, promoCode });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN delete:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-delete-failed', message: 'Impossible de supprimer ce membre affiliation.' });
+    }
+  }
+);
+
+exports.createAffiliatePayout = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const promoCode = buildAffiliateMemberDocId(body?.promoCode);
+      const rawDateFrom = String(body?.dateFrom || body?.fromDate || '').trim();
+      const rawDateTo = String(body?.dateTo || body?.toDate || '').trim();
+      const dateFromMs = rawDateFrom
+        ? toDateMs(rawDateFrom.includes('T') ? rawDateFrom : `${rawDateFrom}T00:00:00.000Z`)
+        : 0;
+      const dateToMs = rawDateTo
+        ? toDateMs(rawDateTo.includes('T') ? rawDateTo : `${rawDateTo}T23:59:59.999Z`)
+        : 0;
+
+      if (!promoCode) {
+        sendJson(res, 400, { ok: false, error: 'missing-promo-code', message: 'Le code promo du membre est requis.' });
+        return;
+      }
+
+      const memberRef = db.collection('affiliateMembers').doc(promoCode);
+      const memberSnap = await memberRef.get();
+      if (!memberSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'affiliate-member-not-found', message: 'Le membre affiliation est introuvable.' });
+        return;
+      }
+
+      const memberData = memberSnap.data() || {};
+      const memberSnapshot = buildAffiliateMemberSnapshot({ ...memberData, promoCode });
+      const earningsSnap = await db.collection('affiliateEarnings').where('promoCode', '==', promoCode).get();
+      const pendingEarnings = earningsSnap.docs
+        .map((snap) => ({ id: snap.id, ...(snap.data() || {}) }))
+        .filter((entry) => String(entry?.status || 'pending').trim().toLowerCase() !== 'paid')
+        .filter((entry) => {
+          const createdAtMs = toDateMs(entry?.createdAt);
+          if (dateFromMs && createdAtMs < dateFromMs) return false;
+          if (dateToMs && createdAtMs > dateToMs) return false;
+          return true;
+        })
+        .sort((a, b) => toDateMs(a?.createdAt) - toDateMs(b?.createdAt));
+
+      if (!pendingEarnings.length) {
+        sendJson(res, 400, {
+          ok: false,
+          error: 'no-affiliate-balance',
+          message: 'Aucun gain affiliation en attente pour cette periode.'
+        });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const amount = pendingEarnings.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.amount)), 0);
+      const eligibleSubtotalAmount = pendingEarnings.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.eligibleSubtotal)), 0);
+      const discountAmount = pendingEarnings.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.discountAmount)), 0);
+      const ratesUsed = Array.from(new Set(pendingEarnings.map((entry) => Math.max(0, toNumber(entry?.affiliateRate))).filter((value) => value > 0)));
+      const allRemainingPendingAmount = earningsSnap.docs
+        .map((snap) => ({ id: snap.id, ...(snap.data() || {}) }))
+        .filter((entry) => String(entry?.status || 'pending').trim().toLowerCase() !== 'paid')
+        .filter((entry) => !pendingEarnings.some((selected) => selected.id === entry.id))
+        .reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.amount)), 0);
+
+      const payoutRef = db.collection('affiliatePayouts').doc();
+      const payout = {
+        promoCode,
+        ...memberSnapshot,
+        reportNumber: createAffiliatePayoutReportNumber(payoutRef.id),
+        affiliateRate: ratesUsed.length === 1 ? ratesUsed[0] : Math.max(0, toNumber(memberData?.affiliateRate)),
+        ratesUsed,
+        eligibleSubtotalAmount,
+        discountAmount,
+        amount,
+        usageCount: pendingEarnings.length,
+        earningIds: pendingEarnings.map((entry) => entry.id),
+        orderIds: Array.from(new Set(pendingEarnings.map((entry) => String(entry?.orderId || '').trim()).filter(Boolean))),
+        periodStart: pendingEarnings[0]?.createdAt || now,
+        periodEnd: pendingEarnings[pendingEarnings.length - 1]?.createdAt || now,
+        paidAt: now,
+        createdAt: now,
+        updatedAt: now,
+        paidBy: decodedUser.uid,
+        status: 'paid'
+      };
+
+      const batch = db.batch();
+      batch.set(payoutRef, payout, { merge: true });
+      pendingEarnings.forEach((entry) => {
+        batch.set(db.collection('affiliateEarnings').doc(entry.id), {
+          status: 'paid',
+          paidAt: now,
+          updatedAt: now,
+          payoutId: payoutRef.id
+        }, { merge: true });
+      });
+      batch.set(memberRef, {
+        pendingAmount: Math.max(0, allRemainingPendingAmount),
+        lastPaidAt: now,
+        updatedAt: now
+      }, { merge: true });
+      await batch.commit();
+
+      sendJson(res, 200, {
+        ok: true,
+        payout: {
+          id: payoutRef.id,
+          ...payout
+        }
+      });
+    } catch (error) {
+      logger.error('AFFILIATE_ADMIN payout:error', {
+        message: error?.message || 'unknown-error',
+        stack: error?.stack || ''
+      });
+      sendJson(res, 500, { ok: false, error: 'affiliate-payout-failed', message: 'Impossible de payer ce membre affiliation.' });
     }
   }
 );
@@ -2591,6 +4840,120 @@ exports.getVendorDashboardOrders = onRequest(
   }
 );
 
+exports.updateVendorOrderFulfillment = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'unauthorized' });
+        return;
+      }
+
+      const vendorProfile = await getVendorProfile(decodedUser.uid);
+      if (!isApprovedVendorProfile(vendorProfile)) {
+        sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const orderId = String(body?.orderId || '').trim();
+      const refPath = String(body?.refPath || '').trim();
+      const requestedStatus = String(body?.fulfillmentStatus || 'delivered').trim().toLowerCase();
+      const allowedStatuses = new Set(['ordered', 'shipped', 'in_delivery', 'delivered']);
+
+      if (!orderId && !refPath) {
+        sendJson(res, 400, { ok: false, error: 'missing-order-reference' });
+        return;
+      }
+
+      if (!allowedStatuses.has(requestedStatus)) {
+        sendJson(res, 400, { ok: false, error: 'invalid-fulfillment-status' });
+        return;
+      }
+
+      const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
+      const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+
+      let orderSnap = null;
+      if (refPath) {
+        const candidate = await db.doc(refPath).get();
+        if (candidate.exists) orderSnap = candidate;
+      }
+
+      if (!orderSnap && orderId) {
+        const ordersSnap = await db.collectionGroup('orders').get();
+        orderSnap = ordersSnap.docs.find((snap) => snap.id === orderId) || null;
+      }
+
+      if (!orderSnap || !orderSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'order-not-found' });
+        return;
+      }
+
+      const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
+      const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, orderSnap.ref.path);
+      if (!context) {
+        sendJson(res, 403, { ok: false, error: 'vendor-order-access-denied' });
+        return;
+      }
+
+      if (!context.vendorManagedDelivery) {
+        sendJson(res, 403, { ok: false, error: 'delivery-not-managed-by-vendor' });
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const vendorFulfillmentEntry = {
+        vendorId: decodedUser.uid,
+        status: requestedStatus,
+        updatedAt: now,
+        updatedBy: decodedUser.uid,
+        itemCount: context.itemCount,
+        deliveryAmount: context.deliveryAmount,
+        orderId: orderSnap.id
+      };
+      const fulfillmentPatch = {
+        vendorFulfillments: {
+          [decodedUser.uid]: vendorFulfillmentEntry
+        },
+        vendorFulfillmentUpdatedAt: now,
+        updatedAt: now
+      };
+
+      if (isVendorExclusiveOrder(order, decodedUser.uid)) {
+        fulfillmentPatch.fulfillmentStatus = requestedStatus;
+        fulfillmentPatch.fulfillmentUpdatedAt = now;
+      }
+
+      await orderSnap.ref.set(fulfillmentPatch, { merge: true });
+
+      sendJson(res, 200, {
+        ok: true,
+        orderId: orderSnap.id,
+        refPath: orderSnap.ref.path,
+        fulfillmentStatus: requestedStatus,
+        vendorFulfillment: vendorFulfillmentEntry,
+        updatedAt: now
+      });
+    } catch (error) {
+      logger.error('Vendor order fulfillment update failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'vendor-order-fulfillment-update-failed',
+        message: error?.message || 'Unable to update vendor order fulfillment'
+      });
+    }
+  }
+);
+
 exports.createVendorPayout = onRequest(
   { region: REGION },
   async (req, res) => {
@@ -2963,6 +5326,103 @@ exports.trackWebsiteVisit = onRequest(
   }
 );
 
+exports.deleteClientAccount = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-access-denied' });
+        return;
+      }
+
+      const body = parseBody(req);
+      const clientId = sanitizeText(body?.clientId || body?.uid || '', 160);
+      if (!clientId) {
+        sendJson(res, 400, { ok: false, error: 'missing-client-id', message: 'Client introuvable.' });
+        return;
+      }
+
+      if (clientId === decodedUser.uid) {
+        sendJson(res, 400, { ok: false, error: 'cannot-delete-self', message: 'Un admin ne peut pas supprimer son propre compte ici.' });
+        return;
+      }
+
+      const clientRef = db.collection('clients').doc(clientId);
+      const clientSnap = await clientRef.get();
+      if (!clientSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'client-not-found', message: 'Client introuvable.' });
+        return;
+      }
+
+      const clientData = clientSnap.data() || {};
+      if (String(clientData.role || '').toLowerCase() === 'admin') {
+        sendJson(res, 400, { ok: false, error: 'admin-client-protected', message: 'Ce compte admin est protege.' });
+        return;
+      }
+
+      const wasVendorAccount = String(clientData.role || clientData.vendorStatus || '').toLowerCase() === 'vendor'
+        || String(clientData.vendorStatus || '').trim() !== ''
+        || Boolean(clientData.vendorId);
+
+      let authDeleted = false;
+      try {
+        await admin.auth().deleteUser(clientId);
+        authDeleted = true;
+      } catch (authError) {
+        if (authError?.code !== 'auth/user-not-found') {
+          logger.error('deleteClientAccount auth delete failed', {
+            clientId,
+            code: authError?.code || '',
+            message: authError?.message || ''
+          });
+          sendJson(res, 500, {
+            ok: false,
+            error: 'auth-delete-failed',
+            message: 'Impossible de supprimer le compte Auth du client. Les donnees Firestore n ont pas ete supprimees.'
+          });
+          return;
+        }
+      }
+
+      const vendorCleanup = await deleteLinkedVendorAccount(clientId);
+
+      if (typeof db.recursiveDelete === 'function') {
+        await db.recursiveDelete(clientRef);
+      } else {
+        const ordersSnap = await clientRef.collection('orders').get();
+        await Promise.all(ordersSnap.docs.map((snap) => snap.ref.delete()));
+        await clientRef.delete();
+      }
+
+      sendJson(res, 200, {
+        ok: true,
+        clientId,
+        firestoreDeleted: true,
+        authDeleted,
+        wasVendorAccount,
+        vendorCleanup,
+        deletedBy: decodedUser.uid,
+        deletedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      logger.error('deleteClientAccount failed', error);
+      sendJson(res, 500, {
+        ok: false,
+        error: 'client-delete-failed',
+        message: error?.message || 'Impossible de supprimer ce client.'
+      });
+    }
+  }
+);
+
 exports.getWebsiteAnalytics = onRequest(
   { region: REGION },
   async (req, res) => {
@@ -3012,7 +5472,7 @@ exports.productSharePage = onRequest(
   { region: REGION },
   async (req, res) => {
     try {
-      const productId = String(req.query.product || req.query.id || '').trim();
+      const productId = extractSharedProductId(req);
       const preferredCollection = String(req.query.source || '').trim();
       const productUrl = buildProductPageAbsoluteUrl(productId);
 
@@ -3034,7 +5494,7 @@ exports.productSharePage = onRequest(
       res.status(200).send(buildProductShareHtml(product, productUrl));
     } catch (error) {
       logger.error('productSharePage failed', error);
-      const fallbackUrl = buildProductPageAbsoluteUrl(String(req.query.product || req.query.id || '').trim());
+      const fallbackUrl = buildProductPageAbsoluteUrl(extractSharedProductId(req));
       res.set('Cache-Control', 'public, max-age=120');
       res.status(302).redirect(fallbackUrl);
     }

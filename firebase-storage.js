@@ -28,6 +28,19 @@ function sanitizeSegment(value, fallback = 'file') {
     || fallback;
 }
 
+function sanitizeFolderPath(value, fallback = 'misc') {
+  const segments = String(value || '')
+    .split('/')
+    .map((segment) => sanitizeSegment(segment, ''))
+    .filter(Boolean);
+
+  if (segments.length === 0) {
+    return sanitizeSegment(fallback, 'misc');
+  }
+
+  return segments.join('/');
+}
+
 function getFileExtension(file) {
   const explicit = String(file?.name || '').split('.').pop();
   if (explicit && explicit !== file?.name) return sanitizeSegment(explicit, 'bin');
@@ -39,6 +52,16 @@ function getFileExtension(file) {
   if (mime.includes('svg')) return 'svg';
   if (mime.includes('pdf')) return 'pdf';
   return 'jpg';
+}
+
+function getStorageBucketName() {
+  return storage?.app?.options?.storageBucket || '';
+}
+
+function buildMediaUrl(storagePath) {
+  const bucket = getStorageBucketName();
+  if (!bucket || !storagePath) return '';
+  return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(storagePath)}?alt=media`;
 }
 
 export function validateImageFile(file, { maxSizeMb = 8 } = {}) {
@@ -81,24 +104,54 @@ export async function uploadImageFile(file, folder = 'misc', options = {}) {
 export async function uploadStorageFile(file, folder = 'misc', options = {}) {
   validateStorageFile(file, options);
 
-  const folderPath = sanitizeSegment(folder, 'misc');
+  const folderPath = sanitizeFolderPath(folder, 'misc');
   const baseName = sanitizeSegment(String(file.name || 'image').replace(/\.[^.]+$/, ''), 'image');
   const extension = getFileExtension(file);
   const uniqueName = `${baseName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
   const storagePath = `${folderPath}/${uniqueName}`;
   const storageRef = ref(storage, storagePath);
 
-  await uploadBytes(storageRef, file, {
-    contentType: file.type,
-    cacheControl: 'public,max-age=31536000,immutable'
-  });
+  try {
+    await uploadBytes(storageRef, file, {
+      contentType: file.type,
+      cacheControl: 'public,max-age=31536000,immutable'
+    });
 
-  const url = await getDownloadURL(storageRef);
-  return {
-    url,
-    path: storagePath,
-    name: uniqueName
-  };
+    let url = '';
+    let urlSource = 'firebase-download-url';
+    try {
+      url = await getDownloadURL(storageRef);
+    } catch (downloadError) {
+      url = buildMediaUrl(storagePath);
+      urlSource = 'direct-media-url-fallback';
+      console.warn('[STORAGE] uploadStorageFile:getDownloadURL:fallback', {
+        storagePath,
+        fallbackUrl: url,
+        code: downloadError?.code || null,
+        message: downloadError?.message || String(downloadError),
+        customData: downloadError?.customData || null
+      });
+    }
+
+    if (!url) {
+      throw new Error(`Upload reussi, mais URL image introuvable pour ${storagePath}.`);
+    }
+
+    return {
+      url,
+      path: storagePath,
+      name: uniqueName
+    };
+  } catch (error) {
+    console.error('[STORAGE] uploadStorageFile:error', {
+      storagePath,
+      code: error?.code || null,
+      message: error?.message || String(error),
+      customData: error?.customData || null,
+      serverResponse: error?.serverResponse || null
+    });
+    throw error;
+  }
 }
 
 export async function uploadPdfFile(file, folder = 'documents', options = {}) {

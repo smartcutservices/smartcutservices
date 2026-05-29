@@ -8,6 +8,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 const FORM_SETTINGS_REF = ['vendorApplicationSettings', 'form'];
+const PLAN_SETTINGS_REF = ['vendorPlanSettings', 'main'];
 
 const DEFAULT_FORM_SETTINGS = {
   title: 'Candidature vendeur',
@@ -17,17 +18,32 @@ const DEFAULT_FORM_SETTINGS = {
     { id: 'applicantName', type: 'text', label: 'Nom complet', required: true, placeholder: 'Votre nom complet' },
     { id: 'email', type: 'email', label: 'Email', required: true, placeholder: 'nom@exemple.com' },
     { id: 'phone', type: 'tel', label: 'Telephone', required: true, placeholder: '+509...' },
-    { id: 'shopName', type: 'text', label: 'Nom de boutique', required: true, placeholder: 'Nom de votre boutique' },
-    { id: 'city', type: 'text', label: 'Ville', required: true, placeholder: 'Votre ville' },
     { id: 'address', type: 'textarea', label: 'Adresse', required: true, placeholder: 'Adresse complete' },
-    { id: 'category', type: 'select', label: 'Categorie principale', required: true, options: ['Mode', 'Accessoires', 'Maison & deco', 'Impression', 'Electronique', 'Beaute', 'Autre'] },
-    { id: 'deliveryMode', type: 'radio', label: 'Gestion livraison', required: true, options: ['Le vendeur gere la livraison', 'Smart Cut gere la livraison', 'A definir'] },
-    { id: 'socialLink', type: 'url', label: 'Reseau social ou site web', required: false, placeholder: 'https://...' },
-    { id: 'description', type: 'textarea', label: 'Presentation de votre activite', required: true, placeholder: 'Decrivez votre activite, vos produits et votre positionnement.' },
-    { id: 'agreementAccepted', type: 'checkbox', label: 'Je confirme que les informations envoyees sont exactes et j accepte la revue manuelle de ma candidature.', required: true }
+    { id: 'city', type: 'text', label: 'Ville', required: true, placeholder: 'Votre ville' },
+    { id: 'identityType', type: 'select', label: 'Identification', required: true, options: ['CIN', 'NIF', 'Licence', 'Passeport'] },
+    { id: 'identityNumber', type: 'text', label: 'Numero', required: true, placeholder: 'Numero de la piece choisie' },
+    { id: 'shopName', type: 'text', label: 'Nom de la boutique', required: true, placeholder: 'Nom de votre boutique' },
+    { id: 'bankName', type: 'select', label: 'Banque', required: true, options: ['UNIBANK', 'SOGEBANK', 'BNC', 'CAPITAL BANK', 'BUH'] },
+    { id: 'bankCurrency', type: 'select', label: 'Devise', required: true, options: ['Gourdes', 'USD'] },
+    { id: 'bankAccountHolder', type: 'text', label: 'Nom du compte', required: true, placeholder: 'Nom exact du compte' },
+    { id: 'bankAccountNumber', type: 'text', label: 'Numero du compte', required: true, placeholder: 'Numero du compte' },
+    { id: 'description', type: 'textarea', label: 'Presentation de votre activite', required: true, placeholder: 'Decrivez votre activite, vos produits et votre positionnement.' }
   ]
 };
 
+const VENDOR_DELIVERY_MODE = 'Le vendeur gere la livraison';
+function mergeRequiredVendorFields(fields = []) {
+  return DEFAULT_FORM_SETTINGS.fields.map((field) => ({
+    ...field,
+    options: Array.isArray(field.options) ? [...field.options] : field.options
+  }));
+}
+
+const DEFAULT_PLAN_SETTINGS = {
+  proPrice: 1750,
+  currency: 'HTG',
+  payoutDelayDays: 30
+};
 class VendorApplicationPage {
   constructor(containerId = 'vendor-application-root') {
     this.container = document.getElementById(containerId);
@@ -36,6 +52,8 @@ class VendorApplicationPage {
     this.application = null;
     this.clientProfile = null;
     this.formSettings = DEFAULT_FORM_SETTINGS;
+    this.planSettings = DEFAULT_PLAN_SETTINGS;
+    this.selectedPlan = '';
     this.uniqueId = `vendor_apply_${Math.random().toString(36).slice(2, 9)}`;
 
     if (!this.container) return;
@@ -51,13 +69,20 @@ class VendorApplicationPage {
   }
 
   async init() {
-    await this.loadData();
+    try {
+      await this.loadData();
+    } catch (error) {
+      console.error('Erreur chargement candidature vendeur:', error);
+    }
     this.render();
     this.attachEvents();
   }
 
   async loadData() {
-    await this.loadFormSettings();
+    await Promise.all([
+      this.loadFormSettings(),
+      this.loadPlanSettings()
+    ]);
 
     if (!this.user?.uid || !db) {
       this.clientProfile = null;
@@ -90,8 +115,25 @@ class VendorApplicationPage {
     this.formSettings = {
       ...DEFAULT_FORM_SETTINGS,
       ...data,
-      fields: Array.isArray(data.fields) && data.fields.length ? data.fields : DEFAULT_FORM_SETTINGS.fields
+      fields: mergeRequiredVendorFields(data.fields)
     };
+  }
+
+  async loadPlanSettings() {
+    if (!db) {
+      this.planSettings = DEFAULT_PLAN_SETTINGS;
+      return;
+    }
+
+    try {
+      const snap = await getDoc(doc(db, ...PLAN_SETTINGS_REF));
+      this.planSettings = snap.exists()
+        ? { ...DEFAULT_PLAN_SETTINGS, ...(snap.data() || {}) }
+        : DEFAULT_PLAN_SETTINGS;
+    } catch (error) {
+      console.warn('Parametres plans vendeurs indisponibles, fallback local utilise:', error);
+      this.planSettings = DEFAULT_PLAN_SETTINGS;
+    }
   }
 
   render() {
@@ -106,6 +148,7 @@ class VendorApplicationPage {
     const submittedAt = this.formatDateTime(this.application?.createdAt);
     const reviewedAt = this.formatDateTime(this.application?.reviewedAt);
     const activeAt = this.formatDateTime(this.application?.sellerActivatedAt || this.clientProfile?.sellerActivatedAt || this.clientProfile?.approvedAt);
+    const shouldChoosePlan = Boolean(this.user && !this.application && !this.selectedPlan);
 
     this.container.innerHTML = `
       <section style="max-width:980px;margin:0 auto;padding:1.2rem 1rem 0;">
@@ -185,8 +228,9 @@ class VendorApplicationPage {
                   </div>
                 ` : ''}
               </div>
-            ` : `
+            ` : shouldChoosePlan ? this.renderPlanSelection() : `
               <form id="vendorApplicationForm" style="display:grid;gap:1rem;">
+                ${this.renderSelectedPlanNotice()}
                 ${this.renderFields()}
                 <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;padding-top:.5rem;">
                   <button type="submit" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">
@@ -249,7 +293,116 @@ class VendorApplicationPage {
   }
 
   renderFields() {
-    return this.formSettings.fields.map((field) => this.renderField(field)).join('');
+    const fields = this.formSettings.fields.map((field) => this.renderField(field)).join('');
+    return fields;
+  }
+
+  formatCurrency(value) {
+    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value) || 0)} ${this.planSettings.currency || 'HTG'}`;
+  }
+
+  getPlanMeta(planId) {
+    const plan = String(planId || 'basic').toLowerCase();
+    if (plan === 'pro') {
+      return {
+        id: 'pro',
+        label: 'PRO',
+        price: Number(this.planSettings.proPrice || DEFAULT_PLAN_SETTINGS.proPrice),
+        priceLabel: this.formatCurrency(this.planSettings.proPrice || DEFAULT_PLAN_SETTINGS.proPrice),
+        paymentRequired: true
+      };
+    }
+    return {
+      id: 'basic',
+      label: 'BASIC',
+      price: 0,
+      priceLabel: 'Gratuit',
+      paymentRequired: false
+    };
+  }
+
+  renderSelectedPlanNotice() {
+    const plan = this.getPlanMeta(this.selectedPlan);
+    return `
+      <div style="border-radius:1.1rem;border:1px solid rgba(198,167,94,0.24);background:rgba(198,167,94,0.1);padding:1rem;display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+        <div>
+          <strong style="display:block;color:#1F1E1C;">Plan selectionne: ${this.escape(plan.label)}</strong>
+          <span style="display:block;margin-top:.25rem;color:#6E6557;">${this.escape(plan.priceLabel)}${plan.paymentRequired ? ' - payable via MonCash / NatCash' : ''}</span>
+        </div>
+        <button type="button" id="changeVendorPlanBtn" style="border:1px solid rgba(31,30,28,0.14);border-radius:999px;background:#fff;color:#1F1E1C;padding:.75rem 1rem;font-weight:800;cursor:pointer;">Changer de plan</button>
+      </div>
+    `;
+  }
+
+  renderPlanSelection() {
+    const pro = this.getPlanMeta('pro');
+    return `
+      <section style="display:grid;gap:1.2rem;">
+        <div style="border-radius:1.35rem;border:1px solid rgba(31,30,28,0.08);background:#fff;padding:1.15rem;">
+          <small style="display:block;color:#C6A75E;text-transform:uppercase;letter-spacing:.14em;font-weight:800;margin-bottom:.5rem;">Choisissez votre plan</small>
+          <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-size:2.3rem;line-height:1;color:#1F1E1C;">Vendez avec plus de visibilite</h2>
+          <p style="margin:.75rem 0 0;color:#6E6557;line-height:1.8;">Les plans vendeur permettent aux acheteurs de reperer vos produits plus rapidement, d'ameliorer votre position dans les recherches et d'afficher un badge de verification selon votre plan.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
+          ${this.renderPlanCard({
+            id: 'basic',
+            title: 'BASIC',
+            price: 'Gratuit',
+            subtitle: 'Pour tous les vendeurs',
+            highlight: false,
+            features: [
+              'Mise en ligne de 5 produits',
+              'Acces au tableau de bord vendeur',
+              'Gestion des commandes',
+              'Paiement via MonCash / NatCash / Carte bancaire',
+              'Support standard reponse sous 24-48h',
+              `Request payment tous les ${Number(this.planSettings.payoutDelayDays || 30)} jours`
+            ]
+          })}
+          ${this.renderPlanCard({
+            id: 'pro',
+            title: 'PRO',
+            price: pro.priceLabel,
+            subtitle: 'Pour vendeurs actifs qui veulent plus de visibilite',
+            highlight: true,
+            features: [
+              'Tout du Plan Basic',
+              'Mise en ligne illimitee de produits',
+              'Badge Vendeur Verifie',
+              'Position amelioree dans les recherches',
+              'Paiement via MonCash / NatCash / Carte bancaire',
+              'Statistiques de ventes avancees',
+              'Support prioritaire reponse sous 12h',
+              `Request payment tous les ${Number(this.planSettings.payoutDelayDays || 30)} jours`
+            ]
+          })}
+        </div>
+      </section>
+    `;
+  }
+
+  renderPlanCard(plan) {
+    return `
+      <article style="position:relative;border-radius:1.35rem;border:1px solid ${plan.highlight ? 'rgba(198,167,94,0.5)' : 'rgba(31,30,28,0.08)'};background:${plan.highlight ? 'linear-gradient(180deg,#1F1E1C,#3A3328)' : '#fff'};color:${plan.highlight ? '#F8F5EF' : '#1F1E1C'};padding:1.15rem;box-shadow:${plan.highlight ? '0 22px 44px rgba(31,30,28,0.22)' : '0 14px 34px rgba(31,30,28,0.08)'};display:grid;gap:1rem;">
+        ${plan.highlight ? `<span style="position:absolute;top:1rem;right:1rem;border-radius:999px;background:#C6A75E;color:#1F1E1C;padding:.35rem .65rem;font-size:.72rem;font-weight:900;">Recommande</span>` : ''}
+        <div>
+          <h3 style="margin:0;font-size:1.6rem;font-weight:900;letter-spacing:.04em;">${this.escape(plan.title)}</h3>
+          <strong style="display:block;margin-top:.45rem;font-size:1.35rem;">${this.escape(plan.price)}</strong>
+          <p style="margin:.45rem 0 0;color:${plan.highlight ? 'rgba(248,245,239,0.78)' : '#6E6557'};line-height:1.6;">${this.escape(plan.subtitle)}</p>
+        </div>
+        <ul style="margin:0;padding:0;list-style:none;display:grid;gap:.65rem;">
+          ${plan.features.map((feature) => `
+            <li style="display:flex;gap:.55rem;align-items:flex-start;line-height:1.55;">
+              <i class="fas fa-check" style="margin-top:.25rem;color:${plan.highlight ? '#C6A75E' : '#14532D'};"></i>
+              <span>${this.escape(feature)}</span>
+            </li>
+          `).join('')}
+        </ul>
+        <button type="button" data-select-vendor-plan="${this.escape(plan.id)}" style="border:none;border-radius:999px;background:${plan.highlight ? '#C6A75E' : '#1F1E1C'};color:${plan.highlight ? '#1F1E1C' : '#F8F5EF'};padding:1rem 1.1rem;font-weight:900;cursor:pointer;">
+          Choisir ${this.escape(plan.title)}
+        </button>
+      </article>
+    `;
   }
 
   renderStatusSummary() {
@@ -348,7 +501,8 @@ class VendorApplicationPage {
       email: profile.email || user.email || '',
       phone: profile.phone || '',
       city: profile.city || '',
-      address: profile.address || ''
+      address: profile.address || '',
+      bankCurrency: 'Gourdes'
     };
 
     return defaults[field.id] ?? '';
@@ -359,6 +513,20 @@ class VendorApplicationPage {
     if (signInBtn) {
       signInBtn.addEventListener('click', () => this.auth.openAuthModal('login'));
     }
+
+    this.container.querySelectorAll('[data-select-vendor-plan]').forEach((button) => {
+      button.addEventListener('click', () => {
+        this.selectedPlan = button.dataset.selectVendorPlan || 'basic';
+        this.render();
+        this.attachEvents();
+      });
+    });
+
+    this.container.querySelector('#changeVendorPlanBtn')?.addEventListener('click', () => {
+      this.selectedPlan = '';
+      this.render();
+      this.attachEvents();
+    });
 
     const form = this.container.querySelector('#vendorApplicationForm');
     if (form) {
@@ -411,14 +579,27 @@ class VendorApplicationPage {
       email: String(responses.email || ''),
       phone: String(responses.phone || ''),
       shopName: String(responses.shopName || ''),
+      identityType: String(responses.identityType || ''),
+      identityNumber: String(responses.identityNumber || ''),
       city: String(responses.city || ''),
       address: String(responses.address || ''),
-      category: String(responses.category || ''),
-      deliveryMode: String(responses.deliveryMode || ''),
-      socialLink: String(responses.socialLink || ''),
+      category: '',
+      deliveryMode: VENDOR_DELIVERY_MODE,
+      bankAccountHolder: String(responses.bankAccountHolder || ''),
+      bankName: String(responses.bankName || ''),
+      bankCurrency: String(responses.bankCurrency || ''),
+      bankAccountNumber: String(responses.bankAccountNumber || ''),
+      bankSwiftBic: '',
+      businessName: '',
+      businessNif: '',
+      businessAddress: '',
+      businessBankAccountHolder: '',
+      businessBankName: '',
+      businessBankAccountNumber: '',
+      socialLink: '',
       description: String(responses.description || ''),
-      experience: String(responses.experience || ''),
-      agreementAccepted: responses.agreementAccepted === true
+      experience: '',
+      agreementAccepted: true
     };
   }
 
@@ -429,13 +610,16 @@ class VendorApplicationPage {
     }
 
     const responses = this.collectResponses();
+    responses.deliveryMode = VENDOR_DELIVERY_MODE;
     const missingField = this.validateResponses(responses);
     if (missingField) {
       this.auth.showToast(`Merci de remplir le champ obligatoire: ${missingField}.`, 'error');
       return;
     }
+    const deliveryCoverage = { country: 'Haiti', mode: 'per_product', nationwide: false, nationwideFee: 0, zones: [] };
 
     const canonical = this.buildCanonicalPayload(responses);
+    const plan = this.getPlanMeta(this.selectedPlan || 'basic');
     const now = new Date().toISOString();
     const payload = {
       uid: this.user.uid,
@@ -451,6 +635,15 @@ class VendorApplicationPage {
       reviewedAt: this.application?.reviewedAt || '',
       reviewedBy: this.application?.reviewedBy || '',
       sellerActivatedAt: this.application?.sellerActivatedAt || '',
+      planId: plan.id,
+      planLabel: plan.label,
+      planPrice: plan.price,
+      planCurrency: this.planSettings.currency || 'HTG',
+      planPaymentRequired: plan.paymentRequired,
+      planPaymentStatus: plan.paymentRequired ? 'pending' : 'not_required',
+      payoutRequestIntervalDays: Number(this.planSettings.payoutDelayDays || 30),
+      deliveryCoverage,
+      deliveryZones: [],
       ...canonical
     };
 

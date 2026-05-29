@@ -86,8 +86,9 @@ function buildMeta(payload, pending) {
   const code = payload?.uniqueCode || payload?.orderId || pending?.orderId || '';
   const amount = payload?.amount || pending?.amount || 0;
   const email = pending?.customerEmail || '';
+  const paymentType = payload?.paymentType || pending?.paymentType || '';
   return [
-    code ? `Reference de commande : ${code}` : '',
+    code ? `${paymentType === 'vendor_service_fee' ? 'Reference paiement' : 'Reference de commande'} : ${code}` : '',
     amount ? `Montant : ${formatAmount(amount)}` : '',
     email ? `Email : ${email}` : ''
   ];
@@ -101,13 +102,18 @@ async function pollPaymentStatus(reference, pending) {
     const status = String(payload?.status || payload?.paymentStatus || '').toLowerCase();
 
     if (status === 'paid') {
-      clearCartStorage();
+      if (payload?.paymentType !== 'vendor_service_fee' && pending?.paymentType !== 'vendor_service_fee') {
+        clearCartStorage();
+      }
       clearPendingPayment();
       setDownloadButton(payload?.order || null);
+      const isVendorServiceFee = payload?.paymentType === 'vendor_service_fee' || pending?.paymentType === 'vendor_service_fee';
       setState({
         title: 'Paiement confirme',
-        copy: 'Votre transaction MonCash a bien ete confirmee et votre commande est enregistree.',
-        detail: `Commande ${payload?.uniqueCode || payload?.orderId || ''} validee pour ${formatAmount(payload?.amount || pending?.amount || 0)}.`,
+        copy: isVendorServiceFee
+          ? 'Votre frais de service mensuel MonCash a bien ete confirme. Votre store vendeur est reactif automatiquement.'
+          : 'Votre transaction MonCash a bien ete confirmee et votre commande est enregistree.',
+        detail: `${isVendorServiceFee ? 'Frais mensuel' : 'Commande'} ${payload?.uniqueCode || payload?.orderId || ''} valide pour ${formatAmount(payload?.amount || pending?.amount || 0)}.`,
         tone: 'paid',
         meta: buildMeta(payload, pending)
       });

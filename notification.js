@@ -48,6 +48,8 @@ export class NotificationComponent {
       defaultUrl: '/',
       enabledStorageKey: null,
       listenDashboardOrders: true,
+      listenNewProducts: true,
+      listenBroadcasts: true,
       ...options
     };
     this.unsubscribers = [];
@@ -68,12 +70,13 @@ export class NotificationComponent {
     this.loadSeenState();
     await this.registerServiceWorker();
     this.listenAuth();
-    if (this.options.mode === 'dashboard' && this.options.listenDashboardOrders) {
-      this.listenNewOrdersForDashboard();
-    } else {
-      this.listenNewProducts();
-      this.listenBroadcasts();
+    if (this.options.mode === 'dashboard') {
+      if (this.options.listenDashboardOrders) this.listenNewOrdersForDashboard();
+      if (this.options.listenBroadcasts) this.listenBroadcasts();
+      return;
     }
+    if (this.options.listenNewProducts) this.listenNewProducts();
+    if (this.options.listenBroadcasts) this.listenBroadcasts();
   }
 
   destroy() {
@@ -151,7 +154,10 @@ export class NotificationComponent {
   async registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      this.swRegistration = await navigator.serviceWorker.register('./notification-sw.js');
+      this.swRegistration = await navigator.serviceWorker.register('./notification-sw.js?v=20260520-1', {
+        updateViaCache: 'none'
+      });
+      await this.swRegistration.update();
     } catch (error) {
       console.warn('⚠️ Service worker notifications non disponible:', error);
     }
@@ -316,7 +322,9 @@ export class NotificationComponent {
         if (this.seenBroadcastIds.has(id)) return;
         const data = change.doc.data() || {};
         if (data.target === 'user' && !this.currentUser) return;
-        const allowed = data.target === 'all' || (this.currentUser && data.targetUid && data.targetUid === this.currentUser.uid);
+        const allowed = data.target === 'all' ||
+          (this.options.mode === 'dashboard' && data.target === 'admin') ||
+          (this.currentUser && data.targetUid && data.targetUid === this.currentUser.uid);
         if (!allowed) {
           this.seenBroadcastIds.add(id);
           this.saveSeenState();
