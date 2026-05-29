@@ -701,6 +701,38 @@ Etat GitHub:
 
 - Aucun push n'a encore ete fait pour cette mise a jour.
 
+## 2026-05-28 - Produits vendeurs deja approuves: modification auto-active
+
+Contexte:
+
+- Avant cette correction, toute modification d'un produit vendeur actif remettait le produit en `pending_review`.
+- Cela obligeait l'admin a reapprouver le meme produit apres un simple changement de stock, prix, description ou zone.
+- La nouvelle regle business est: l'admin approuve uniquement les nouveaux produits.
+
+Nouvelle logique:
+
+- Nouveau produit vendeur avec statut actif demande:
+  - `status: pending_review`
+  - revue admin obligatoire.
+- Produit vendeur deja approuve/actif modifie par le vendeur:
+  - reste `status: active`
+  - ne retourne pas en revue admin.
+  - garde `reviewedAt`, `reviewedBy`, `publishedAt` existants.
+- Produit deja approuve que le vendeur met volontairement en brouillon:
+  - devient `status: draft`.
+
+Changements effectues:
+
+- `DvendorProducts.html` detecte maintenant si `currentProduct.status` est deja `active`, `approved` ou `published`.
+- Si oui et que le vendeur garde le produit actif, `nextStatus` reste `active`.
+- Ajout de `lastVendorEditAt` pour garder une trace de la derniere modification vendeur.
+- Le message vendeur indique maintenant que seuls les nouveaux produits partent en revue admin.
+
+Precautions:
+
+- Ne pas remettre `status: pending_review` automatiquement pour tous les edits.
+- Si on veut forcer une nouvelle revue pour un cas exceptionnel, il faut le faire cote admin avec une action explicite, pas automatiquement a chaque modification vendeur.
+
 ## 2026-05-28 - Impression Photo: plusieurs photos avec dimension par photo
 
 Contexte:

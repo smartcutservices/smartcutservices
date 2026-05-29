@@ -931,7 +931,7 @@
             </div>
             <div>
               <h3 style="font-size:1rem;font-weight:700;margin:0 0 .35rem;">Validation admin obligatoire</h3>
-              <p style="margin:0;color:var(--text-secondary);line-height:1.7;">Les produits ajoutes depuis ce dashboard vendeur sont enregistres dans votre espace vendeur puis envoyes en revue dans le vrai dashboard admin. Ils ne sont pas publies directement.</p>
+              <p style="margin:0;color:var(--text-secondary);line-height:1.7;">Les nouveaux produits ajoutes depuis ce dashboard vendeur sont envoyes en revue admin. Les produits deja approuves restent actifs quand vous modifiez leur prix, stock ou contenu.</p>
             </div>
           </div>
         </div>
@@ -4257,7 +4257,13 @@
           return;
         }
         const now = new Date().toISOString();
-        const nextStatus = this.elements.productStatus.checked ? 'pending_review' : 'draft';
+        const isExistingProduct = Boolean(this.currentProduct?.id);
+        const currentStatus = String(this.currentProduct?.status || '').toLowerCase();
+        const wasAlreadyApproved = isExistingProduct && ['active', 'approved', 'published'].includes(currentStatus);
+        const wantsActive = Boolean(this.elements.productStatus.checked);
+        const nextStatus = wantsActive
+          ? (wasAlreadyApproved ? 'active' : 'pending_review')
+          : 'draft';
         const discount = this.collectScheduledDiscount();
         if (discount?.__error) {
           this.showToast(discount.__error, 'error');
@@ -4329,13 +4335,16 @@
           vendorServiceFeeStatus: this.isServiceFeeSuspended() ? 'suspended' : 'active',
           commissionRule: this.buildCommissionRule(selectedCategoryName, now),
           createdBy: 'vendor_dashboard_products',
-          adminReviewNote: this.currentProduct?.id
-            ? 'Produit mis a jour par le vendeur. Une nouvelle revue admin est necessaire.'
-            : 'Produit soumis par le vendeur et en attente de revue admin.',
-          submittedAt: now,
-          reviewedAt: '',
-          reviewedBy: '',
-          publishedAt: '',
+          adminReviewNote: wasAlreadyApproved && wantsActive
+            ? 'Produit deja approuve: modification vendeur appliquee automatiquement.'
+            : this.currentProduct?.id
+              ? 'Produit mis a jour par le vendeur. Une nouvelle revue admin est necessaire.'
+              : 'Produit soumis par le vendeur et en attente de revue admin.',
+          submittedAt: wasAlreadyApproved && wantsActive ? (this.currentProduct?.submittedAt || now) : now,
+          reviewedAt: wasAlreadyApproved && wantsActive ? (this.currentProduct?.reviewedAt || now) : '',
+          reviewedBy: wasAlreadyApproved && wantsActive ? (this.currentProduct?.reviewedBy || 'previous_admin_review') : '',
+          publishedAt: wasAlreadyApproved && wantsActive ? (this.currentProduct?.publishedAt || now) : '',
+          lastVendorEditAt: now,
           updatedAt: now
         };
 
@@ -4384,7 +4393,7 @@
         try {
           if (this.currentProduct?.id) {
             await updateDoc(doc(db, PRODUCTS_COLLECTION, this.currentProduct.id), productData);
-            this.showToast(nextStatus === 'pending_review' ? 'Produit renvoye en revue admin' : 'Produit mis a jour en brouillon');
+            this.showToast(nextStatus === 'active' ? 'Produit mis a jour et reste approuve' : nextStatus === 'pending_review' ? 'Produit renvoye en revue admin' : 'Produit mis a jour en brouillon');
           } else {
             await addDoc(collection(db, PRODUCTS_COLLECTION), {
               ...productData,
