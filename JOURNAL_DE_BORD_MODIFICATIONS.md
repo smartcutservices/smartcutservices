@@ -744,6 +744,36 @@ Precautions:
 - Ne pas introduire de logique d'intervalle dans Impression Photo.
 - Si le dashboard doit nettoyer les fichiers Firebase, il doit lire `printingFiles[]` pour ne pas oublier les photos multiples.
 
+## 2026-05-28 - Correction orthographe/encoding du menu mobile
+
+Contexte:
+
+- Sur mobile, le titre du menu affichait `CatÃ©gories` au lieu de `Catégories`.
+- Le probleme venait de chaines encodees incorrectement dans `header.js`.
+
+Changements effectues:
+
+- Correction dans `header.js`:
+  - `CatÃ©gories` -> `Catégories`
+  - `Toutes les catÃ©gories` -> `Toutes les catégories`
+  - `Retour Ã  l'accueil` -> `Retour à l'accueil`
+  - `SÃ©lection Prestige` -> `Sélection Prestige`
+- Nettoyage de quelques messages console encodes dans le meme fichier.
+- Mise a jour du cache-busting `ASSET_VERSION` en `20260528-5` pour:
+  - `index.html`
+  - `catalogue.html`
+  - `product.html`
+  - `printing-grand-format.html`
+
+Verification:
+
+- `node --check header.js`: OK.
+- Recherche dans `header.js`: plus de `Ã` visible.
+
+Precaution:
+
+- Si un texte apparait encore mal encode ailleurs, chercher `Ã`, `Â` ou `â` dans le fichier concerne avant de modifier la logique.
+
 ## 2026-05-26 - Nettoyage definitif du formulaire vendeur
 
 Contexte:
