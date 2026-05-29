@@ -242,6 +242,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /printingDeliverySettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /printingDeletedFiles/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if isAdmin();
     }

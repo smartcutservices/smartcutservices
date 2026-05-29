@@ -874,6 +874,30 @@ Precautions:
 - Les frais impression sont calcules avant ajout au panier et doivent rester dans le prix de l'item.
 - Si on veut plus tard que le choix reception se fasse dans la modal checkout, il faudra creer un flux checkout dedie a `sourceType: printing`.
 
+## 2026-05-28 - Rules Firestore pour livraison impression
+
+Contexte:
+
+- Le dashboard admin sauvegarde les reglages de reception impression dans `printingDeliverySettings/main`.
+- Les pages impression publiques doivent lire ces reglages pour afficher les points de retrait et les zones domicile.
+- Sans regle explicite, Firebase peut refuser la lecture publique ou l'ecriture admin selon le contexte.
+
+Changements effectues:
+
+- Ajout d'une regle Firestore explicite pour `printingDeliverySettings/{docId}`.
+- Lecture autorisee publiquement pour que les modules impression puissent calculer les options de reception.
+- Ecriture reservee aux admins.
+- Ajout d'une regle Firestore pour `printingDeletedFiles/{docId}`.
+- Lecture/ecriture reservees aux admins pour le suivi des fichiers impression supprimes.
+
+Verification:
+
+- Les rules ont ete modifiees dans `firestore.rules`.
+
+Precaution:
+
+- Pour que cela soit actif sur Firebase, il faut deployer les rules Firestore, pas Firebase Hosting.
+
 ## Correction identite client dans dashboard admin et commandes
 
 Date: 19 mai 2026
