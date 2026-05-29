@@ -1,8 +1,42 @@
 // ============= PAYMENT COMPONENT - PROCESSUS DE PAIEMENT =============
 import { db } from './firebase-init.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   collection, getDocs, addDoc, doc, query
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+function getSafeMoncashErrorMessage(error) {
+  const rawMessage = String(error?.message || error?.payload?.message || error?.payload?.error || '').trim();
+  const lowerMessage = rawMessage.toLowerCase();
+  const technicalMarkers = [
+    'jpa entitymanager',
+    'jdbcconnectionexception',
+    'jdbc connection',
+    'hibernate',
+    'org.hibernate',
+    'nested exception',
+    'stack trace',
+    'exception:'
+  ];
+
+  if (!rawMessage || technicalMarkers.some(marker => lowerMessage.includes(marker))) {
+    return 'MonCash est temporairement indisponible. Votre paiement n a pas ete lance. Veuillez reessayer dans quelques minutes.';
+  }
+
+  if (rawMessage.length > 180) {
+    return 'Impossible de demarrer le paiement MonCash pour le moment. Veuillez reessayer dans quelques minutes.';
+  }
+
+  return rawMessage;
+}
+
+function logMoncashDebug(stage, data = {}) {
+  try {
+    console.info('[MONCASH_DEBUG]', stage, data);
+  } catch (_) {
+    // Debug logging must never block payment.
+  }
+}
 
 class PaymentModal {
   constructor(options = {}) {
@@ -38,6 +72,7 @@ class PaymentModal {
   }
   
   async init() {
+    await loadCurrencySettings();
     await this.loadSettings();
     await this.loadPaymentMethods();
     this.render();
@@ -103,11 +138,7 @@ class PaymentModal {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-FR', { 
-      style: 'currency', 
-      currency: 'HTG',
-      minimumFractionDigits: 0
-    }).format(price || 0);
+    return formatPriceDual(price, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
   
   render() {
@@ -1026,11 +1057,16 @@ class PaymentModal {
     const emailInput = this.modal.querySelector('#moncashEmail');
     const phoneInput = this.modal.querySelector('#moncashPhone');
 
-    const customerName = nameInput?.value?.trim() || this.clientData.fullName || this.clientData.name || this.options.client?.name || '';
+    const customerFirstName = String(this.options.client?.firstName || this.clientData.firstName || '').trim();
+    const customerLastName = String(this.options.client?.lastName || this.clientData.lastName || '').trim();
+    const profileName = `${customerFirstName} ${customerLastName}`.trim();
+    const customerName = nameInput?.value?.trim() || profileName || this.clientData.fullName || this.clientData.name || this.options.client?.name || '';
     const customerEmail = emailInput?.value?.trim() || this.clientData.email || this.options.client?.email || '';
     const customerPhone = phoneInput?.value?.trim() || this.clientData.phone || this.options.client?.phone || '';
 
     return {
+      customerFirstName,
+      customerLastName,
       customerName,
       customerEmail,
       customerPhone,
@@ -1041,6 +1077,16 @@ class PaymentModal {
 
   async startMoncashCheckout() {
     const launchBtn = this.modal.querySelector('#launchMoncashBtn');
+    logMoncashDebug('checkout:start', {
+      version: '20260524-3',
+      amount: this.options.amount || 0,
+      itemCount: Array.isArray(this.options.cart) ? this.options.cart.length : 0,
+      clientId: this.options.client?.id || '',
+      clientUid: this.options.client?.uid || '',
+      methodId: this.selectedMethod?.id || '',
+      methodName: this.selectedMethod?.name || ''
+    });
+
     if (launchBtn) {
       launchBtn.disabled = true;
       launchBtn.innerHTML = '<div class="loading-spinner"></div> Redirection vers MonCash...';
@@ -1052,6 +1098,15 @@ class PaymentModal {
       }
 
       const customer = this.collectMoncashCustomerData();
+      logMoncashDebug('checkout:customer', {
+        hasName: Boolean(customer.customerName),
+        hasEmail: Boolean(customer.customerEmail),
+        hasPhone: Boolean(customer.customerPhone),
+        deliveryDepartment: this.options.delivery?.department || '',
+        deliveryCommune: this.options.delivery?.commune || '',
+        deliveryTotalFee: this.options.delivery?.totalFee ?? this.options.delivery?.shippingAmount ?? null
+      });
+
       if (!customer.customerName || !customer.customerEmail) {
         throw new Error('Veuillez renseigner votre nom complet et votre email avant de continuer.');
       }
@@ -1063,7 +1118,7 @@ class PaymentModal {
         phone: customer.customerPhone
       };
 
-      const { createMoncashPaymentSession } = await import('./moncash-client.js');
+      const { createMoncashPaymentSession } = await import('./moncash-client.js?v=20260524-3');
       const response = await createMoncashPaymentSession({
         clientId: this.options.client?.id || '',
         clientUid: this.options.client?.uid || '',
@@ -1073,6 +1128,8 @@ class PaymentModal {
         delivery: this.options.delivery || null,
         promo: this.options.promo || null,
         customerName: customer.customerName,
+        customerFirstName: customer.customerFirstName,
+        customerLastName: customer.customerLastName,
         customerEmail: customer.customerEmail,
         customerPhone: customer.customerPhone,
         customerAddress: customer.customerAddress,
@@ -1082,6 +1139,12 @@ class PaymentModal {
       if (!response?.checkoutUrl) {
         throw new Error('MonCash n’a pas renvoyé d’URL de paiement.');
       }
+
+      logMoncashDebug('checkout:redirect-ready', {
+        sessionId: response?.sessionId || '',
+        orderId: response?.orderId || '',
+        hasCheckoutUrl: Boolean(response?.checkoutUrl)
+      });
 
       try {
         localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
@@ -1099,11 +1162,16 @@ class PaymentModal {
       window.location.assign(response.checkoutUrl);
     } catch (error) {
       console.error('❌ Erreur démarrage MonCash:', error);
+      logMoncashDebug('checkout:error', {
+        code: error?.payload?.error || error?.code || '',
+        message: error?.message || '',
+        payload: error?.payload || null
+      });
       if (launchBtn) {
         launchBtn.disabled = false;
         launchBtn.textContent = 'Payer avec MonCash';
       }
-      alert(error?.message || 'Impossible de démarrer le paiement MonCash.');
+      alert(getSafeMoncashErrorMessage(error));
     }
   }
   
@@ -1293,7 +1361,19 @@ class PaymentModal {
               quantity,
               sku: item?.sku || '',
               image: item?.image || '',
-              selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : []
+              selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : [],
+              vendorId: item?.vendorId || '',
+              vendorName: item?.vendorName || '',
+              weightGrams: Math.max(0, Number(item?.weightGrams || item?.weight || 0)),
+              productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+              productDeliveryZones: Array.isArray(item?.productDeliveryZones) ? item.productDeliveryZones : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
+              vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,
+              vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones) ? item.vendorDeliveryZones : [],
+              sourceType: item?.sourceType || '',
+              sourceCollection: item?.sourceCollection || '',
+              isDigitalProduct: Boolean(item?.isDigitalProduct),
+              digitalDownloadLink: item?.digitalDownloadLink || '',
+              deliveryDelay: item?.deliveryDelay || ''
             };
           })
         : [];
@@ -1322,7 +1402,14 @@ class PaymentModal {
         extractedText: this.extractedText,
         proofName: proofName,
         clientData: this.clientData,
-        customerName: this.clientData.fullName || this.clientData.name || this.options.client?.name || '',
+        customerName: `${this.options.client?.firstName || this.clientData.firstName || ''} ${this.options.client?.lastName || this.clientData.lastName || ''}`.trim()
+          || this.clientData.fullName
+          || this.clientData.name
+          || this.options.client?.name
+          || '',
+        customerFirstName: this.options.client?.firstName || this.clientData.firstName || '',
+        customerLastName: this.options.client?.lastName || this.clientData.lastName || '',
+        customerUsername: this.options.client?.username || this.options.client?.displayName || '',
         customerEmail: this.clientData.email || this.options.client?.email || '',
         customerPhone: this.clientData.phone || this.options.client?.phone || '',
         customerAddress: this.clientData.address || this.options.client?.address || '',

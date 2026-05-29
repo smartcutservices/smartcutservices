@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy, where, limit } from 'https://www.g
 import theme from './theme-root.js';
 import { buildProductPageUrl } from './product-links.js';
 import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 class MobileMenu {
   constructor() {
@@ -17,12 +18,7 @@ class MobileMenu {
   }
 
   formatPriceHTG(value) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency',
-      currency: 'HTG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   buildCatalogueUrl({ categoryId, categoryName, columnId, lineId, openFilters = false, productId } = {}) {
@@ -49,6 +45,7 @@ class MobileMenu {
   }
   
   init() {
+    loadCurrencySettings();
     // S'abonner aux changements de thème
     this.unsubscribeTheme = theme.subscribe((themeData) => {
       this.applyTheme(themeData);

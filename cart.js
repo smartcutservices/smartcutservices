@@ -1,10 +1,11 @@
-// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js';
-import { getAuthManager } from './auth.js';
+﻿// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260523-6';
+import { getAuthManager } from './auth.js?v=20260523-6';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
 import { downloadOrderPdfReceipt } from './order-pdf.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { 
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
@@ -67,6 +68,9 @@ class CartManager {
     
     this.loadCart();
     this.loadPdfConfig();
+    loadCurrencySettings().then(() => {
+      if (this.modal) this.renderCartModal();
+    });
     this.setupEventListeners();
     
     this.isInitialized = true;
@@ -130,7 +134,19 @@ class CartManager {
 
     await authReadyPromise.catch(() => {});
 
-    let guestUser = this.auth?.getCurrentUser?.() || auth?.currentUser || null;
+    const signedUser = this.auth?.getCurrentUser?.() || auth?.currentUser || null;
+    if (signedUser?.uid && !signedUser.isAnonymous) {
+      console.warn('[CART] Session invite ignoree: utilisateur connecte detecte', {
+        uid: signedUser.uid,
+        email: signedUser.email || null
+      });
+      if (!this.currentClient || this.currentClient.id !== signedUser.uid) {
+        await this.loadOrCreateClient(signedUser);
+      }
+      return this.currentClient;
+    }
+
+    let guestUser = signedUser?.isAnonymous ? signedUser : null;
     if (!guestUser?.uid) {
       const credential = await signInAnonymously(auth);
       guestUser = credential?.user || auth?.currentUser || null;
@@ -141,7 +157,28 @@ class CartManager {
     }
 
     const guestId = guestUser.uid;
-    this.guestClient = this.createGuestClientPayload(guestId);
+    const clientRef = doc(db, 'clients', guestId);
+    const snapshot = await getDoc(clientRef);
+    const payload = this.createGuestClientPayload(guestId);
+
+    if (!snapshot.exists()) {
+      await setDoc(clientRef, payload, { merge: true });
+      this.guestClient = payload;
+    } else {
+      const existing = snapshot.data() || {};
+      const mergedPayload = {
+        ...payload,
+        ...existing,
+        id: guestId,
+        uid: guestId,
+        role: existing.role || 'guest',
+        isGuest: existing.isGuest ?? true,
+        updatedAt: payload.updatedAt
+      };
+      await setDoc(clientRef, mergedPayload, { merge: true });
+      this.guestClient = mergedPayload;
+    }
+
     localStorage.setItem(this.getGuestStorageKey(), guestId);
     console.info('[CART] Session invite resolue', {
       guestId,
@@ -249,9 +286,15 @@ class CartManager {
   
   async handleAuthChange(user) {
     console.info('[CART] handleAuthChange', {
+      version: '20260523-6',
       isAuthenticated: Boolean(user),
       uid: user?.uid || null,
-      currentClientId: this.currentClient?.id || null
+      isAnonymous: Boolean(user?.isAnonymous),
+      authManagerReady: this.auth?.isAuthReady ?? null,
+      authManagerUid: this.auth?.getCurrentUser?.()?.uid || null,
+      firebaseUid: auth?.currentUser?.uid || null,
+      currentClientId: this.currentClient?.id || null,
+      ordersListenerActive: Boolean(this.ordersListener)
     });
     
     if (user) {
@@ -264,6 +307,12 @@ class CartManager {
         this.loadCustomerOrders(this.currentClient.id);
       }
     } else {
+      console.info('[CART] handleAuthChange:null-user cleanup', {
+        authManagerReady: this.auth?.isAuthReady ?? null,
+        firebaseUid: auth?.currentUser?.uid || null,
+        hadCurrentClient: Boolean(this.currentClient?.id),
+        ordersBeforeCleanup: this.orders.length
+      });
       if (this.ordersListener) {
         this.ordersListener();
         this.ordersListener = null;
@@ -327,6 +376,7 @@ class CartManager {
       } else {
         const existing = snapshot.data() || {};
         const mergedData = {
+          ...existing,
           uid: user.uid,
           name: existing.name || user.displayName || '',
           email: existing.email || user.email || '',
@@ -433,6 +483,12 @@ class CartManager {
     if (this.preloadPromise) return this.preloadPromise;
 
     this.preloadPromise = (async () => {
+      if (typeof this.auth?.waitForAuthReady === 'function') {
+        await this.auth.waitForAuthReady();
+      } else {
+        await authReadyPromise.catch(() => {});
+      }
+
       if (this.auth?.isAuthenticated?.()) {
         const user = this.auth?.getCurrentUser?.();
         if (user && !this.currentClient) {
@@ -627,14 +683,14 @@ class CartManager {
   hideOrderFromClient(orderId) {
     const order = this.orders.find((o) => o.id === orderId);
     if (!order || (!['approved', 'paid', 'rejected'].includes(order.status))) {
-      this.showNotification('❌ Seules les commandes approuvées ou rejetées peuvent être masquées', 'error');
+      this.showNotification('Seules les commandes approuvées ou rejetées peuvent être masquées', 'error');
       return;
     }
 
     const warningMessage = ['approved', 'paid'].includes(order.status)
       ? (
-        '⚠️ Attention: si vous supprimez cette commande sans télécharger le PDF, vous pouvez perdre le colis.\n\n' +
-        'Téléchargez d’abord le reçu PDF avec votre code de retrait.\n\n' +
+        'Attention: si vous supprimez cette commande sans télécharger le PDF, vous pouvez perdre le colis.\n\n' +
+        'Téléchargez d abord le reçu PDF avec votre code de retrait.\n\n' +
         'Voulez-vous masquer cette commande sur votre site ?'
       )
       : 'Voulez-vous masquer cette commande rejetée sur votre site ?';
@@ -643,7 +699,7 @@ class CartManager {
 
     this.hiddenOrderIds.add(String(orderId));
     this.saveHiddenOrders();
-    this.showNotification('✅ Commande masquée sur votre site (non supprimée en base)', 'success');
+    this.showNotification('Commande masquée sur votre site (non supprimée en base)', 'success');
 
     if (this.modal) {
       this.renderCartModal();
@@ -697,6 +753,15 @@ class CartManager {
       this.openCheckout(e.detail);
     });
 
+    document.addEventListener('checkoutCartSynced', (e) => {
+      if (!Array.isArray(e?.detail?.cart)) return;
+      this.cart = e.detail.cart;
+      if (this.modal) {
+        this.renderCartModal();
+      }
+      this.emitUpdate();
+    });
+
     document.addEventListener('orderSaved', (e) => {
       const order = e?.detail?.order;
       const clientId = e?.detail?.clientId;
@@ -745,7 +810,7 @@ class CartManager {
         mode: cartData?.mode || 'authenticated',
         currentClient: this.currentClient || null
       });
-      this.showNotification('❌ Impossible de charger le client. Réessayez.');
+      this.showNotification('Impossible de charger le client. Réessayez.');
       return;
     }
     console.info('[CART] openCheckout: client resolu', {
@@ -755,7 +820,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260413-2');
+      const module = await import('./checkout.js?v=20260525-1');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -773,7 +838,7 @@ class CartManager {
           this.cart = [];
           this.saveCart();
           
-          this.showNotification('✅ Commande soumise avec succès !');
+          this.showNotification('Commande soumise avec succès !');
           if (window.veltrixaNotificationCenter?.promptOrderNotificationChoice) {
             setTimeout(() => {
               window.veltrixaNotificationCenter.promptOrderNotificationChoice();
@@ -809,17 +874,34 @@ class CartManager {
         selectedOptions: Array.isArray(item?.selectedOptions) ? item.selectedOptions : [],
         vendorId: item?.vendorId || '',
         vendorName: item?.vendorName || '',
+        weightGrams: Math.max(0, Number(item?.weightGrams || item?.weight || 0)),
+        productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+        productDeliveryZones: Array.isArray(item?.productDeliveryZones) ? item.productDeliveryZones : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
+        vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,
+        vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones) ? item.vendorDeliveryZones : [],
         commissionRule: item?.commissionRule || null,
         sourceType: item?.sourceType || '',
         category: item?.category || '',
-        deliveryMode: item?.deliveryMode || ''
+        deliveryMode: item?.deliveryMode || '',
+        isDigitalProduct: Boolean(item?.isDigitalProduct),
+        digitalDownloadLink: item?.digitalDownloadLink || '',
+        deliveryDelay: item?.deliveryDelay || ''
       }));
       const computedAmount = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const customerFirstName = String(this.currentClient.firstName || '').trim();
+      const customerLastName = String(this.currentClient.lastName || '').trim();
+      const customerFullName = `${customerFirstName} ${customerLastName}`.trim()
+        || this.currentClient.name
+        || orderData.customerName
+        || '';
 
       const order = {
         clientId: this.currentClient.id,
         clientUid: user.uid,
-        customerName: this.currentClient.name || orderData.customerName || '',
+        customerFirstName,
+        customerLastName,
+        customerName: customerFullName,
+        customerUsername: this.currentClient.username || this.currentClient.displayName || user.displayName || '',
         customerEmail: this.currentClient.email || orderData.customerEmail || '',
         customerPhone: orderData.customerPhone || this.currentClient.phone || '',
         customerAddress: orderData.customerAddress || this.currentClient.address || '',
@@ -866,21 +948,21 @@ class CartManager {
     try {
       const order = this.orders.find(o => o.id === orderId);
       if (!order) {
-        this.showNotification('❌ Commande non trouvée', 'error');
+        this.showNotification('Commande non trouvée', 'error');
         return;
       }
       
       if (!['approved', 'paid'].includes(order.status)) {
-        this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
+        this.showNotification('Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
       
       if (typeof window.jspdf === 'undefined') {
-        this.showNotification('❌ Bibliothèque PDF non chargée', 'error');
+        this.showNotification('Bibliothèque PDF non chargée', 'error');
         return;
       }
       
-      this.showNotification('📄 Génération du PDF en cours...', 'info');
+      this.showNotification('Génération du PDF en cours...', 'info');
       
       this.showNotification('Generation du PDF en cours...', 'info');
       await downloadOrderPdfReceipt(
@@ -938,7 +1020,7 @@ class CartManager {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('REÇU DE PAIEMENT', 20, 60);
+      doc.text('RECU DE PAIEMENT', 20, 60);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -963,26 +1045,20 @@ class CartManager {
       doc.setFont('helvetica', 'normal');
       doc.text(`Nom: ${order.customerName || this.currentClient?.name || 'N/A'}`, 20, 120);
       doc.text(`Email: ${order.customerEmail || this.currentClient?.email || '-'}`, 20, 130);
-      doc.text(`Téléphone: ${order.customerPhone || this.currentClient?.phone || '-'}`, 20, 140);
+      doc.text(`Telephone: ${order.customerPhone || this.currentClient?.phone || '-'}`, 20, 140);
       doc.text(`Adresse: ${order.customerAddress || this.currentClient?.address || '-'}`, 20, 150);
       doc.text(`Ville: ${order.customerCity || this.currentClient?.city || '-'}`, 20, 160);
 
       const delivery = order.delivery || null;
       if (delivery) {
-        const deliveryLabel = delivery.method === 'home'
-          ? 'Livraison à domicile'
-          : delivery.method === 'pickup'
-            ? 'Retrait en point de vente'
-            : delivery.method === 'meetup'
-              ? 'Rencontre livreur'
-              : 'Livraison';
-        const deliveryTarget = delivery.method === 'home'
-          ? (delivery.homeZone?.city || delivery.homeZone?.zone || '')
-          : delivery.method === 'pickup'
-            ? (delivery.pickupPoint?.name || '')
-            : delivery.method === 'meetup'
-              ? (delivery.meetupZone?.zone || '')
-              : '';
+        const deliveryLabel = 'Livraison a domicile';
+        const deliveryTarget =
+          delivery.homeZone?.city ||
+          delivery.homeZone?.zone ||
+          delivery.commune ||
+          delivery.department ||
+          delivery.address ||
+          '';
 
         doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
@@ -990,7 +1066,7 @@ class CartManager {
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Méthode: ${deliveryLabel}`, 20, 184);
+        doc.text(`Methode: ${deliveryLabel}`, 20, 184);
         if (deliveryTarget) {
           doc.text(`Zone/Point: ${deliveryTarget}`.slice(0, 110), 20, 192);
         }
@@ -998,7 +1074,7 @@ class CartManager {
           doc.text(`Adresse: ${delivery.address}`.slice(0, 110), 20, 200);
         }
         if (delivery.phone || delivery.whatsapp) {
-          const contact = [delivery.phone ? `Tél: ${delivery.phone}` : '', delivery.whatsapp ? `WA: ${delivery.whatsapp}` : ''].filter(Boolean).join(' | ');
+          const contact = [delivery.phone ? `Tel: ${delivery.phone}` : '', delivery.whatsapp ? `WA: ${delivery.whatsapp}` : ''].filter(Boolean).join(' | ');
           doc.text(contact.slice(0, 110), 20, 208);
         }
         if (delivery.meetupProposal) {
@@ -1015,7 +1091,7 @@ class CartManager {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Méthode: ${order.methodName || 'N/A'}`, 20, delivery ? 246 : 186);
+      doc.text(`Methode: ${order.methodName || 'N/A'}`, 20, delivery ? 246 : 186);
       
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
@@ -1026,13 +1102,13 @@ class CartManager {
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Produits commandés', 20, y);
+      doc.text('Produits commandes', 20, y);
       y += 7;
 
       if (orderItems.length === 0) {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        doc.text('Aucun détail produit enregistré.', 20, y);
+        doc.text('Aucun detail produit enregistre.', 20, y);
         y += 6;
       } else {
         orderItems.forEach((item, index) => {
@@ -1056,7 +1132,7 @@ class CartManager {
 
           doc.setFont('helvetica', 'normal');
           doc.text(
-            `Qté: ${qty} | PU: ${this.formatPrice(unitPrice)} | Total: ${this.formatPrice(lineTotal)}${productId}${sku}`.slice(0, 110),
+            `Qte: ${qty} | PU: ${this.formatPrice(unitPrice)} | Total: ${this.formatPrice(lineTotal)}${productId}${sku}`.slice(0, 110),
             24,
             y
           );
@@ -1090,20 +1166,20 @@ class CartManager {
       
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text('Ce document est un reçu officiel de paiement.', 20, 280);
-      doc.text(`Code de vérification: ${order.uniqueCode || 'N/A'}`, 20, 285);
+      doc.text('Ce document est un recu officiel de paiement.', 20, 280);
+      doc.text(`Code de verification: ${order.uniqueCode || 'N/A'}`, 20, 285);
       
       doc.save(`recu-${order.uniqueCode || order.id}.pdf`);
       
-      this.showNotification('✅ PDF téléchargé avec succès !', 'success');
+      this.showNotification('PDF téléchargé avec succès !', 'success');
       
       setTimeout(() => {
-        this.showNotification('⚠️ Conservez ce PDF précieusement - il contient votre code unique !', 'warning');
+        this.showNotification('Conservez ce PDF précieusement - il contient votre code unique !', 'warning');
       }, 1000);
       
     } catch (error) {
       console.error('❌ Erreur génération PDF:', error);
-      this.showNotification('❌ Erreur lors de la génération du PDF', 'error');
+      this.showNotification('Erreur lors de la génération du PDF', 'error');
     }
   }
   
@@ -1111,21 +1187,21 @@ class CartManager {
     try {
       const order = this.orders.find(o => o.id === orderId);
       if (!order) {
-        this.showNotification('❌ Commande non trouvée', 'error');
+        this.showNotification('Commande non trouvée', 'error');
         return;
       }
       
       if (!['approved', 'paid'].includes(order.status)) {
-        this.showNotification('⚠️ Cette commande n\'est pas encore approuvée', 'warning');
+        this.showNotification('Cette commande n\'est pas encore approuvée', 'warning');
         return;
       }
       
       const confirmDownload = confirm(
-        '⚠️ IMPORTANT ⚠️\n\n' +
+        'IMPORTANT\n\n' +
         'Ce PDF contient un code unique qui vous permettra de récupérer votre commande.\n\n' +
-        '✅ Conservez-le précieusement.\n' +
-        '✅ Il sera demandé lors du retrait/livraison.\n' +
-        '✅ Ne le partagez pas avec des inconnus.\n\n' +
+        'Conservez-le précieusement.\n' +
+        'Il sera demandé lors du retrait/livraison.\n' +
+        'Ne le partagez pas avec des inconnus.\n\n' +
         'Voulez-vous télécharger votre reçu ?'
       );
       
@@ -1135,7 +1211,7 @@ class CartManager {
       
     } catch (error) {
       console.error('❌ Erreur téléchargement PDF:', error);
-      this.showNotification('❌ Erreur lors du téléchargement', 'error');
+      this.showNotification('Erreur lors du téléchargement', 'error');
     }
   }
   
@@ -1167,6 +1243,7 @@ class CartManager {
   }
 
   getItemStockLimit(item) {
+    if (item?.isDigitalProduct) return Infinity;
     const parsed = Number(item?.stockLimit);
     if (!Number.isFinite(parsed) || parsed < 0) return Infinity;
     return Math.max(0, Math.floor(parsed));
@@ -1183,7 +1260,20 @@ class CartManager {
       sourceType: String(item?.sourceType || (item?.vendorId ? 'vendor' : 'smartcut')).trim(),
       sourceCollection: String(item?.sourceCollection || (item?.vendorId ? 'vendorProducts' : 'products')).trim(),
       categoryId: String(item?.categoryId || '').trim(),
-      category: String(item?.category || '').trim()
+      category: String(item?.category || '').trim(),
+      productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+      productDeliveryZones: Array.isArray(item?.productDeliveryZones)
+        ? item.productDeliveryZones
+        : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
+      vendorDeliveryCoverage: item?.vendorDeliveryCoverage || item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+      vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones)
+        ? item.vendorDeliveryZones
+        : (Array.isArray(item?.productDeliveryZones)
+          ? item.productDeliveryZones
+          : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : [])),
+      isDigitalProduct: Boolean(item?.isDigitalProduct),
+      digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
+      deliveryDelay: String(item?.deliveryDelay || '').trim()
     };
 
     const itemKey = this.getCartItemKey(item);
@@ -1198,7 +1288,7 @@ class CartManager {
         : currentQty + incomingQty;
 
       if (nextQty <= currentQty) {
-        this.showNotification(`⚠️ Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
+        this.showNotification(`Stock maximum atteint pour ${this.cart[existingIndex].name}`, 'warning');
         return;
       }
 
@@ -1219,15 +1309,27 @@ class CartManager {
       if (!this.cart[existingIndex].category && item.category) {
         this.cart[existingIndex].category = item.category;
       }
+      if (!this.cart[existingIndex].productDeliveryCoverage && item.productDeliveryCoverage) {
+        this.cart[existingIndex].productDeliveryCoverage = item.productDeliveryCoverage;
+      }
+      if ((!this.cart[existingIndex].productDeliveryZones || !this.cart[existingIndex].productDeliveryZones.length) && item.productDeliveryZones?.length) {
+        this.cart[existingIndex].productDeliveryZones = item.productDeliveryZones;
+      }
+      if (!this.cart[existingIndex].vendorDeliveryCoverage && item.vendorDeliveryCoverage) {
+        this.cart[existingIndex].vendorDeliveryCoverage = item.vendorDeliveryCoverage;
+      }
+      if ((!this.cart[existingIndex].vendorDeliveryZones || !this.cart[existingIndex].vendorDeliveryZones.length) && item.vendorDeliveryZones?.length) {
+        this.cart[existingIndex].vendorDeliveryZones = item.vendorDeliveryZones;
+      }
       this.showNotification(
         nextQty < currentQty + incomingQty
-          ? `⚠️ Stock limité à ${nextQty} pour ${this.cart[existingIndex].name}`
-          : `📦 Quantité mise à jour: ${this.cart[existingIndex].name}`
+          ? `Stock limité à ${nextQty} pour ${this.cart[existingIndex].name}`
+          : `Quantité mise à jour: ${this.cart[existingIndex].name}`
       );
     } else {
       const initialQty = Number.isFinite(stockLimit) ? Math.min(stockLimit, incomingQty) : incomingQty;
       if (initialQty <= 0) {
-        this.showNotification(`⚠️ Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
+        this.showNotification(`Stock indisponible pour ${item.name || 'ce produit'}`, 'warning');
         return;
       }
       this.cart.push({
@@ -1237,8 +1339,8 @@ class CartManager {
       });
       this.showNotification(
         initialQty < incomingQty
-          ? `⚠️ ${item.name || 'Produit'} limité à ${initialQty} unité(s)`
-          : `✅ ${item.name || 'Produit'} ajouté au panier`
+          ? `${item.name || 'Produit'} limité à ${initialQty} unité(s)`
+          : `${item.name || 'Produit'} ajouté au panier`
       );
     }
     
@@ -1250,7 +1352,7 @@ class CartManager {
       const item = this.cart[index];
       this.cart.splice(index, 1);
       this.saveCart();
-      this.showNotification(`🗑️ ${item.name || 'Article'} supprimé du panier`, 'info');
+      this.showNotification(`${item.name || 'Article'} supprimé du panier`, 'info');
       if (this.modal) {
         this.renderCartModal();
       }
@@ -1267,7 +1369,7 @@ class CartManager {
           ? Math.min(stockLimit, quantity)
           : quantity;
         if (safeQuantity < quantity) {
-          this.showNotification(`⚠️ Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
+          this.showNotification(`Stock maximum atteint pour ${this.cart[index].name}`, 'warning');
         }
         this.cart[index].quantity = safeQuantity;
         this.saveCart();
@@ -1281,7 +1383,7 @@ class CartManager {
   clearCart() {
     if (this.cart.length === 0) return;
     
-    if (confirm('🗑️ Vider le panier ?')) {
+    if (confirm('Vider le panier ?')) {
       this.cart = [];
       this.saveCart();
       this.showNotification('Panier vidé', 'info');
@@ -1327,12 +1429,22 @@ class CartManager {
       quantity: Number(item?.quantity ?? item?.qty ?? item?.qte) || 1,
       sku: item?.sku || item?.reference || '',
       image: item?.image || item?.imageUrl || '',
-      vendorId: item?.vendorId || '',
-      vendorName: item?.vendorName || '',
-      commissionRule: item?.commissionRule || null,
+        vendorId: item?.vendorId || '',
+        vendorName: item?.vendorName || '',
+        weightGrams: Math.max(0, Number(item?.weightGrams || item?.weight || 0)),
+        productDeliveryCoverage: item?.productDeliveryCoverage || item?.deliveryCoverage || null,
+        productDeliveryZones: Array.isArray(item?.productDeliveryZones)
+          ? item.productDeliveryZones
+          : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []),
+        vendorDeliveryCoverage: item?.vendorDeliveryCoverage || null,
+        vendorDeliveryZones: Array.isArray(item?.vendorDeliveryZones) ? item.vendorDeliveryZones : [],
+        commissionRule: item?.commissionRule || null,
       sourceType: item?.sourceType || '',
       category: item?.category || '',
       deliveryMode: item?.deliveryMode || '',
+      isDigitalProduct: Boolean(item?.isDigitalProduct),
+      digitalDownloadLink: item?.digitalDownloadLink || '',
+      deliveryDelay: item?.deliveryDelay || '',
       selectedOptions: Array.isArray(item?.selectedOptions)
         ? item.selectedOptions
         : Array.isArray(item?.options)
@@ -1340,14 +1452,18 @@ class CartManager {
           : []
     }));
   }
+
+  escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: this.options.currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price || 0);
+    return formatPriceDual(price, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   normalizeSelectedOptionLabel(value) {
@@ -1372,10 +1488,10 @@ class CartManager {
     const texts = {
       pending: 'En attente',
         review: 'En examen',
-        paid: 'Paiement confirme',
-      approved: '✅ Approuvé',
-      rejected: '❌ Rejeté',
-      expired: '⏰ Expiré'
+        paid: 'Paiement confirmé',
+      approved: 'Approuvé',
+      rejected: 'Rejeté',
+      expired: 'Expiré'
     };
     return texts[status] || status;
   }
@@ -1509,7 +1625,7 @@ class CartManager {
           line-height: 1.5;
         ">
           ${['approved', 'paid'].includes(order.status)
-            ? 'Paiement confirme. Votre commande avance maintenant selon le suivi de livraison.'
+            ? 'Paiement confirmé. Votre commande avance maintenant selon le suivi de livraison.'
             : order.status === 'pending' || order.status === 'review'
               ? 'Votre commande est bien enregistree. Le suivi de livraison se mettra a jour apres validation.'
               : 'Suivi disponible pour cette commande.'}
@@ -1891,7 +2007,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js')
+    import('./product-modal.js?v=20260525-5')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {
@@ -2056,6 +2172,118 @@ class CartManager {
       </div>
     `;
   }
+
+  renderOrderProductsSummary(orderItems, colors) {
+    const items = Array.isArray(orderItems) ? orderItems : [];
+    if (!items.length) return '';
+
+    const grouped = new Map();
+    items.forEach((item) => {
+      const storeName = String(item.vendorName || item.storeName || item.shopName || '').trim() || 'Smart Cut Services';
+      if (!grouped.has(storeName)) grouped.set(storeName, []);
+      grouped.get(storeName).push(item);
+    });
+
+    return `
+      <div style="
+        margin: 0.75rem 0;
+        padding: 0.75rem;
+        border: 1px solid ${colors.background.button}18;
+        border-radius: 0.75rem;
+        background: ${colors.background.general}66;
+        display: grid;
+        gap: 0.75rem;
+      ">
+        <strong style="
+          color: ${colors.text.title};
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 0.9rem;
+        ">
+          <i class="fas fa-box-open" style="color:${colors.icon.hover};"></i>
+          Produits commandés (${items.length})
+        </strong>
+
+        ${Array.from(grouped.entries()).map(([storeName, storeItems]) => `
+          <div style="display:grid;gap:0.55rem;">
+            <div style="
+              color:${colors.text.body};
+              font-size:0.78rem;
+              font-weight:800;
+              letter-spacing:0.08em;
+              text-transform:uppercase;
+            ">${this.escapeHtml(storeName)}</div>
+            ${storeItems.map((item) => {
+              const imagePath = this.getImagePath(item.image || '');
+              const itemTotal = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+              const options = this.getCustomerVisibleOptions(item.selectedOptions || []);
+              return `
+                <div style="
+                  display:grid;
+                  grid-template-columns:48px 1fr auto;
+                  gap:0.7rem;
+                  align-items:center;
+                  background:${colors.background.card};
+                  border:1px solid ${colors.background.button}14;
+                  border-radius:0.7rem;
+                  padding:0.55rem;
+                ">
+                  <div style="
+                    width:48px;
+                    height:48px;
+                    border-radius:0.55rem;
+                    overflow:hidden;
+                    background:${colors.background.general};
+                    border:1px solid ${colors.background.button}16;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    color:${colors.text.body};
+                  ">
+                    ${imagePath ? `<img src="${this.escapeHtml(imagePath)}" alt="${this.escapeHtml(item.name || 'Produit')}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\\'fas fa-image\\'></i>'">` : `<i class="fas fa-image"></i>`}
+                  </div>
+                  <div style="min-width:0;">
+                    <div style="
+                      color:${colors.text.title};
+                      font-weight:800;
+                      font-size:0.88rem;
+                      line-height:1.35;
+                      overflow-wrap:anywhere;
+                    ">${this.escapeHtml(item.name || 'Produit')}</div>
+                    <div style="
+                      margin-top:0.2rem;
+                      color:${colors.text.body};
+                      font-size:0.76rem;
+                      display:flex;
+                      flex-wrap:wrap;
+                      gap:0.35rem 0.55rem;
+                    ">
+                      ${item.sku ? `<span>SKU: ${this.escapeHtml(item.sku)}</span>` : ''}
+                      <span>Qté: ${Number(item.quantity) || 1}</span>
+                      ${item.isDigitalProduct ? '<span>Digital</span>' : ''}
+                    </div>
+                    ${options.length ? `
+                      <div style="margin-top:0.25rem;color:${colors.text.body};font-size:0.72rem;">
+                        Options: ${options.map((opt) => this.escapeHtml(opt.value || opt)).join(', ')}
+                      </div>
+                    ` : ''}
+                  </div>
+                  <div style="
+                    color:${colors.text.title};
+                    font-weight:900;
+                    font-size:0.82rem;
+                    white-space:nowrap;
+                    text-align:right;
+                  ">${this.formatPrice(itemTotal)}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
   
   renderOrderItem(order, colors, fonts) {
     const statusColor = this.getStatusColor(order.status);
@@ -2063,6 +2291,8 @@ class CartManager {
     const timeLeft = (Number.isFinite(order.timeLeft) && order.timeLeft > 0)
       ? order.timeLeft
       : this.calculateTimeLeft(order.expiresAt);
+    const orderItems = this.getOrderItems(order);
+    const downloadableItems = orderItems.filter((item) => item.isDigitalProduct && item.digitalDownloadLink);
     
     return `
       <div style="
@@ -2111,7 +2341,33 @@ class CartManager {
           <span>Code: ${order.uniqueCode || order.id || 'N/A'}</span>
         </div>
 
+        ${this.renderOrderProductsSummary(orderItems, colors)}
+
         ${this.renderFulfillmentTracker(order, colors)}
+
+        ${(['approved', 'paid'].includes(order.status) && downloadableItems.length) ? `
+          <div style="
+            margin-top: 0.75rem;
+            padding: 0.75rem;
+            background: #10B98110;
+            border: 1px solid #10B98122;
+            border-radius: 0.75rem;
+            color: ${colors.text.body};
+            display: grid;
+            gap: 0.55rem;
+          ">
+            <strong style="color:#047857;display:flex;align-items:center;gap:.45rem;">
+              <i class="fas fa-bolt"></i>
+              Articles digitaux disponibles
+            </strong>
+            ${downloadableItems.map((item) => `
+              <a href="${this.escapeHtml(item.digitalDownloadLink)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#047857;text-decoration:none;background:#fff;border-radius:.65rem;padding:.55rem .7rem;">
+                <span>${this.escapeHtml(item.name || 'Telechargement')}</span>
+                <i class="fas fa-download"></i>
+              </a>
+            `).join('')}
+          </div>
+        ` : ''}
         
         ${(order.status === 'pending' || order.status === 'review') && timeLeft > 0 ? `
           <div style="
@@ -2199,7 +2455,7 @@ class CartManager {
             gap: 0.5rem;
           ">
             <i class="fas fa-exclamation-triangle" style="color: #F59E0B;"></i>
-            <span>⚠️ Ce PDF contient votre code unique de retrait. Conservez-le précieusement !</span>
+            <span>Ce PDF contient votre code unique de retrait. Conservez-le précieusement !</span>
           </div>
         ` : ''}
         
@@ -2695,3 +2951,7 @@ export function getCartManager(options = {}) {
 }
 
 export default CartManager;
+
+
+
+

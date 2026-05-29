@@ -22,12 +22,12 @@
     }
     #vendor-application-root {
       width: 100%;
-      padding-top: calc(var(--announce-height, 44px) + var(--header-height, 90px) + 1.5rem);
+      padding-top: 1.5rem;
       padding-bottom: 4rem;
     }
     @media (max-width: 1024px) {
       #vendor-application-root {
-        padding-top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + 1rem);
+        padding-top: 1rem;
       }
     }
   </style>
@@ -51,8 +51,8 @@
       }
     };
 
-    mount('sierra-header-root', () => import('./header.js'));
-    mount('vendor-application-root', () => import('./vendor-application.js'));
+    mount('sierra-header-root', () => import('./header.js?v=20260529-3'));
+    mount('vendor-application-root', () => import('./vendor-application.js?v=20260526-1'));
     mount('sierra-footer-root', () => import('./footer.js'), {
       imageBasePath: './',
       showSocial: true,

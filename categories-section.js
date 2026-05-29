@@ -6,6 +6,7 @@ import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } f
 import { redirectToProductPage } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 // Import Firebase
 import { db } from './firebase-init.js';
@@ -79,11 +80,7 @@ class CategoriesSection {
     }
 
     formatPrice(price) {
-        return new Intl.NumberFormat('fr-HT', {
-            style: 'currency', 
-            currency: 'HTG',
-            minimumFractionDigits: 2
-        }).format(price || 0);
+        return formatPriceDual(price);
     }
     
     toNumber(value, fallback = 0) {
@@ -344,6 +341,9 @@ class CategoriesSection {
     }
 
     init() {
+        loadCurrencySettings().then(() => {
+            if (this.state?.allProducts?.length) this.renderProducts();
+        });
         this.applyThemeToStyles();
         this.renderStructure();
         this.addStyles();

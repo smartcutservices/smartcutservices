@@ -1,9 +1,10 @@
-// ============= PRODUCTS COMPONENT - CAROUSEL HORIZONTAL =============
+﻿// ============= PRODUCTS COMPONENT - CAROUSEL HORIZONTAL =============
 import { db } from './firebase-init.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { loadPublicProducts, isPublicProductVisible } from './catalog-products.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   collection, query, getDocs, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -50,6 +51,7 @@ class SierraProducts {
   
   async init() {
     try {
+      await loadCurrencySettings();
       await this.loadProducts();
       this.render();
       this.attachEvents();
@@ -137,11 +139,14 @@ class SierraProducts {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: 'HTG',
-      minimumFractionDigits: 2
-    }).format(price || 0);
+    return formatPriceDual(price);
+  }
+
+  getDiscountPercent(currentPrice, comparePrice) {
+    const current = this.toNumber(currentPrice, 0);
+    const compare = this.toNumber(comparePrice, 0);
+    if (!(compare > current && current >= 0)) return 0;
+    return Math.max(0, Math.round(((compare - current) / compare) * 100));
   }
   
   // Obtenir la variation active d'un produit
@@ -205,7 +210,7 @@ class SierraProducts {
         }
       });
     }
-    return parts.join(' • ') || variation?.sku || 'Variation';
+    return parts.join(' - ') || variation?.sku || 'Variation';
   }
 
   toStockLimit(value) {
@@ -241,9 +246,11 @@ class SierraProducts {
       ? variationPrice
       : this.toNumber(product?.price, 0);
     const finalPrice = getProductPricing(product, basePrice).currentPrice;
-    const stockLimit = variation
-      ? this.toStockLimit(variation?.stock)
-      : this.toStockLimit(product?.stock);
+    const stockLimit = product?.isDigitalProduct
+      ? null
+      : (variation
+        ? this.toStockLimit(variation?.stock)
+        : this.toStockLimit(product?.stock));
     const selectedOptions = [];
 
     if (variation) {
@@ -266,9 +273,24 @@ class SierraProducts {
       vendorId: String(product?.vendorId || '').trim(),
       vendorName: String(product?.vendorName || product?.shopName || '').trim(),
       commissionRule: product?.commissionRule || null,
-      sourceType: String(product?.sourceType || (product?.vendorId ? 'vendor' : '')).trim(),
+      sourceType: String(product?.sourceType || (product?.vendorId ? 'vendor' : 'smartcut')).trim(),
+      sourceCollection: String(product?.sourceCollection || (product?.vendorId ? 'vendorProducts' : 'products')).trim(),
+      categoryId: String(product?.categoryId || '').trim(),
       category: String(product?.category || product?.categoryName || '').trim(),
       deliveryMode: String(product?.deliveryMode || '').trim(),
+      isDigitalProduct: Boolean(product?.isDigitalProduct),
+      digitalDownloadLink: String(product?.digitalDownloadLink || '').trim(),
+      deliveryDelay: String(product?.deliveryDelay || (product?.isDigitalProduct ? 'Instantanee' : '')).trim(),
+      productDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || null,
+      productDeliveryZones: Array.isArray(product?.deliveryZones)
+        ? product.deliveryZones
+        : (Array.isArray(product?.productDeliveryZones) ? product.productDeliveryZones : []),
+      vendorDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || product?.vendorDeliveryCoverage || null,
+      vendorDeliveryZones: Array.isArray(product?.deliveryZones)
+        ? product.deliveryZones
+        : (Array.isArray(product?.productDeliveryZones)
+          ? product.productDeliveryZones
+          : (Array.isArray(product?.vendorDeliveryZones) ? product.vendorDeliveryZones : [])),
       selectedOptions,
       quantity: 1,
       timestamp: Date.now()
@@ -283,7 +305,7 @@ class SierraProducts {
     if (!item) return;
 
     try {
-      const { getCartManager } = await import('./cart.js');
+      const { getCartManager } = await import('./cart.js?v=20260525-3');
       const cart = getCartManager();
       if (cart && typeof cart.addItem === 'function') {
         cart.addItem(item);
@@ -670,18 +692,27 @@ class SierraProducts {
     // Prix
     let priceDisplay = '';
     let comparePriceDisplay = '';
+    let discountBadgeDisplay = '';
     if (hasVariations) {
       priceDisplay = this.formatPriceRange(product);
       if (rangePricing?.hasDiscount && rangePricing.maxComparePrice > 0) {
         comparePriceDisplay = rangePricing.minComparePrice === rangePricing.maxComparePrice
           ? this.formatPrice(rangePricing.minComparePrice)
           : `${this.formatPrice(rangePricing.minComparePrice)} - ${this.formatPrice(rangePricing.maxComparePrice)}`;
+        const badgePercent = this.getDiscountPercent(rangePricing.minPrice, rangePricing.minComparePrice);
+        if (badgePercent > 0) {
+          discountBadgeDisplay = `-${badgePercent}%`;
+        }
       }
     } else {
       priceDisplay = this.formatPrice(singlePricing?.currentPrice || 0);
       comparePriceDisplay = singlePricing?.comparePrice
         ? this.formatPrice(singlePricing.comparePrice)
         : '';
+      const badgePercent = this.getDiscountPercent(singlePricing?.currentPrice, singlePricing?.comparePrice);
+      if (badgePercent > 0) {
+        discountBadgeDisplay = `-${badgePercent}%`;
+      }
     }
     
     return `
@@ -745,6 +776,11 @@ class SierraProducts {
             </p>
             
             <div class="flex items-baseline flex-wrap">
+              ${discountBadgeDisplay ? `
+                <span class="inline-flex items-center rounded-full bg-[#B91C1C]/10 text-[#B91C1C] text-[0.72rem] font-bold px-2.5 py-1 mr-2 mb-1">
+                  ${discountBadgeDisplay}
+                </span>
+              ` : ''}
               <span class="text-xl font-bold text-luxury">
                 ${priceDisplay}
               </span>
@@ -1159,3 +1195,5 @@ class SierraProducts {
 }
 
 export default SierraProducts;
+
+

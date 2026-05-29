@@ -1,6 +1,7 @@
 // ============= CHECKOUT COMPONENT - MODAL DE PAIEMENT =============
 import { db } from './firebase-init.js';
-import { collection, doc, getDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
+import { collection, doc, getDoc, getDocs, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 function normalizeSelectedOptionLabel(value) {
   return String(value || '')
@@ -19,6 +20,19 @@ function isCustomerVisibleOption(option) {
 function getCustomerVisibleOptions(options) {
   return (Array.isArray(options) ? options : []).filter(isCustomerVisibleOption);
 }
+
+const HAITI_DEPARTMENTS = {
+  'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+  'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+  'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+  'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+  'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+  'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+  'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+  'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+  'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+  'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
+};
 
 class CheckoutModal {
   constructor(options = {}) {
@@ -52,10 +66,14 @@ class CheckoutModal {
       weightRules: []
     };
     this.selectedDelivery = {
-      method: null,
+      method: 'home',
       home: {
+        savedAddressId: '',
         zoneId: '',
         address: '',
+        country: 'Haiti',
+        department: '',
+        commune: '',
         phone: '',
         whatsapp: ''
       },
@@ -79,6 +97,12 @@ class CheckoutModal {
       console.error('❌ Checkout: Aucun client fourni');
     }
     
+    loadCurrencySettings().then(() => {
+      if (this.modal) {
+        this.updateSummary();
+      }
+    });
+
     this.calculateTotals();
     this.render();
     this.attachEvents();
@@ -104,12 +128,315 @@ class CheckoutModal {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: this.options.currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price || 0);
+    return formatPriceDual(price, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  getSavedDeliveryAddresses() {
+    const addresses = Array.isArray(this.client?.addresses) ? this.client.addresses : [];
+    const savedAddresses = addresses.filter((address) => (
+      address
+      && address.address
+      && address.country
+      && address.department
+      && address.commune
+    ));
+    const profileAddress = {
+      id: 'profile-default',
+      label: 'Adresse principale',
+      address: this.client?.address || this.client?.adresse || '',
+      country: this.client?.country || 'Haiti',
+      department: this.client?.department || this.client?.departement || '',
+      commune: this.client?.commune || this.client?.city || '',
+      isDelivery: true
+    };
+    const hasProfileAddress = profileAddress.address && profileAddress.country && profileAddress.department && profileAddress.commune;
+    const alreadySaved = savedAddresses.some((address) => (
+      String(address.address || '').trim().toLowerCase() === String(profileAddress.address || '').trim().toLowerCase()
+      && String(address.department || '').trim().toLowerCase() === String(profileAddress.department || '').trim().toLowerCase()
+      && String(address.commune || '').trim().toLowerCase() === String(profileAddress.commune || '').trim().toLowerCase()
+    ));
+    return hasProfileAddress && !alreadySaved
+      ? [profileAddress, ...savedAddresses]
+      : savedAddresses;
+  }
+
+  getDefaultDeliveryAddress() {
+    const addresses = this.getSavedDeliveryAddresses();
+    if (!addresses.length) return null;
+    return addresses.find((address) => address.id === this.client?.defaultDeliveryAddressId)
+      || addresses.find((address) => address.isDelivery)
+      || addresses[0];
+  }
+
+  formatSavedAddress(address) {
+    if (!address) return '';
+    return [address.address, address.commune, address.department, address.country || 'Haiti']
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  hasVendorItems() {
+    return this.cart.some((item) => String(item?.vendorId || '').trim() !== '');
+  }
+
+  hasSmartCutItems() {
+    return this.cart.some((item) => !String(item?.vendorId || '').trim() && !this.isDigitalCartItem(item) && !this.isPrintingCartItem(item));
+  }
+
+  isDigitalCartItem(item) {
+    return Boolean(item?.isDigitalProduct)
+      || String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase() === 'digital'
+      || String(item?.deliveryMode || '').toLowerCase().includes('digital');
+  }
+
+  isPrintingCartItem(item) {
+    const mode = String(item?.deliveryCoverage?.mode || item?.productDeliveryCoverage?.mode || '').toLowerCase();
+    return String(item?.sourceType || '').toLowerCase() === 'printing'
+      || String(item?.productId || '').toLowerCase().startsWith('printing-')
+      || mode === 'printing_prepaid'
+      || Boolean(item?.printingDelivery);
+  }
+
+  getCartProductCollection(item) {
+    const sourceCollection = String(item?.sourceCollection || '').trim().toLowerCase();
+    const sourceType = String(item?.sourceType || '').trim().toLowerCase();
+    const vendorId = String(item?.vendorId || '').trim();
+    return vendorId || sourceCollection === 'vendorproducts' || sourceType.includes('vendor')
+      ? 'vendorProducts'
+      : 'products';
+  }
+
+  needsDeliveryHydration(item) {
+    if (!item?.productId || this.isDigitalCartItem(item) || this.isPrintingCartItem(item)) return false;
+    const coverageZones = Array.isArray(item?.productDeliveryCoverage?.zones)
+      ? item.productDeliveryCoverage.zones
+      : (Array.isArray(item?.deliveryCoverage?.zones) ? item.deliveryCoverage.zones : []);
+    const itemZones = Array.isArray(item?.productDeliveryZones)
+      ? item.productDeliveryZones
+      : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : []);
+    return !coverageZones.length && !itemZones.length;
+  }
+
+  async enrichCartDeliveryData() {
+    const itemsToHydrate = this.cart.filter((item) => this.needsDeliveryHydration(item));
+    if (!itemsToHydrate.length) return;
+
+    await Promise.all(itemsToHydrate.map(async (item) => {
+      try {
+        const collectionName = this.getCartProductCollection(item);
+        const snap = await getDoc(doc(db, collectionName, String(item.productId)));
+        if (!snap.exists()) return;
+
+        const product = snap.data() || {};
+        const coverage = product.deliveryCoverage || product.productDeliveryCoverage || null;
+        const zones = Array.isArray(coverage?.zones) && coverage.zones.length
+          ? coverage.zones
+          : (Array.isArray(product.deliveryZones) && product.deliveryZones.length
+            ? product.deliveryZones
+            : (Array.isArray(product.productDeliveryZones) ? product.productDeliveryZones : []));
+
+        item.productDeliveryCoverage = coverage;
+        item.deliveryCoverage = coverage;
+        item.productDeliveryZones = zones;
+        item.deliveryZones = zones;
+        item.vendorDeliveryCoverage = item.vendorDeliveryCoverage || coverage;
+        item.vendorDeliveryZones = Array.isArray(item.vendorDeliveryZones) && item.vendorDeliveryZones.length
+          ? item.vendorDeliveryZones
+          : zones;
+        item.weightGrams = Number(item.weightGrams || item.weight || product.weightGrams || product.weight || 0);
+        item.deliveryDelay = String(item.deliveryDelay || product.deliveryDelay || '').trim();
+        item.isDigitalProduct = Boolean(item.isDigitalProduct || product.isDigitalProduct);
+        item.digitalDownloadLink = String(item.digitalDownloadLink || product.digitalDownloadLink || '').trim();
+      } catch (error) {
+        console.warn('[CHECKOUT_DELIVERY] Impossible de charger les zones produit', {
+          productId: item?.productId || '',
+          message: error?.message || String(error)
+        });
+      }
+    }));
+  }
+
+  getProductDeliveryGroups() {
+    return this.cart.map((item, index) => {
+      const vendorId = String(item?.vendorId || '').trim();
+      if (this.isDigitalCartItem(item) || this.isPrintingCartItem(item)) return null;
+      const productCoverage = item.productDeliveryCoverage || item.deliveryCoverage || item.vendorDeliveryCoverage || null;
+      const productZones = Array.isArray(item.productDeliveryZones)
+        ? item.productDeliveryZones
+        : (Array.isArray(item.deliveryZones)
+          ? item.deliveryZones
+          : (Array.isArray(item.vendorDeliveryZones) ? item.vendorDeliveryZones : []));
+      return {
+        cartIndex: index,
+        productId: item.productId || '',
+        productName: item.name || 'Produit',
+        quantity: Math.max(1, Number(item.quantity) || 1),
+        vendorId,
+        vendorName: vendorId ? (item.vendorName || 'Vendeur') : 'Smart Cut Services',
+        ownerType: vendorId ? 'vendor' : 'smartcut',
+        deliveryDelay: item.deliveryDelay || '',
+        coverage: productCoverage,
+        zones: productZones
+      };
+    }).filter(Boolean);
+  }
+
+  getVendorDeliveryGroups() {
+    return this.getProductDeliveryGroups().filter((group) => group.ownerType === 'vendor');
+  }
+
+  getSmartCutDeliveryGroups() {
+    return this.getProductDeliveryGroups().filter((group) => group.ownerType === 'smartcut');
+  }
+
+  findProductDeliveryZone(group) {
+    const country = String(this.selectedDelivery.home.country || 'Haiti').trim() || 'Haiti';
+    const department = String(this.selectedDelivery.home.department || '').trim();
+    const commune = String(this.selectedDelivery.home.commune || '').trim();
+    const coverage = group.coverage || {};
+    const zones = Array.isArray(coverage.zones) && coverage.zones.length ? coverage.zones : group.zones;
+    if (coverage.nationwide && zones.length === 0) {
+      const coverageCountry = String(coverage.country || 'Haiti').trim() || 'Haiti';
+      if (coverageCountry !== country) return null;
+      return {
+        country,
+        department: 'Tout Haiti',
+        commune: 'Tout Haiti',
+        fee: Number(coverage.nationwideFee || 0),
+        deliveryDelay: String(coverage.deliveryDelay || '').trim(),
+        nationwide: true
+      };
+    }
+    return (Array.isArray(zones) ? zones : []).find((zone) => (
+      String(zone.country || 'Haiti').trim() === country
+      && String(zone.department || '').trim() === department
+      && String(zone.commune || '').trim() === commune
+    )) || null;
+  }
+
+  findVendorDeliveryZone(group) {
+    return this.findProductDeliveryZone(group);
+  }
+
+  normalizeZoneText(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  resolveHomeDeliveryZone() {
+    const zones = Array.isArray(this.deliveryData.homeZones) ? this.deliveryData.homeZones : [];
+    if (!zones.length) {
+      this.selectedDelivery.home.zoneId = '';
+      return null;
+    }
+
+    const commune = this.normalizeZoneText(this.selectedDelivery.home.commune);
+    const department = this.normalizeZoneText(this.selectedDelivery.home.department);
+    const address = this.normalizeZoneText(this.selectedDelivery.home.address);
+    const selectedZone = zones.find((zone) => zone.id === this.selectedDelivery.home.zoneId);
+    if (selectedZone) return selectedZone;
+
+    const matchedZone = zones.find((zone) => {
+      const city = this.normalizeZoneText(zone.city || zone.name);
+      const zoneName = this.normalizeZoneText(zone.zone);
+      const label = this.normalizeZoneText(zone.displayLabel || `${zone.city || ''} ${zone.zone || ''}`);
+      const candidates = [city, zoneName, label].filter(Boolean);
+      if (commune && candidates.some((candidate) => candidate === commune || candidate.includes(commune) || commune.includes(candidate))) {
+        return true;
+      }
+      if (department && candidates.some((candidate) => candidate === department || candidate.includes(department))) {
+        return true;
+      }
+      return Boolean(address && candidates.some((candidate) => address.includes(candidate)));
+    }) || null;
+
+    this.selectedDelivery.home.zoneId = matchedZone?.id || '';
+    return matchedZone;
+  }
+
+  getVendorDeliveryFee() {
+    if (this.selectedDelivery.method !== 'home') return 0;
+    return this.getVendorDeliveryGroups().reduce((sum, group) => {
+      const zone = this.findProductDeliveryZone(group);
+      return sum + (Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1));
+    }, 0);
+  }
+
+  getProductDeliveryFee() {
+    if (this.selectedDelivery.method !== 'home') return 0;
+    return this.getProductDeliveryGroups().reduce((sum, group) => {
+      const zone = this.findProductDeliveryZone(group);
+      return sum + (Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1));
+    }, 0);
+  }
+
+  getCartItemDeliveryGroup(item, index = null) {
+    const groups = this.getProductDeliveryGroups();
+    if (Number.isInteger(index)) {
+      const byIndex = groups.find((entry) => entry.cartIndex === index);
+      if (byIndex) return byIndex;
+    }
+    const vendorId = String(item?.vendorId || '').trim();
+    return groups.find((entry) => (
+      entry.productId === item.productId
+      && entry.productName === (item.name || 'Produit')
+      && entry.vendorId === vendorId
+    )) || null;
+  }
+
+  getCartItemDeliveryZone(item, index = null) {
+    if (this.isDigitalCartItem(item)) {
+      return { country: 'Digital', department: 'Digital', commune: 'Instantanee', fee: 0, digital: true };
+    }
+    if (this.isPrintingCartItem(item)) {
+      return { country: 'Impression', department: 'Impression', commune: 'Prepayee', fee: 0, printing: true };
+    }
+    const group = this.getCartItemDeliveryGroup(item, index);
+    return group ? this.findProductDeliveryZone(group) : null;
+  }
+
+  getCartItemDeliveryLabel(item, index = null) {
+    if (this.isDigitalCartItem(item)) return 'Produit digital: livraison instantanee gratuite.';
+    if (this.isPrintingCartItem(item)) {
+      const delivery = item?.printingDelivery || {};
+      return delivery.method === 'home'
+        ? `Impression: livraison deja incluse${delivery.homeZone?.delay ? ` - Delai: ${delivery.homeZone.delay}` : ''}.`
+        : 'Impression: point de retrait gratuit.';
+    }
+    const department = String(this.selectedDelivery.home.department || '').trim();
+    const commune = String(this.selectedDelivery.home.commune || '').trim();
+    if (!department || !commune) return 'Livraison calculee apres choix de votre adresse.';
+    const zone = this.getCartItemDeliveryZone(item, index);
+    if (!zone) return `Livraison indisponible a ${commune}.`;
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const fee = Number(zone.fee || 0) * qty;
+    const delay = String(zone?.deliveryDelay || zone?.delay || item?.deliveryDelay || '').trim();
+    return `Livraison ${commune}: ${this.formatPrice(fee)}${delay ? ` - Delai: ${delay}` : ''}`;
+  }
+
+  isCartItemDeliveryUnavailable(item, index = null) {
+    if (this.isDigitalCartItem(item)) return false;
+    if (this.isPrintingCartItem(item)) return false;
+    const department = String(this.selectedDelivery.home.department || '').trim();
+    const commune = String(this.selectedDelivery.home.commune || '').trim();
+    return Boolean(department && commune && !this.getCartItemDeliveryZone(item, index));
+  }
+
+  escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  escapeAttribute(value) {
+    return this.escapeHtml(value);
   }
   
   render() {
@@ -201,7 +528,7 @@ class CheckoutModal {
         </div>
         
         <!-- Contenu principal -->
-        <div style="padding: 1.5rem;">
+        <div class="checkout-content-${this.uniqueId}" style="padding: 1.5rem;">
           ${this.cart.length === 0 ? this.renderEmptyCart() : this.renderCheckoutContent()}
         </div>
       </div>
@@ -518,10 +845,15 @@ class CheckoutModal {
   }
 
   renderDeliverySection() {
-    const methods = this.getAvailableDeliveryMethods();
-    const methodOptions = methods.length > 0
-      ? methods.map(m => this.renderDeliveryMethodRadio(m)).join('')
-      : `<div style="color:#8B7E6B;font-size:0.9rem;">Aucune méthode de livraison disponible pour le moment.</div>`;
+    const savedAddresses = this.getSavedDeliveryAddresses();
+    const defaultAddress = this.getDefaultDeliveryAddress();
+    const lockAddressFields = savedAddresses.length > 0;
+    const selectedSavedAddressId = this.selectedDelivery.home.savedAddressId || defaultAddress?.id || '';
+    const savedAddressOptions = savedAddresses.map((address) => `
+      <option value="${this.escapeAttribute(address.id || '')}" ${address.id === selectedSavedAddressId ? 'selected' : ''}>
+        ${this.escapeHtml(this.formatSavedAddress(address))}
+      </option>
+    `).join('');
     
     return `
       <div class="delivery-section-${this.uniqueId}" style="
@@ -537,26 +869,48 @@ class CheckoutModal {
           margin-bottom: 0.75rem;
           color: #1F1E1C;
         ">
-          Choisir une méthode de livraison
+          Livraison a domicile
         </h3>
-        <div class="delivery-methods" style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-bottom:1rem;">
-          ${methodOptions}
+        <div style="margin-bottom:1rem;color:#6E6557;font-size:0.95rem;line-height:1.6;">
+          Votre commande sera livree a l'adresse de livraison choisie dans votre compte.
         </div>
         
         <div class="delivery-panels">
-          <div class="delivery-panel" data-delivery-panel="home" style="display:none;">
+          <div class="delivery-panel" data-delivery-panel="home" style="display:block;">
             <div style="display:grid;gap:0.75rem;">
-              <label style="font-size:0.9rem;color:#8B7E6B;">Ville / Zone</label>
-              <select class="delivery-home-zone" style="
-                padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-              ">
-                ${this.renderSelectOptions(this.deliveryData.homeZones, 'Aucune zone disponible')}
-              </select>
-              
+              ${savedAddresses.length ? `
+                <div>
+                  <label style="font-size:0.9rem;color:#8B7E6B;">Adresse enregistree</label>
+                  <select class="delivery-saved-address" style="
+                    width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
+                  ">
+                    ${savedAddressOptions}
+                  </select>
+                </div>
+              ` : `
+                <div style="padding:.85rem 1rem;border:1px solid rgba(185,28,28,.18);border-radius:.75rem;background:rgba(185,28,28,.06);color:#7F1D1D;font-size:.92rem;line-height:1.55;">
+                  Aucune adresse de livraison enregistree sur ce compte. Ajoutez une adresse maintenant; elle sera sauvegardee pour vos prochains achats.
+                </div>
+              `}
               <label style="font-size:0.9rem;color:#8B7E6B;">Adresse</label>
-              <input type="text" class="delivery-home-address" placeholder="Adresse complète" style="
-                padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
+              <input type="text" class="delivery-home-address" placeholder="Adresse complete" ${lockAddressFields ? 'readonly' : ''} style="
+                padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};
               ">
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                <div>
+                  <label style="font-size:0.9rem;color:#8B7E6B;">Departement</label>
+                  <select class="delivery-home-department" ${lockAddressFields ? 'disabled' : ''} style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};">
+                    ${this.renderDepartmentOptions(this.selectedDelivery.home.department)}
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:0.9rem;color:#8B7E6B;">Commune</label>
+                  <select class="delivery-home-commune" ${lockAddressFields ? 'disabled' : ''} style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};">
+                    ${this.renderCommuneOptions(this.selectedDelivery.home.department, this.selectedDelivery.home.commune)}
+                  </select>
+                </div>
+              </div>
               
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
@@ -574,74 +928,8 @@ class CheckoutModal {
               </div>
             </div>
           </div>
-          
-          <div class="delivery-panel" data-delivery-panel="pickup" style="display:none;">
-            <label style="font-size:0.9rem;color:#8B7E6B;">Point de retrait</label>
-            <select class="delivery-pickup-point" style="
-              width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-            ">
-              ${this.renderSelectOptions(this.deliveryData.pickupPoints, 'Aucun point disponible')}
-            </select>
-            <div class="pickup-details" style="margin-top:0.75rem;font-size:0.9rem;color:#8B7E6B;"></div>
-          </div>
-          
-          <div class="delivery-panel" data-delivery-panel="meetup" style="display:none;">
-            <label style="font-size:0.9rem;color:#8B7E6B;">Zone de rencontre</label>
-            <select class="delivery-meetup-zone" style="
-              width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-            ">
-              ${this.renderSelectOptions(this.deliveryData.meetupZones, 'Aucune zone disponible')}
-            </select>
-            
-            <div class="meetup-proposal-wrapper" style="margin-top:0.75rem;display:none;">
-              <label style="font-size:0.9rem;color:#8B7E6B;">Proposer un lieu</label>
-              <input type="text" class="delivery-meetup-proposal" placeholder="Proposez un point de rencontre" style="
-                width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-              ">
-            </div>
-            
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.75rem;">
-              <div>
-                <label style="font-size:0.9rem;color:#8B7E6B;">Téléphone</label>
-                <input type="text" class="delivery-meetup-phone" placeholder="Ex: 37 00 00 00" style="
-                  width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-                ">
-              </div>
-              <div>
-                <label style="font-size:0.9rem;color:#8B7E6B;">WhatsApp</label>
-                <input type="text" class="delivery-meetup-whatsapp" placeholder="Ex: 37 00 00 00" style="
-                  width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
-                ">
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-    `;
-  }
-
-  getAvailableDeliveryMethods() {
-    const defaults = { home: true, pickup: true, meetup: true };
-    const settings = this.deliverySettings?.methodsVisible || defaults;
-    const methods = [];
-    if (settings.home) methods.push({ key: 'home', label: 'A domicile', icon: 'fa-house' });
-    if (settings.pickup) methods.push({ key: 'pickup', label: 'Retrait en point de vente', icon: 'fa-store' });
-    if (settings.meetup) methods.push({ key: 'meetup', label: 'Par rencontre', icon: 'fa-people-arrows' });
-    return methods;
-  }
-
-  renderDeliveryMethodRadio(method) {
-    const id = `${this.uniqueId}_delivery_${method.key}`;
-    return `
-      <label for="${id}" style="
-        display:flex;align-items:center;gap:0.5rem;
-        padding:0.6rem 0.9rem;border:1px solid rgba(198,167,94,0.3);
-        border-radius:999px;background:white;cursor:pointer;font-size:0.9rem;color:#1F1E1C;
-      ">
-        <input type="radio" id="${id}" name="delivery_method_${this.uniqueId}" value="${method.key}" style="accent-color:#C6A75E;">
-        <i class="fas ${method.icon}" style="color:#C6A75E;"></i>
-        ${method.label}
-      </label>
     `;
   }
 
@@ -657,11 +945,26 @@ class CheckoutModal {
     });
     return `<option value="">Sélectionner...</option>${options.join('')}`;
   }
+
+  renderDepartmentOptions(selected = '') {
+    return '<option value="">Choisir un departement...</option>' + Object.keys(HAITI_DEPARTMENTS)
+      .map((department) => `<option value="${department}" ${department === selected ? 'selected' : ''}>${department}</option>`)
+      .join('');
+  }
+
+  renderCommuneOptions(department = '', selected = '') {
+    const communes = HAITI_DEPARTMENTS[department] || [];
+    return '<option value="">Choisir une commune...</option>' + communes
+      .map((commune) => `<option value="${commune}" ${commune === selected ? 'selected' : ''}>${commune}</option>`)
+      .join('');
+  }
   
   renderDesktopRow(item, index) {
     const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
+    const deliveryLabel = this.getCartItemDeliveryLabel(item, index);
+    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item, index);
     
     return `
       <tr data-index="${index}">
@@ -684,6 +987,24 @@ class CheckoutModal {
             <div>
               <div style="font-weight: 500;">${item.name || 'Produit'}</div>
               ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
+              ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryUnavailable ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
+              <button type="button" data-remove-unavailable-item="${index}" style="
+                display:${deliveryUnavailable ? 'inline-flex' : 'none'};
+                align-items:center;
+                gap:.35rem;
+                margin-top:.45rem;
+                border:1px solid rgba(185,28,28,.28);
+                background:rgba(185,28,28,.07);
+                color:#991B1B;
+                border-radius:999px;
+                padding:.35rem .65rem;
+                font-size:.72rem;
+                font-weight:700;
+                cursor:pointer;
+              ">
+                <i class="fas fa-trash-alt"></i>
+                Retirer
+              </button>
             </div>
           </div>
         </td>
@@ -726,6 +1047,8 @@ class CheckoutModal {
     const options = getCustomerVisibleOptions(item.selectedOptions || []);
     const imagePath = this.getImagePath(item.image || '');
     const itemTotal = (item.price || 0) * (item.quantity || 1);
+    const deliveryLabel = this.getCartItemDeliveryLabel(item, index);
+    const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item, index);
     
     return `
       <div class="checkout-mobile-item" data-index="${index}" style="
@@ -755,6 +1078,24 @@ class CheckoutModal {
               <div>
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.name || 'Produit'}</div>
                 ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
+                ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryUnavailable ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
+                <button type="button" data-remove-unavailable-item="${index}" style="
+                  display:${deliveryUnavailable ? 'inline-flex' : 'none'};
+                  align-items:center;
+                  gap:.35rem;
+                  margin-top:.5rem;
+                  border:1px solid rgba(185,28,28,.28);
+                  background:rgba(185,28,28,.07);
+                  color:#991B1B;
+                  border-radius:999px;
+                  padding:.42rem .7rem;
+                  font-size:.76rem;
+                  font-weight:800;
+                  cursor:pointer;
+                ">
+                  <i class="fas fa-trash-alt"></i>
+                  Retirer ce produit
+                </button>
               </div>
             </div>
             
@@ -805,6 +1146,7 @@ class CheckoutModal {
 
   async initDelivery() {
     try {
+      await this.enrichCartDeliveryData();
       await this.loadDeliverySettings();
       await this.loadDeliveryData();
       this.refreshDeliverySection();
@@ -824,15 +1166,17 @@ class CheckoutModal {
         this.deliverySettings = snapshot.data();
       } else {
         this.deliverySettings = {
-          methodsVisible: { home: true, pickup: true, meetup: true },
-          allowMeetupProposal: true
+          methodsVisible: { home: true, pickup: false, meetup: false },
+          allowMeetupProposal: false
         };
       }
+      this.deliverySettings.methodsVisible = { home: true, pickup: false, meetup: false };
+      this.deliverySettings.allowMeetupProposal = false;
     } catch (error) {
       console.error('❌ Erreur paramètres livraison:', error);
       this.deliverySettings = {
-        methodsVisible: { home: true, pickup: true, meetup: true },
-        allowMeetupProposal: true
+        methodsVisible: { home: true, pickup: false, meetup: false },
+        allowMeetupProposal: false
       };
     }
   }
@@ -848,10 +1192,8 @@ class CheckoutModal {
       }
     };
     
-    const [homeZones, pickupPoints, meetupZones, weightRules] = await Promise.all([
+    const [homeZones, weightRules] = await Promise.all([
       loadCollection('deliveryHomeZones'),
-      loadCollection('deliveryPickupPoints'),
-      loadCollection('deliveryMeetupZones'),
       loadCollection('deliveryWeightRules')
     ]);
     
@@ -861,18 +1203,8 @@ class CheckoutModal {
         ...zone,
         displayLabel: zone.zone ? `${zone.city} - ${zone.zone}` : zone.city || zone.name
       }));
-    this.deliveryData.pickupPoints = pickupPoints
-      .filter(point => point.isActive !== false)
-      .map(point => ({
-        ...point,
-        displayLabel: point.name || point.title || 'Point de retrait'
-      }));
-    this.deliveryData.meetupZones = meetupZones
-      .filter(zone => zone.isActive !== false)
-      .map(zone => ({
-        ...zone,
-        displayLabel: zone.zone || zone.name || 'Zone de rencontre'
-      }));
+    this.deliveryData.pickupPoints = [];
+    this.deliveryData.meetupZones = [];
     this.deliveryData.weightRules = weightRules
       .filter(rule => rule.isActive !== false)
       .map(rule => ({
@@ -890,70 +1222,83 @@ class CheckoutModal {
     section.outerHTML = this.renderDeliverySection();
     this.bindDeliveryEvents();
     this.updateDeliveryPanels();
-    this.updatePickupDetails();
-    this.updateMeetupProposalVisibility();
   }
 
   setDefaultDeliveryMethod() {
-    const methods = this.getAvailableDeliveryMethods();
-    if (!methods.length) {
-      this.selectedDelivery.method = null;
-      return;
-    }
-    if (this.selectedDelivery.method && methods.find(m => m.key === this.selectedDelivery.method)) {
-      return;
-    }
-    this.selectedDelivery.method = methods[0].key;
-    const defaultRadio = this.modal.querySelector(`input[name="delivery_method_${this.uniqueId}"][value="${this.selectedDelivery.method}"]`);
-    if (defaultRadio) {
-      defaultRadio.checked = true;
-    }
+    this.selectedDelivery.method = 'home';
     this.updateDeliveryPanels();
   }
 
+  applySavedDeliveryAddress(addressId) {
+    const savedAddress = this.getSavedDeliveryAddresses().find((address) => address.id === addressId);
+    this.selectedDelivery.home.savedAddressId = addressId || '';
+    if (!savedAddress) return;
+
+    this.selectedDelivery.home.address = savedAddress.address || '';
+    this.selectedDelivery.home.country = savedAddress.country || 'Haiti';
+    this.selectedDelivery.home.department = savedAddress.department || '';
+    this.selectedDelivery.home.commune = savedAddress.commune || '';
+    this.selectedDelivery.home.phone = this.client?.phone || this.selectedDelivery.home.phone || '';
+    this.selectedDelivery.home.whatsapp = this.selectedDelivery.home.whatsapp || this.selectedDelivery.home.phone || '';
+
+    const addressInput = this.modal.querySelector('.delivery-home-address');
+    const departmentSelect = this.modal.querySelector('.delivery-home-department');
+    const communeSelect = this.modal.querySelector('.delivery-home-commune');
+    const phoneInput = this.modal.querySelector('.delivery-home-phone');
+    const whatsappInput = this.modal.querySelector('.delivery-home-whatsapp');
+    if (addressInput) addressInput.value = this.selectedDelivery.home.address;
+    if (departmentSelect) departmentSelect.value = this.selectedDelivery.home.department;
+    if (communeSelect) {
+      communeSelect.innerHTML = this.renderCommuneOptions(this.selectedDelivery.home.department, this.selectedDelivery.home.commune);
+      communeSelect.value = this.selectedDelivery.home.commune;
+    }
+    if (phoneInput) phoneInput.value = this.selectedDelivery.home.phone;
+    if (whatsappInput) whatsappInput.value = this.selectedDelivery.home.whatsapp;
+  }
+
   bindDeliveryEvents() {
-    const methodRadios = this.modal.querySelectorAll(`input[name="delivery_method_${this.uniqueId}"]`);
-    methodRadios.forEach(radio => {
-      radio.addEventListener('change', () => {
-        this.selectedDelivery.method = radio.value;
-        this.updateDeliveryPanels();
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    });
-    
-    const homeSelect = this.modal.querySelector('.delivery-home-zone');
-    if (homeSelect) {
-      homeSelect.addEventListener('change', () => {
-        this.selectedDelivery.home.zoneId = homeSelect.value;
+    this.selectedDelivery.method = 'home';
+
+    const savedAddressSelect = this.modal.querySelector('.delivery-saved-address');
+    if (savedAddressSelect) {
+      if (savedAddressSelect.value) {
+        this.applySavedDeliveryAddress(savedAddressSelect.value);
+      }
+      savedAddressSelect.addEventListener('change', () => {
+        this.applySavedDeliveryAddress(savedAddressSelect.value);
         this.updateDeliveryCosts();
         this.updateTotalsUI();
       });
     }
-    
-    const pickupSelect = this.modal.querySelector('.delivery-pickup-point');
-    if (pickupSelect) {
-      pickupSelect.addEventListener('change', () => {
-        this.selectedDelivery.pickup.pointId = pickupSelect.value;
-        this.updatePickupDetails();
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    }
-    
-    const meetupSelect = this.modal.querySelector('.delivery-meetup-zone');
-    if (meetupSelect) {
-      meetupSelect.addEventListener('change', () => {
-        this.selectedDelivery.meetup.zoneId = meetupSelect.value;
-        this.updateDeliveryCosts();
-        this.updateTotalsUI();
-      });
-    }
-    
     const addressInput = this.modal.querySelector('.delivery-home-address');
     if (addressInput) {
       addressInput.addEventListener('input', () => {
         this.selectedDelivery.home.address = addressInput.value;
+        this.selectedDelivery.home.savedAddressId = '';
+        this.selectedDelivery.home.zoneId = '';
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
+      });
+    }
+
+    const departmentSelect = this.modal.querySelector('.delivery-home-department');
+    const communeSelect = this.modal.querySelector('.delivery-home-commune');
+    if (departmentSelect && communeSelect) {
+      departmentSelect.addEventListener('change', () => {
+        this.selectedDelivery.home.department = departmentSelect.value;
+        this.selectedDelivery.home.commune = '';
+        this.selectedDelivery.home.savedAddressId = '';
+        this.selectedDelivery.home.zoneId = '';
+        communeSelect.innerHTML = this.renderCommuneOptions(departmentSelect.value);
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
+      });
+      communeSelect.addEventListener('change', () => {
+        this.selectedDelivery.home.commune = communeSelect.value;
+        this.selectedDelivery.home.savedAddressId = '';
+        this.selectedDelivery.home.zoneId = '';
+        this.updateDeliveryCosts();
+        this.updateTotalsUI();
       });
     }
     
@@ -970,36 +1315,16 @@ class CheckoutModal {
         this.selectedDelivery.home.whatsapp = homeWhatsapp.value;
       });
     }
-    
-    const meetupPhone = this.modal.querySelector('.delivery-meetup-phone');
-    if (meetupPhone) {
-      meetupPhone.addEventListener('input', () => {
-        this.selectedDelivery.meetup.phone = meetupPhone.value;
-      });
-    }
-    
-    const meetupWhatsapp = this.modal.querySelector('.delivery-meetup-whatsapp');
-    if (meetupWhatsapp) {
-      meetupWhatsapp.addEventListener('input', () => {
-        this.selectedDelivery.meetup.whatsapp = meetupWhatsapp.value;
-      });
-    }
-    
-    const meetupProposal = this.modal.querySelector('.delivery-meetup-proposal');
-    if (meetupProposal) {
-      meetupProposal.addEventListener('input', () => {
-        this.selectedDelivery.meetup.proposal = meetupProposal.value;
-      });
-    }
+    this.selectedDelivery.meetup.proposal = '';
   }
 
   updateDeliveryPanels() {
+    this.selectedDelivery.method = 'home';
     const panels = this.modal.querySelectorAll('.delivery-panel');
     panels.forEach(panel => {
       const panelType = panel.getAttribute('data-delivery-panel');
-      panel.style.display = panelType === this.selectedDelivery.method ? 'block' : 'none';
+      panel.style.display = panelType === 'home' ? 'block' : 'none';
     });
-    this.updateMeetupProposalVisibility();
   }
 
   updatePickupDetails() {
@@ -1018,23 +1343,15 @@ class CheckoutModal {
   updateMeetupProposalVisibility() {
     const wrapper = this.modal.querySelector('.meetup-proposal-wrapper');
     if (!wrapper) return;
-    wrapper.style.display = this.deliverySettings?.allowMeetupProposal ? 'block' : 'none';
+    wrapper.style.display = 'none';
   }
 
   updateDeliveryCosts() {
-    let baseFee = 0;
-    if (this.selectedDelivery.method === 'home') {
-      const zone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
-      baseFee = Number(zone?.fee || 0);
-    } else if (this.selectedDelivery.method === 'pickup') {
-      baseFee = 0;
-    } else if (this.selectedDelivery.method === 'meetup') {
-      const zone = this.deliveryData.meetupZones.find(z => z.id === this.selectedDelivery.meetup.zoneId);
-      baseFee = Number(zone?.fee || 0);
-    }
+    this.selectedDelivery.method = 'home';
+    const baseFee = this.getProductDeliveryFee();
     
     const weightGrams = this.getCartWeight();
-    const weightFee = this.getWeightFee(weightGrams);
+    const weightFee = this.getCartWeightFee();
     
     this.deliveryFees = {
       base: baseFee,
@@ -1043,6 +1360,22 @@ class CheckoutModal {
     };
     this.shipping = this.deliveryFees.total;
     this.calculateTotals();
+    this.refreshCartDeliveryLabels();
+  }
+
+  refreshCartDeliveryLabels() {
+    if (!this.modal) return;
+    this.cart.forEach((item, index) => {
+      const label = this.getCartItemDeliveryLabel(item, index);
+      const deliveryUnavailable = this.isCartItemDeliveryUnavailable(item, index);
+      this.modal.querySelectorAll(`[data-item-delivery-label="${index}"]`).forEach((node) => {
+        node.textContent = label;
+        node.style.color = deliveryUnavailable ? '#B91C1C' : '#2E5D3A';
+      });
+      this.modal.querySelectorAll(`[data-remove-unavailable-item="${index}"]`).forEach((node) => {
+        node.style.display = deliveryUnavailable ? 'inline-flex' : 'none';
+      });
+    });
   }
 
   getCartWeight() {
@@ -1058,6 +1391,16 @@ class CheckoutModal {
     return Number(rule?.fee || 0);
   }
 
+  getCartWeightFee() {
+    if (!Array.isArray(this.cart) || !this.cart.length) return 0;
+    return this.cart.reduce((sum, item) => {
+      const unitWeight = Number(item?.weightGrams || item?.weight || 0);
+      const qty = Math.max(1, Number(item?.quantity) || 1);
+      if (!Number.isFinite(unitWeight) || unitWeight <= 0) return sum;
+      return sum + (this.getWeightFee(unitWeight) * qty);
+    }, 0);
+  }
+
   updateTotalsUI() {
     this.refreshPromoUI();
   }
@@ -1068,68 +1411,111 @@ class CheckoutModal {
   }
 
   validateDelivery() {
-    if (!this.selectedDelivery.method) {
-      this.showMessage('Veuillez choisir une méthode de livraison', 'error');
+    this.selectedDelivery.method = 'home';
+
+    if (!this.selectedDelivery.home.address?.trim()) {
+      this.showMessage('Veuillez saisir votre adresse', 'error');
       return false;
     }
-    
-    if (this.selectedDelivery.method === 'home') {
-      if (!this.selectedDelivery.home.zoneId) {
-        this.showMessage('Veuillez sélectionner une ville ou zone', 'error');
-        return false;
-      }
-      if (!this.selectedDelivery.home.address?.trim()) {
-        this.showMessage('Veuillez saisir votre adresse', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
-        this.showMessage('Numéro de téléphone invalide', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.home.whatsapp)) {
-        this.showMessage('Numéro WhatsApp invalide', 'error');
-        return false;
-      }
+    if (!this.selectedDelivery.home.department || !this.selectedDelivery.home.commune) {
+      this.showMessage('Veuillez choisir votre departement et votre commune', 'error');
+      return false;
     }
-    
-    if (this.selectedDelivery.method === 'pickup') {
-      if (!this.selectedDelivery.pickup.pointId) {
-        this.showMessage('Veuillez sélectionner un point de retrait', 'error');
-        return false;
-      }
+    const unavailableProduct = this.getProductDeliveryGroups().find((group) => !this.findProductDeliveryZone(group));
+    if (unavailableProduct) {
+      this.showMessage(`${unavailableProduct.productName} ne peut pas etre livre dans cette commune.`, 'error');
+      return false;
     }
-    
-    if (this.selectedDelivery.method === 'meetup') {
-      if (!this.selectedDelivery.meetup.zoneId) {
-        this.showMessage('Veuillez sélectionner une zone de rencontre', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.meetup.phone)) {
-        this.showMessage('Numéro de téléphone invalide', 'error');
-        return false;
-      }
-      if (!this.isValidPhone(this.selectedDelivery.meetup.whatsapp)) {
-        this.showMessage('Numéro WhatsApp invalide', 'error');
-        return false;
-      }
+    if (!this.isValidPhone(this.selectedDelivery.home.phone)) {
+      this.showMessage('Numero de telephone invalide', 'error');
+      return false;
+    }
+    if (!this.isValidPhone(this.selectedDelivery.home.whatsapp)) {
+      this.showMessage('Numero WhatsApp invalide', 'error');
+      return false;
     }
     
     return true;
   }
+
+  async saveCheckoutDeliveryAddress() {
+    if (this.selectedDelivery.method !== 'home' || this.selectedDelivery.home.savedAddressId) return;
+    if (!this.client?.id || !db) return;
+
+    const addressText = String(this.selectedDelivery.home.address || '').trim();
+    if (!addressText) return;
+
+    const existingAddresses = this.getSavedDeliveryAddresses();
+    const alreadySaved = existingAddresses.some((address) => (
+      String(address.address || '').trim().toLowerCase() === addressText.toLowerCase()
+      && String(address.commune || '').trim().toLowerCase() === String(this.selectedDelivery.home.commune || '').trim().toLowerCase()
+      && String(address.department || '').trim().toLowerCase() === String(this.selectedDelivery.home.department || '').trim().toLowerCase()
+    ));
+    if (alreadySaved) return;
+
+    const newAddress = {
+      id: 'addr_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7),
+      label: 'Adresse de livraison',
+      address: addressText,
+      country: this.selectedDelivery.home.country || 'Haiti',
+      department: this.selectedDelivery.home.department || '',
+      commune: this.selectedDelivery.home.commune || '',
+      isDelivery: true,
+      createdAt: new Date().toISOString()
+    };
+    const addresses = existingAddresses.concat(newAddress);
+    this.client.addresses = addresses;
+    this.client.defaultDeliveryAddressId = this.client.defaultDeliveryAddressId || newAddress.id;
+    this.selectedDelivery.home.savedAddressId = newAddress.id;
+
+    await setDoc(doc(db, 'clients', this.client.id), {
+      addresses,
+      defaultDeliveryAddressId: this.client.defaultDeliveryAddressId,
+      address: newAddress.address,
+      country: newAddress.country,
+      department: newAddress.department,
+      commune: newAddress.commune,
+      city: newAddress.commune,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  }
   
   getDeliveryPayload() {
-    const homeZone = this.deliveryData.homeZones.find(z => z.id === this.selectedDelivery.home.zoneId);
-    const pickupPoint = this.deliveryData.pickupPoints.find(p => p.id === this.selectedDelivery.pickup.pointId);
-    const meetupZone = this.deliveryData.meetupZones.find(z => z.id === this.selectedDelivery.meetup.zoneId);
+    const homeZone = this.resolveHomeDeliveryZone();
+    this.selectedDelivery.method = 'home';
+    const productDeliveryDetails = this.getProductDeliveryGroups().map((group) => {
+      const zone = this.findProductDeliveryZone(group);
+      return {
+        ownerType: group.ownerType,
+        vendorId: group.vendorId,
+        vendorName: group.vendorName,
+        productId: group.productId,
+        productName: group.productName,
+        quantity: group.quantity,
+        deliveryDelay: String(zone?.deliveryDelay || zone?.delay || group.deliveryDelay || '').trim(),
+        zone: zone || null,
+        fee: Number(zone?.fee || 0) * Math.max(1, Number(group.quantity) || 1),
+        unitFee: Number(zone?.fee || 0)
+      };
+    });
+    const vendorDeliveryDetails = productDeliveryDetails.filter((entry) => entry.ownerType === 'vendor');
+    const smartCutDeliveryDetails = productDeliveryDetails.filter((entry) => entry.ownerType === 'smartcut');
     return {
-      method: this.selectedDelivery.method,
+      method: 'home',
       address: this.selectedDelivery.home.address || '',
-      phone: this.selectedDelivery.method === 'home' ? (this.selectedDelivery.home.phone || '') : (this.selectedDelivery.meetup.phone || ''),
-      whatsapp: this.selectedDelivery.method === 'home' ? (this.selectedDelivery.home.whatsapp || '') : (this.selectedDelivery.meetup.whatsapp || ''),
-      meetupProposal: this.selectedDelivery.meetup.proposal || '',
+      savedAddressId: this.selectedDelivery.home.savedAddressId || '',
+      country: this.selectedDelivery.home.country || 'Haiti',
+      department: this.selectedDelivery.home.department || '',
+      commune: this.selectedDelivery.home.commune || '',
+      phone: this.selectedDelivery.home.phone || '',
+      whatsapp: this.selectedDelivery.home.whatsapp || '',
+      meetupProposal: '',
       homeZone: homeZone || null,
-      pickupPoint: pickupPoint || null,
-      meetupZone: meetupZone || null,
+      pickupPoint: null,
+      meetupZone: null,
+      productDeliveryDetails,
+      vendorDeliveryDetails,
+      smartCutDeliveryDetails,
       weightGrams: this.getCartWeight(),
       baseFee: this.deliveryFees.base,
       weightFee: this.deliveryFees.weightExtra,
@@ -1137,18 +1523,7 @@ class CheckoutModal {
     };
   }
   
-  attachEvents() {
-    const closeBtn = this.modal.querySelector('.close-checkout');
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.close());
-    }
-    
-    this.modal.addEventListener('click', (e) => {
-      if (e.target === this.modal) {
-        this.close();
-      }
-    });
-    
+  bindCheckoutControls() {
     const applyPromo = this.modal.querySelector('.apply-promo');
     const promoInput = this.modal.querySelector('.promo-code');
     
@@ -1166,6 +1541,29 @@ class CheckoutModal {
     if (payBtn) {
       payBtn.addEventListener('click', () => this.openPaymentModal());
     }
+
+    this.bindDeliveryEvents();
+  }
+
+  attachEvents() {
+    const closeBtn = this.modal.querySelector('.close-checkout');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.close());
+    }
+    
+    this.modal.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest?.('[data-remove-unavailable-item]');
+      if (removeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.removeUnavailableCartItem(Number(removeBtn.dataset.removeUnavailableItem));
+        return;
+      }
+
+      if (e.target === this.modal) {
+        this.close();
+      }
+    });
     
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -1173,7 +1571,68 @@ class CheckoutModal {
       }
     });
 
-    this.bindDeliveryEvents();
+    this.bindCheckoutControls();
+  }
+
+  getCartItemCount() {
+    return this.cart.reduce((sum, item) => sum + (Number(item?.quantity) || 1), 0);
+  }
+
+  getCartTotalPrice() {
+    return this.cart.reduce((sum, item) => sum + ((Number(item?.price) || 0) * (Number(item?.quantity) || 1)), 0);
+  }
+
+  persistCheckoutCart() {
+    try {
+      localStorage.setItem('veltrixa_cart', JSON.stringify(this.cart));
+    } catch (error) {
+      console.warn('Impossible de sauvegarder le panier depuis le checkout:', error);
+    }
+
+    const detail = {
+      cart: this.cart,
+      count: this.getCartItemCount(),
+      total: this.getCartTotalPrice()
+    };
+    document.dispatchEvent(new CustomEvent('checkoutCartSynced', { detail }));
+    document.dispatchEvent(new CustomEvent('cartUpdated', { detail }));
+  }
+
+  refreshCheckoutContent() {
+    if (!this.modal) return;
+    if (!this.cart.length) {
+      this.appliedPromo = null;
+      this.deliveryFees = { base: 0, weightExtra: 0, total: 0 };
+      this.shipping = 0;
+      this.calculateTotals();
+    } else {
+      this.updateDeliveryCosts();
+    }
+
+    const content = this.modal.querySelector(`.checkout-content-${this.uniqueId}`);
+    if (!content) return;
+    content.innerHTML = this.cart.length === 0 ? this.renderEmptyCart() : this.renderCheckoutContent();
+    if (this.cart.length) {
+      this.bindCheckoutControls();
+      this.updateDeliveryPanels();
+      this.updateDeliveryCosts();
+      this.updateTotalsUI();
+    } else {
+      content.querySelector('.close-checkout')?.addEventListener('click', () => this.close());
+    }
+  }
+
+  removeUnavailableCartItem(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= this.cart.length) return;
+    const item = this.cart[index];
+    if (!this.isCartItemDeliveryUnavailable(item, index)) return;
+
+    this.cart.splice(index, 1);
+    this.appliedPromo = null;
+    this.discountAmount = 0;
+    this.persistCheckoutCart();
+    this.refreshCheckoutContent();
+    this.showMessage(`${item?.name || 'Produit'} retire du checkout.`, 'success');
   }
   
   applyDiscount(percentage) {
@@ -1315,7 +1774,7 @@ class CheckoutModal {
     }
 
     try {
-      const { previewPromoCode } = await import('./promo-client.js');
+      const { previewPromoCode } = await import('./promo-client.js?v=20260520-1');
       const response = await previewPromoCode({
         code: normalizedCode,
         clientId: this.client?.id || '',
@@ -1333,7 +1792,11 @@ class CheckoutModal {
         eligibleSubtotal: Number(response.eligibleSubtotal || 0),
         type: response.type || '',
         value: Number(response.value || 0),
-        categoryIds: Array.isArray(response.categoryIds) ? response.categoryIds : []
+        categoryIds: Array.isArray(response.categoryIds) ? response.categoryIds : [],
+        affiliateEnabled: Boolean(response.affiliateEnabled),
+        affiliateMemberId: response.affiliateMemberId || '',
+        affiliateMemberName: response.affiliateMemberName || '',
+        affiliatePhone: response.affiliatePhone || ''
       };
       this.refreshPromoUI();
       this.showMessage(response.message || 'Code promo applique', 'success');
@@ -1362,7 +1825,8 @@ class CheckoutModal {
       if (!this.validateDelivery()) {
         return;
       }
-      const module = await import('./payment.js?v=20260331-3');
+      await this.saveCheckoutDeliveryAddress();
+      const module = await import('./payment.js?v=20260524-3');
       const PaymentModal = module.default;
       
       await this.close();

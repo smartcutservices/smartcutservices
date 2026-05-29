@@ -1,10 +1,11 @@
-// ============= PRODUCT MODAL COMPONENT =============
+﻿// ============= PRODUCT MODAL COMPONENT =============
 import { db } from './firebase-init.js';
 import { findPublicProductById, loadPublicProducts } from './catalog-products.js';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { buildProductPageUrl, buildProductShareUrl } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   doc, getDoc, collection, query, getDocs, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -65,6 +66,7 @@ class ProductModal {
       return;
     }
     
+    await loadCurrencySettings();
     await this.loadProduct();
     await this.loadRelatedProducts();
     this.render();
@@ -82,7 +84,7 @@ class ProductModal {
       if (this.options.collectionName === 'products') {
         this.product = await findPublicProductById(this.options.productId);
         if (!this.product) {
-          console.error('âŒ Produit non trouvÃ©');
+          console.error('❌ Produit non trouvé');
         }
         return;
       }
@@ -96,7 +98,7 @@ class ProductModal {
           ...docSnap.data()
         };
       } else {
-        console.error('❌ Produit non trouvé');
+        console.error('Produit non trouvé');
       }
     } catch (error) {
       console.error('❌ Erreur chargement produit:', error);
@@ -126,7 +128,7 @@ class ProductModal {
         this.relatedProducts = products.slice(0, 6);
       }
     } catch (error) {
-      console.error('❌ Erreur chargement produits liés:', error);
+      console.error('Erreur chargement produits liés:', error);
     }
   }
   
@@ -141,11 +143,14 @@ class ProductModal {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: 'HTG',
-      minimumFractionDigits: 2
-    }).format(price || 0);
+    return formatPriceDual(price);
+  }
+
+  getDiscountPercent(currentPrice, comparePrice) {
+    const current = this.toNumber(currentPrice, 0);
+    const compare = this.toNumber(comparePrice, 0);
+    if (!(compare > current && current >= 0)) return 0;
+    return Math.max(0, Math.round(((compare - current) / compare) * 100));
   }
   
   toNumber(value, fallback = 0) {
@@ -240,7 +245,7 @@ class ProductModal {
         if (opt?.name && opt?.value) parts.push(`${opt.name}: ${opt.value}`);
       });
     }
-    return parts.join(' • ') || variation?.sku || 'Variation';
+    return parts.join(' - ') || variation?.sku || 'Variation';
   }
 
   toStockLimit(value) {
@@ -273,11 +278,13 @@ class ProductModal {
   }
 
   getVariationStockLimit(variationIndex) {
+    if (this.product?.isDigitalProduct) return Infinity;
     const variation = this.product?.variations?.[variationIndex];
     return this.toStockLimit(variation?.stock);
   }
 
   getBaseStockLimit() {
+    if (this.product?.isDigitalProduct) return Infinity;
     const sizeLimit = this.getSelectedSizeStockLimit();
     const productLimit = this.toStockLimit(this.product?.stock);
     return Math.min(sizeLimit, productLimit);
@@ -881,7 +888,7 @@ class ProductModal {
       ? `${variation?.stock ?? 0} en stock`
       : 'Stock disponible';
     const availabilityLabel = Number.isFinite(maxAllowed)
-      ? (maxAllowed > 0 ? ` • ${maxAllowed} restant(s) avant blocage` : ' • Stock atteint')
+      ? (maxAllowed > 0 ? ` - ${maxAllowed} restant(s) avant blocage` : ' - Stock atteint')
       : '';
 
     this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${variationIndex}"]`).forEach((el) => {
@@ -892,7 +899,7 @@ class ProductModal {
       el.style.opacity = Number.isFinite(maxAllowed) && maxAllowed <= 0 && safeQty <= 0 ? '0.72' : '1';
     });
     this.modalElement.querySelectorAll(`.variation-stock-meta[data-variation-index="${variationIndex}"]`).forEach((el) => {
-      el.textContent = `${this.formatPrice(this.getVariationEffectivePrice(variation, this.product))} • ${stockLabel}${availabilityLabel}`;
+      el.textContent = `${this.formatPrice(this.getVariationEffectivePrice(variation, this.product))} - ${stockLabel}${availabilityLabel}`;
     });
     this.modalElement.querySelectorAll(`.variation-qty-inc[data-variation-index="${variationIndex}"]`).forEach((btn) => {
       btn.disabled = !canIncrease;
@@ -942,7 +949,7 @@ class ProductModal {
         return;
       }
       el.textContent = available > 0
-        ? `${available} unité(s) encore disponible(s) avant blocage`
+        ? `${available} unit\u00e9(s) encore disponible(s) avant blocage`
         : 'Stock déjà atteint dans le panier';
     });
   }
@@ -1003,6 +1010,7 @@ class ProductModal {
     const displayPrice = this.getProductDisplayPrice(product);
     const storeMeta = getProductStoreMeta(product);
     const variationsCount = Array.isArray(product.variations) ? product.variations.length : 0;
+    const discountPercent = this.getDiscountPercent(displayPrice.value, displayPrice.comparePrice);
     
     return `
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
@@ -1015,6 +1023,13 @@ class ProductModal {
           <i class="fas fa-store" style="color:#C6A75E;"></i>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeMeta.storeName}</span>
         </a>
+
+        ${(product.isDigitalProduct || product.deliveryDelay) ? `
+          <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
+            ${product.isDigitalProduct ? `<span style="display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;padding:.45rem .75rem;font-size:.82rem;font-weight:700;"><i class="fas fa-bolt"></i> Article digital - livraison instantanee</span>` : ''}
+            ${product.deliveryDelay ? `<span style="display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;background:rgba(31,30,28,.06);color:#5E564C;padding:.45rem .75rem;font-size:.82rem;font-weight:700;"><i class="fas fa-truck"></i> Delai: ${product.deliveryDelay}</span>` : ''}
+          </div>
+        ` : ''}
         
         <!-- Description courte -->
         <p style="color: #8B7E6B; margin: 0;">
@@ -1023,6 +1038,11 @@ class ProductModal {
         
         <!-- Prix -->
         <div style="display: flex; align-items: baseline; gap: 1rem;">
+          ${discountPercent > 0 ? `
+            <span style="display:inline-flex;align-items:center;padding:0.35rem 0.7rem;border-radius:999px;background:rgba(185,28,28,0.08);color:#B91C1C;font-size:0.95rem;font-weight:700;">
+              -${discountPercent}%
+            </span>
+          ` : ''}
           <span class="product-current-price" style="font-size: 2rem; font-weight: bold; color: #1F1E1C;">
             ${displayPrice.text}
           </span>
@@ -1187,7 +1207,7 @@ class ProductModal {
                     </div>
                   ` : ''}
                   <span style="font-size: 0.8rem; font-weight: 600; color: #1F1E1C;">${label}</span>
-                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` • Stock: ${variation.stock}` : ''}</span>
+                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` - Stock: ${variation.stock}` : ''}</span>
                   <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.25rem;">
                     <button type="button" class="variation-qty-dec" data-variation-index="${index}" style="width:26px; height:26px; border:1px solid rgba(198,167,94,0.4); background:#F5F1E8; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-minus" style="font-size:0.7rem;"></i>
@@ -1823,15 +1843,30 @@ class ProductModal {
     vendorId,
     vendorName: String(product?.vendorName || product?.shopName || '').trim(),
     commissionRule: product?.commissionRule || null,
-    sourceType: String(product?.sourceType || (vendorId ? 'vendor' : '')).trim(),
+    sourceType: String(product?.sourceType || (vendorId ? 'vendor' : 'smartcut')).trim(),
+    sourceCollection: String(product?.sourceCollection || (vendorId ? 'vendorProducts' : 'products')).trim(),
+    categoryId: String(product?.categoryId || '').trim(),
     category: String(product?.category || product?.categoryName || '').trim(),
-    deliveryMode: String(product?.deliveryMode || '').trim()
+    deliveryMode: String(product?.deliveryMode || '').trim(),
+    productDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || null,
+    productDeliveryZones: Array.isArray(product?.deliveryZones)
+      ? product.deliveryZones
+      : (Array.isArray(product?.productDeliveryZones) ? product.productDeliveryZones : []),
+    vendorDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || product?.vendorDeliveryCoverage || null,
+    vendorDeliveryZones: Array.isArray(product?.deliveryZones)
+      ? product.deliveryZones
+      : (Array.isArray(product?.productDeliveryZones)
+        ? product.productDeliveryZones
+        : (Array.isArray(product?.vendorDeliveryZones) ? product.vendorDeliveryZones : [])),
+    isDigitalProduct: Boolean(product?.isDigitalProduct),
+    digitalDownloadLink: String(product?.digitalDownloadLink || '').trim(),
+    deliveryDelay: String(product?.deliveryDelay || (product?.isDigitalProduct ? 'Instantanee' : '')).trim()
   };
 }
 
  addToCart() {
   // Récupérer l'instance du panier
-  import('./cart.js').then(({ getCartManager }) => {
+  import('./cart.js?v=20260525-3').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     
@@ -2051,3 +2086,5 @@ class ProductModal {
 }
 
 export default ProductModal;
+
+

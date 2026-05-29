@@ -4,6 +4,7 @@ import { collection, getDocs, query, orderBy, where, limit } from 'https://www.g
 import theme from './theme-root.js';
 import { buildProductPageUrl } from './product-links.js';
 import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 class MegaMenu {
   constructor() {
@@ -21,12 +22,7 @@ class MegaMenu {
   }
 
   formatPriceHTG(value) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency',
-      currency: 'HTG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
   
   applyTheme() {
@@ -199,6 +195,7 @@ class MegaMenu {
   }
   
   init() {
+    loadCurrencySettings();
     if (this.closeBtn) {
       this.closeBtn.addEventListener('click', () => this.close());
     }

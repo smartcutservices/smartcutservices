@@ -11,6 +11,8 @@ import {
   ensureValidPaperSelection,
   ensureValidDimensionSelection
 } from './printing-config-utils.js';
+import { PrintingDeliveryController } from './printing-delivery-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 const DOCUMENT_DIMENSIONS = [
   { label: '8.5x11', enabled: true, price: 15 },
@@ -68,12 +70,30 @@ class PrintingDocumentsPage {
       notes: ''
     };
     this.cart = getCartManager({ imageBasePath: './' });
+    this.deliveryController = new PrintingDeliveryController({
+      getContainer: () => this.container,
+      escape: (value) => this.escape(value),
+      formatPrice: (value) => this.formatPrice(value),
+      moduleId: 'documents',
+      metricLabel: 'pages imprimees',
+      getMetricValue: () => {
+        const quote = this.calculateQuote();
+        return Number(quote.pageCount || 0) * Number(quote.copies || 1);
+      },
+      onChange: () => {
+        this.render();
+        this.attachEvents();
+        this.refreshQuote();
+      }
+    });
     if (!this.container) return;
     this.init();
   }
 
   async init() {
+    await loadCurrencySettings();
     await this.loadConfig();
+    await this.deliveryController.init();
     this.render();
     this.attachEvents();
   }
@@ -97,12 +117,7 @@ class PrintingDocumentsPage {
   }
 
   formatPrice(value) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency',
-      currency: 'HTG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   escape(value) {
@@ -117,7 +132,7 @@ class PrintingDocumentsPage {
   getPdfLib() {
     const lib = window.pdfjsLib;
     if (!lib) {
-      throw new Error('Le lecteur PDF n est pas disponible pour le moment.');
+      throw new Error("Le lecteur PDF n'est pas disponible pour le moment.");
     }
     if (!lib.GlobalWorkerOptions.workerSrc) {
       lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -282,18 +297,22 @@ class PrintingDocumentsPage {
       <section class="printing-quiz-panel">
         <div class="printing-quiz-panel-head">
           <small>Etape 3</small>
-          <h2>Votre tarif est pret</h2>
+          <h2>Votre tarif est prêt</h2>
           <p>Le total est calcule a partir du nombre de pages du PDF, de la dimension choisie et du nombre de copies.</p>
         </div>
         <div class="printing-quiz-summary">
           <div class="printing-quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
           <div class="printing-quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
           <div class="printing-quiz-summary-row"><span>Pages PDF</span><strong id="quotePageCount">${quote.pageCount}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Pages imprimees</span><strong id="quotePrintedPages">${quote.pageCount * quote.copies}</strong></div>
           <div class="printing-quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Prix par copie</span><strong id="quoteUnitPrice">${this.formatPrice(quote.copyTotal)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Copies</span><strong id="quoteCopies">${quote.copies}</strong></div>
-          <div class="printing-quiz-summary-total"><span>Total</span><strong id="quoteTotalPrice">${this.formatPrice(quote.totalPrice)}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Total impression</span><strong id="quotePrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+          <div class="printing-quiz-summary-row"><span>Frais reception</span><strong id="quoteDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
+          <div class="printing-quiz-summary-total"><span>Total à payer</span><strong id="quoteTotalPrice">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
         </div>
+        ${this.deliveryController.renderSection()}
         ${this.config.notes ? `<div class="printing-quiz-note">${this.escape(this.config.notes)}</div>` : ''}
         <div class="printing-quiz-actions">
           <button type="button" class="printing-quiz-btn ghost" data-prev-step="2">Modifier mes choix</button>
@@ -437,6 +456,7 @@ class PrintingDocumentsPage {
     this.container.querySelector('#openCartFromPrinting')?.addEventListener('click', () => {
       document.dispatchEvent(new CustomEvent('openCart'));
     });
+    this.deliveryController.bind();
   }
 
   async handlePdfSelection(file) {
@@ -488,12 +508,18 @@ class PrintingDocumentsPage {
     const unitPriceEl = this.container.querySelector('#quoteUnitPrice');
     const copiesEl = this.container.querySelector('#quoteCopies');
     const totalPriceEl = this.container.querySelector('#quoteTotalPrice');
+    const printTotalEl = this.container.querySelector('#quotePrintTotal');
+    const deliveryFeeEl = this.container.querySelector('#quoteDeliveryFee');
+    const printedPagesEl = this.container.querySelector('#quotePrintedPages');
     const nextToStepThree = this.container.querySelector('[data-next-step="3"]');
 
     if (pageCountEl) pageCountEl.textContent = String(quote.pageCount || 0);
     if (unitPriceEl) unitPriceEl.textContent = this.formatPrice(quote.copyTotal);
     if (copiesEl) copiesEl.textContent = String(quote.copies);
-    if (totalPriceEl) totalPriceEl.textContent = this.formatPrice(quote.totalPrice);
+    if (printedPagesEl) printedPagesEl.textContent = String((quote.pageCount || 0) * (quote.copies || 1));
+    if (printTotalEl) printTotalEl.textContent = this.formatPrice(quote.totalPrice);
+    if (deliveryFeeEl) deliveryFeeEl.textContent = this.formatPrice(this.deliveryController.getFee());
+    if (totalPriceEl) totalPriceEl.textContent = this.formatPrice(quote.totalPrice + this.deliveryController.getFee());
     if (nextToStepThree) nextToStepThree.disabled = !this.getStepValidity(2) || this.config.enabled === false;
   }
 
@@ -520,6 +546,13 @@ class PrintingDocumentsPage {
       if (statusEl) statusEl.textContent = 'Le nombre de copies doit etre superieur a zero.';
       return;
     }
+    if (!this.deliveryController.isValid()) {
+      if (statusEl) {
+        statusEl.textContent = 'Choisissez un point de retrait ou une zone de livraison disponible.';
+        statusEl.style.color = '#b91c1c';
+      }
+      return;
+    }
 
     try {
       this.isBusy = true;
@@ -530,15 +563,23 @@ class PrintingDocumentsPage {
 
       const uploaded = await uploadPdfFile(this.file, 'printing-documents', { maxSizeMb: 20 });
       const lineName = jobName ? `Impression PDF - ${jobName}` : `Impression PDF ${dimensionLabel}`;
+      const deliveryPayload = this.deliveryController.getCartPayload();
+      const deliveryFee = Number(deliveryPayload.fee || 0);
+      const payableTotal = quote.totalPrice + deliveryFee;
 
       document.dispatchEvent(new CustomEvent('addToCart', {
         detail: {
           productId: 'printing-documents',
           name: lineName,
-          price: quote.totalPrice,
+          price: payableTotal,
           quantity: 1,
           sku: `POD-DOC-${Date.now()}`,
           image: PRODUCT_IMAGE,
+          sourceType: 'printing',
+          deliveryMode: deliveryPayload.method === 'pickup' ? 'Impression - point de retrait' : 'Impression - livraison a domicile',
+          deliveryCoverage: { country: 'Haiti', mode: 'printing_prepaid', nationwide: true, nationwideFee: 0, zones: [] },
+          productDeliveryCoverage: { country: 'Haiti', mode: 'printing_prepaid', nationwide: true, nationwideFee: 0, zones: [] },
+          printingDelivery: deliveryPayload,
           selectedOptions: [
             { label: 'Type de papier', value: paperLabel },
             { label: 'Dimension', value: dimensionLabel },
@@ -547,6 +588,8 @@ class PrintingDocumentsPage {
             { label: 'Prix / page', value: this.formatPrice(quote.pricePerPage) },
             { label: 'Prix par copie', value: this.formatPrice(quote.copyTotal) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
+            ...this.deliveryController.getSummaryLines(),
+            { label: 'Total à payer', value: this.formatPrice(payableTotal) },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },
             { label: 'Chemin storage', value: uploaded.path },
