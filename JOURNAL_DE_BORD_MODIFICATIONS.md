@@ -701,6 +701,49 @@ Etat GitHub:
 
 - Aucun push n'a encore ete fait pour cette mise a jour.
 
+## 2026-05-28 - Impression Photo: plusieurs photos avec dimension par photo
+
+Contexte:
+
+- Le module Impression Photo etait encore construit autour d'une seule image.
+- La logique demandee ne doit pas utiliser d'intervalle.
+- Le client doit pouvoir ajouter plusieurs photos.
+- Chaque photo doit avoir sa propre dimension et son propre nombre de tirages.
+
+Changements effectues:
+
+- `printing-photo.js` ne garde plus une seule variable `file`.
+- Le module utilise maintenant une liste `photos[]`.
+- Le champ upload accepte plusieurs fichiers image avec `multiple`.
+- Etape 1:
+  - Le client ajoute une ou plusieurs photos.
+  - Chaque photo ajoutee apparait dans une liste.
+  - Chaque photo peut etre retiree avant validation.
+- Etape 2:
+  - Le client choisit le type de papier.
+  - Chaque photo affiche son propre champ `Dimension`.
+  - Chaque photo affiche son propre champ `Nombre de tirages`.
+  - Un champ `Tirages par defaut` aide a pre-remplir les nouvelles photos.
+- Etape 3:
+  - Le recapitulatif affiche une ligne par photo.
+  - Le total impression additionne toutes les photos.
+  - Les frais de reception impression continuent de s'ajouter au total final.
+- A l'ajout au panier:
+  - Toutes les photos sont uploadees dans Firebase Storage.
+  - L'article panier garde `printingFiles[]` avec `fileName`, `fileUrl`, `storagePath`, `dimension`, `copies`.
+  - Les anciennes options `URL fichier` et `Chemin storage` restent presentes pour compatibilite avec les anciens traitements.
+- `printing-photo.html` charge maintenant `printing-photo.js?v=20260528-2`.
+
+Verification:
+
+- `node --check printing-photo.js`: OK.
+
+Precautions:
+
+- Ne pas remettre une dimension globale unique pour toutes les photos.
+- Ne pas introduire de logique d'intervalle dans Impression Photo.
+- Si le dashboard doit nettoyer les fichiers Firebase, il doit lire `printingFiles[]` pour ne pas oublier les photos multiples.
+
 ## 2026-05-26 - Nettoyage definitif du formulaire vendeur
 
 Contexte:
