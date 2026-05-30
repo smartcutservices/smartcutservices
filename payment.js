@@ -1,5 +1,6 @@
 // ============= PAYMENT COMPONENT - PROCESSUS DE PAIEMENT =============
 import { db } from './firebase-init.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   collection, getDocs, addDoc, doc, query
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -71,6 +72,7 @@ class PaymentModal {
   }
   
   async init() {
+    await loadCurrencySettings();
     await this.loadSettings();
     await this.loadPaymentMethods();
     this.render();
@@ -136,11 +138,7 @@ class PaymentModal {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-FR', { 
-      style: 'currency', 
-      currency: 'HTG',
-      minimumFractionDigits: 0
-    }).format(price || 0);
+    return formatPriceDual(price, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
   
   render() {

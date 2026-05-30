@@ -3,6 +3,8 @@ import { db } from './firebase-init.js';
 import { collection, getDocs, query, orderBy, where, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import { buildProductPageUrl } from './product-links.js';
+import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 class MobileMenu {
   constructor() {
@@ -16,12 +18,7 @@ class MobileMenu {
   }
 
   formatPriceHTG(value) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency',
-      currency: 'HTG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   buildCatalogueUrl({ categoryId, categoryName, columnId, lineId, openFilters = false, productId } = {}) {
@@ -48,6 +45,7 @@ class MobileMenu {
   }
   
   init() {
+    loadCurrencySettings();
     // S'abonner aux changements de thème
     this.unsubscribeTheme = theme.subscribe((themeData) => {
       this.applyTheme(themeData);
@@ -432,8 +430,10 @@ class MobileMenu {
           }
         }
         
-        const productPrice = this.formatPriceHTG(product.price || 0);
-        const oldPrice = product.comparePrice ? this.formatPriceHTG(product.comparePrice) : null;
+        const pricing = getProductPricing(product, product.price || 0);
+        const storeMeta = getProductStoreMeta(product);
+        const productPrice = this.formatPriceHTG(pricing.currentPrice || 0);
+        const oldPrice = pricing.comparePrice ? this.formatPriceHTG(pricing.comparePrice) : null;
         
         return `
           <div class="mobile-featured-card" data-product-id="${product.id}" data-product-link="${product.link || '#'}">
@@ -441,6 +441,7 @@ class MobileMenu {
                  onerror="this.onerror=null; this.src='./logo.png';">
             <div style="flex: 1;">
               <h4 style="font-family: var(--primary-font); font-weight: 600; margin-bottom: 0.2rem;">${product.name || 'Produit'}</h4>
+              <div style="font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#8B7E6B;margin-bottom:0.22rem;">${storeMeta.storeName}</div>
               <p style="font-size: 0.75rem; margin-bottom: 0.3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                 ${product.shortDescription || product.description || ''}
               </p>

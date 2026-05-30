@@ -12,6 +12,7 @@ import {
   ensureValidDimensionSelection
 } from './printing-config-utils.js';
 import { PrintingDeliveryController } from './printing-delivery-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 const PHOTO_DIMENSIONS = [
   { label: '4x5', enabled: true, price: 15 },
@@ -69,6 +70,9 @@ class PrintingPhotoPage {
       getContainer: () => this.container,
       escape: (value) => this.escape(value),
       formatPrice: (value) => this.formatPrice(value),
+      moduleId: 'photo',
+      metricLabel: 'tirages',
+      getMetricValue: () => this.calculateQuote().totalCopies,
       onChange: () => {
         this.render();
         this.attachEvents();
@@ -80,6 +84,7 @@ class PrintingPhotoPage {
   }
 
   async init() {
+    await loadCurrencySettings();
     await this.loadConfig();
     await this.deliveryController.init();
     this.render();
@@ -105,12 +110,7 @@ class PrintingPhotoPage {
   }
 
   formatPrice(value) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency',
-      currency: 'HTG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   escape(value) {
@@ -300,7 +300,7 @@ class PrintingPhotoPage {
       <section class="printing-quiz-panel">
         <div class="printing-quiz-panel-head">
           <small>Etape 3</small>
-          <h2>Votre tarif est pret</h2>
+          <h2>Votre tarif est prêt</h2>
           <p>Le total se base sur le prix de la dimension choisie, votre image et le nombre de tirages.</p>
         </div>
         <div class="printing-quiz-summary">
@@ -317,7 +317,7 @@ class PrintingPhotoPage {
           </div>
           <div class="printing-quiz-summary-row"><span>Total impression</span><strong id="photoPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
           <div class="printing-quiz-summary-row"><span>Frais reception</span><strong id="photoDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
-          <div class="printing-quiz-summary-total"><span>Total a payer</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
+          <div class="printing-quiz-summary-total"><span>Total à payer</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
         </div>
         ${this.deliveryController.renderSection()}
         ${this.config.notes ? `<div class="printing-quiz-note">${this.escape(this.config.notes)}</div>` : ''}
@@ -609,7 +609,7 @@ class PrintingPhotoPage {
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             ...summaryLines,
             ...this.deliveryController.getSummaryLines(),
-            { label: 'Total a payer', value: this.formatPrice(payableTotal) },
+            { label: 'Total à payer', value: this.formatPrice(payableTotal) },
             { label: 'Fichier', value: uploadedPhotos[0]?.name || '' },
             { label: 'URL fichier', value: uploadedPhotos[0]?.url || '' },
             { label: 'Chemin storage', value: uploadedPhotos[0]?.path || '' }

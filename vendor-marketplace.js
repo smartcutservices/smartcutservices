@@ -2,6 +2,7 @@ import { db } from './firebase-init.js';
 import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { renderPublicServiceNav } from './public-service-nav.js';
 import { getProductPricing } from './product-display-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 class VendorMarketplacePage {
   constructor(containerId = 'vendor-marketplace-root') {
@@ -16,6 +17,7 @@ class VendorMarketplacePage {
   }
 
   async init() {
+    await loadCurrencySettings();
     await this.loadData();
     this.filteredProducts = [...this.products];
     this.render();
@@ -40,12 +42,7 @@ class VendorMarketplacePage {
   }
 
   formatPrice(value) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency',
-      currency: 'HTG',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   escape(value) {

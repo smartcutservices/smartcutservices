@@ -1,10 +1,11 @@
-﻿// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÃˆME =============
+﻿// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
 import { auth, authReadyPromise, db } from './firebase-init.js?v=20260523-6';
 import { getAuthManager } from './auth.js?v=20260523-6';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
 import { downloadOrderPdfReceipt } from './order-pdf.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { 
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
@@ -41,7 +42,7 @@ class CartManager {
     this.modalOpenedAt = 0;
     
     
-    // S'abonner aux changements de thÃ¨me
+    // S'abonner aux changements de thème
     this.unsubscribeTheme = this.theme.subscribe((newTheme) => {
       if (this.modal) {
         this.renderCartModal();
@@ -53,7 +54,7 @@ class CartManager {
         onAuthChange: (user) => this.handleAuthChange(user)
       });
     } catch (error) {
-      console.error('âŒ Erreur initialisation auth:', error);
+      console.error('❌ Erreur initialisation auth:', error);
     }
 
     try {
@@ -62,17 +63,20 @@ class CartManager {
         if (this.modal) this.renderCartModal();
       });
     } catch (error) {
-      console.error('âŒ Erreur initialisation LikeManager:', error);
+      console.error('❌ Erreur initialisation LikeManager:', error);
     }
     
     this.loadCart();
     this.loadPdfConfig();
+    loadCurrencySettings().then(() => {
+      if (this.modal) this.renderCartModal();
+    });
     this.setupEventListeners();
     
     this.isInitialized = true;
   }
   
-  // Obtenir les couleurs du thÃ¨me
+  // Obtenir les couleurs du thème
   getThemeColors() {
     const colors = this.theme.getColors();
     return {
@@ -94,7 +98,7 @@ class CartManager {
     };
   }
   
-  // Obtenir les polices du thÃ¨me
+  // Obtenir les polices du thème
   getThemeFonts() {
     const fonts = this.theme.getFonts();
     const typography = this.theme.getTypography();
@@ -266,7 +270,7 @@ class CartManager {
         };
       }
     } catch (error) {
-      console.error('âŒ Erreur chargement config PDF:', error);
+      console.error('❌ Erreur chargement config PDF:', error);
     }
   }
   
@@ -275,7 +279,7 @@ class CartManager {
       const savedCart = localStorage.getItem(this.options.storageKey);
       this.cart = savedCart ? JSON.parse(savedCart) : [];
     } catch (error) {
-      console.error('âŒ Erreur chargement panier:', error);
+      console.error('❌ Erreur chargement panier:', error);
       this.cart = [];
     }
   }
@@ -332,7 +336,7 @@ class CartManager {
   
   async loadOrCreateClient(user) {
     if (!db) {
-      console.error('âŒ Base de donnÃ©es non initialisÃ©e');
+      console.error('❌ Base de données non initialisée');
       return;
     }
     
@@ -401,7 +405,7 @@ class CartManager {
       document.dispatchEvent(event);
       
     } catch (error) {
-      console.error('âŒ Erreur lors de la gestion du client:', error);
+      console.error('❌ Erreur lors de la gestion du client:', error);
       this.currentClient = {
         id: user.uid,
         uid: user.uid,
@@ -425,7 +429,7 @@ class CartManager {
   
   async loadCustomerOrders(clientId) {
     if (!db || !clientId) {
-      console.error('âŒ DB ou clientId manquant');
+      console.error('❌ DB ou clientId manquant');
       return;
     }
     
@@ -467,11 +471,11 @@ class CartManager {
           this.renderCartModal();
         }
       }, (error) => {
-        console.error('âŒ Erreur listener commandes:', error);
+        console.error('❌ Erreur listener commandes:', error);
       });
       
     } catch (error) {
-      console.error('âŒ Erreur chargement commandes:', error);
+      console.error('❌ Erreur chargement commandes:', error);
     }
   }
 
@@ -626,7 +630,7 @@ class CartManager {
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
-      console.error('âŒ Erreur mise Ã  jour statut:', error);
+      console.error('❌ Erreur mise à jour statut:', error);
     }
   }
   
@@ -659,7 +663,7 @@ class CartManager {
       const list = raw ? JSON.parse(raw) : [];
       this.hiddenOrderIds = new Set(Array.isArray(list) ? list.map(String) : []);
     } catch (error) {
-      console.error('âŒ Erreur chargement commandes masquÃ©es:', error);
+      console.error('❌ Erreur chargement commandes masquées:', error);
       this.hiddenOrderIds = new Set();
     }
   }
@@ -668,7 +672,7 @@ class CartManager {
     try {
       localStorage.setItem(this.getHiddenOrdersKey(), JSON.stringify(Array.from(this.hiddenOrderIds)));
     } catch (error) {
-      console.error('âŒ Erreur sauvegarde commandes masquÃ©es:', error);
+      console.error('❌ Erreur sauvegarde commandes masquées:', error);
     }
   }
 
@@ -707,7 +711,7 @@ class CartManager {
       localStorage.setItem(this.options.storageKey, JSON.stringify(this.cart));
       this.emitUpdate();
     } catch (error) {
-      console.error('âŒ Erreur sauvegarde panier:', error);
+      console.error('❌ Erreur sauvegarde panier:', error);
     }
   }
   
@@ -843,20 +847,20 @@ class CartManager {
         }
       });
     } catch (error) {
-      console.error('âŒ Erreur ouverture checkout:', error);
+      console.error('❌ Erreur ouverture checkout:', error);
     }
   }
   
   async saveOrder(orderData) {
     if (!this.currentClient || !this.auth) {
-      console.error('âŒ Client ou auth non disponible');
+      console.error('❌ Client ou auth non disponible');
       return;
     }
     
     try {
       const user = this.auth.getCurrentUser();
       if (!user) {
-        console.error('âŒ Utilisateur non connectÃ©');
+        console.error('❌ Utilisateur non connecté');
         return;
       }
       
@@ -926,7 +930,7 @@ class CartManager {
       return docRef.id;
       
     } catch (error) {
-      console.error('âŒ Erreur sauvegarde commande:', error);
+      console.error('❌ Erreur sauvegarde commande:', error);
       throw error;
     }
   }
@@ -1174,7 +1178,7 @@ class CartManager {
       }, 1000);
       
     } catch (error) {
-      console.error('âŒ Erreur gÃ©nÃ©ration PDF:', error);
+      console.error('❌ Erreur génération PDF:', error);
       this.showNotification('Erreur lors de la génération du PDF', 'error');
     }
   }
@@ -1206,7 +1210,7 @@ class CartManager {
       await this.generateOrderPdf(orderId);
       
     } catch (error) {
-      console.error('âŒ Erreur tÃ©lÃ©chargement PDF:', error);
+      console.error('❌ Erreur téléchargement PDF:', error);
       this.showNotification('Erreur lors du téléchargement', 'error');
     }
   }
@@ -1247,7 +1251,7 @@ class CartManager {
   
   addItem(item) {
     if (!item || !item.productId) {
-      console.error('âŒ Article invalide', item);
+      console.error('❌ Article invalide', item);
       return;
     }
     
@@ -1459,12 +1463,7 @@ class CartManager {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: this.options.currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price || 0);
+    return formatPriceDual(price, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   normalizeSelectedOptionLabel(value) {
@@ -1726,7 +1725,7 @@ class CartManager {
     }
 
     this.warmUpClientContext().catch((error) => {
-      console.error('âŒ Erreur prechargement panier:', error);
+      console.error('❌ Erreur prechargement panier:', error);
     });
     
     this.modalOpenedAt = Date.now();
@@ -2026,7 +2025,7 @@ class CartManager {
         });
       })
       .catch((error) => {
-        console.error('âŒ Erreur ouverture produit likÃ©:', error);
+        console.error('❌ Erreur ouverture produit liké:', error);
       });
   }
   

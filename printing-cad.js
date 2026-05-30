@@ -12,6 +12,7 @@ import {
   ensureValidDimensionSelection
 } from './printing-config-utils.js';
 import { PrintingDeliveryController } from './printing-delivery-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 const CAD_DIMENSIONS = [
   { label: '8.5x11', enabled: true, price: 15 },
@@ -55,6 +56,12 @@ class PrintingCadPage {
       getContainer: () => this.container,
       escape: (value) => this.escape(value),
       formatPrice: (value) => this.formatPrice(value),
+      moduleId: 'cad',
+      metricLabel: 'pages imprimees',
+      getMetricValue: () => {
+        const quote = this.calculateQuote();
+        return Number(quote.pageCount || 0) * Number(quote.copies || 1);
+      },
       onChange: () => {
         this.render();
         this.attachEvents();
@@ -66,6 +73,7 @@ class PrintingCadPage {
   }
 
   async init() {
+    await loadCurrencySettings();
     await this.loadConfig();
     await this.deliveryController.init();
     this.render();
@@ -84,7 +92,7 @@ class PrintingCadPage {
 
   getPdfLib() {
     const lib = window.pdfjsLib;
-    if (!lib) throw new Error('Le lecteur PDF n est pas disponible.');
+    if (!lib) throw new Error("Le lecteur PDF n'est pas disponible.");
     if (!lib.GlobalWorkerOptions.workerSrc) {
       lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
@@ -136,7 +144,7 @@ class PrintingCadPage {
   }
 
   formatPrice(value) {
-    return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value) || 0);
+    return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   escape(value) {
@@ -250,9 +258,10 @@ class PrintingCadPage {
             </section>` : ''}
         ${this.currentStep === 3 ? `
           <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 3</small><h2>Votre tarif est pret</h2><p>Le total suit directement le prix de la dimension choisie et le nombre de pages du PDF.</p></div>
+            <div class="quiz-head"><small>Etape 3</small><h2>Votre tarif est prêt</h2><p>Le total suit directement le prix de la dimension choisie et le nombre de pages du PDF.</p></div>
             <div class="quiz-summary">
               <div class="quiz-summary-row"><span>Pages</span><strong id="cadQuotePages">${quote.pageCount}</strong></div>
+                <div class="quiz-summary-row"><span>Pages imprimees</span><strong id="cadQuotePrintedPages">${quote.pageCount * quote.copies}</strong></div>
                 <div class="quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
                 <div class="quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
                 <div class="quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
@@ -260,7 +269,7 @@ class PrintingCadPage {
                 <div class="quiz-summary-row"><span>Nombre d impressions</span><strong id="cadQuoteCopies">${quote.copies}</strong></div>
                 <div class="quiz-summary-row"><span>Total impression</span><strong id="cadPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
                 <div class="quiz-summary-row"><span>Frais reception</span><strong id="cadDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
-                <div class="quiz-summary-total"><span>Total a payer</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
+                <div class="quiz-summary-total"><span>Total à payer</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
               </div>
             ${this.deliveryController.renderSection()}
             ${this.config.notes ? `<div class="quiz-note">${this.escape(this.config.notes)}</div>` : ''}
@@ -334,12 +343,14 @@ class PrintingCadPage {
     const unitPriceEl = this.container.querySelector('#cadQuoteUnitPrice');
     const printTotalEl = this.container.querySelector('#cadPrintTotal');
     const deliveryFeeEl = this.container.querySelector('#cadDeliveryFee');
+    const printedPagesEl = this.container.querySelector('#cadQuotePrintedPages');
     const quote = this.calculateQuote();
     if (nextButton) nextButton.disabled = !this.getStepValidity(2) || this.config.enabled === false;
     if (printTotalEl) printTotalEl.textContent = this.formatPrice(quote.totalPrice);
     if (deliveryFeeEl) deliveryFeeEl.textContent = this.formatPrice(this.deliveryController.getFee());
     if (totalEl) totalEl.textContent = this.formatPrice(quote.totalPrice + this.deliveryController.getFee());
     if (pagesEl) pagesEl.textContent = String(quote.pageCount || 0);
+    if (printedPagesEl) printedPagesEl.textContent = String((quote.pageCount || 0) * (quote.copies || 1));
     if (copiesEl) copiesEl.textContent = String(quote.copies || 1);
     if (unitPriceEl) unitPriceEl.textContent = this.formatPrice(quote.printUnitPrice || 0);
   }
@@ -394,8 +405,8 @@ class PrintingCadPage {
             { label: 'Nombre d impressions', value: String(copies) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
             ...this.deliveryController.getSummaryLines(),
-            { label: 'Total a payer', value: this.formatPrice(payableTotal) },
-            { label: 'Dimension detectee', value: this.fileInfo?.suggestedDimension || '-' },
+            { label: 'Total à payer', value: this.formatPrice(payableTotal) },
+            { label: 'Dimension détectée', value: this.fileInfo?.suggestedDimension || '-' },
             { label: 'Fichier', value: this.file.name },
             { label: 'URL fichier', value: uploaded.url },
             { label: 'Chemin storage', value: uploaded.path }

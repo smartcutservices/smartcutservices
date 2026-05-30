@@ -4,7 +4,9 @@
 import theme from './theme-root.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
+import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 // Import Firebase
 import { db } from './firebase-init.js';
@@ -78,11 +80,7 @@ class CategoriesSection {
     }
 
     formatPrice(price) {
-        return new Intl.NumberFormat('fr-HT', {
-            style: 'currency', 
-            currency: 'HTG',
-            minimumFractionDigits: 2
-        }).format(price || 0);
+        return formatPriceDual(price);
     }
     
     toNumber(value, fallback = 0) {
@@ -279,17 +277,34 @@ class CategoriesSection {
         const basePrice = this.toNumber(product?.basePrice ?? product?.price, 0);
         
         if (variations.length === 0) {
-            return { value: basePrice, text: this.formatPrice(basePrice) };
+            const pricing = getProductPricing(product, basePrice);
+            return {
+                value: pricing.currentPrice,
+                comparePrice: pricing.comparePrice,
+                hasDiscount: pricing.hasDiscount,
+                text: this.formatPrice(pricing.currentPrice)
+            };
         }
-        
+
         const prices = variations.map(v => {
             const vp = this.toNumber(v?.price, NaN);
             return Number.isFinite(vp) && vp > 0 ? vp : basePrice;
         });
-        const min = Math.min(...prices);
-        const max = Math.max(...prices);
-        if (min === max) return { value: min, text: this.formatPrice(min) };
-        return { value: min, text: `${this.formatPrice(min)} - ${this.formatPrice(max)}` };
+        const range = getProductPriceRange(product, prices);
+        if (range.minPrice === range.maxPrice) {
+            return {
+                value: range.minPrice,
+                comparePrice: range.maxComparePrice,
+                hasDiscount: range.hasDiscount,
+                text: this.formatPrice(range.minPrice)
+            };
+        }
+        return {
+            value: range.minPrice,
+            comparePrice: range.maxComparePrice,
+            hasDiscount: range.hasDiscount,
+            text: `${this.formatPrice(range.minPrice)} - ${this.formatPrice(range.maxPrice)}`
+        };
     }
 
     // Appliquer les variables CSS du thème
@@ -326,6 +341,9 @@ class CategoriesSection {
     }
 
     init() {
+        loadCurrencySettings().then(() => {
+            if (this.state?.allProducts?.length) this.renderProducts();
+        });
         this.applyThemeToStyles();
         this.renderStructure();
         this.addStyles();
@@ -1117,6 +1135,11 @@ class CategoriesSection {
                     margin-bottom: 0.12rem !important;
                     -webkit-line-clamp: 2 !important;
                 }
+                .product-store-link-${this.uniqueId} {
+                    font-size: 0.62rem !important;
+                    margin-bottom: 0.18rem !important;
+                    letter-spacing: 0.05em !important;
+                }
                 .product-description-${this.uniqueId} {
                     display: none !important;
                 }
@@ -1280,6 +1303,30 @@ class CategoriesSection {
                 -webkit-box-orient: vertical;
                 overflow: hidden;
                 min-height: 2.05em;
+            }
+
+            .product-store-link-${this.uniqueId} {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                margin-bottom: 0.32rem;
+                color: var(--text-subtitle, #7A746B);
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                text-decoration: none;
+                min-width: 0;
+            }
+
+            .product-store-link-${this.uniqueId} span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .product-store-link-${this.uniqueId}:hover {
+                color: var(--icon-hover, #C6A75E);
             }
             
             .product-description-${this.uniqueId} {
@@ -1464,8 +1511,9 @@ class CategoriesSection {
 
                     this.state.allProducts = rawProducts.map((product) => {
                         const displayPrice = this.getProductDisplayPrice(product);
-                        product.price = displayPrice.value;
                         product.displayPriceText = displayPrice.text;
+                        product.displayPriceValue = displayPrice.value;
+                        product.displayComparePrice = displayPrice.comparePrice || 0;
                         product.colorNames = this.getProductColorNames(product);
                         product.variationNames = this.getProductVariationNames(product);
                         product.lineNames = this.getProductStructureNames(product);
@@ -1938,7 +1986,9 @@ class CategoriesSection {
         const currentIndex = this.state.currentImageIndex.get(product.id) || 0;
         const mainImage = images[currentIndex] || '';
         const hasMultipleImages = images.length > 1;
-        const hasDiscount = product.comparePrice && product.comparePrice > product.price;
+        const storeMeta = getProductStoreMeta(product);
+        const displayPrice = this.getProductDisplayPrice(product);
+        const hasDiscount = Boolean(displayPrice?.hasDiscount || (product.comparePrice && product.comparePrice > product.price));
         
         // Générer les couleurs
         let colorsHtml = '';
@@ -1991,6 +2041,11 @@ class CategoriesSection {
                 <h3 class="product-name-${this.uniqueId}">
                     ${product.name}
                 </h3>
+
+                <a href="${storeMeta.url}" class="product-store-link-${this.uniqueId}" onclick="event.stopPropagation();">
+                    <i class="fas fa-store"></i>
+                    <span>${storeMeta.storeName}</span>
+                </a>
                 
                 ${product.shortDescription ? `
                     <p class="product-description-${this.uniqueId}">
@@ -2002,11 +2057,11 @@ class CategoriesSection {
                 
                 <div class="product-price-container-${this.uniqueId}">
                     <span class="current-price-${this.uniqueId}">
-                        ${product.displayPriceText || this.formatPrice(product.price)}
+                        ${displayPrice.text}
                     </span>
-                    ${hasDiscount ? `
+                    ${hasDiscount && displayPrice.comparePrice ? `
                         <span class="compare-price-${this.uniqueId}">
-                            ${this.formatPrice(product.comparePrice)}
+                            ${this.formatPrice(displayPrice.comparePrice)}
                         </span>
                     ` : ''}
                 </div>

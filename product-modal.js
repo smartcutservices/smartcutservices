@@ -5,6 +5,7 @@ import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { buildProductPageUrl, buildProductShareUrl } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   doc, getDoc, collection, query, getDocs, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -61,10 +62,11 @@ class ProductModal {
   
   async init() {
     if (!this.options.productId) {
-      console.error('âŒ ProductModal: ID produit requis');
+      console.error('❌ ProductModal: ID produit requis');
       return;
     }
     
+    await loadCurrencySettings();
     await this.loadProduct();
     await this.loadRelatedProducts();
     this.render();
@@ -82,7 +84,7 @@ class ProductModal {
       if (this.options.collectionName === 'products') {
         this.product = await findPublicProductById(this.options.productId);
         if (!this.product) {
-          console.error('Ã¢ÂÅ’ Produit non trouvÃƒÂ©');
+          console.error('❌ Produit non trouvé');
         }
         return;
       }
@@ -99,7 +101,7 @@ class ProductModal {
         console.error('Produit non trouvé');
       }
     } catch (error) {
-      console.error('âŒ Erreur chargement produit:', error);
+      console.error('❌ Erreur chargement produit:', error);
     }
   }
   
@@ -141,11 +143,7 @@ class ProductModal {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: 'HTG',
-      minimumFractionDigits: 2
-    }).format(price || 0);
+    return formatPriceDual(price);
   }
 
   getDiscountPercent(currentPrice, comparePrice) {
@@ -261,7 +259,7 @@ class ProductModal {
       const cart = JSON.parse(localStorage.getItem('veltrixa_cart') || '[]');
       return Array.isArray(cart) ? cart : [];
     } catch (error) {
-      console.warn('âš ï¸ Impossible de lire le panier local:', error);
+      console.warn('⚠️ Impossible de lire le panier local:', error);
       return [];
     }
   }
@@ -1713,7 +1711,7 @@ class ProductModal {
       document.body.removeChild(textArea);
       this.updateShareFeedback('Lien du produit copie.');
     } catch (error) {
-      console.error('âŒ Erreur partage produit:', error);
+      console.error('❌ Erreur partage produit:', error);
       this.updateShareFeedback('Impossible de partager ce produit pour le moment.', true);
     }
   }

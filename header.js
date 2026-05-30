@@ -6,6 +6,7 @@ import { getCartManager } from './cart.js?v=20260525-6';
 import { getAuthManager } from './auth.js?v=20260523-6';
 import { getProfilePanel } from './profile-panel.js?v=20260525-6';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
+import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
 
 class SierraHeaderNebula {
   constructor(containerId = 'sierra-header-root') {
@@ -179,6 +180,24 @@ class SierraHeaderNebula {
         display: flex;
         gap: 0.8rem;
         align-items: center;
+      }
+
+      .currency-selector {
+        border: 1px solid rgba(184, 155, 123, 0.2);
+        background: rgba(255, 255, 255, 0.78);
+        color: #1f1e1c;
+        border-radius: 999px;
+        min-height: 44px;
+        padding: 0 0.75rem;
+        font-family: var(--secondary-font);
+        font-size: 0.82rem;
+        font-weight: 800;
+        cursor: pointer;
+        outline: none;
+      }
+
+      .currency-selector:focus {
+        box-shadow: 0 0 0 3px rgba(198, 167, 94, 0.18);
       }
 
       .desktop-icon-button,
@@ -708,6 +727,7 @@ class SierraHeaderNebula {
       console.error(`#${this.containerId} not found`);
       return;
     }
+    const displayCurrency = getUserDisplayCurrency();
 
     headerRoot.innerHTML = `
       <header id="headerNebulaX92" class="header-solid">
@@ -722,8 +742,12 @@ class SierraHeaderNebula {
             <div id="desktopSearchBarTrigger" class="header-search-trigger desktop-search-bar" role="search">
               <i id="desktopSearchIcon" class="fas fa-search desktop-icon search-trigger"></i>
               <input id="desktopSearchInput" class="desktop-search-input" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher">
-            </div>
+          </div>
           <div class="desktop-icons">
+            <select id="desktopCurrencySelector" class="currency-selector" aria-label="Devise d'affichage">
+              <option value="HTG" ${displayCurrency === 'HTG' ? 'selected' : ''}>HTG</option>
+              <option value="USD" ${displayCurrency === 'USD' ? 'selected' : ''}>USD</option>
+            </select>
             <button id="desktopProfileIcon" class="desktop-icon-button" type="button" aria-label="Profil">
               <i class="fas fa-user desktop-icon"></i>
             </button>
@@ -755,6 +779,10 @@ class SierraHeaderNebula {
             <input id="mobileSearchInput" class="mobile-search-input" type="search" placeholder="Rechercher" autocomplete="off" aria-label="Rechercher">
           </div>
           <div class="mobile-right-group">
+            <select id="mobileCurrencySelector" class="currency-selector" aria-label="Devise d'affichage">
+              <option value="HTG" ${displayCurrency === 'HTG' ? 'selected' : ''}>HTG</option>
+              <option value="USD" ${displayCurrency === 'USD' ? 'selected' : ''}>USD</option>
+            </select>
             <button id="mobileProfileIcon" class="mobile-icon-button" type="button" aria-label="Profil">
               <i class="fas fa-user mobile-icon"></i>
             </button>
@@ -840,6 +868,7 @@ class SierraHeaderNebula {
 
     this.authManager = getAuthManager();
     getWebsiteAnalyticsTracker().init();
+    await loadCurrencySettings();
 
     // Singleton: n'instancie qu'une seule fois le gestionnaire panier.
     this.cartManager = getCartManager({
@@ -853,6 +882,7 @@ class SierraHeaderNebula {
 
     await this.applyHeaderConfig();
     await this.loadMobileFooterLinks();
+    this.setupCurrencySelectors();
     this.setupProfileActions();
     this.setupSearchBarInputs();
     this.setupScrollBehavior();
@@ -860,6 +890,25 @@ class SierraHeaderNebula {
     this.setupHeaderLayoutSync();
     this.syncHeaderLayout();
     this.prewarmInteractivePanels();
+  }
+
+  setupCurrencySelectors() {
+    const selectors = [
+      document.getElementById('desktopCurrencySelector'),
+      document.getElementById('mobileCurrencySelector')
+    ].filter(Boolean);
+    const currentCurrency = getUserDisplayCurrency();
+
+    selectors.forEach((selector) => {
+      selector.value = currentCurrency;
+      selector.addEventListener('change', () => {
+        const selected = setUserDisplayCurrency(selector.value);
+        selectors.forEach((entry) => {
+          entry.value = selected;
+        });
+        window.location.reload();
+      });
+    });
   }
 
   setupHeaderLayoutSync() {

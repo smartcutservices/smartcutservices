@@ -321,12 +321,12 @@ class ProfilePanel {
     return [
       { label: 'Username', value: user?.displayName || client.name || `${client.firstName || ''} ${client.lastName || ''}`.trim() || '-' },
       { label: 'Nom', value: client.lastName || '-' },
-      { label: 'Prenom', value: client.firstName || '-' },
+      { label: 'Prénom', value: client.firstName || '-' },
       { label: 'Date de naissance', value: client.birthDate || '-' },
       { label: 'Email', value: user?.email || client.email || '-' },
-      { label: 'Telephone', value: client.phone || '-' },
+      { label: 'Téléphone', value: client.phone || '-' },
       { label: 'Adresse principale', value: savedAddressParts.join(', ') || addressParts.join(', ') || '-' },
-      { label: 'Nombre d adresses sauvegardÃ©es', value: Array.isArray(client.addresses) ? String(client.addresses.length) : '0' }
+      { label: "Nombre d'adresses sauvegardées", value: Array.isArray(client.addresses) ? String(client.addresses.length) : '0' }
     ];
   }
 
@@ -360,19 +360,19 @@ class ProfilePanel {
       <form class="profile-personal-form" style="display:grid;gap:0.85rem;">
         <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;">
           <h3 style="margin:0;font-family:${fonts.primary};font-size:1.35rem;color:${colors.text.title};">Modifier mes informations</h3>
-          <p style="margin:0.4rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">Vos modifications seront sauvegardÃ©es sur votre compte.</p>
+          <p style="margin:0.4rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">Vos modifications seront sauvegardées sur votre compte.</p>
         </div>
 
         ${this.renderProfileInput('Username', 'profileEditUsername', fullName, colors)}
         ${this.renderProfileInput('Nom', 'profileEditLastName', client.lastName || '', colors)}
-        ${this.renderProfileInput('Prenom', 'profileEditFirstName', client.firstName || '', colors)}
+        ${this.renderProfileInput('Prénom', 'profileEditFirstName', client.firstName || '', colors)}
         ${this.renderProfileInput('Date de naissance', 'profileEditBirthDate', client.birthDate || '', colors, 'date')}
-        ${this.renderProfileInput('Telephone', 'profileEditPhone', client.phone || '', colors, 'tel')}
+        ${this.renderProfileInput('Téléphone', 'profileEditPhone', client.phone || '', colors, 'tel')}
         ${this.renderProfileInput('Adresse principale', 'profileEditAddress', defaultAddress.address || client.address || '', colors)}
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
           <label style="display:grid;gap:0.35rem;">
-            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Departement</span>
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Département</span>
             <select id="profileEditDepartment" style="${this.profileFieldStyle(colors)}">
               ${this.renderDepartmentOptions(defaultAddress.department || client.department || '')}
             </select>
@@ -419,11 +419,11 @@ class ProfilePanel {
   renderSavedAddressForm(address, index, colors) {
     return `
       <div data-saved-address-index="${index}" data-saved-address-id="${this.escape(address.id || '')}" style="border:1px solid ${colors.background.button}26;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.card};">
-        <strong style="color:${colors.text.title};font-size:0.92rem;">Adresse sauvegardÃ©e ${index + 1}</strong>
+        <strong style="color:${colors.text.title};font-size:0.92rem;">Adresse sauvegardée ${index + 1}</strong>
         ${this.renderProfileInput('Adresse', `profileSavedAddress_${index}`, address.address || '', colors)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
           <label style="display:grid;gap:0.35rem;">
-            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Departement</span>
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Département</span>
             <select id="profileSavedDepartment_${index}" class="profile-saved-department" data-saved-address-department="${index}" style="${this.profileFieldStyle(colors)}">
               ${this.renderDepartmentOptions(address.department || '')}
             </select>
@@ -446,7 +446,7 @@ class ProfilePanel {
         ${this.renderProfileInput('Adresse', `profileExtraAddress_${index}`, '', colors)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
           <label style="display:grid;gap:0.35rem;">
-            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Departement</span>
+            <span style="color:${colors.text.body};font-size:0.82rem;font-weight:800;">Département</span>
             <select id="profileExtraDepartment_${index}" class="profile-extra-department" data-extra-address-department="${index}" style="${this.profileFieldStyle(colors)}">
               ${this.renderDepartmentOptions('')}
             </select>
@@ -503,7 +503,7 @@ class ProfilePanel {
           </div>
           <h3 style="margin:0;font-family:${fonts.primary};font-size:1.45rem;color:${colors.text.title};">Informations personnelles</h3>
           <p style="margin:0.45rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">
-            Retrouvez ici les informations associÃ©es a votre compte Smart Cut Services.
+            Retrouvez ici les informations associées à votre compte Smart Cut Services.
           </p>
         </div>
 
@@ -607,7 +607,7 @@ class ProfilePanel {
     });
 
     if (savedAddressUpdates.some((address) => !address.address || !address.department || !address.commune)) {
-      this.authManager.showToast('Merci de complÃ©ter chaque adresse sauvegardÃ©e.', 'error');
+      this.authManager.showToast('Merci de compléter chaque adresse sauvegardée.', 'error');
       return;
     }
 
@@ -626,7 +626,7 @@ class ProfilePanel {
     }).filter((item) => item.hasAnyValue);
 
     if (extraAddresses.some((address) => !address.address || !address.department || !address.commune)) {
-      this.authManager.showToast('Merci de complÃ©ter chaque nouvelle adresse ajoutÃ©e.', 'error');
+      this.authManager.showToast('Merci de compléter chaque nouvelle adresse ajoutée.', 'error');
       return;
     }
 
@@ -652,7 +652,7 @@ class ProfilePanel {
       const updatedSavedAddress = {
         ...(update.original || {}),
         id: update.id,
-        label: update.original?.label || 'Adresse sauvegardÃ©e',
+        label: update.original?.label || 'Adresse sauvegardée',
         address: update.address,
         country: 'Haiti',
         department: update.department,
@@ -711,7 +711,7 @@ class ProfilePanel {
     };
     this.isEditingPersonalInfo = false;
     this.additionalAddressForms = 0;
-    this.authManager.showToast('Informations personnelles mises Ã  jour.', 'success');
+    this.authManager.showToast('Informations personnelles mises à jour.', 'success');
     this.render();
   }
 
@@ -758,9 +758,9 @@ class ProfilePanel {
         ">
           <i class="fas fa-envelope-circle-check"></i>
         </div>
-        <h3 style="margin:0;font-family:${fonts.primary};font-size:1.75rem;line-height:1;color:${colors.text.title};">Lien envoyÃ©</h3>
+        <h3 style="margin:0;font-family:${fonts.primary};font-size:1.75rem;line-height:1;color:${colors.text.title};">Lien envoyé</h3>
         <p style="margin:0.8rem 0 0;color:${colors.text.body};line-height:1.65;">
-          Un lien pour changer votre mot de passe a Ã©tÃ© envoyÃ© Ã :
+          Un lien pour changer votre mot de passe a été envoyé à:
         </p>
         <strong style="display:block;margin:0.65rem 0;color:${colors.text.title};word-break:break-word;">${this.escape(email)}</strong>
         <div style="
@@ -773,7 +773,7 @@ class ProfilePanel {
           line-height:1.55;
           font-size:0.9rem;
         ">
-          Si vous ne le voyez pas dans votre boÃ®te de rÃ©ception, vÃ©rifiez aussi vos spams ou courriers indÃ©sirables.
+          Si vous ne le voyez pas dans votre boîte de réception, vérifiez aussi vos spams ou courriers indésirables.
         </div>
         <button type="button" class="password-reset-sent-close" style="
           margin-top:1rem;
@@ -844,7 +844,7 @@ class ProfilePanel {
         accent: colors.icon.hover
       },
       {
-        label: 'ConfirmÃ©es',
+        label: 'Confirmées',
         value: paidOrders.length,
         icon: 'fa-circle-check',
         accent: '#10B981'

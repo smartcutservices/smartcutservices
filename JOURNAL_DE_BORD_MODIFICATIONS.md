@@ -701,6 +701,208 @@ Etat GitHub:
 
 - Aucun push n'a encore ete fait pour cette mise a jour.
 
+## Orthographe et encodage visible
+
+Date: 29 mai 2026
+
+Objectif:
+
+- Corriger les textes visibles qui apparaissaient avec des caracteres casses.
+- Eviter que les clients voient des mots comme `CatÃ©gories`, `ProcÃ©der`, `GÃ©nÃ©ral` ou des separateurs `Â·`.
+
+Fichiers corriges:
+
+- `products.js`
+- `product-modal.js`
+- `cart.js`
+- `profile-panel.js`
+- `index.html`
+
+Fichiers verifies sans caracteres casses dans cette passe:
+
+- `payment.js`
+- `checkout.js`
+- `categories-section.js`
+- `mega-menu.js`
+- `mobile-menu.js`
+- `dashboard-currency.js`
+- `dashboard-printing.js`
+
+Corrections visibles:
+
+- Labels de profil: `Prénom`, `Téléphone`, `Département`, `Nombre d'adresses sauvegardées`.
+- Messages de reset password: `Lien envoyé`, `boîte de réception`, `courriers indésirables`.
+- Messages produit et panier nettoyes.
+- Separateur de variations remplace par un tiret simple pour eviter les caracteres casses.
+
+Verification:
+
+```powershell
+node --check products.js
+node --check product-modal.js
+node --check cart.js
+node --check profile-panel.js
+node --check checkout.js
+node --check payment.js
+node --check categories-section.js
+node --check mega-menu.js
+node --check mobile-menu.js
+```
+
+Resultat:
+
+- Tous les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
+
+## Devise - Affichage HTG ou USD
+
+Date: 29 mai 2026
+
+Objectif:
+
+- Afficher les prix du site en HTG ou en USD selon le choix utilisateur.
+- Garder HTG comme devise de paiement.
+- Donner a l'admin un endroit simple pour modifier le taux HTG/USD.
+
+Fichiers modifies cote site:
+
+- `currency-utils.js`
+- `header.js`
+- `products.js`
+- `product-modal.js`
+- `cart.js`
+- `checkout.js`
+- `payment.js`
+- `categories-section.js`
+- `vendor-marketplace.js`
+- `mega-menu.js`
+- `mobile-menu.js`
+- `printing-documents.js`
+- `printing-cad.js`
+- `printing-photo.js`
+- `index.html`
+- `catalogue.html`
+- `product.html`
+- `printing-documents.html`
+- `printing-cad.html`
+- `printing-photo.html`
+
+Fichiers modifies cote dashboard:
+
+- `dashboard-currency.html`
+- `dashboard-currency.js`
+- `dashboard-shell.js`
+
+Comportement ajoute:
+
+- Le site lit le document Firestore `settings/currency`.
+- Champ principal: `htgPerUsd`.
+- Si Firebase est indisponible, le site utilise un fallback local: `1 USD = 132 HTG`.
+- Le header contient un selecteur `HTG / USD`.
+- Le choix utilisateur est sauvegarde dans `localStorage` avec la cle `smartcut_display_currency`.
+- Les montants affichent une seule devise a la fois.
+- Le paiement reste en HTG; USD est uniquement une devise d'affichage.
+- Nouveau module Dashboard: `Devise`.
+
+Verification:
+
+```powershell
+node --check currency-utils.js
+node --check header.js
+node --check products.js
+node --check product-modal.js
+node --check cart.js
+node --check checkout.js
+node --check payment.js
+node --check categories-section.js
+node --check vendor-marketplace.js
+node --check mega-menu.js
+node --check mobile-menu.js
+node --check dashboard-currency.js
+```
+
+Resultat:
+
+- Tous les checks passent sans erreur de syntaxe.
+
+Correction importante:
+
+- La premiere version affichait HTG et USD en meme temps.
+- La logique a ete corrigee: le client choisit `HTG` ou `USD`, et le site n'affiche que cette devise.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
+
+## Impression - Regles de livraison par module et intervalle
+
+Date: 29 mai 2026
+
+Objectif:
+
+- Resoudre la checklist Impression pour POD Document, Plan CAD et Impression Photos.
+- Permettre a l'admin de fixer un prix de livraison selon:
+- Pays
+- Departement
+- Commune
+- Module impression
+- Intervalle de pages ou de tirages
+
+Intervalles ajoutes:
+
+- `1-10`
+- `11-20`
+- `21-50`
+- `51-100`
+- `101-250`
+- `251-500`
+
+Fichiers modifies cote site:
+
+- `printing-delivery-utils.js`
+- `printing-documents.js`
+- `printing-cad.js`
+- `printing-photo.js`
+- `printing-documents.html`
+- `printing-cad.html`
+- `printing-photo.html`
+- `CHECKLIST_IMPRESSION_VENDEURS_2026-05-29.md`
+
+Fichiers modifies cote dashboard:
+
+- `dashboard-printing.js`
+- `dashboard-printing.html`
+
+Comportement ajoute:
+
+- Le document Firestore `printingDeliverySettings/main` accepte maintenant `moduleRules`.
+- Les regles sont separees par module: `documents`, `cad`, `photo`.
+- POD Documents et Plan CAD calculent l'intervalle avec le nombre total de pages imprimees.
+- Impression Photos calcule l'intervalle avec le nombre total de tirages.
+- Si une zone domicile existe mais qu'aucune regle ne correspond a l'intervalle du client, la livraison domicile est bloquee avec un message clair.
+- Les anciennes zones `homeZones` restent utilisables comme fallback si aucune regle par module n'est configuree.
+
+Verification:
+
+```powershell
+node --check printing-delivery-utils.js
+node --check printing-documents.js
+node --check printing-cad.js
+node --check printing-photo.js
+node --check dashboard-printing.js
+```
+
+Resultat:
+
+- Tous les checks passent sans erreur de syntaxe.
+
+Etat GitHub:
+
+- Aucun push n'a encore ete fait pour cette mise a jour.
+
 ## 2026-05-28 - Produits vendeurs deja approuves: modification auto-active
 
 Contexte:

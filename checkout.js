@@ -1,5 +1,6 @@
 // ============= CHECKOUT COMPONENT - MODAL DE PAIEMENT =============
 import { db } from './firebase-init.js';
+import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { collection, doc, getDoc, getDocs, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 function normalizeSelectedOptionLabel(value) {
@@ -96,6 +97,12 @@ class CheckoutModal {
       console.error('❌ Checkout: Aucun client fourni');
     }
     
+    loadCurrencySettings().then(() => {
+      if (this.modal) {
+        this.updateSummary();
+      }
+    });
+
     this.calculateTotals();
     this.render();
     this.attachEvents();
@@ -121,12 +128,7 @@ class CheckoutModal {
   }
   
   formatPrice(price) {
-    return new Intl.NumberFormat('fr-HT', {
-      style: 'currency', 
-      currency: this.options.currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(price || 0);
+    return formatPriceDual(price, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
   getSavedDeliveryAddresses() {

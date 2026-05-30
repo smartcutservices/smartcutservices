@@ -12,8 +12,28 @@ const DEFAULT_SETTINGS = {
       isActive: true
     }
   ],
-  homeZones: []
+  homeZones: [],
+  moduleRules: {
+    documents: [],
+    cad: [],
+    photo: []
+  }
 };
+
+const HAITI_DEPARTMENTS = {
+  'Artibonite': ['Dessalines', 'Desdunes', 'Ennery', 'Gonaives', 'Gros-Morne', 'L Estere', 'Marmelade', 'Saint-Marc', 'Verrettes'],
+  'Centre': ['Belladere', 'Cerca-Carvajal', 'Cerca-la-Source', 'Hinche', 'Lascahobas', 'Mirebalais', 'Saut-d Eau'],
+  'Grand Anse': ['Anse-d Hainault', 'Beaumont', 'Chambellan', 'Dame-Marie', 'Jeremie', 'Moron'],
+  'Nippes': ['Anse-a-Veau', 'Baraderes', 'Fond-des-Negres', 'Miragoane', 'Petite-Riviere-de-Nippes'],
+  'Nord': ['Acul-du-Nord', 'Bahon', 'Borgne', 'Cap-Haitien', 'Grande-Riviere-du-Nord', 'Limonade', 'Milot', 'Pignon', 'Plaine-du-Nord', 'Port-Margot', 'Quartier-Morin', 'Ranquitte', 'Saint-Raphael'],
+  'Nord-Est': ['Caracol', 'Ferrier', 'Fort-Liberte', 'Mombin-Crochu', 'Mont-Organise', 'Ouanaminthe', 'Perches', 'Sainte-Suzanne', 'Trou-du-Nord', 'Vallieres'],
+  'Nord-Ouest': ['Anse-a-Foleur', 'Baie-de-Henne', 'Bombardopolis', 'Jean-Rabel', 'La Tortue', 'Mole-Saint-Nicolas', 'Port-de-Paix', 'Saint-Louis-du-Nord'],
+  'Ouest': ['Arcahaie', 'Cabaret', 'Carrefour', 'Cite Soleil', 'Cornillon', 'Croix-des-Bouquets', 'Delmas', 'Fond-Verrettes', 'Ganthier', 'Gressier', 'Kenscoff', 'Leogane', 'Petion-Ville', 'Petit-Goave', 'Port-au-Prince', 'Tabarre'],
+  'Sud': ['Aquin', 'Camp-Perrin', 'Cavaillon', 'Chantal', 'Chardonniere', 'Coteaux', 'Ile-a-Vache', 'Les Anglais', 'Les Cayes', 'Maniche', 'Port-a-Piment', 'Roche-a-Bateau', 'Saint-Jean-du-Sud', 'Tiburon', 'Torbeck'],
+  'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
+};
+
+const MODULE_IDS = ['documents', 'cad', 'photo'];
 
 function normalizeText(value = '') {
   return String(value || '').trim();
@@ -41,6 +61,34 @@ function normalizeZone(zone = {}, index = 0) {
   };
 }
 
+function normalizeModuleRule(rule = {}, index = 0) {
+  const min = Number(rule.min ?? rule.rangeMin ?? 0);
+  const max = Number(rule.max ?? rule.rangeMax ?? 0);
+  return {
+    id: normalizeText(rule.id) || `rule_${index}`,
+    country: normalizeText(rule.country) || 'Haiti',
+    department: normalizeText(rule.department),
+    commune: normalizeText(rule.commune),
+    rangeId: normalizeText(rule.rangeId),
+    label: normalizeText(rule.label || rule.rangeLabel),
+    min: Number.isFinite(min) ? min : 0,
+    max: Number.isFinite(max) ? max : 0,
+    fee: Number(rule.fee || 0),
+    delay: normalizeText(rule.delay || rule.deliveryDelay),
+    isActive: rule.isActive !== false
+  };
+}
+
+function normalizeModuleRules(moduleRules = {}) {
+  const source = moduleRules && typeof moduleRules === 'object' ? moduleRules : {};
+  return MODULE_IDS.reduce((acc, moduleId) => {
+    acc[moduleId] = (Array.isArray(source[moduleId]) ? source[moduleId] : [])
+      .map(normalizeModuleRule)
+      .filter((rule) => rule.country && rule.department && rule.commune && rule.min >= 1 && rule.max >= rule.min && rule.isActive);
+    return acc;
+  }, {});
+}
+
 export function normalizePrintingDeliverySettings(data = {}) {
   const source = data && typeof data === 'object' ? data : {};
   return {
@@ -49,7 +97,8 @@ export function normalizePrintingDeliverySettings(data = {}) {
       .filter((point) => point.name && point.address && point.isActive),
     homeZones: (Array.isArray(source.homeZones) ? source.homeZones : [])
       .map(normalizeZone)
-      .filter((zone) => zone.country && zone.department && zone.commune && zone.isActive)
+      .filter((zone) => zone.country && zone.department && zone.commune && zone.isActive),
+    moduleRules: normalizeModuleRules(source.moduleRules || DEFAULT_SETTINGS.moduleRules)
   };
 }
 
@@ -72,11 +121,14 @@ function getAddressLabel(address = {}) {
 }
 
 export class PrintingDeliveryController {
-  constructor({ getContainer, escape, formatPrice, onChange } = {}) {
+  constructor({ getContainer, escape, formatPrice, onChange, moduleId = '', getMetricValue, metricLabel = 'quantite' } = {}) {
     this.getContainer = getContainer;
     this.escape = typeof escape === 'function' ? escape : (value) => String(value || '');
     this.formatPrice = typeof formatPrice === 'function' ? formatPrice : (value) => `${Number(value || 0)} HTG`;
     this.onChange = typeof onChange === 'function' ? onChange : () => {};
+    this.moduleId = MODULE_IDS.includes(moduleId) ? moduleId : '';
+    this.getMetricValue = typeof getMetricValue === 'function' ? getMetricValue : () => 0;
+    this.metricLabel = metricLabel;
     this.settings = normalizePrintingDeliverySettings(DEFAULT_SETTINGS);
     this.client = null;
     this.state = {
@@ -159,14 +211,61 @@ export class PrintingDeliveryController {
     )) || null;
   }
 
+  getDepartmentOptions(selected = '') {
+    return '<option value="">Choisir un departement</option>' + Object.keys(HAITI_DEPARTMENTS)
+      .map((department) => `<option value="${this.escape(department)}" ${department === selected ? 'selected' : ''}>${this.escape(department)}</option>`)
+      .join('');
+  }
+
+  getCommuneOptions(department = '', selected = '') {
+    const communes = HAITI_DEPARTMENTS[department] || [];
+    return '<option value="">Choisir une commune</option>' + communes
+      .map((commune) => `<option value="${this.escape(commune)}" ${commune === selected ? 'selected' : ''}>${this.escape(commune)}</option>`)
+      .join('');
+  }
+
+  getMetricQuantity() {
+    const value = Number(this.getMetricValue?.() || 0);
+    return Number.isFinite(value) ? Math.max(0, Math.ceil(value)) : 0;
+  }
+
+  getModuleRules() {
+    if (!this.moduleId) return [];
+    return Array.isArray(this.settings.moduleRules?.[this.moduleId]) ? this.settings.moduleRules[this.moduleId] : [];
+  }
+
+  hasModuleRules() {
+    return this.getModuleRules().length > 0;
+  }
+
+  findModuleRule() {
+    const country = normalizeText(this.state.country) || 'Haiti';
+    const department = normalizeText(this.state.department);
+    const commune = normalizeText(this.state.commune);
+    const metric = this.getMetricQuantity();
+    if (!this.moduleId || !department || !commune || metric < 1) return null;
+
+    return this.getModuleRules().find((rule) => (
+      normalizeText(rule.country || 'Haiti') === country
+      && normalizeText(rule.department) === department
+      && normalizeText(rule.commune) === commune
+      && metric >= Number(rule.min || 0)
+      && metric <= Number(rule.max || 0)
+    )) || null;
+  }
+
   getFee() {
     if (this.state.method !== 'home') return 0;
+    const moduleRule = this.findModuleRule();
+    if (moduleRule) return Number(moduleRule.fee || 0);
     return Number(this.findHomeZone()?.fee || 0);
   }
 
   isValid() {
     if (this.state.method === 'pickup') return Boolean(this.getSelectedPickupPoint());
-    return Boolean(this.state.address && this.state.department && this.state.commune && this.findHomeZone());
+    const hasZone = Boolean(this.state.address && this.state.department && this.state.commune && this.findHomeZone());
+    if (!hasZone) return false;
+    return this.hasModuleRules() ? Boolean(this.findModuleRule()) : true;
   }
 
   getSelectedPickupPoint() {
@@ -177,29 +276,36 @@ export class PrintingDeliveryController {
     if (this.state.method === 'pickup') {
       const point = this.getSelectedPickupPoint();
       return [
-        { label: 'Reception', value: 'Point de retrait' },
+        { label: 'Réception', value: 'Point de retrait' },
         { label: 'Point', value: point?.name || '-' },
         { label: 'Adresse retrait', value: point?.address || '-' },
-        { label: 'Telephone point', value: point?.phone || '-' },
-        { label: 'Frais reception', value: this.formatPrice(0) }
+        { label: 'Téléphone point', value: point?.phone || '-' },
+        { label: 'Frais de réception', value: this.formatPrice(0) }
       ];
     }
     const zone = this.findHomeZone();
+    const moduleRule = this.findModuleRule();
     return [
-      { label: 'Reception', value: 'Livraison a domicile' },
+      { label: 'Réception', value: 'Livraison à domicile' },
       { label: 'Adresse', value: this.state.address || '-' },
       { label: 'Zone', value: `${this.state.department || '-'} / ${this.state.commune || '-'}` },
-      { label: 'Delai livraison', value: zone?.delay || '-' },
-      { label: 'Frais reception', value: this.formatPrice(this.getFee()) }
+      { label: 'Intervalle', value: moduleRule?.label || (moduleRule ? `${moduleRule.min}-${moduleRule.max}` : '-') },
+      { label: 'Délai livraison', value: moduleRule?.delay || zone?.delay || '-' },
+      { label: 'Frais de réception', value: this.formatPrice(this.getFee()) }
     ];
   }
 
   getCartPayload() {
+    const moduleRule = this.state.method === 'home' ? this.findModuleRule() : null;
     return {
       method: this.state.method,
       fee: this.getFee(),
       pickupPoint: this.state.method === 'pickup' ? this.getSelectedPickupPoint() : null,
       homeZone: this.state.method === 'home' ? this.findHomeZone() : null,
+      moduleRule,
+      moduleId: this.moduleId || '',
+      metricQuantity: this.getMetricQuantity(),
+      metricLabel: this.metricLabel,
       address: this.state.method === 'home' ? {
         address: this.state.address,
         country: this.state.country || 'Haiti',
@@ -215,6 +321,10 @@ export class PrintingDeliveryController {
     const savedAddresses = this.getSavedAddresses();
     const homeZone = this.findHomeZone();
     const homeAvailable = Boolean(homeZone);
+    const moduleRule = this.findModuleRule();
+    const moduleRulesRequired = this.hasModuleRules();
+    const moduleRuleAvailable = !moduleRulesRequired || Boolean(moduleRule);
+    const fee = this.getFee();
     return `
       <section class="printing-delivery-card">
         <style>
@@ -230,12 +340,12 @@ export class PrintingDeliveryController {
           @media(max-width:780px){.printing-delivery-grid{grid-template-columns:1fr}}
         </style>
         <div>
-          <strong style="display:block;color:#1F1E1C;font-size:1.05rem;">Reception de votre impression</strong>
-          <p style="margin:.25rem 0 0;color:#6E6557;line-height:1.65;">Choisissez comment vous voulez recevoir votre travail d impression.</p>
+          <strong style="display:block;color:#1F1E1C;font-size:1.05rem;">Réception de votre impression</strong>
+          <p style="margin:.25rem 0 0;color:#6E6557;line-height:1.65;">Choisissez comment vous voulez recevoir votre travail d'impression.</p>
         </div>
         <div class="printing-delivery-methods">
           <button type="button" class="printing-delivery-method ${this.state.method === 'pickup' ? 'is-active' : ''}" data-printing-delivery-method="pickup">Point de retrait gratuit</button>
-          <button type="button" class="printing-delivery-method ${this.state.method === 'home' ? 'is-active' : ''}" data-printing-delivery-method="home">Livraison a domicile</button>
+          <button type="button" class="printing-delivery-method ${this.state.method === 'home' ? 'is-active' : ''}" data-printing-delivery-method="home">Livraison à domicile</button>
         </div>
         ${this.state.method === 'pickup' ? `
           <label class="printing-delivery-field">
@@ -244,27 +354,39 @@ export class PrintingDeliveryController {
               ${pickupPoints.map((point) => `<option value="${this.escape(point.id)}" ${point.id === this.state.pickupPointId ? 'selected' : ''}>${this.escape(point.name)} - ${this.escape(point.address)}</option>`).join('')}
             </select>
           </label>
-          <div class="printing-delivery-hint">Point de retrait gratuit. Vous passerez recuperer votre impression apres confirmation.</div>
+          <div class="printing-delivery-hint">Point de retrait gratuit. Vous passerez récupérer votre impression après confirmation.</div>
         ` : `
           ${savedAddresses.length ? `
             <label class="printing-delivery-field">
-              <span>Adresse enregistree</span>
+              <span>Adresse enregistrée</span>
               <select class="printing-delivery-input" data-printing-delivery-field="savedAddressId">
                 <option value="">Choisir une adresse</option>
                 ${savedAddresses.map((address) => `<option value="${this.escape(address.id)}" ${address.id === this.state.savedAddressId ? 'selected' : ''}>${this.escape(getAddressLabel(address))}</option>`).join('')}
               </select>
             </label>
-          ` : `<div class="printing-delivery-hint">Aucune adresse sauvegardee trouvee. Vous pouvez saisir l adresse de livraison ici.</div>`}
+          ` : `<div class="printing-delivery-hint">Aucune adresse sauvegardée trouvée. Vous pouvez saisir l'adresse de livraison ici.</div>`}
           <div class="printing-delivery-grid">
-            <label class="printing-delivery-field"><span>Adresse</span><input class="printing-delivery-input" data-printing-delivery-field="address" value="${this.escape(this.state.address)}" placeholder="Adresse complete"></label>
-            <label class="printing-delivery-field"><span>Telephone</span><input class="printing-delivery-input" data-printing-delivery-field="phone" value="${this.escape(this.state.phone)}" placeholder="+509..."></label>
-            <label class="printing-delivery-field"><span>Departement</span><input class="printing-delivery-input" data-printing-delivery-field="department" value="${this.escape(this.state.department)}" placeholder="Ex: Ouest"></label>
-            <label class="printing-delivery-field"><span>Commune</span><input class="printing-delivery-input" data-printing-delivery-field="commune" value="${this.escape(this.state.commune)}" placeholder="Ex: Delmas"></label>
+            <label class="printing-delivery-field"><span>Adresse</span><input class="printing-delivery-input" data-printing-delivery-field="address" value="${this.escape(this.state.address)}" placeholder="Adresse complète"></label>
+            <label class="printing-delivery-field"><span>Téléphone</span><input class="printing-delivery-input" data-printing-delivery-field="phone" value="${this.escape(this.state.phone)}" placeholder="+509..."></label>
+            <label class="printing-delivery-field">
+              <span>Département</span>
+              <select class="printing-delivery-input" data-printing-delivery-field="department">
+                ${this.getDepartmentOptions(this.state.department)}
+              </select>
+            </label>
+            <label class="printing-delivery-field">
+              <span>Commune</span>
+              <select class="printing-delivery-input" data-printing-delivery-field="commune" ${this.state.department ? '' : 'disabled'}>
+                ${this.getCommuneOptions(this.state.department, this.state.commune)}
+              </select>
+            </label>
           </div>
-          <div class="printing-delivery-hint ${homeAvailable ? '' : 'error'}">
-            ${homeAvailable
-              ? `Livraison disponible: ${this.formatPrice(homeZone.fee)}${homeZone.delay ? ` - Delai: ${this.escape(homeZone.delay)}` : ''}`
-              : 'Livraison domicile indisponible pour cette zone. Choisissez un point de retrait ou contactez Smart Cut.'}
+          <div class="printing-delivery-hint ${homeAvailable && moduleRuleAvailable ? '' : 'error'}">
+            ${homeAvailable && moduleRuleAvailable
+              ? `Livraison disponible: ${this.formatPrice(fee)}${moduleRule?.label ? ` - Intervalle: ${this.escape(moduleRule.label)}` : ''}${(moduleRule?.delay || homeZone.delay) ? ` - Délai: ${this.escape(moduleRule?.delay || homeZone.delay)}` : ''}`
+              : homeAvailable
+                ? `Livraison à domicile disponible dans cette zone, mais aucun prix n'est configuré pour ${this.escape(this.metricLabel)} ${this.getMetricQuantity()}.`
+                : 'Livraison à domicile indisponible pour cette zone. Choisissez un point de retrait ou contactez Smart Cut.'}
           </div>
         `}
       </section>
@@ -293,6 +415,7 @@ export class PrintingDeliveryController {
       this.applyAddress(field.value);
     } else {
       this.state[key] = field.value;
+      if (key === 'department') this.state.commune = '';
       if (key === 'address' || key === 'department' || key === 'commune') this.state.savedAddressId = '';
     }
     if (rerender || key === 'department' || key === 'commune' || key === 'savedAddressId') this.onChange();
