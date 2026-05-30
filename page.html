@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
@@ -70,11 +70,11 @@
         const mod = await loader();
         new mod.default(rootId, options);
       } catch (error) {
-        console.error(`❌ Erreur composant ${rootId}:`, error);
+        console.error(`âŒ Erreur composant ${rootId}:`, error);
       }
     };
 
-    mount('sierra-header-root', () => import('./header.js?v=20260529-3'));
+    mount('sierra-header-root', () => import('./header.js?v=20260530-1'));
     mount('custom-page-root', () => import('./custom-page.js'), {
       collectionName: 'footerPages'
     });

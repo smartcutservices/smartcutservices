@@ -1,7 +1,7 @@
 ﻿import { db } from './firebase-init.js?v=20260523-6';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js';
-import Navbar from './navbar.js';
+import Navbar from './navbar.js?v=20260530-1';
 import { getCartManager } from './cart.js?v=20260525-6';
 import { getAuthManager } from './auth.js?v=20260523-6';
 import { getProfilePanel } from './profile-panel.js?v=20260525-6';
@@ -142,6 +142,7 @@ class SierraHeaderNebula {
       }
 
       .desktop-all-button,
+      .desktop-nav-action,
       .mobile-nav-all,
       .mobile-nav-item {
         display: inline-flex;
@@ -174,6 +175,24 @@ class SierraHeaderNebula {
         font-size: 0.9rem;
         font-weight: 700;
         flex-shrink: 0;
+      }
+
+      .desktop-nav-action {
+        padding: 0.65rem 0.95rem;
+        border-radius: 999px;
+        color: #1f1e1c;
+        font-size: 0.9rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: inset 0 0 0 1px rgba(184, 155, 123, 0.18);
+        transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+      }
+
+      .desktop-nav-action:hover,
+      .mobile-nav-item:hover {
+        background: rgba(198, 167, 94, 0.16);
+        color: #8b6c2f;
+        transform: translateY(-1px);
       }
 
       .desktop-icons {
@@ -758,11 +777,12 @@ class SierraHeaderNebula {
           </div>
         </div>
         <div class="desktop-nav-row">
-          <a id="desktopAllNavBtn" class="desktop-all-button" href="./catalogue.html" aria-label="Toutes les catégories">
+          <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les catégories">
             <i class="fas fa-bars"></i>
-            <span>Toutes</span>
-          </a>
-          <div id="desktopCategoriesContainer" class="desktop-categories"></div>
+            <span>Catégories</span>
+          </button>
+          <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
+          <a class="desktop-nav-action" href="./printing-hub.html">Imprimerie</a>
         </div>
       </div>
 
@@ -793,11 +813,14 @@ class SierraHeaderNebula {
           </div>
           </div>
           <div class="mobile-nav-scroll">
-            <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Toutes les catégories">
+            <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Afficher les catégories">
               <i class="fas fa-bars"></i>
-              <span>Toutes</span>
+              <span>Catégories</span>
             </button>
-            <div id="mobileNavScroll" class="mobile-nav-items"></div>
+            <div class="mobile-nav-items">
+              <a class="mobile-nav-item" href="./vendor-application.html">Devenir vendeur</a>
+              <a class="mobile-nav-item" href="./printing-hub.html">Imprimerie</a>
+            </div>
           </div>
         </div>
       </header>

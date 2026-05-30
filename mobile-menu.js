@@ -145,12 +145,17 @@ class MobileMenu {
   
   setupEvents() {
     const hamburger = document.getElementById('mobileHamburgerBtn');
+    const desktopAllBtn = document.getElementById('desktopAllNavBtn');
     const navAllBtn = document.getElementById('mobileNavAllBtn');
     const closeBtn = document.getElementById('closeMobileMenuBtn');
     const footerCloseBtn = document.getElementById('mobileMenuFooterCloseBtn');
     
     if (hamburger) {
       hamburger.addEventListener('click', () => this.open());
+    }
+
+    if (desktopAllBtn) {
+      desktopAllBtn.addEventListener('click', () => this.open());
     }
 
     if (navAllBtn) {
