@@ -78,7 +78,6 @@
     }
 
     #sierra-hero-root,
-    #sierra-categories-root,
     #sierra-products-root,
     #sierra-gallery-root,
     #sierra-actualites-root,
@@ -95,10 +94,6 @@
     #sierra-hero-root {
       min-height: 68vh;
       padding-top: 0;
-    }
-
-    #sierra-categories-root {
-      scroll-margin-top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + 1rem);
     }
 
     /* Overlays / modales: base mobile-first robuste */
@@ -180,10 +175,6 @@
         margin-top: 1rem !important;
       }
 
-      #sierra-categories-root {
-        margin-top: 0.75rem;
-        padding-top: calc((var(--header-height-mobile, 70px) * 0.6) + 0.5rem);
-      }
     }
 
     @media (min-width: 1024px) {
@@ -245,87 +236,6 @@
       }
     }
 
-    .seller-home-section {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 1rem 2.4rem;
-    }
-
-    .seller-home-card {
-      display: grid;
-      grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
-      gap: 0;
-      align-items: stretch;
-      border-radius: 2rem;
-      overflow: hidden;
-      border: 1px solid rgba(31,30,28,0.08);
-      box-shadow: 0 24px 54px rgba(31,30,28,0.08);
-      background: #fff;
-    }
-
-    .seller-home-media {
-      min-height: 420px;
-      background: #ece6da;
-    }
-
-    .seller-home-copy {
-      padding: clamp(1.5rem,4vw,3.2rem);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      background: linear-gradient(180deg,#fffdf8 0%,#f6efe3 100%);
-    }
-
-    .printing-home-section {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 0 1rem 2.4rem;
-    }
-
-    .printing-home-card {
-      display: grid;
-      grid-template-columns: minmax(320px, 1.05fr) minmax(320px, 0.95fr);
-      gap: 0;
-      align-items: stretch;
-      border-radius: 2rem;
-      overflow: hidden;
-      border: 1px solid rgba(31,30,28,0.08);
-      box-shadow: 0 24px 54px rgba(31,30,28,0.08);
-      background: #fff;
-    }
-
-    .printing-home-copy {
-      padding: clamp(1.5rem,4vw,3.2rem);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      background:
-        radial-gradient(circle at top left, rgba(198,167,94,0.16), transparent 26%),
-        linear-gradient(180deg,#fffef9 0%,#f3eadb 100%);
-    }
-
-    .printing-home-media {
-      min-height: 420px;
-      background: #ece6da;
-    }
-
-    @media (max-width: 900px) {
-      .seller-home-card {
-        grid-template-columns: 1fr;
-      }
-
-      .printing-home-card {
-        grid-template-columns: 1fr;
-      }
-
-      .seller-home-media {
-        min-height: 280px;
-      }
-
-      .printing-home-media {
-        min-height: 280px;
-      }
-    }
   </style>
 </head>
 <body>
@@ -344,78 +254,16 @@
   <!-- 4. Gallery Section -->
   <div id="sierra-gallery-root" class="my-8"></div>
 
-  <!-- 5. Catégories -->
-  <div id="sierra-categories-root" class="my-10"></div>
-
-  <section aria-label="Acces catalogue" style="max-width:1280px;margin:0 auto;padding:0 1rem 1rem;">
-    <div style="border:1px solid rgba(31,30,28,0.08);border-radius:1.8rem;background:linear-gradient(135deg, rgba(255,255,255,0.96), rgba(248,242,230,0.94));box-shadow:0 20px 48px rgba(31,30,28,0.08);padding:1.35rem;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:1rem;">
-      <div>
-        <small style="display:inline-block;color:#C6A75E;text-transform:uppercase;letter-spacing:.16em;font-size:.72rem;font-weight:800;">Catalogue</small>
-        <h2 style="font-family:'Cormorant Garamond',serif;font-size:clamp(1.9rem,5vw,3rem);line-height:.95;color:#1F1E1C;">Explorer le catalogue complet</h2>
-        <p style="margin-top:.55rem;color:#6E6557;line-height:1.75;max-width:56ch;">Le catalogue principal dispose maintenant de sa propre page pour une navigation plus claire et des filtres plus complets.</p>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:.75rem;">
-        <a href="./catalogue.html" style="display:inline-flex;align-items:center;gap:.6rem;text-decoration:none;background:#1F1E1C;color:#F8F5EF;border-radius:999px;padding:.95rem 1.15rem;font-weight:800;box-shadow:0 14px 28px rgba(31,30,28,0.18);">
-          <i class="fas fa-layer-group"></i>
-          Voir le catalogue
-        </a>
-        <a href="./catalogue.html?filters=open" style="display:inline-flex;align-items:center;gap:.6rem;text-decoration:none;background:#fff;color:#1F1E1C;border:1px solid rgba(31,30,28,0.12);border-radius:999px;padding:.95rem 1.15rem;font-weight:700;">
-          <i class="fas fa-sliders-h"></i>
-          Ouvrir les filtres
-        </a>
-      </div>
-    </div>
-  </section>
-  
   <!-- 6. Actualités Section -->
 
 <div id="sierra-actualites-root" class="my-12"></div>
-
-  <section aria-label="Devenir vendeur" class="seller-home-section">
-    <div class="seller-home-card">
-      <div class="seller-home-media">
-        <img src="https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?auto=format&fit=crop&w=1400&q=80" alt="Vendeur preparant une boutique en ligne" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
-      </div>
-      <div class="seller-home-copy">
-        <span style="display:inline-flex;align-items:center;gap:.55rem;width:fit-content;padding:.5rem .9rem;border-radius:999px;background:rgba(198,167,94,0.14);color:#8b6c2f;font-size:.74rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">Marketplace vendeurs</span>
-        <h2 style="margin-top:1rem;font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,4rem);line-height:.92;color:#1F1E1C;">Vendez sur Smart Cut Services</h2>
-        <p style="margin-top:1rem;color:#6E6557;line-height:1.9;max-width:46ch;font-size:1rem;">Rejoignez la plateforme avec votre boutique, proposez vos produits a de nouveaux clients et passez par une candidature simple pour etre valide par l equipe.</p>
-        <div style="margin-top:1.45rem;display:flex;flex-wrap:wrap;gap:.8rem;">
-          <a href="./vendor-application.html" style="display:inline-flex;align-items:center;gap:.7rem;text-decoration:none;background:#1F1E1C;color:#F8F5EF;border-radius:999px;padding:1rem 1.2rem;font-weight:800;box-shadow:0 14px 28px rgba(31,30,28,0.18);">
-            <i class="fas fa-store"></i>
-            Devenir vendeur
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-
-  <section aria-label="Imprimerie en ligne" class="printing-home-section">
-    <div class="printing-home-card">
-      <div class="printing-home-copy">
-        <span style="display:inline-flex;align-items:center;gap:.55rem;width:fit-content;padding:.5rem .9rem;border-radius:999px;background:rgba(198,167,94,0.14);color:#8b6c2f;font-size:.74rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">Imprimerie en ligne</span>
-        <h2 style="margin-top:1rem;font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,4rem);line-height:.92;color:#1F1E1C;">Lancez votre impression en ligne</h2>
-        <p style="margin-top:1rem;color:#6E6557;line-height:1.9;max-width:48ch;font-size:1rem;">Envoyez vos fichiers, choisissez vos options d impression et passez votre commande depuis une seule interface. Documents PDF, photos, plans CAD et demandes grand format sont maintenant regroupes dans un espace dedie.</p>
-        <div style="margin-top:1.45rem;display:flex;flex-wrap:wrap;gap:.8rem;">
-          <a href="./printing-hub.html" style="display:inline-flex;align-items:center;gap:.7rem;text-decoration:none;background:#1F1E1C;color:#F8F5EF;border-radius:999px;padding:1rem 1.2rem;font-weight:800;box-shadow:0 14px 28px rgba(31,30,28,0.18);">
-            <i class="fas fa-print"></i>
-            Aller vers l imprimerie
-          </a>
-        </div>
-      </div>
-      <div class="printing-home-media">
-        <img src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1400&q=80" alt="Imprimerie en ligne et documents en production" style="width:100%;height:100%;object-fit:cover;" loading="lazy">
-      </div>
-    </div>
-  </section>
   <!-- 7. Commentaire Section - NOUVEAU POINT D'INJECTION -->
   <div id="sierra-commentaire-root" class="my-12 max-w-2xl mx-auto px-4"></div>
 <!-- 8. Footer Section - NOUVEAU POINT D'INJECTION -->
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260530-1';
+    const ASSET_VERSION = '20260530-2';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -513,12 +361,6 @@
       imageBasePath: './',
       animationDuration: 800
     });
-
-    mountOnVisible('categories', 'sierra-categories-root', () => import(`./categories.js?v=${ASSET_VERSION}`), {
-      layout: 'carousel',
-      sectionTitle: 'Explorer par categorie',
-      scrollHint: true
-    }, '800px');
 
     mountOnVisible('actualites', 'sierra-actualites-root', () => import(`./actualites.js?v=${ASSET_VERSION}`), {
       collectionName: 'presentations',
