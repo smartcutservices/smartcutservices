@@ -350,6 +350,7 @@ export default class HomepageDiscovery {
     return `
       <a class="home-discovery-card" href="${escapeHtml(url)}">
         ${options.badge ? `<span class="home-discovery-card__section-badge">${escapeHtml(options.badge)}</span>` : ''}
+        ${isVerifiedVendor ? '<span class="home-discovery-card__verified-badge" aria-label="Store verifie"><span></span></span>' : ''}
         <div class="home-discovery-card__image">
           <img src="${escapeHtml(image)}" alt="${escapeHtml(product.name || 'Produit')}">
         </div>
@@ -485,6 +486,54 @@ export default class HomepageDiscovery {
         text-transform: uppercase;
       }
 
+      .home-discovery-card__verified-badge {
+        position: absolute;
+        z-index: 3;
+        top: 0.58rem;
+        left: 0.65rem;
+        display: grid;
+        place-items: center;
+        width: 2.35rem;
+        height: 2.35rem;
+        background: #3da0f5;
+        filter: drop-shadow(0 9px 18px rgba(24, 119, 242, 0.28));
+        clip-path: polygon(
+          50% 0%,
+          61% 15%,
+          79% 8%,
+          84% 26%,
+          100% 35%,
+          89% 50%,
+          100% 65%,
+          84% 74%,
+          79% 92%,
+          61% 85%,
+          50% 100%,
+          39% 85%,
+          21% 92%,
+          16% 74%,
+          0% 65%,
+          11% 50%,
+          0% 35%,
+          16% 26%,
+          21% 8%,
+          39% 15%
+        );
+      }
+
+      .home-discovery-card__section-badge + .home-discovery-card__verified-badge {
+        left: auto;
+        right: 0.65rem;
+      }
+
+      .home-discovery-card__verified-badge span {
+        width: 1.05rem;
+        height: 0.62rem;
+        border-left: 0.24rem solid #ffffff;
+        border-bottom: 0.24rem solid #ffffff;
+        transform: rotate(-45deg) translate(0.05rem, -0.06rem);
+      }
+
       .home-discovery-card__image {
         aspect-ratio: 1 / 1;
         background: #eee8dc;
@@ -532,7 +581,7 @@ export default class HomepageDiscovery {
       }
 
       .home-discovery-card__verified {
-        display: inline-flex;
+        display: none;
         align-items: center;
         gap: 0.2rem;
         margin-left: 0.35rem;
