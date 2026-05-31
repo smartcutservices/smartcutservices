@@ -79,8 +79,6 @@
 
     #sierra-hero-root,
     #sierra-products-root,
-    #sierra-gallery-root,
-    #sierra-actualites-root,
     #sierra-commentaire-root,
     #sierra-footer-root {
       width: 100%;
@@ -141,16 +139,12 @@
     }
 
     /* Mobile first spacing */
-    #sierra-gallery-root,
-    #sierra-actualites-root,
     #sierra-commentaire-root {
       padding-left: 0.75rem;
       padding-right: 0.75rem;
     }
 
     @media (min-width: 768px) {
-      #sierra-gallery-root,
-      #sierra-actualites-root,
       #sierra-commentaire-root {
         padding-left: 1rem;
         padding-right: 1rem;
@@ -192,24 +186,6 @@
       }
     }
     
-    /* Styles pour la galerie */
-    .gallery-image-error {
-      background: linear-gradient(135deg, #f5f5f5 25%, #e0e0e0 50%, #f5f5f5 75%);
-      background-size: 200% 100%;
-      animation: galleryLoading 1.5s infinite;
-      min-height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #7A746B;
-      font-size: 0.875rem;
-    }
-    
-    @keyframes galleryLoading {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-
     #site-scroll-progress {
       position: fixed;
       top: 0;
@@ -251,19 +227,13 @@
   <!-- 3. Produits Section -->
   <div id="sierra-products-root" class="my-10"></div>
   
-  <!-- 4. Gallery Section -->
-  <div id="sierra-gallery-root" class="my-8"></div>
-
-  <!-- 6. Actualités Section -->
-
-<div id="sierra-actualites-root" class="my-12"></div>
   <!-- 7. Commentaire Section - NOUVEAU POINT D'INJECTION -->
   <div id="sierra-commentaire-root" class="my-12 max-w-2xl mx-auto px-4"></div>
 <!-- 8. Footer Section - NOUVEAU POINT D'INJECTION -->
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260530-2';
+    const ASSET_VERSION = '20260531-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -353,18 +323,6 @@
       maxRelatedProducts: 6,
       maxDisplayCount: 10,
       randomizeOnLoad: true
-    });
-
-    mountOnVisible('gallery', 'sierra-gallery-root', () => import(`./gallery.js?v=${ASSET_VERSION}`), {
-      collectionName: 'veltrixaGallerySectionMatrix7721',
-      filterActive: true,
-      imageBasePath: './',
-      animationDuration: 800
-    });
-
-    mountOnVisible('actualites', 'sierra-actualites-root', () => import(`./actualites.js?v=${ASSET_VERSION}`), {
-      collectionName: 'presentations',
-      imageBasePath: './'
     });
 
     mountOnVisible('commentaire', 'sierra-commentaire-root', () => import(`./coment.js?v=${ASSET_VERSION}`), {
