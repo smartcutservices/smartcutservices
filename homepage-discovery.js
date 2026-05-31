@@ -259,7 +259,7 @@ export default class HomepageDiscovery {
     const sponsored = products.filter((product) => isSmartCutProduct(product) || isProVendorProduct(product));
     const selected = shuffle(sponsored.length ? sponsored : products).slice(0, this.options.maxProducts);
     this.root.querySelector('[data-sponsored-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product)).join('')
+      ? selected.map((product) => this.renderProductCard(product, { badge: 'Sponsored' })).join('')
       : this.renderEmpty('Aucun produit sponsorisé disponible.');
   }
 
@@ -273,7 +273,7 @@ export default class HomepageDiscovery {
 
     const selected = (scored.length ? scored : shuffle(products)).slice(0, this.options.maxProducts);
     this.root.querySelector('[data-recommended-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product)).join('')
+      ? selected.map((product) => this.renderProductCard(product, { badge: 'Recommended' })).join('')
       : this.renderEmpty('Aucun produit disponible pour le moment.');
   }
 
@@ -333,11 +333,11 @@ export default class HomepageDiscovery {
     const selected = bestProducts.slice(0, this.options.maxProducts);
 
     this.root.querySelector('[data-vendors-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product)).join('')
+      ? selected.map((product) => this.renderProductCard(product, { forceVerifiedBadge: true })).join('')
       : this.renderEmpty('Aucun produit vendeur disponible pour le moment.');
   }
 
-  renderProductCard(product) {
+  renderProductCard(product, options = {}) {
     const store = getProductStoreMeta(product);
     const image = getProductImage(product, this.options.imageBasePath);
     const pricing = getProductPricing(product, getBasePrice(product), { comparePrice: product.comparePrice });
@@ -345,10 +345,11 @@ export default class HomepageDiscovery {
     const comparePrice = pricing.comparePrice ? formatPriceDual(pricing.comparePrice) : '';
     const url = buildProductPageUrl(product.id);
     const storeLabel = isSmartCutProduct(product) ? 'Smart Cut Services' : store.storeName;
-    const isVerifiedVendor = !isSmartCutProduct(product) && isProVendorProduct(product);
+    const isVerifiedVendor = !isSmartCutProduct(product) && (options.forceVerifiedBadge || isProVendorProduct(product));
 
     return `
       <a class="home-discovery-card" href="${escapeHtml(url)}">
+        ${options.badge ? `<span class="home-discovery-card__section-badge">${escapeHtml(options.badge)}</span>` : ''}
         <div class="home-discovery-card__image">
           <img src="${escapeHtml(image)}" alt="${escapeHtml(product.name || 'Produit')}">
         </div>
@@ -451,6 +452,7 @@ export default class HomepageDiscovery {
       }
 
       .home-discovery-card {
+        position: relative;
         overflow: hidden;
         border-radius: 18px;
         background: #ffffff;
@@ -463,6 +465,24 @@ export default class HomepageDiscovery {
       .home-discovery-card:hover {
         transform: translateY(-8px);
         box-shadow: 0 20px 35px rgba(0, 0, 0, 0.12);
+      }
+
+      .home-discovery-card__section-badge {
+        position: absolute;
+        z-index: 2;
+        top: 0.65rem;
+        left: 0.65rem;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        background: rgba(31, 30, 28, 0.88);
+        color: #ffffff;
+        box-shadow: 0 10px 22px rgba(31, 30, 28, 0.18);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
       .home-discovery-card__image {
@@ -518,8 +538,8 @@ export default class HomepageDiscovery {
         margin-left: 0.35rem;
         border-radius: 999px;
         padding: 0.15rem 0.4rem;
-        background: rgba(16, 185, 129, 0.12);
-        color: #047857;
+        background: #1877f2;
+        color: #ffffff;
         font-size: 0.68rem;
         font-weight: 800;
         letter-spacing: 0.04em;
@@ -529,7 +549,7 @@ export default class HomepageDiscovery {
 
       .home-discovery-card__verified i {
         margin-right: 0;
-        color: #059669;
+        color: #ffffff;
       }
 
       .home-discovery-card__desc {
