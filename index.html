@@ -79,6 +79,7 @@
 
     #sierra-hero-root,
     #sierra-products-root,
+    #sierra-home-discovery-root,
     #sierra-commentaire-root,
     #sierra-footer-root {
       width: 100%;
@@ -226,6 +227,9 @@
   
   <!-- 3. Produits Section -->
   <div id="sierra-products-root" class="my-10"></div>
+
+  <!-- 4. Découverte: sponsored, recommandations, top vendeurs -->
+  <div id="sierra-home-discovery-root" class="my-10"></div>
   
   <!-- 7. Commentaire Section - NOUVEAU POINT D'INJECTION -->
   <div id="sierra-commentaire-root" class="my-12 max-w-2xl mx-auto px-4"></div>
@@ -233,7 +237,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260531-1';
+    const ASSET_VERSION = '20260531-2';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -324,6 +328,10 @@
       maxDisplayCount: 10,
       randomizeOnLoad: true
     });
+
+    mountOnVisible('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
+      imageBasePath: './'
+    }, '550px');
 
     mountOnVisible('commentaire', 'sierra-commentaire-root', () => import(`./coment.js?v=${ASSET_VERSION}`), {
       title: 'Commentaires en direct',
