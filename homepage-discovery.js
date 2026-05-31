@@ -557,7 +557,60 @@ export default class HomepageDiscovery {
       }
 
       .home-discovery__section {
+        position: relative;
+        overflow: hidden;
         margin-bottom: 2.6rem;
+        padding: clamp(1rem, 2.2vw, 1.5rem);
+        border: 1px solid rgba(31, 30, 28, 0.06);
+        border-radius: 28px;
+        box-shadow: 0 18px 45px rgba(31, 30, 28, 0.055);
+      }
+
+      .home-discovery__section::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at top right, rgba(255, 255, 255, 0.72), transparent 38%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.36), transparent 55%);
+      }
+
+      .home-discovery__heading,
+      .home-discovery__rail,
+      .home-discovery__vendors {
+        position: relative;
+        z-index: 1;
+      }
+
+      .home-discovery__section[data-section="sponsored"] {
+        background:
+          radial-gradient(circle at top left, rgba(198, 167, 94, 0.22), transparent 36%),
+          linear-gradient(135deg, rgba(255, 250, 235, 0.98), rgba(247, 239, 219, 0.92));
+      }
+
+      .home-discovery__section[data-section="recommended"] {
+        background:
+          radial-gradient(circle at top right, rgba(76, 175, 139, 0.2), transparent 36%),
+          linear-gradient(135deg, rgba(241, 252, 246, 0.98), rgba(230, 245, 237, 0.92));
+      }
+
+      .home-discovery__section[data-section="vendors"] {
+        background:
+          radial-gradient(circle at top left, rgba(61, 160, 245, 0.18), transparent 36%),
+          linear-gradient(135deg, rgba(240, 248, 255, 0.98), rgba(228, 239, 250, 0.92));
+      }
+
+      .home-discovery__section[data-section="sponsored"] .home-discovery__heading h2 {
+        color: #7f6220;
+      }
+
+      .home-discovery__section[data-section="recommended"] .home-discovery__heading h2 {
+        color: #2b694d;
+      }
+
+      .home-discovery__section[data-section="vendors"] .home-discovery__heading h2 {
+        color: #1f5e98;
       }
 
       .home-discovery__section:last-child {
@@ -880,6 +933,16 @@ export default class HomepageDiscovery {
       }
 
       @media (max-width: 520px) {
+        .home-discovery {
+          padding: 0 0.75rem;
+        }
+
+        .home-discovery__section {
+          border-radius: 24px;
+          margin-bottom: 2rem;
+          padding: 1rem;
+        }
+
         .home-discovery-card__body {
           padding: 0.85rem;
         }
