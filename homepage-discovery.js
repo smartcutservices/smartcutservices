@@ -1,4 +1,4 @@
-import { db } from './firebase-init.js';
+import { auth, authReadyPromise, db } from './firebase-init.js';
 import { loadPublicProducts } from './catalog-products.js';
 import { getResolvedProductImages, getFallbackProductImage } from './image-fallbacks.js';
 import { buildProductPageUrl } from './product-links.js';
@@ -80,6 +80,34 @@ function getProductScoreKey(product = {}) {
   return String(product.id || product.productId || '').trim();
 }
 
+function getProductIdentity(product = {}) {
+  const id = String(product?.id || product?.productId || '').trim();
+  const source = String(product?.sourceCollection || (product?.vendorId ? 'vendorProducts' : 'products')).trim();
+  return {
+    id,
+    key: source && id ? `${source}:${id}` : id
+  };
+}
+
+function getSelectionProductIdentitySet() {
+  const entries = Array.isArray(window.__smartcutSelectionProducts) ? window.__smartcutSelectionProducts : [];
+  const values = new Set();
+  entries.forEach((entry) => {
+    if (entry?.id) values.add(String(entry.id));
+    if (entry?.key) values.add(String(entry.key));
+  });
+  document.querySelectorAll('#sierra-products-root [data-product-id]').forEach((node) => {
+    const productId = String(node.getAttribute('data-product-id') || '').trim();
+    if (productId) values.add(productId);
+  });
+  return values;
+}
+
+function isProductInSelection(product = {}, selectionSet = new Set()) {
+  const identity = getProductIdentity(product);
+  return Boolean((identity.id && selectionSet.has(identity.id)) || (identity.key && selectionSet.has(identity.key)));
+}
+
 function getProductSalesScore(product = {}, salesByProduct = new Map()) {
   const productId = getProductScoreKey(product);
   const orderScore = productId ? Number(salesByProduct.get(productId) || 0) : 0;
@@ -105,6 +133,53 @@ function productSearchPool(product = {}) {
     product.vendorName,
     product.shopName
   ].join(' '));
+}
+
+function collectOrderItems(order = {}) {
+  return [
+    order.items,
+    order.products,
+    order.cartItems,
+    order.vendorItems
+  ].filter(Array.isArray).flat();
+}
+
+function addRecommendationSignalFromItem(item = {}, signals) {
+  const productId = String(item?.productId || item?.id || item?.product?.id || '').trim();
+  if (productId) signals.productIds.add(productId);
+
+  const categoryId = String(item?.categoryId || item?.product?.categoryId || '').trim();
+  if (categoryId) signals.categoryIds.add(categoryId);
+
+  [
+    item?.category,
+    item?.categoryName,
+    item?.name,
+    item?.sku
+  ].forEach((value) => {
+    const normalized = normalizeText(value);
+    if (normalized.length >= 2) signals.terms.add(normalized);
+  });
+}
+
+function scorePersonalRecommendation(product = {}, signals) {
+  const identity = getProductIdentity(product);
+  const categoryId = String(product?.categoryId || '').trim();
+  const category = normalizeText(product?.category || product?.categoryName || '');
+  const pool = productSearchPool(product);
+  let score = 0;
+
+  if (identity.id && signals.productIds.has(identity.id)) score += 4;
+  if (categoryId && signals.categoryIds.has(categoryId)) score += 12;
+  if (category && signals.terms.has(category)) score += 10;
+
+  signals.terms.forEach((term) => {
+    if (!term) return;
+    if (category && category.includes(term)) score += 8;
+    else if (pool.includes(term)) score += 3;
+  });
+
+  return score;
 }
 
 function collectStrings(value, target) {
@@ -243,8 +318,9 @@ export default class HomepageDiscovery {
       ]);
 
       const activeProducts = products.filter((product) => getBasePrice(product) > 0);
+      const personalSignals = await this.loadPersonalRecommendationSignals();
       this.renderSponsored(activeProducts);
-      this.renderRecommended(activeProducts);
+      this.renderRecommended(activeProducts, personalSignals);
       this.renderTopVendorProducts(activeProducts, vendorInsights);
     } catch (error) {
       console.error('Erreur chargement sections homepage:', error);
@@ -256,25 +332,83 @@ export default class HomepageDiscovery {
   }
 
   renderSponsored(products) {
-    const sponsored = products.filter((product) => isSmartCutProduct(product) || isProVendorProduct(product));
-    const selected = shuffle(sponsored.length ? sponsored : products).slice(0, this.options.maxProducts);
+    const selectionSet = getSelectionProductIdentitySet();
+    const proVendorProducts = products.filter((product) => getProductStoreMeta(product).isVendorStore && isProVendorProduct(product));
+    const smartCutFallback = products.filter((product) => isSmartCutProduct(product) && !isProductInSelection(product, selectionSet));
+    const smartCutAll = products.filter((product) => isSmartCutProduct(product));
+    const selected = [];
+
+    if (proVendorProducts.length) {
+      selected.push(...shuffle(proVendorProducts).slice(0, this.options.maxProducts));
+    }
+
+    if (selected.length < this.options.maxProducts) {
+      const used = new Set(selected.map((product) => {
+        const identity = getProductIdentity(product);
+        return identity.key || identity.id;
+      }));
+      const filler = (smartCutFallback.length ? smartCutFallback : smartCutAll).filter((product) => {
+        const identity = getProductIdentity(product);
+        return !used.has(identity.key || identity.id);
+      });
+      selected.push(...shuffle(filler).slice(0, this.options.maxProducts - selected.length));
+    }
     this.root.querySelector('[data-sponsored-list]').innerHTML = selected.length
       ? selected.map((product) => this.renderProductCard(product, { badge: 'Sponsored' })).join('')
       : this.renderEmpty('Aucun produit sponsorisé disponible.');
   }
 
-  renderRecommended(products) {
-    const terms = readSearchTerms();
+  renderRecommended(products, signals) {
+    const hasSignals = Boolean(
+      signals?.productIds?.size ||
+      signals?.categoryIds?.size ||
+      signals?.terms?.size
+    );
+
+    if (!hasSignals) {
+      this.root.querySelector('[data-recommended-list]').innerHTML = this.renderEmpty('Les recommandations personnalisées apparaîtront après vos recherches ou vos achats.');
+      return;
+    }
+
     const scored = products
-      .map((product) => ({ product, score: scoreRecommendedProduct(product, terms) }))
+      .map((product) => ({ product, score: scorePersonalRecommendation(product, signals) }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.product);
 
-    const selected = (scored.length ? scored : shuffle(products)).slice(0, this.options.maxProducts);
+    const selected = scored.slice(0, this.options.maxProducts);
     this.root.querySelector('[data-recommended-list]').innerHTML = selected.length
       ? selected.map((product) => this.renderProductCard(product, { badge: 'Recommended' })).join('')
-      : this.renderEmpty('Aucun produit disponible pour le moment.');
+      : this.renderEmpty('Aucun produit similaire trouvé pour le moment.');
+  }
+
+  async loadPersonalRecommendationSignals() {
+    const signals = {
+      productIds: new Set(),
+      categoryIds: new Set(),
+      terms: new Set()
+    };
+
+    readSearchTerms().forEach((term) => {
+      const normalized = normalizeText(term);
+      if (normalized.length >= 2) signals.terms.add(normalized);
+    });
+
+    try {
+      await authReadyPromise;
+      const user = auth?.currentUser || null;
+      if (!user?.uid) return signals;
+
+      const ordersSnapshot = await getDocs(query(collection(db, 'clients', user.uid, 'orders'), limit(80)));
+      ordersSnapshot.docs.forEach((docSnap) => {
+        const order = docSnap.data() || {};
+        collectOrderItems(order).forEach((item) => addRecommendationSignalFromItem(item, signals));
+      });
+    } catch (error) {
+      console.warn('Recommandations personnalisees: commandes indisponibles:', error);
+    }
+
+    return signals;
   }
 
   async loadVendorProductInsights() {

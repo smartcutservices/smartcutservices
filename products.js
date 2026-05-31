@@ -89,6 +89,8 @@ class SierraProducts {
     if (Number.isFinite(this.options.maxDisplayCount) && this.options.maxDisplayCount > 0) {
       this.products = this.products.slice(0, this.options.maxDisplayCount);
     }
+
+    this.publishDisplayedProducts();
     
     // Initialiser l'index d'image pour chaque produit (première variation)
     this.products.forEach(product => {
@@ -101,6 +103,24 @@ class SierraProducts {
       }
     });
     
+  }
+
+  getProductIdentity(product = {}) {
+    const id = String(product?.id || product?.productId || '').trim();
+    const source = String(product?.sourceCollection || (product?.vendorId ? 'vendorProducts' : 'products')).trim();
+    return {
+      id,
+      key: source && id ? `${source}:${id}` : id
+    };
+  }
+
+  publishDisplayedProducts() {
+    if (this.containerId !== 'sierra-products-root') return;
+    const products = this.products.map((product) => this.getProductIdentity(product));
+    window.__smartcutSelectionProducts = products;
+    document.dispatchEvent(new CustomEvent('smartcut:selection-products-ready', {
+      detail: { products }
+    }));
   }
 
   shuffleProducts(products = []) {
