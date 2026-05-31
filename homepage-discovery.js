@@ -72,6 +72,28 @@ function isProVendorProduct(product = {}) {
   return Boolean(product.vendorVerified || product.isVerifiedVendor || planId === 'pro' || planLabel.includes('pro'));
 }
 
+function getProductVendorId(product = {}) {
+  return String(product.vendorId || product.storeId || product.sellerId || '').trim();
+}
+
+function getProductScoreKey(product = {}) {
+  return String(product.id || product.productId || '').trim();
+}
+
+function getProductSalesScore(product = {}, salesByProduct = new Map()) {
+  const productId = getProductScoreKey(product);
+  const orderScore = productId ? Number(salesByProduct.get(productId) || 0) : 0;
+  const localScore = Number(
+    product.salesCount ??
+    product.totalSold ??
+    product.soldCount ??
+    product.quantitySold ??
+    product.ordersCount ??
+    0
+  );
+  return Math.max(orderScore, Number.isFinite(localScore) ? localScore : 0);
+}
+
 function productSearchPool(product = {}) {
   return normalizeText([
     product.name,
@@ -147,27 +169,23 @@ function getOrderVendorIds(order = {}) {
   return ids;
 }
 
-function buildVendorFallbackFromProducts(products = []) {
-  const vendors = new Map();
-  products.forEach((product) => {
-    const store = getProductStoreMeta(product);
-    if (!store.isVendorStore) return;
-    const vendorId = String(product.vendorId || product.storeId || '').trim();
-    if (!vendorId) return;
+function getOrderProductSales(order = {}) {
+  const entries = [];
+  const candidates = [
+    order.items,
+    order.products,
+    order.cartItems,
+    order.vendorItems
+  ].filter(Array.isArray);
 
-    const current = vendors.get(vendorId) || {
-      id: vendorId,
-      shopName: store.storeName,
-      category: product.categoryName || product.category || 'Marketplace',
-      city: product.vendorCity || product.city || product.department || 'Haiti',
-      salesScore: 0
-    };
-
-    current.salesScore += Number(product.salesCount || product.totalSold || product.soldCount || 0) || 1;
-    vendors.set(vendorId, current);
+  candidates.flat().forEach((item) => {
+    const productId = String(item?.productId || item?.id || item?.product?.id || '').trim();
+    if (!productId) return;
+    const quantity = Math.max(1, Number(item?.quantity || item?.qty || 1) || 1);
+    entries.push({ productId, quantity });
   });
 
-  return shuffle(Array.from(vendors.values()).sort((a, b) => b.salesScore - a.salesScore).slice(0, 18));
+  return entries;
 }
 
 function isPaidLikeOrder(order = {}) {
@@ -209,7 +227,7 @@ export default class HomepageDiscovery {
           <div class="home-discovery__heading">
             <h2>Top vendeurs</h2>
           </div>
-          <div class="home-discovery__vendors" data-vendors-list>${this.renderSkeletonVendors(4)}</div>
+          <div class="home-discovery__vendors" data-vendors-list>${this.renderSkeletonCards(4)}</div>
         </div>
       </section>
       <style>${this.styles()}</style>
@@ -219,21 +237,21 @@ export default class HomepageDiscovery {
   async load() {
     try {
       await loadCurrencySettings();
-      const [products, vendors] = await Promise.all([
+      const [products, vendorInsights] = await Promise.all([
         loadPublicProducts({ maxPerCollection: 160 }),
-        this.loadTopVendors()
+        this.loadVendorProductInsights()
       ]);
 
       const activeProducts = products.filter((product) => getBasePrice(product) > 0);
       this.renderSponsored(activeProducts);
       this.renderRecommended(activeProducts);
-      this.renderVendors(vendors.length ? vendors : buildVendorFallbackFromProducts(activeProducts).slice(0, this.options.maxVendors));
+      this.renderTopVendorProducts(activeProducts, vendorInsights);
     } catch (error) {
       console.error('Erreur chargement sections homepage:', error);
       this.root.querySelector('.home-discovery')?.classList.add('home-discovery--error');
       this.root.querySelector('[data-sponsored-list]').innerHTML = this.renderEmpty('Impossible de charger les produits sponsorisés.');
       this.root.querySelector('[data-recommended-list]').innerHTML = this.renderEmpty('Impossible de charger les recommandations.');
-      this.root.querySelector('[data-vendors-list]').innerHTML = this.renderEmpty('Impossible de charger les vendeurs.');
+      this.root.querySelector('[data-vendors-list]').innerHTML = this.renderEmpty('Impossible de charger les produits vendeurs.');
     }
   }
 
@@ -259,52 +277,64 @@ export default class HomepageDiscovery {
       : this.renderEmpty('Aucun produit disponible pour le moment.');
   }
 
-  async loadTopVendors() {
-    let vendors = [];
+  async loadVendorProductInsights() {
+    const proVendorIds = new Set();
+    const salesByProduct = new Map();
+
     try {
       const snapshot = await getDocs(query(collection(db, 'vendors'), limit(100)));
-      vendors = snapshot.docs
-        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-        .filter((vendor) => {
-          const status = normalizeText(vendor.status || vendor.vendorStatus || 'active');
-          return !status || ['active', 'approved'].some((value) => status.includes(value));
-        });
-    } catch (error) {
-      console.warn('Top vendeurs indisponibles, fallback vide:', error);
-      return [];
-    }
+      snapshot.docs.forEach((docSnap) => {
+        const vendor = { id: docSnap.id, ...docSnap.data() };
+        const status = normalizeText(vendor.status || vendor.vendorStatus || 'active');
+        const isActive = !status || ['active', 'approved'].some((value) => status.includes(value));
+        if (!isActive) return;
 
-    const salesByVendor = new Map();
-    vendors.forEach((vendor) => {
-      const fallbackScore = Number(vendor.salesCount || vendor.totalSales || vendor.ordersCount || vendor.completedOrders || 0);
-      salesByVendor.set(String(vendor.id), Number.isFinite(fallbackScore) ? fallbackScore : 0);
-    });
+        const planId = normalizeText(vendor.planId || vendor.servicePlanId || vendor.subscriptionPlan);
+        const planLabel = normalizeText(vendor.planLabel || vendor.servicePlanLabel || vendor.subscriptionLabel);
+        if (vendor.vendorVerified || vendor.isVerifiedVendor || planId === 'pro' || planLabel.includes('pro')) {
+          proVendorIds.add(String(vendor.id));
+        }
+      });
+    } catch (error) {
+      console.warn('Lecture plans vendeurs ignoree:', error);
+    }
 
     try {
       const ordersSnapshot = await getDocs(query(collection(db, 'orders'), limit(300)));
       ordersSnapshot.docs.forEach((docSnap) => {
         const order = docSnap.data() || {};
         if (!isPaidLikeOrder(order)) return;
-        getOrderVendorIds(order).forEach((vendorId) => {
-          salesByVendor.set(vendorId, (salesByVendor.get(vendorId) || 0) + 1);
+        getOrderProductSales(order).forEach(({ productId, quantity }) => {
+          salesByProduct.set(productId, (salesByProduct.get(productId) || 0) + quantity);
         });
       });
     } catch (error) {
-      console.warn('Lecture commandes top vendeurs ignoree:', error);
+      console.warn('Lecture commandes top produits vendeurs ignoree:', error);
     }
 
-    return shuffle(
-      vendors
-        .map((vendor) => ({ ...vendor, salesScore: salesByVendor.get(String(vendor.id)) || 0 }))
-        .sort((a, b) => b.salesScore - a.salesScore)
-        .slice(0, 18)
-    ).slice(0, this.options.maxVendors);
+    return { proVendorIds, salesByProduct };
   }
 
-  renderVendors(vendors) {
-    this.root.querySelector('[data-vendors-list]').innerHTML = vendors.length
-      ? vendors.map((vendor) => this.renderVendorCard(vendor)).join('')
-      : this.renderEmpty('Aucun vendeur actif disponible pour le moment.');
+  renderTopVendorProducts(products, insights = {}) {
+    const salesByProduct = insights.salesByProduct || new Map();
+    const proVendorIds = insights.proVendorIds || new Set();
+    const vendorProducts = products
+      .filter((product) => getProductStoreMeta(product).isVendorStore)
+      .map((product) => ({
+        ...product,
+        vendorVerified: Boolean(product.vendorVerified || product.isVerifiedVendor || proVendorIds.has(getProductVendorId(product))),
+        salesScore: getProductSalesScore(product, salesByProduct)
+      }));
+
+    const sorted = vendorProducts.sort((a, b) => b.salesScore - a.salesScore);
+    const bestProducts = sorted.some((product) => product.salesScore > 0)
+      ? sorted.filter((product) => product.salesScore > 0)
+      : shuffle(sorted);
+    const selected = bestProducts.slice(0, this.options.maxProducts);
+
+    this.root.querySelector('[data-vendors-list]').innerHTML = selected.length
+      ? selected.map((product) => this.renderProductCard(product)).join('')
+      : this.renderEmpty('Aucun produit vendeur disponible pour le moment.');
   }
 
   renderProductCard(product) {
@@ -315,6 +345,7 @@ export default class HomepageDiscovery {
     const comparePrice = pricing.comparePrice ? formatPriceDual(pricing.comparePrice) : '';
     const url = buildProductPageUrl(product.id);
     const storeLabel = isSmartCutProduct(product) ? 'Smart Cut Services' : store.storeName;
+    const isVerifiedVendor = !isSmartCutProduct(product) && isProVendorProduct(product);
 
     return `
       <a class="home-discovery-card" href="${escapeHtml(url)}">
@@ -323,7 +354,10 @@ export default class HomepageDiscovery {
         </div>
         <div class="home-discovery-card__body">
           <h3>${escapeHtml(product.name || 'Produit')}</h3>
-          <p class="home-discovery-card__store"><i class="fas fa-store"></i>${escapeHtml(storeLabel)}</p>
+          <p class="home-discovery-card__store">
+            <i class="fas fa-store"></i>${escapeHtml(storeLabel)}
+            ${isVerifiedVendor ? '<span class="home-discovery-card__verified"><i class="fas fa-check-circle"></i> Vérifié</span>' : ''}
+          </p>
           ${product.shortDescription ? `<p class="home-discovery-card__desc">${escapeHtml(product.shortDescription)}</p>` : '<p class="home-discovery-card__desc"></p>'}
           <div class="home-discovery-card__footer">
             <strong>${escapeHtml(price)}</strong>
@@ -477,6 +511,27 @@ export default class HomepageDiscovery {
         font-size: 0.72rem;
       }
 
+      .home-discovery-card__verified {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        margin-left: 0.35rem;
+        border-radius: 999px;
+        padding: 0.15rem 0.4rem;
+        background: rgba(16, 185, 129, 0.12);
+        color: #047857;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: none;
+        vertical-align: middle;
+      }
+
+      .home-discovery-card__verified i {
+        margin-right: 0;
+        color: #059669;
+      }
+
       .home-discovery-card__desc {
         min-height: 2.5rem;
         margin: 0 0 0.65rem;
@@ -608,17 +663,15 @@ export default class HomepageDiscovery {
       }
 
       @media (min-width: 1024px) {
-        .home-discovery__rail {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
+        .home-discovery__rail,
         .home-discovery__vendors {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
         }
       }
 
       @media (min-width: 1440px) {
-        .home-discovery__rail {
+        .home-discovery__rail,
+        .home-discovery__vendors {
           grid-template-columns: repeat(5, minmax(0, 1fr));
         }
       }
