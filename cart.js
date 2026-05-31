@@ -1474,10 +1474,43 @@ class CartManager {
       .trim();
   }
 
+  isTechnicalOptionValue(value) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+    const normalized = text.toLowerCase();
+    return (
+      /^https?:\/\//i.test(text)
+      || normalized.includes('firebasestorage.googleapis.com')
+      || normalized.includes('storage.googleapis.com')
+      || normalized.includes('alt=media')
+      || normalized.includes('token=')
+      || normalized.startsWith('printing-photo/')
+      || normalized.startsWith('printing-document/')
+      || normalized.startsWith('printing-cad/')
+      || normalized.startsWith('printing-grand-format/')
+      || normalized.startsWith('vendor-kyc/')
+      || normalized.startsWith('products/')
+    );
+  }
+
   isCustomerVisibleOption(option) {
-    if (!option || typeof option === 'string') return true;
+    if (!option) return false;
+    if (typeof option === 'string') return !this.isTechnicalOptionValue(option);
     const label = this.normalizeSelectedOptionLabel(option?.label || option?.name || option?.key || option?.type || '');
-    return !['url fichier', 'lien fichier', 'chemin storage', 'storage path'].includes(label);
+    const value = option?.value || option?.val || option?.option || '';
+    const hiddenLabels = [
+      'url fichier',
+      'lien fichier',
+      'chemin storage',
+      'storage path',
+      'file url',
+      'download url',
+      'firebase url'
+    ];
+    return (
+      !hiddenLabels.some((hiddenLabel) => label === hiddenLabel || label.includes(hiddenLabel))
+      && !this.isTechnicalOptionValue(value)
+    );
   }
 
   getCustomerVisibleOptions(options) {
@@ -2647,7 +2680,7 @@ class CartManager {
                       font-size: 0.65rem;
                       color: ${colors.text.body};
                     ">
-                      <span>${displayValue}</span>
+                      <span>${this.escapeHtml(displayValue)}</span>
                     </span>
                   `;
                 }).join('')}
