@@ -551,18 +551,20 @@ export default class HomepageDiscovery {
     return `
       .home-discovery {
         width: 100%;
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 1rem;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
 
       .home-discovery__section {
         position: relative;
         overflow: hidden;
         margin-bottom: 2.6rem;
-        padding: clamp(1rem, 2.2vw, 1.5rem);
-        border: 1px solid rgba(31, 30, 28, 0.06);
-        border-radius: 28px;
+        padding: clamp(1.1rem, 3vw, 2.2rem) clamp(1rem, 4vw, 3.5rem);
+        border-top: 1px solid rgba(31, 30, 28, 0.06);
+        border-bottom: 1px solid rgba(31, 30, 28, 0.06);
+        border-radius: 0;
         box-shadow: 0 18px 45px rgba(31, 30, 28, 0.055);
       }
 
@@ -981,13 +983,13 @@ export default class HomepageDiscovery {
 
       @media (max-width: 520px) {
         .home-discovery {
-          padding: 0 0.75rem;
+          padding: 0;
         }
 
         .home-discovery__section {
-          border-radius: 24px;
+          border-radius: 0;
           margin-bottom: 2rem;
-          padding: 1rem;
+          padding: 1.05rem 1rem;
         }
 
         .home-discovery-card__body {
