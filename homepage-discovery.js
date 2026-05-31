@@ -159,7 +159,7 @@ function buildVendorFallbackFromProducts(products = []) {
       id: vendorId,
       shopName: store.storeName,
       category: product.categoryName || product.category || 'Marketplace',
-      city: product.vendorCity || product.city || product.department || 'Haïti',
+      city: product.vendorCity || product.city || product.department || 'Haiti',
       salesScore: 0
     };
 
@@ -192,29 +192,22 @@ export default class HomepageDiscovery {
 
   renderShell() {
     this.root.innerHTML = `
-      <section class="home-discovery" aria-label="Découverte produits et vendeurs">
-        <div class="home-discovery__halo"></div>
+      <section class="home-discovery" aria-label="Sections produits">
         <div class="home-discovery__section" data-section="sponsored">
           <div class="home-discovery__heading">
-            <span class="home-discovery__eyebrow">Visibilité premium</span>
             <h2>Sponsored</h2>
-            <p>Produits Smart Cut et vendeurs Pro mis en avant de façon aléatoire.</p>
           </div>
           <div class="home-discovery__rail" data-sponsored-list>${this.renderSkeletonCards(4)}</div>
         </div>
         <div class="home-discovery__section" data-section="recommended">
           <div class="home-discovery__heading">
-            <span class="home-discovery__eyebrow">Pour vous</span>
             <h2>Produits recommandés</h2>
-            <p>Inspirés par vos recherches récentes, avec un fallback catalogue si aucun historique n existe.</p>
           </div>
           <div class="home-discovery__rail" data-recommended-list>${this.renderSkeletonCards(4)}</div>
         </div>
         <div class="home-discovery__section home-discovery__section--vendors" data-section="vendors">
           <div class="home-discovery__heading">
-            <span class="home-discovery__eyebrow">Stores actifs</span>
             <h2>Top vendeurs</h2>
-            <p>Boutiques avec le plus d activité, affichées avec une rotation aléatoire.</p>
           </div>
           <div class="home-discovery__vendors" data-vendors-list>${this.renderSkeletonVendors(4)}</div>
         </div>
@@ -248,7 +241,7 @@ export default class HomepageDiscovery {
     const sponsored = products.filter((product) => isSmartCutProduct(product) || isProVendorProduct(product));
     const selected = shuffle(sponsored.length ? sponsored : products).slice(0, this.options.maxProducts);
     this.root.querySelector('[data-sponsored-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product, 'Sponsored')).join('')
+      ? selected.map((product) => this.renderProductCard(product)).join('')
       : this.renderEmpty('Aucun produit sponsorisé disponible.');
   }
 
@@ -262,7 +255,7 @@ export default class HomepageDiscovery {
 
     const selected = (scored.length ? scored : shuffle(products)).slice(0, this.options.maxProducts);
     this.root.querySelector('[data-recommended-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product, scored.length ? 'Recommandé' : 'Découverte')).join('')
+      ? selected.map((product) => this.renderProductCard(product)).join('')
       : this.renderEmpty('Aucun produit disponible pour le moment.');
   }
 
@@ -314,26 +307,27 @@ export default class HomepageDiscovery {
       : this.renderEmpty('Aucun vendeur actif disponible pour le moment.');
   }
 
-  renderProductCard(product, badge) {
+  renderProductCard(product) {
     const store = getProductStoreMeta(product);
     const image = getProductImage(product, this.options.imageBasePath);
     const pricing = getProductPricing(product, getBasePrice(product), { comparePrice: product.comparePrice });
     const price = formatPriceDual(pricing.currentPrice);
+    const comparePrice = pricing.comparePrice ? formatPriceDual(pricing.comparePrice) : '';
     const url = buildProductPageUrl(product.id);
-    const storeLabel = isSmartCutProduct(product) ? 'Smart Cut' : store.storeName;
+    const storeLabel = isSmartCutProduct(product) ? 'Smart Cut Services' : store.storeName;
 
     return `
       <a class="home-discovery-card" href="${escapeHtml(url)}">
-        <span class="home-discovery-card__badge">${escapeHtml(badge)}</span>
         <div class="home-discovery-card__image">
           <img src="${escapeHtml(image)}" alt="${escapeHtml(product.name || 'Produit')}">
         </div>
         <div class="home-discovery-card__body">
-          <p class="home-discovery-card__store">${escapeHtml(storeLabel)}</p>
           <h3>${escapeHtml(product.name || 'Produit')}</h3>
+          <p class="home-discovery-card__store"><i class="fas fa-store"></i>${escapeHtml(storeLabel)}</p>
+          ${product.shortDescription ? `<p class="home-discovery-card__desc">${escapeHtml(product.shortDescription)}</p>` : '<p class="home-discovery-card__desc"></p>'}
           <div class="home-discovery-card__footer">
             <strong>${escapeHtml(price)}</strong>
-            ${pricing.hasDiscount ? '<span>Promo</span>' : '<span>Voir</span>'}
+            ${comparePrice ? `<span>${escapeHtml(comparePrice)}</span>` : ''}
           </div>
         </div>
       </a>
@@ -343,7 +337,7 @@ export default class HomepageDiscovery {
   renderVendorCard(vendor) {
     const name = vendor.shopName || vendor.vendorName || vendor.storeName || vendor.businessName || 'Boutique partenaire';
     const category = vendor.category || vendor.businessCategory || 'Marketplace';
-    const city = vendor.city || vendor.commune || vendor.department || 'Haïti';
+    const city = vendor.city || vendor.commune || vendor.department || 'Haiti';
     const initials = normalizeText(name).split(/\s+/).slice(0, 2).map((part) => part.charAt(0).toUpperCase()).join('') || 'SC';
     const params = new URLSearchParams({ vendor: String(vendor.id) });
 
@@ -386,113 +380,59 @@ export default class HomepageDiscovery {
   styles() {
     return `
       .home-discovery {
-        position: relative;
-        width: min(1180px, calc(100vw - 1.5rem));
+        width: 100%;
+        max-width: 1400px;
         margin: 0 auto;
-        padding: clamp(1rem, 2vw, 1.5rem);
-        border: 1px solid rgba(198, 167, 94, 0.18);
-        border-radius: 32px;
-        background:
-          radial-gradient(circle at top left, rgba(198, 167, 94, 0.18), transparent 32%),
-          linear-gradient(135deg, rgba(255,255,255,0.92), rgba(245,241,232,0.78));
-        box-shadow: 0 22px 70px rgba(31, 30, 28, 0.08);
-        overflow: hidden;
-      }
-
-      .home-discovery__halo {
-        position: absolute;
-        inset: auto -18% -25% auto;
-        width: 36rem;
-        height: 36rem;
-        border-radius: 999px;
-        background: rgba(198, 167, 94, 0.12);
-        filter: blur(22px);
-        pointer-events: none;
+        padding: 0 1rem;
       }
 
       .home-discovery__section {
-        position: relative;
-        display: grid;
-        grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
-        gap: clamp(1rem, 2vw, 1.5rem);
-        align-items: start;
-        padding: clamp(1rem, 2.2vw, 1.8rem) 0;
-        border-bottom: 1px solid rgba(31, 30, 28, 0.08);
+        margin-bottom: 2.6rem;
       }
 
       .home-discovery__section:last-child {
-        border-bottom: 0;
-        padding-bottom: 0.5rem;
+        margin-bottom: 0;
+      }
+
+      .home-discovery__heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.2rem;
       }
 
       .home-discovery__heading h2 {
-        margin: 0.2rem 0 0.45rem;
+        margin: 0;
         font-family: "Cormorant Garamond", serif;
-        font-size: clamp(2rem, 4vw, 3.15rem);
-        line-height: 0.95;
+        font-size: 1.875rem;
+        line-height: 1.15;
         color: #1f1e1c;
       }
 
-      .home-discovery__heading p {
-        max-width: 18rem;
-        color: #6f695f;
-        font-size: 0.92rem;
-        line-height: 1.65;
-      }
-
-      .home-discovery__eyebrow {
-        display: inline-flex;
-        width: fit-content;
-        border-radius: 999px;
-        padding: 0.35rem 0.65rem;
-        background: rgba(198, 167, 94, 0.14);
-        color: #9b7a28;
-        font-size: 0.68rem;
-        font-weight: 800;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-      }
-
-      .home-discovery__rail {
+      .home-discovery__rail,
+      .home-discovery__vendors {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 0.85rem;
+        gap: 1.2rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .home-discovery-card {
-        position: relative;
-        min-height: 100%;
         overflow: hidden;
-        border: 1px solid rgba(31, 30, 28, 0.08);
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.78);
+        border-radius: 18px;
+        background: #ffffff;
         color: #1f1e1c;
         text-decoration: none;
-        box-shadow: 0 14px 38px rgba(31, 30, 28, 0.07);
-        transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
       }
 
       .home-discovery-card:hover {
-        transform: translateY(-4px);
-        border-color: rgba(198, 167, 94, 0.38);
-        box-shadow: 0 18px 46px rgba(31, 30, 28, 0.12);
-      }
-
-      .home-discovery-card__badge {
-        position: absolute;
-        z-index: 2;
-        top: 0.65rem;
-        left: 0.65rem;
-        border-radius: 999px;
-        padding: 0.3rem 0.55rem;
-        background: rgba(31, 30, 28, 0.82);
-        color: #fff;
-        font-size: 0.68rem;
-        font-weight: 700;
+        transform: translateY(-8px);
+        box-shadow: 0 20px 35px rgba(0, 0, 0, 0.12);
       }
 
       .home-discovery-card__image {
-        aspect-ratio: 1 / 0.86;
+        aspect-ratio: 1 / 1;
         background: #eee8dc;
       }
 
@@ -503,24 +443,46 @@ export default class HomepageDiscovery {
       }
 
       .home-discovery-card__body {
-        padding: 0.85rem;
-      }
-
-      .home-discovery-card__store {
-        margin: 0 0 0.3rem;
-        color: #9b7a28;
-        font-size: 0.68rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+        padding: 1rem;
       }
 
       .home-discovery-card h3 {
-        min-height: 2.75rem;
-        margin: 0;
+        min-height: 3.05rem;
+        margin: 0 0 0.35rem;
         color: #1f1e1c;
-        font-size: 0.95rem;
+        font-size: 1.125rem;
+        font-weight: 500;
         line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .home-discovery-card__store {
+        display: block;
+        margin: 0 0 0.5rem;
+        color: rgba(122, 116, 107, 0.9);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .home-discovery-card__store i {
+        margin-right: 0.25rem;
+        font-size: 0.72rem;
+      }
+
+      .home-discovery-card__desc {
+        min-height: 2.5rem;
+        margin: 0 0 0.65rem;
+        color: #7a746b;
+        font-size: 0.875rem;
+        line-height: 1.45;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -529,29 +491,20 @@ export default class HomepageDiscovery {
 
       .home-discovery-card__footer {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.65rem;
-        margin-top: 0.9rem;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.5rem;
       }
 
       .home-discovery-card__footer strong {
-        font-size: 1rem;
+        color: #1f1e1c;
+        font-size: 1.25rem;
       }
 
       .home-discovery-card__footer span {
-        border-radius: 999px;
-        padding: 0.25rem 0.55rem;
-        background: #f5f1e8;
-        color: #6f695f;
-        font-size: 0.72rem;
-        font-weight: 700;
-      }
-
-      .home-discovery__vendors {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.85rem;
+        color: #8b7e6b;
+        font-size: 0.9rem;
+        text-decoration: line-through;
       }
 
       .home-vendor-card {
@@ -560,12 +513,18 @@ export default class HomepageDiscovery {
         gap: 0.8rem;
         min-height: 92px;
         border: 1px solid rgba(31, 30, 28, 0.08);
-        border-radius: 24px;
+        border-radius: 18px;
         padding: 0.9rem;
-        background: rgba(255, 255, 255, 0.78);
+        background: #ffffff;
         color: #1f1e1c;
         text-decoration: none;
-        box-shadow: 0 14px 38px rgba(31, 30, 28, 0.06);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+      }
+
+      .home-vendor-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 35px rgba(0, 0, 0, 0.12);
       }
 
       .home-vendor-card__mark {
@@ -602,7 +561,7 @@ export default class HomepageDiscovery {
       .home-discovery-empty {
         grid-column: 1 / -1;
         border: 1px dashed rgba(31, 30, 28, 0.16);
-        border-radius: 22px;
+        border-radius: 18px;
         padding: 1rem;
         color: #6f695f;
         background: rgba(255, 255, 255, 0.55);
@@ -635,40 +594,46 @@ export default class HomepageDiscovery {
         100% { background-position: 220% 50%; }
       }
 
-      @media (max-width: 980px) {
-        .home-discovery__section {
-          grid-template-columns: 1fr;
+      @media (min-width: 640px) {
+        .home-discovery__rail,
+        .home-discovery__vendors {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
+      }
 
-        .home-discovery__heading p {
-          max-width: 100%;
+      @media (min-width: 768px) {
+        .home-discovery__heading h2 {
+          font-size: 2.25rem;
         }
+      }
 
+      @media (min-width: 1024px) {
         .home-discovery__rail {
-          display: flex;
-          overflow-x: auto;
-          padding-bottom: 0.35rem;
-          scroll-snap-type: x mandatory;
-        }
-
-        .home-discovery-card {
-          min-width: min(74vw, 260px);
-          scroll-snap-align: start;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
         }
 
         .home-discovery__vendors {
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 1440px) {
+        .home-discovery__rail {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
         }
       }
 
       @media (max-width: 520px) {
-        .home-discovery {
-          width: min(100vw - 1rem, 1180px);
-          border-radius: 24px;
+        .home-discovery-card__body {
+          padding: 0.85rem;
         }
 
-        .home-discovery__heading h2 {
-          font-size: 2.1rem;
+        .home-discovery-card h3 {
+          font-size: 1rem;
+        }
+
+        .home-discovery__vendors {
+          grid-template-columns: 1fr;
         }
       }
     `;
