@@ -632,11 +632,61 @@ export default class HomepageDiscovery {
         color: #1f1e1c;
       }
 
-      .home-discovery__rail,
-      .home-discovery__vendors {
+      .home-discovery__rail {
         display: grid;
         gap: 1.2rem;
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .home-discovery__vendors {
+        display: flex;
+        gap: 1rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x proximity;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.15rem 0.2rem 0.9rem;
+      }
+
+      .home-discovery__vendors::-webkit-scrollbar {
+        height: 0.45rem;
+      }
+
+      .home-discovery__vendors::-webkit-scrollbar-track {
+        border-radius: 999px;
+        background: rgba(31, 30, 28, 0.06);
+      }
+
+      .home-discovery__vendors::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(31, 94, 152, 0.25);
+      }
+
+      .home-discovery__section--vendors .home-discovery-card {
+        flex: 0 0 clamp(168px, 18vw, 230px);
+        scroll-snap-align: start;
+      }
+
+      .home-discovery__section--vendors .home-discovery-card__body {
+        padding: 0.82rem;
+      }
+
+      .home-discovery__section--vendors .home-discovery-card h3 {
+        min-height: 2.55rem;
+        font-size: 0.98rem;
+      }
+
+      .home-discovery__section--vendors .home-discovery-card__desc {
+        min-height: 2.25rem;
+        font-size: 0.8rem;
+      }
+
+      .home-discovery__section--vendors .home-discovery-card__footer strong {
+        font-size: 1.05rem;
+      }
+
+      .home-discovery__section--vendors .home-discovery-empty {
+        min-width: 100%;
       }
 
       .home-discovery-card {
@@ -906,8 +956,7 @@ export default class HomepageDiscovery {
       }
 
       @media (min-width: 640px) {
-        .home-discovery__rail,
-        .home-discovery__vendors {
+        .home-discovery__rail {
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
       }
@@ -919,15 +968,13 @@ export default class HomepageDiscovery {
       }
 
       @media (min-width: 1024px) {
-        .home-discovery__rail,
-        .home-discovery__vendors {
+        .home-discovery__rail {
           grid-template-columns: repeat(4, minmax(0, 1fr));
         }
       }
 
       @media (min-width: 1440px) {
-        .home-discovery__rail,
-        .home-discovery__vendors {
+        .home-discovery__rail {
           grid-template-columns: repeat(5, minmax(0, 1fr));
         }
       }
@@ -951,8 +998,8 @@ export default class HomepageDiscovery {
           font-size: 1rem;
         }
 
-        .home-discovery__vendors {
-          grid-template-columns: 1fr;
+        .home-discovery__section--vendors .home-discovery-card {
+          flex-basis: 58vw;
         }
       }
     `;
