@@ -67,9 +67,12 @@ function isSmartCutProduct(product = {}) {
 }
 
 function isProVendorProduct(product = {}) {
+  if (product.__proVendorActive === true) return true;
   const planId = normalizeText(product.planId || product.vendorPlanId || product.servicePlanId);
   const planLabel = normalizeText(product.planLabel || product.vendorPlanLabel || product.servicePlanLabel);
-  return Boolean(product.vendorVerified || product.isVerifiedVendor || planId === 'pro' || planLabel.includes('pro'));
+  const serviceStatus = normalizeText(product.vendorServiceFeeStatus || product.serviceFeeStatus || product.subscriptionStatus);
+  const planIsPro = planId === 'pro' || planLabel.includes('pro');
+  return planIsPro && !['suspended', 'expired', 'unpaid', 'past_due'].some((status) => serviceStatus.includes(status));
 }
 
 function getProductVendorId(product = {}) {
@@ -319,7 +322,7 @@ export default class HomepageDiscovery {
 
       const activeProducts = products.filter((product) => getBasePrice(product) > 0);
       const personalSignals = await this.loadPersonalRecommendationSignals();
-      this.renderSponsored(activeProducts);
+      this.renderSponsored(activeProducts, vendorInsights);
       this.renderRecommended(activeProducts, personalSignals);
       this.renderTopVendorProducts(activeProducts, vendorInsights);
     } catch (error) {
@@ -331,9 +334,18 @@ export default class HomepageDiscovery {
     }
   }
 
-  renderSponsored(products) {
+  renderSponsored(products, insights = {}) {
     const selectionSet = getSelectionProductIdentitySet();
-    const proVendorProducts = products.filter((product) => getProductStoreMeta(product).isVendorStore && isProVendorProduct(product));
+    const proVendorIds = insights.proVendorIds || new Set();
+    const proVendorProducts = products
+      .filter((product) => {
+        if (!getProductStoreMeta(product).isVendorStore) return false;
+        return proVendorIds.has(getProductVendorId(product)) || isProVendorProduct(product);
+      })
+      .map((product) => ({
+        ...product,
+        __proVendorActive: proVendorIds.has(getProductVendorId(product)) || isProVendorProduct(product)
+      }));
     const smartCutFallback = products.filter((product) => isSmartCutProduct(product) && !isProductInSelection(product, selectionSet));
     const smartCutAll = products.filter((product) => isSmartCutProduct(product));
     const selected = [];
@@ -425,7 +437,10 @@ export default class HomepageDiscovery {
 
         const planId = normalizeText(vendor.planId || vendor.servicePlanId || vendor.subscriptionPlan);
         const planLabel = normalizeText(vendor.planLabel || vendor.servicePlanLabel || vendor.subscriptionLabel);
-        if (vendor.vendorVerified || vendor.isVerifiedVendor || planId === 'pro' || planLabel.includes('pro')) {
+        const serviceStatus = normalizeText(vendor.serviceFeeStatus || vendor.vendorServiceFeeStatus || vendor.subscriptionStatus);
+        const planIsPro = planId === 'pro' || planLabel.includes('pro');
+        const serviceActive = !['suspended', 'expired', 'unpaid', 'past_due'].some((value) => serviceStatus.includes(value));
+        if (planIsPro && serviceActive) {
           proVendorIds.add(String(vendor.id));
         }
       });
@@ -456,7 +471,8 @@ export default class HomepageDiscovery {
       .filter((product) => getProductStoreMeta(product).isVendorStore)
       .map((product) => ({
         ...product,
-        vendorVerified: Boolean(product.vendorVerified || product.isVerifiedVendor || proVendorIds.has(getProductVendorId(product))),
+        __proVendorActive: proVendorIds.has(getProductVendorId(product)),
+        vendorVerified: Boolean(proVendorIds.has(getProductVendorId(product)) || isProVendorProduct(product)),
         salesScore: getProductSalesScore(product, salesByProduct)
       }));
 
@@ -467,7 +483,7 @@ export default class HomepageDiscovery {
     const selected = bestProducts.slice(0, this.options.maxProducts);
 
     this.root.querySelector('[data-vendors-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product, { forceVerifiedBadge: true })).join('')
+      ? selected.map((product) => this.renderProductCard(product)).join('')
       : this.renderEmpty('Aucun produit vendeur disponible pour le moment.');
   }
 
@@ -479,7 +495,7 @@ export default class HomepageDiscovery {
     const comparePrice = pricing.comparePrice ? formatPriceDual(pricing.comparePrice) : '';
     const url = buildProductPageUrl(product.id);
     const storeLabel = isSmartCutProduct(product) ? 'Smart Cut Services' : store.storeName;
-    const isVerifiedVendor = !isSmartCutProduct(product) && (options.forceVerifiedBadge || isProVendorProduct(product));
+    const isVerifiedVendor = !isSmartCutProduct(product) && isProVendorProduct(product);
 
     return `
       <a class="home-discovery-card" href="${escapeHtml(url)}">
