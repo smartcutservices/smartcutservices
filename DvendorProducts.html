@@ -4269,7 +4269,8 @@
           this.showToast(discount.__error, 'error');
           return;
         }
-        const selectedCategory = this.getSelectedCategory();
+        const selectedCategoryId = String(this.elements.categorySelect.value || this.currentProduct?.categoryId || '').trim();
+        const selectedCategory = this.getSelectedCategory(selectedCategoryId);
         const selectedCategoryName = String(
           selectedCategory?.name ||
           this.currentProduct?.category ||
@@ -4281,8 +4282,8 @@
           this.elements.isDigitalProduct.checked = true;
           this.updateDigitalProductUi();
         }
-        if (isDigitalProduct && !this.elements.categorySelect.value) {
-          this.showToast('Selectionnez une categorie pour appliquer la commission du produit digital.', 'error');
+        if (!selectedCategoryId || !selectedCategoryName) {
+          this.showToast('Selectionnez une categorie pour appliquer la commission du produit.', 'error');
           this.switchEditorTab('category');
           return;
         }
@@ -4316,7 +4317,7 @@
           discountEndAt: discount?.endAt || '',
           status: nextStatus,
           requestedStatus: this.elements.productStatus.checked ? 'active' : 'draft',
-          categoryId: this.elements.categorySelect.value || null,
+          categoryId: selectedCategoryId,
           category: selectedCategoryName,
           categorySelections: this.categorySelections,
           variations: isDigitalProduct ? [] : this.currentVariations.map((v, index) => ({

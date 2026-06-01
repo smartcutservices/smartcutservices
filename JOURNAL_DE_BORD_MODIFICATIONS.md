@@ -701,6 +701,38 @@ Etat GitHub:
 
 - Aucun push n'a encore ete fait pour cette mise a jour.
 
+## Validation categorie obligatoire pour produits vendeurs
+
+Date: 1 juin 2026
+
+Objectif:
+
+- Bloquer la sauvegarde d'un produit vendeur si aucune categorie n'est selectionnee.
+- Eviter qu'un produit arrive dans le dashboard admin avec `Categorie non definie`.
+- Garantir que la regle de commission Smart Cut puisse etre appliquee au produit.
+
+Fichiers modifies:
+
+- `DvendorProducts.html`
+
+Comportement ajoute:
+
+- Avant de creer ou modifier un produit vendeur, le dashboard verifie qu'une categorie est selectionnee.
+- La validation s'applique aux produits physiques et aux produits digitaux.
+- Si la categorie manque, le vendeur voit un message d'erreur et il est renvoye vers l'onglet `Categorie & attributs`.
+- Le champ `categoryId` sauvegarde maintenant l'identifiant de categorie resolu, afin d'eviter de perdre la categorie lors d'une modification.
+
+Message affiche:
+
+```text
+Selectionnez une categorie pour appliquer la commission du produit.
+```
+
+Precaution importante:
+
+- Ne pas limiter cette validation aux produits digitaux seulement.
+- Ne pas autoriser un produit actif ou soumis en revue sans categorie, car la commission depend de cette information.
+
 ## Orthographe et encodage visible
 
 Date: 29 mai 2026
