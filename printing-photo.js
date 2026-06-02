@@ -62,7 +62,6 @@ class PrintingPhotoPage {
     this.isBusy = false;
     this.currentStep = 1;
     this.formState = {
-      paperLabel: '',
       defaultCopies: 1
     };
     this.cart = getCartManager({ imageBasePath: './' });
@@ -124,7 +123,6 @@ class PrintingPhotoPage {
 
   getCurrentSelections() {
     return {
-      paperLabel: this.container.querySelector('#photoPaper')?.value || this.formState.paperLabel || '',
       defaultCopies: Math.max(1, Number.parseInt(this.container.querySelector('#photoDefaultCopies')?.value || String(this.formState.defaultCopies || 1), 10) || 1)
     };
   }
@@ -137,22 +135,22 @@ class PrintingPhotoPage {
   }
 
   ensureValidSelections() {
-    this.formState.paperLabel = ensureValidPaperSelection(this.config.papers || [], this.formState.paperLabel);
     this.photos = this.photos.map((photo) => ({
       ...photo,
-      dimensionLabel: ensureValidDimensionSelection(this.config.papers || [], this.formState.paperLabel, photo.dimensionLabel)
+      paperLabel: ensureValidPaperSelection(this.config.papers || [], photo.paperLabel),
+      dimensionLabel: ensureValidDimensionSelection(this.config.papers || [], photo.paperLabel, photo.dimensionLabel)
     }));
   }
 
   calculateQuote() {
-    const { paperLabel } = this.getCurrentSelections();
-    const paper = findPaperByLabel(this.config.papers || [], paperLabel);
     const lines = this.photos.map((photo) => {
-      const dimension = findDimensionByLabel(this.config.papers || [], paperLabel, photo.dimensionLabel);
+      const paper = findPaperByLabel(this.config.papers || [], photo.paperLabel);
+      const dimension = findDimensionByLabel(this.config.papers || [], photo.paperLabel, photo.dimensionLabel);
       const pricePerPrint = Number(dimension?.price) || 0;
       const copies = Math.max(1, Number(photo.copies || this.formState.defaultCopies || 1) || 1);
       return {
         ...photo,
+        paper,
         dimension,
         pricePerPrint,
         copies,
@@ -163,7 +161,6 @@ class PrintingPhotoPage {
     const totalCopies = lines.reduce((total, line) => total + line.copies, 0);
 
     return {
-      paper,
       lines,
       imageCount: this.photos.length,
       totalCopies,
@@ -172,12 +169,10 @@ class PrintingPhotoPage {
   }
 
   getStepValidity(step = this.currentStep) {
-    const { paperLabel } = this.getCurrentSelections();
     if (step === 1) return this.photos.length > 0;
     if (step === 2) {
-      return Boolean(paperLabel)
-        && this.photos.length > 0
-        && this.photos.every((photo) => photo.dimensionLabel && Number(photo.copies || 0) >= 1);
+      return this.photos.length > 0
+        && this.photos.every((photo) => photo.paperLabel && photo.dimensionLabel && Number(photo.copies || 0) >= 1);
     }
     return this.getStepValidity(1) && this.getStepValidity(2);
   }
@@ -245,38 +240,40 @@ class PrintingPhotoPage {
 
   renderStepTwo() {
     const papers = this.getEnabledPapers();
-    const dimensions = this.getEnabledDimensions(this.formState.paperLabel);
     return `
       <section class="printing-quiz-panel">
         <div class="printing-quiz-panel-head">
           <small>Etape 2</small>
           <h2>Choisissez vos options</h2>
-          <p>Choisissez le type de papier, puis indiquez la dimension et le nombre de tirages pour chaque photo.</p>
+          <p>Chaque photo peut avoir son propre type de papier, son format et son nombre de tirages.</p>
         </div>
         <div class="printing-quiz-grid">
-          <label class="printing-quiz-field">
-            <span>Type de papier</span>
-            <select id="photoPaper" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''}>
-              <option value="">Choisir un papier</option>
-              ${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}
-            </select>
-          </label>
           <label class="printing-quiz-field">
             <span>Tirages par defaut</span>
             <input id="photoDefaultCopies" class="printing-quiz-input" type="number" min="1" step="1" value="${this.formState.defaultCopies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
           </label>
+          <div class="printing-quiz-note">Choisissez le papier et le format directement sur chaque photo. Les prix se recalculent automatiquement.</div>
         </div>
         <div class="photo-options-list">
-          ${this.photos.map((photo, index) => `
+          ${this.photos.map((photo, index) => {
+            const dimensions = this.getEnabledDimensions(photo.paperLabel);
+            return `
             <article class="photo-option-card" data-photo-option-row="${this.escape(photo.id)}">
               <div class="photo-option-title">
                 <strong>${index + 1}. ${this.escape(photo.name)}</strong>
-                <small>Chaque photo peut avoir sa propre dimension.</small>
+                <small>Choix independant: papier, format et tirages.</small>
               </div>
               <label class="printing-quiz-field">
-                <span>Dimension</span>
-                <select class="printing-quiz-input" data-photo-dimension="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}>
-                  <option value="">Choisir une dimension</option>
+                <span>Type de papier</span>
+                <select class="printing-quiz-input" data-photo-paper="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''}>
+                  <option value="">Choisir un papier</option>
+                  ${papers.map((paper) => `<option value="${this.escape(paper.label)}" ${photo.paperLabel === paper.label ? 'selected' : ''}>${this.escape(paper.label)}</option>`).join('')}
+                </select>
+              </label>
+              <label class="printing-quiz-field">
+                <span>Format</span>
+                <select class="printing-quiz-input" data-photo-dimension="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''} ${!photo.paperLabel ? 'disabled' : ''}>
+                  <option value="">Choisir un format</option>
                   ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}" ${photo.dimensionLabel === dimension.label ? 'selected' : ''}>${this.escape(dimension.label)} - ${this.formatPrice(dimension.price || 0)} / tirage</option>`).join('')}
                 </select>
               </label>
@@ -285,7 +282,8 @@ class PrintingPhotoPage {
                 <input class="printing-quiz-input" type="number" min="1" step="1" data-photo-copies="${this.escape(photo.id)}" value="${photo.copies || this.formState.defaultCopies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
               </label>
             </article>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
         <div class="printing-quiz-actions">
           <button type="button" class="printing-quiz-btn ghost" data-prev-step="1">Retour</button>
@@ -304,13 +302,12 @@ class PrintingPhotoPage {
           <p>Le total se base sur le prix de la dimension choisie, votre image et le nombre de tirages.</p>
         </div>
         <div class="printing-quiz-summary">
-          <div class="printing-quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
           <div class="printing-quiz-summary-row"><span>Images</span><strong>${quote.imageCount}</strong></div>
           <div class="printing-quiz-summary-row"><span>Tirages</span><strong id="photoQuoteCopies">${quote.totalCopies}</strong></div>
           <div class="photo-summary-list" id="photoQuoteLines">
             ${quote.lines.map((line, index) => `
               <div class="photo-summary-line">
-                <span>${index + 1}. ${this.escape(line.name)} · ${this.escape(line.dimension?.label || '-')} · ${line.copies} tirage(s)</span>
+                <span>${index + 1}. ${this.escape(line.name)} - ${this.escape(line.paper?.label || '-')} - ${this.escape(line.dimension?.label || '-')} - ${line.copies} tirage(s)</span>
                 <strong>${this.formatPrice(line.total)}</strong>
               </div>
             `).join('')}
@@ -363,7 +360,7 @@ class PrintingPhotoPage {
         .photo-card{grid-template-columns:1fr auto;align-items:center}
         .photo-card strong,.photo-option-title strong{color:#1F1E1C}
         .photo-card small,.photo-option-title small{display:block;color:#6E6557;margin-top:.2rem}
-        .photo-option-card{grid-template-columns:1.35fr 1fr .75fr;align-items:end}
+        .photo-option-card{grid-template-columns:1.25fr 1fr 1fr .75fr;align-items:end}
         .photo-summary-line{display:flex;justify-content:space-between;gap:1rem;padding:.75rem .8rem;border-radius:1rem;background:rgba(255,255,255,.74);color:#6E6557}
         .printing-quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}
         .printing-quiz-summary-row,.printing-quiz-summary-total{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}
@@ -403,10 +400,8 @@ class PrintingPhotoPage {
   }
 
   restoreFormState() {
-    const paperSelect = this.container.querySelector('#photoPaper');
     const copiesInput = this.container.querySelector('#photoDefaultCopies');
     const fileStatus = this.container.querySelector('#photoFileStatus');
-    if (paperSelect && this.formState.paperLabel) paperSelect.value = this.formState.paperLabel;
     if (copiesInput) copiesInput.value = String(this.formState.defaultCopies || 1);
     if (fileStatus && this.photos.length) {
       fileStatus.textContent = `${this.photos.length} photo(s) ajoutee(s).`;
@@ -425,14 +420,6 @@ class PrintingPhotoPage {
     this.container.querySelectorAll('[data-remove-photo]').forEach((button) => {
       button.addEventListener('click', () => this.removePhoto(button.dataset.removePhoto));
     });
-    this.container.querySelector('#photoPaper')?.addEventListener('change', () => {
-      this.syncFormState();
-      this.photos = this.photos.map((photo) => ({ ...photo, dimensionLabel: '' }));
-      this.ensureValidSelections();
-      this.render();
-      this.attachEvents();
-      this.refreshQuote();
-    });
     this.container.querySelector('#photoDefaultCopies')?.addEventListener('input', () => {
       this.syncFormState();
       this.photos = this.photos.map((photo) => ({
@@ -440,6 +427,18 @@ class PrintingPhotoPage {
         copies: Number(photo.copies || 0) >= 1 ? photo.copies : this.formState.defaultCopies
       }));
       this.refreshQuote();
+    });
+    this.container.querySelectorAll('[data-photo-paper]').forEach((field) => {
+      field.addEventListener('change', () => {
+        this.photos = this.photos.map((photo) => (
+          photo.id === field.dataset.photoPaper
+            ? { ...photo, paperLabel: field.value, dimensionLabel: '' }
+            : photo
+        ));
+        this.render();
+        this.attachEvents();
+        this.refreshQuote();
+      });
     });
     this.container.querySelectorAll('[data-photo-dimension]').forEach((field) => {
       field.addEventListener('change', () => {
@@ -480,6 +479,7 @@ class PrintingPhotoPage {
         file,
         name: file.name,
         type: file.type || 'image/*',
+        paperLabel: '',
         dimensionLabel: '',
         copies: this.formState.defaultCopies || 1
       }));
@@ -522,7 +522,7 @@ class PrintingPhotoPage {
     if (quoteLinesEl) {
       quoteLinesEl.innerHTML = quote.lines.map((line, index) => `
         <div class="photo-summary-line">
-          <span>${index + 1}. ${this.escape(line.name)} · ${this.escape(line.dimension?.label || '-')} · ${line.copies} tirage(s)</span>
+          <span>${index + 1}. ${this.escape(line.name)} - ${this.escape(line.paper?.label || '-')} - ${this.escape(line.dimension?.label || '-')} - ${line.copies} tirage(s)</span>
           <strong>${this.formatPrice(line.total)}</strong>
         </div>
       `).join('');
@@ -536,14 +536,13 @@ class PrintingPhotoPage {
   async handleSubmit() {
     const statusEl = this.container.querySelector('#photoSubmitStatus');
     this.syncFormState();
-    const paperLabel = this.formState.paperLabel || '';
     const quote = this.calculateQuote();
 
     if (!this.photos.length) {
       if (statusEl) statusEl.textContent = 'Ajoutez au moins une photo valide.';
       return;
     }
-    if (!paperLabel || !this.photos.every((photo) => photo.dimensionLabel && Number(photo.copies || 0) >= 1)) {
+    if (!this.photos.every((photo) => photo.paperLabel && photo.dimensionLabel && Number(photo.copies || 0) >= 1)) {
       if (statusEl) statusEl.textContent = 'Choisissez un papier, une dimension et un nombre de tirages pour chaque photo.';
       return;
     }
@@ -565,6 +564,7 @@ class PrintingPhotoPage {
           name: photo.name,
           url: uploaded.url,
           path: uploaded.path,
+          paper: line?.paper?.label || photo.paperLabel,
           dimension: line?.dimension?.label || photo.dimensionLabel,
           copies: line?.copies || photo.copies || 1,
           unitPrice: line?.pricePerPrint || 0,
@@ -576,6 +576,7 @@ class PrintingPhotoPage {
       const payableTotal = quote.totalPrice + deliveryFee;
       const summaryLines = uploadedPhotos.flatMap((photo, index) => ([
         { label: `Photo ${index + 1}`, value: photo.name },
+        { label: `Photo ${index + 1} type de papier`, value: photo.paper },
         { label: `Photo ${index + 1} dimension`, value: photo.dimension },
         { label: `Photo ${index + 1} tirages`, value: String(photo.copies) },
         { label: `Photo ${index + 1} total`, value: this.formatPrice(photo.total) },
@@ -599,11 +600,11 @@ class PrintingPhotoPage {
             fileName: photo.name,
             fileUrl: photo.url,
             storagePath: photo.path,
+            paper: photo.paper,
             dimension: photo.dimension,
             copies: photo.copies
           })),
           selectedOptions: [
-            { label: 'Type de papier', value: paperLabel },
             { label: 'Photos', value: String(uploadedPhotos.length) },
             { label: 'Tirages total', value: String(quote.totalCopies) },
             { label: 'Total impression', value: this.formatPrice(quote.totalPrice) },
