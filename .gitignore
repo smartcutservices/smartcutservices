@@ -2,6 +2,8 @@
 .vendor/
 pdf_extracts/
 *.log
+*.md
+*.MD
 .tmp-index-script-*.mjs
 Thumbs.db
 Desktop.ini
