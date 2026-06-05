@@ -11,7 +11,7 @@ import {
   ensureValidPaperSelection,
   ensureValidDimensionSelection
 } from './printing-config-utils.js';
-import { PrintingDeliveryController } from './printing-delivery-utils.js';
+import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260604-1';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 const PHOTO_DIMENSIONS = [

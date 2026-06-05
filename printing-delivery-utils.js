@@ -342,6 +342,7 @@ export class PrintingDeliveryController {
     const moduleRulesRequired = this.hasModuleRules();
     const moduleRuleAvailable = moduleRulesRequired ? Boolean(moduleRule) : Boolean(homeZone.department || homeZone.commune);
     const fee = this.getFee();
+    const hasSavedAddresses = savedAddresses.length > 0;
     return `
       <section class="printing-delivery-card">
         <style>
@@ -373,7 +374,7 @@ export class PrintingDeliveryController {
           </label>
           <div class="printing-delivery-hint">Point de retrait gratuit. Vous passerez récupérer votre impression après confirmation.</div>
         ` : `
-          ${savedAddresses.length ? `
+          ${hasSavedAddresses ? `
             <label class="printing-delivery-field">
               <span>Adresse enregistrée</span>
               <select class="printing-delivery-input" data-printing-delivery-field="savedAddressId">
@@ -383,20 +384,22 @@ export class PrintingDeliveryController {
             </label>
           ` : `<div class="printing-delivery-hint">Aucune adresse sauvegardée trouvée. Vous pouvez saisir l'adresse de livraison ici.</div>`}
           <div class="printing-delivery-grid">
-            <label class="printing-delivery-field"><span>Adresse</span><input class="printing-delivery-input" data-printing-delivery-field="address" value="${this.escape(this.state.address)}" placeholder="Adresse complète"></label>
+            ${hasSavedAddresses ? '' : `<label class="printing-delivery-field"><span>Adresse</span><input class="printing-delivery-input" data-printing-delivery-field="address" value="${this.escape(this.state.address)}" placeholder="Adresse complète"></label>`}
             <label class="printing-delivery-field"><span>Téléphone</span><input class="printing-delivery-input" data-printing-delivery-field="phone" value="${this.escape(this.state.phone)}" placeholder="+509..."></label>
-            <label class="printing-delivery-field">
-              <span>Département</span>
-              <select class="printing-delivery-input" data-printing-delivery-field="department">
-                ${this.getDepartmentOptions(this.state.department)}
-              </select>
-            </label>
-            <label class="printing-delivery-field">
-              <span>Commune</span>
-              <select class="printing-delivery-input" data-printing-delivery-field="commune" ${this.state.department ? '' : 'disabled'}>
-                ${this.getCommuneOptions(this.state.department, this.state.commune)}
-              </select>
-            </label>
+            ${hasSavedAddresses ? '' : `
+              <label class="printing-delivery-field">
+                <span>Département</span>
+                <select class="printing-delivery-input" data-printing-delivery-field="department">
+                  ${this.getDepartmentOptions(this.state.department)}
+                </select>
+              </label>
+              <label class="printing-delivery-field">
+                <span>Commune</span>
+                <select class="printing-delivery-input" data-printing-delivery-field="commune" ${this.state.department ? '' : 'disabled'}>
+                  ${this.getCommuneOptions(this.state.department, this.state.commune)}
+                </select>
+              </label>
+            `}
           </div>
           <div class="printing-delivery-hint ${addressZoneSelected && moduleRuleAvailable ? '' : 'error'}">
             ${addressZoneSelected && moduleRuleAvailable
