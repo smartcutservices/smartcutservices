@@ -211,7 +211,7 @@ class MobileMenu {
     
     container.innerHTML = '';
     
-    this.categories.slice(0, 8).forEach(cat => {
+    this.categories.forEach(cat => {
       const card = document.createElement('div');
       card.className = 'mobile-category-card';
       card.setAttribute('data-category-id', cat.id);

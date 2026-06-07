@@ -3,7 +3,7 @@ import { db } from './firebase-init.js';
 import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import MegaMenu from './mega-menu.js';
-import MobileMenu from './mobile-menu.js?v=20260530-1';
+import MobileMenu from './mobile-menu.js?v=20260607-1';
 import { getSearchManager } from './search.js';
 
 class Navbar {
@@ -233,7 +233,7 @@ class Navbar {
         
         this.renderDesktopCategories();
         this.renderMobileNav();
-        this.mobileMenu.setCategories(this.mobileCategories);
+        this.mobileMenu.setCategories(this.categories);
       }, (error) => {
         console.error("❌ Erreur chargement catégories depuis categories_list:", error);
       });
