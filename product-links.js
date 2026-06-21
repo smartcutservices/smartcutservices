@@ -9,7 +9,7 @@ export function buildProductPageUrl(productId) {
 }
 
 export function buildProductShareUrl(productId, sourceCollection = '') {
-  const url = new URL('/p', SITE_BASE_URL);
+  const url = new URL('/p/', SITE_BASE_URL);
   if (productId) url.searchParams.set('product', String(productId).trim());
   if (sourceCollection) url.searchParams.set('source', sourceCollection);
   return url.toString();

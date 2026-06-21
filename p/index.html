@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Smart Cut Services - Produit</title>
+  <meta property="og:site_name" content="Smart Cut Services">
+  <meta property="og:title" content="Smart Cut Services">
+  <meta property="og:description" content="Decouvrez ce produit sur Smart Cut Services.">
+  <meta property="og:image" content="https://smartcutservices.com/ico/android-chrome-512x512.png">
+  <style>
+    body {
+      align-items: center;
+      background: #f8f5ef;
+      color: #1f1e1c;
+      display: grid;
+      font-family: Georgia, 'Times New Roman', serif;
+      margin: 0;
+      min-height: 100vh;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    a {
+      color: #9a7b2f;
+      font-family: Arial, sans-serif;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Ouverture du produit...</h1>
+    <p>Si la redirection ne demarre pas, <a id="product-link" href="/product.html">ouvrez le produit ici</a>.</p>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const productId = params.get('product') || params.get('id') || '';
+    const source = params.get('source') || '';
+    const target = new URL('/product.html', window.location.origin);
+
+    if (productId) target.searchParams.set('product', productId);
+    if (source) target.searchParams.set('source', source);
+
+    document.getElementById('product-link').href = target.toString();
+    window.location.replace(target.toString());
+  </script>
+</body>
+</html>
