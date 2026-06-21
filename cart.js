@@ -2040,7 +2040,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js?v=20260621-3')
+    import('./product-modal.js?v=20260621-4')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {
