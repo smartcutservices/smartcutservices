@@ -28,6 +28,7 @@ const VENDOR_SERVICE_FEES_COLLECTION = 'vendorServiceFees';
 const VENDOR_SERVICE_FEE_INTERVAL_DAYS = 30;
 const VENDOR_PLAN_SETTINGS_COLLECTION = 'vendorPlanSettings';
 const VENDOR_PLAN_SETTINGS_DOC = 'main';
+const VENDOR_PLAN_BONUSES_COLLECTION = 'vendorPlanBonuses';
 const DEFAULT_VENDOR_PRO_PLAN_PRICE = 1750;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
@@ -368,6 +369,13 @@ function addDaysIso(value, days = 30) {
   return date.toISOString();
 }
 
+function addMonthsIso(value, months = 1) {
+  const base = value ? new Date(value) : new Date();
+  const date = Number.isNaN(base.getTime()) ? new Date() : base;
+  date.setMonth(date.getMonth() + Number(months || 1));
+  return date.toISOString();
+}
+
 function normalizeVendorServicePaymentMethod(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
   if (normalized.includes('nat')) return 'natcash';
@@ -406,6 +414,114 @@ function getVendorProPlanMeta(settings = {}) {
   };
 }
 
+function normalizeVendorPlanBonusStatus(offer = {}, nowMs = Date.now()) {
+  if (offer.enabled === false || offer.active === false || String(offer.status || '').toLowerCase() === 'disabled') {
+    return 'disabled';
+  }
+  const startMs = toDateMs(offer.startAt || offer.startDate || offer.startsAt);
+  const endMs = toDateMs(offer.endAt || offer.endDate || offer.expiresAt);
+  if (startMs && startMs > nowMs) return 'scheduled';
+  if (endMs && endMs <= nowMs) return 'expired';
+  return 'active';
+}
+
+function getFirstActivationBonusSettings(settings = {}, proPlan = {}) {
+  const source = settings.firstActivationBonus || settings.firstActivationBonusOffer || {};
+  const enabled = source.enabled === true || source.active === true || settings.firstActivationBonusEnabled === true;
+  const amount = Math.max(0, toNumber(source.amount ?? source.promoPrice ?? source.price ?? settings.firstActivationBonusAmount));
+  const durationMonths = Number(source.durationMonths || settings.firstActivationBonusDurationMonths || 1);
+  const normalizedDuration = [1, 3, 6].includes(durationMonths) ? durationMonths : 1;
+  if (!enabled || amount <= 0) return null;
+
+  return {
+    id: 'global-first-activation',
+    type: 'global_first_activation',
+    label: 'Offre premiere activation Plan Pro',
+    amount,
+    normalAmount: proPlan.price,
+    currency: proPlan.currency,
+    durationMonths: normalizedDuration,
+    enabled: true
+  };
+}
+
+async function vendorHasEverPaidPro(vendorId = '', vendor = {}) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return true;
+
+  if (vendor.firstActivationBonusUsedAt || vendor.firstActivationBonusFeeId || vendor.proActivatedAt) return true;
+  if (isVendorProPlan(vendor) && vendor.serviceFeeLastPaidAt) return true;
+
+  const snap = await db.collection(VENDOR_SERVICE_FEES_COLLECTION).where('vendorId', '==', normalizedVendorId).get();
+  return snap.docs.some((docSnap) => {
+    const data = docSnap.data() || {};
+    const status = String(data.status || '').toLowerCase();
+    const planId = String(data.planId || '').toLowerCase();
+    const planLabel = String(data.planLabel || '').toLowerCase();
+    return status === 'paid' && (planId === 'pro' || planLabel.includes('pro'));
+  });
+}
+
+function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString()) {
+  if (!offer) return null;
+  const durationMonths = Number(offer.durationMonths || 0);
+  const startAt = offer.startAt || nowIso;
+  const endAt = offer.endAt || offer.endDate || (durationMonths > 0 ? addMonthsIso(startAt, durationMonths) : '');
+  return {
+    offerId: offer.id || '',
+    offerType: offer.type || '',
+    offerLabel: offer.label || '',
+    offerAmount: Math.max(0, toNumber(offer.amount)),
+    offerNormalAmount: Math.max(0, toNumber(offer.normalAmount)),
+    offerCurrency: offer.currency || MONCASH_CURRENCY,
+    offerDurationMonths: durationMonths,
+    offerStartAt: startAt,
+    offerEndAt: endAt,
+    offerAppliedAt: nowIso
+  };
+}
+
+async function getActiveVendorSpecialBonus(vendorId = '', proPlan = {}, nowMs = Date.now()) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return null;
+
+  const snap = await db.collection(VENDOR_PLAN_BONUSES_COLLECTION).where('vendorId', '==', normalizedVendorId).get();
+  const activeOffers = snap.docs
+    .map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() || {}) }))
+    .filter((offer) => normalizeVendorPlanBonusStatus(offer, nowMs) === 'active')
+    .sort((a, b) => toDateMs(a.endAt || a.endDate) - toDateMs(b.endAt || b.endDate));
+
+  const offer = activeOffers[0];
+  if (!offer) return null;
+  const amount = Math.max(0, toNumber(offer.amount || offer.promoPrice || offer.price));
+  if (amount <= 0) return null;
+
+  return {
+    id: offer.id,
+    type: 'special_vendor',
+    label: offer.label || 'Bonification speciale Plan Pro',
+    amount,
+    normalAmount: proPlan.price,
+    currency: offer.currency || proPlan.currency,
+    startAt: offer.startAt || offer.startDate || '',
+    endAt: offer.endAt || offer.endDate || '',
+    status: 'active'
+  };
+}
+
+async function resolveVendorProOffer({ vendorId = '', vendor = {}, settings = {}, proPlan = {}, nowIso = new Date().toISOString() } = {}) {
+  const nowMs = toDateMs(nowIso) || Date.now();
+  const specialOffer = await getActiveVendorSpecialBonus(vendorId, proPlan, nowMs);
+  if (specialOffer) return specialOffer;
+
+  const globalOffer = getFirstActivationBonusSettings(settings, proPlan);
+  if (!globalOffer) return null;
+
+  const alreadyUsed = await vendorHasEverPaidPro(vendorId, vendor);
+  if (alreadyUsed) return null;
+  return globalOffer;
+}
+
 function isVendorProPlan(vendor = {}) {
   const planId = String(vendor?.planId || '').trim().toLowerCase();
   const planLabel = String(vendor?.planLabel || '').trim().toLowerCase();
@@ -416,7 +532,7 @@ function isVendorServiceFeeVendor(vendor = {}) {
   return getVendorServiceFeeAmount(vendor) > 0;
 }
 
-async function updateVendorProductsServiceStatus(vendorId = '', status = 'active') {
+async function updateVendorProductsServiceStatus(vendorId = '', status = 'active', extraPatch = {}) {
   const normalizedVendorId = String(vendorId || '').trim();
   if (!normalizedVendorId) return;
 
@@ -436,6 +552,7 @@ async function updateVendorProductsServiceStatus(vendorId = '', status = 'active
     batch.set(docSnap.ref, {
       vendorServiceFeeStatus: status,
       vendorServiceFeeUpdatedAt: now,
+      ...extraPatch,
       updatedAt: now
     }, { merge: true });
     count += 1;
@@ -2357,22 +2474,26 @@ async function findLatestOpenVendorServiceFee(vendorId = '') {
   return docs[0] || null;
 }
 
-async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amount = 0, currency = '', requestedBy = '', reason = 'renewal', planId = '', planLabel = '' } = {}) {
+async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amount = 0, normalAmount = 0, currency = '', requestedBy = '', reason = 'renewal', planId = '', planLabel = '', offer = null } = {}) {
   const normalizedVendorId = String(vendorId || '').trim();
   const feeAmount = Math.max(0, toNumber(amount || getVendorServiceFeeAmount(vendor)));
   if (!normalizedVendorId || feeAmount <= 0) return null;
 
   const now = new Date().toISOString();
   const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
+  const offerPayload = buildVendorPlanOfferPayload(offer, now);
+  const referenceAmount = Math.max(0, toNumber(normalAmount || offerPayload?.offerNormalAmount || feeAmount));
   const fee = {
     vendorId: normalizedVendorId,
     vendorName: vendor.vendorName || vendor.shopName || 'Store vendeur',
     shopName: vendor.shopName || vendor.vendorName || '',
     email: vendor.email || '',
     amount: feeAmount,
+    normalAmount: referenceAmount,
+    referenceAmount,
     currency: currency || vendor.planCurrency || MONCASH_CURRENCY,
     status: 'pending',
-    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+    cycleDays: offerPayload?.offerEndAt ? 0 : VENDOR_SERVICE_FEE_INTERVAL_DAYS,
     requestedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -2383,7 +2504,19 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
     paidAt: '',
     nextDueAt: '',
     planId: planId || vendor.planId || '',
-    planLabel: planLabel || vendor.planLabel || ''
+    planLabel: planLabel || vendor.planLabel || '',
+    ...(offerPayload ? {
+      bonusType: offerPayload.offerType,
+      bonusId: offerPayload.offerId,
+      bonusLabel: offerPayload.offerLabel,
+      bonusAmount: offerPayload.offerAmount,
+      bonusNormalAmount: offerPayload.offerNormalAmount,
+      bonusCurrency: offerPayload.offerCurrency,
+      bonusDurationMonths: offerPayload.offerDurationMonths,
+      bonusStartAt: offerPayload.offerStartAt,
+      bonusEndAt: offerPayload.offerEndAt,
+      bonusAppliedAt: offerPayload.offerAppliedAt
+    } : {})
   };
 
   await Promise.all([
@@ -2392,6 +2525,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
       serviceFeeStatus: 'pending',
       serviceFeeCurrentId: feeRef.id,
       serviceFeeAmount: feeAmount,
+      serviceFeeNormalAmount: referenceAmount,
       serviceFeeRequestedAt: now,
       updatedAt: now
     }, { merge: true }),
@@ -2412,24 +2546,55 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
   const normalizedFeeId = String(feeId || '').trim();
   if (!normalizedVendorId || !normalizedFeeId) return null;
 
-  const now = paidAt || new Date().toISOString();
-  const nextDueAt = addDaysIso(now, VENDOR_SERVICE_FEE_INTERVAL_DAYS);
   const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc(normalizedFeeId);
   const vendorRef = db.collection('vendors').doc(normalizedVendorId);
   const clientRef = db.collection('clients').doc(normalizedVendorId);
   const feeSnap = await feeRef.get();
   const feeData = feeSnap.exists ? feeSnap.data() || {} : {};
+  const now = paidAt || new Date().toISOString();
+  const bonusEndAt = feeData?.bonusEndAt && toDateMs(feeData.bonusEndAt) > toDateMs(now)
+    ? feeData.bonusEndAt
+    : '';
+  const cycleDays = Math.max(1, toNumber(feeData?.cycleDays) || VENDOR_SERVICE_FEE_INTERVAL_DAYS);
+  const nextDueAt = bonusEndAt || addDaysIso(now, cycleDays);
   const paidPlanId = String(feeData?.planId || '').trim().toLowerCase();
   const paidPlanLabel = String(feeData?.planLabel || '').trim();
   const planUpgrade = paidPlanId === 'pro' || paidPlanLabel.toLowerCase().includes('pro');
+  const normalPlanPrice = Math.max(0, toNumber(feeData?.normalAmount || feeData?.referenceAmount || feeData?.bonusNormalAmount || feeData?.amount));
+  const bonusType = String(feeData?.bonusType || '').trim();
+  const bonusPatch = bonusType
+    ? {
+        serviceFeeBonusType: bonusType,
+        serviceFeeBonusId: feeData?.bonusId || '',
+        serviceFeeBonusLabel: feeData?.bonusLabel || '',
+        serviceFeeBonusAmount: Math.max(0, toNumber(feeData?.bonusAmount || feeData?.amount)),
+        serviceFeeBonusNormalAmount: normalPlanPrice,
+        serviceFeeBonusStartAt: feeData?.bonusStartAt || now,
+        serviceFeeBonusEndAt: feeData?.bonusEndAt || nextDueAt
+      }
+    : {
+        serviceFeeBonusType: '',
+        serviceFeeBonusId: '',
+        serviceFeeBonusLabel: '',
+        serviceFeeBonusAmount: 0,
+        serviceFeeBonusNormalAmount: 0,
+        serviceFeeBonusStartAt: '',
+        serviceFeeBonusEndAt: ''
+      };
   const planUpdate = planUpgrade
     ? {
         planId: 'pro',
         planLabel: paidPlanLabel || 'PRO',
-        planPrice: Math.max(0, toNumber(feeData?.amount)),
+        planPrice: normalPlanPrice,
         planCurrency: feeData?.currency || MONCASH_CURRENCY,
         planPaymentRequired: true,
         vendorVerified: true
+      }
+    : {};
+  const firstActivationPatch = bonusType === 'global_first_activation'
+    ? {
+        firstActivationBonusUsedAt: now,
+        firstActivationBonusFeeId: normalizedFeeId
       }
     : {};
 
@@ -2438,6 +2603,7 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       status: 'paid',
       paidAt: now,
       nextDueAt,
+      bonusPaid: Boolean(bonusType),
       paymentMethod: normalizeVendorServicePaymentMethod(method),
       paymentProvider: provider || normalizeVendorServicePaymentMethod(method),
       providerDetails: providerDetails || null,
@@ -2446,10 +2612,13 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
 
     transaction.set(vendorRef, {
       ...planUpdate,
+      ...bonusPatch,
+      ...firstActivationPatch,
       status: 'active',
       vendorStatus: 'active',
       serviceFeeStatus: 'paid',
       serviceFeeCurrentId: normalizedFeeId,
+      serviceFeeAmount: normalPlanPrice,
       serviceFeeLastPaidAt: now,
       serviceFeeNextDueAt: nextDueAt,
       serviceFeePaymentMethod: normalizeVendorServicePaymentMethod(method),
@@ -2458,23 +2627,69 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
 
     transaction.set(clientRef, {
       ...planUpdate,
+      ...bonusPatch,
+      ...firstActivationPatch,
       role: 'vendor',
       vendorStatus: 'active',
       serviceFeeStatus: 'paid',
       serviceFeeCurrentId: normalizedFeeId,
+      serviceFeeAmount: normalPlanPrice,
       serviceFeeLastPaidAt: now,
       serviceFeeNextDueAt: nextDueAt,
       updatedAt: now
     }, { merge: true });
   });
 
-  await updateVendorProductsServiceStatus(normalizedVendorId, 'active');
+  await updateVendorProductsServiceStatus(normalizedVendorId, 'active', planUpgrade ? {
+    planId: 'pro',
+    planLabel: paidPlanLabel || 'PRO',
+    vendorVerified: true,
+    serviceFeeNextDueAt: nextDueAt
+  } : {});
 
   return {
     feeId: normalizedFeeId,
     vendorId: normalizedVendorId,
     paidAt: now,
     nextDueAt
+  };
+}
+
+async function downgradeExpiredVendorProToBasic({ vendorId = '', vendor = {}, nextDueAt = '' } = {}) {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId || !isVendorProPlan(vendor)) return null;
+  const dueMs = toDateMs(nextDueAt || vendor.serviceFeeNextDueAt || '');
+  if (!dueMs || dueMs > Date.now()) return null;
+
+  const now = new Date().toISOString();
+  const patch = {
+    planId: 'basic',
+    planLabel: 'BASIC',
+    planPaymentRequired: false,
+    vendorVerified: false,
+    serviceFeeStatus: 'basic_limited',
+    serviceFeeCurrentId: '',
+    updatedAt: now
+  };
+
+  await Promise.all([
+    db.collection('vendors').doc(normalizedVendorId).set(patch, { merge: true }),
+    db.collection('clients').doc(normalizedVendorId).set({
+      ...patch,
+      uid: normalizedVendorId,
+      role: 'vendor'
+    }, { merge: true }),
+    updateVendorProductsServiceStatus(normalizedVendorId, 'basic_limited', {
+      planId: 'basic',
+      planLabel: 'BASIC',
+      vendorVerified: false
+    })
+  ]);
+
+  return {
+    vendorId: normalizedVendorId,
+    downgradedAt: now,
+    reason: 'pro-expired-basic-limit'
   };
 }
 
@@ -3177,7 +3392,17 @@ exports.requestVendorServiceFee = onRequest(
       }
 
       const vendor = { id: vendorSnap.id, ...(vendorSnap.data() || {}) };
-      const amount = getVendorServiceFeeAmount(vendor);
+      const planSettings = await getVendorPlanSettings();
+      const proPlan = getVendorProPlanMeta(planSettings);
+      const now = new Date().toISOString();
+      const applicableOffer = await resolveVendorProOffer({
+        vendorId,
+        vendor,
+        settings: planSettings,
+        proPlan,
+        nowIso: now
+      });
+      const amount = Math.max(0, toNumber(applicableOffer?.amount || getVendorServiceFeeAmount(vendor) || proPlan.price));
       if (amount <= 0) {
         sendJson(res, 400, { ok: false, error: 'vendor-has-no-monthly-subscription' });
         return;
@@ -3205,55 +3430,24 @@ exports.requestVendorServiceFee = onRequest(
         return;
       }
 
-      const now = new Date().toISOString();
-      const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
-      const fee = {
+      const pending = await createVendorServiceFeeRequest({
         vendorId,
-        vendorName: vendor.vendorName || vendor.shopName || 'Store vendeur',
-        shopName: vendor.shopName || vendor.vendorName || '',
-        email: vendor.email || '',
+        vendor,
         amount,
-        currency: vendor.planCurrency || MONCASH_CURRENCY,
-        status: 'pending',
-        cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
-        requestedAt: now,
-        createdAt: now,
-        updatedAt: now,
+        normalAmount: proPlan.price,
+        currency: proPlan.currency,
         requestedBy: user.uid,
-        paymentMethod: '',
-        paymentProvider: '',
-        paidAt: '',
-        nextDueAt: '',
-        planId: vendor.planId || '',
-        planLabel: vendor.planLabel || ''
-      };
-
-      await Promise.all([
-        feeRef.set(fee, { merge: true }),
-        db.collection('vendors').doc(vendorId).set({
-          status: 'suspended_service_fee',
-          vendorStatus: 'suspended_service_fee',
-          serviceFeeStatus: 'pending',
-          serviceFeeCurrentId: feeRef.id,
-          serviceFeeAmount: amount,
-          serviceFeeRequestedAt: now,
-          updatedAt: now
-        }, { merge: true }),
-        db.collection('clients').doc(vendorId).set({
-          uid: vendorId,
-          role: 'vendor',
-          vendorStatus: 'suspended_service_fee',
-          serviceFeeStatus: 'pending',
-          serviceFeeCurrentId: feeRef.id,
-          updatedAt: now
-        }, { merge: true })
-      ]);
+        reason: 'admin_service_fee_request',
+        planId: 'pro',
+        planLabel: 'PRO',
+        offer: applicableOffer
+      });
 
       await updateVendorProductsServiceStatus(vendorId, 'suspended');
 
       sendJson(res, 200, {
         ok: true,
-        fee: { id: feeRef.id, ...fee }
+        fee: pending ? { id: pending.id, ...pending.data } : null
       });
     } catch (error) {
       logger.error('requestVendorServiceFee failed', error);
@@ -3290,30 +3484,54 @@ exports.getVendorServiceFeeStatus = onRequest(
         getVendorPlanSettings()
       ]);
       const proPlan = getVendorProPlanMeta(planSettings);
-      const isPro = isVendorProPlan(vendor);
+      const applicableOffer = await resolveVendorProOffer({
+        vendorId: user.uid,
+        vendor,
+        settings: planSettings,
+        proPlan
+      });
+      let responseVendor = { ...vendor };
+      let isPro = isVendorProPlan(responseVendor);
       const nextDueAt = paid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
       const nextDueMs = toDateMs(nextDueAt);
-      const paymentDue = Boolean(pending) || (isPro && (!nextDueAt || nextDueMs <= Date.now()));
+      const expiredPro = isPro && (!nextDueAt || nextDueMs <= Date.now());
+      const downgrade = expiredPro
+        ? await downgradeExpiredVendorProToBasic({ vendorId: user.uid, vendor: responseVendor, nextDueAt })
+        : null;
+      if (downgrade) {
+        responseVendor = {
+          ...responseVendor,
+          planId: 'basic',
+          planLabel: 'BASIC',
+          planPaymentRequired: false,
+          vendorVerified: false,
+          serviceFeeStatus: 'basic_limited'
+        };
+        isPro = false;
+      }
+      const paymentDue = Boolean(pending) || expiredPro;
 
       sendJson(res, 200, {
         ok: true,
         vendor: {
           vendorId: user.uid,
-          vendorName: vendor.vendorName || vendor.shopName || '',
-          status: vendor.status || vendor.vendorStatus || '',
-          planId: vendor.planId || 'basic',
-          planLabel: vendor.planLabel || (isPro ? 'PRO' : 'BASIC'),
-          planPrice: toNumber(vendor.planPrice),
-          planCurrency: vendor.planCurrency || proPlan.currency,
-          planPaymentRequired: Boolean(vendor.planPaymentRequired),
-          serviceFeeStatus: vendor.serviceFeeStatus || '',
-          serviceFeeAmount: getVendorServiceFeeAmount(vendor),
+          vendorName: responseVendor.vendorName || responseVendor.shopName || '',
+          status: responseVendor.status || responseVendor.vendorStatus || '',
+          planId: responseVendor.planId || 'basic',
+          planLabel: responseVendor.planLabel || (isPro ? 'PRO' : 'BASIC'),
+          planPrice: toNumber(responseVendor.planPrice),
+          planCurrency: responseVendor.planCurrency || proPlan.currency,
+          planPaymentRequired: Boolean(responseVendor.planPaymentRequired),
+          serviceFeeStatus: responseVendor.serviceFeeStatus || '',
+          serviceFeeAmount: getVendorServiceFeeAmount(responseVendor),
           serviceFeeNextDueAt: nextDueAt
         },
         proPlan,
+        applicableOffer,
         isPro,
         canUpgradeToPro: !isPro,
         paymentDue,
+        downgradedToBasic: Boolean(downgrade),
         currentFee: pending ? { id: pending.id, ...pending.data } : null,
         lastPayment: paid ? { id: paid.id, ...paid.data } : null
       });
@@ -3354,19 +3572,58 @@ exports.startVendorServiceFeePayment = onRequest(
       const isPro = isVendorProPlan(vendor);
       const wantsProUpgrade = action === 'upgrade_pro' || action === 'upgrade-pro' || !isPro;
       const now = new Date().toISOString();
+      const applicableOffer = await resolveVendorProOffer({
+        vendorId: user.uid,
+        vendor,
+        settings: planSettings,
+        proPlan,
+        nowIso: now
+      });
+      const proPayableAmount = Math.max(0, toNumber(applicableOffer?.amount || proPlan.price));
       let pending = await findLatestOpenVendorServiceFee(user.uid);
       if (pending && wantsProUpgrade) {
         const pendingAmount = toNumber(pending.data?.amount);
         const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
-        const needsUpgradeSync = pendingAmount !== proPlan.price || pendingPlanId !== 'pro';
+        const pendingOfferId = String(pending.data?.bonusId || '').trim();
+        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now);
+        const needsUpgradeSync = pendingAmount !== proPayableAmount
+          || pendingPlanId !== 'pro'
+          || pendingOfferId !== String(offerPatch?.offerId || '').trim();
         if (needsUpgradeSync) {
           const patch = {
-            amount: proPlan.price,
+            amount: proPayableAmount,
+            normalAmount: proPlan.price,
+            referenceAmount: proPlan.price,
             currency: proPlan.currency,
             requestSource: 'vendor_pro_upgrade',
             planId: 'pro',
             planLabel: 'PRO',
-            updatedAt: now
+            updatedAt: now,
+            ...(offerPatch ? {
+              bonusType: offerPatch.offerType,
+              bonusId: offerPatch.offerId,
+              bonusLabel: offerPatch.offerLabel,
+              bonusAmount: offerPatch.offerAmount,
+              bonusNormalAmount: offerPatch.offerNormalAmount,
+              bonusCurrency: offerPatch.offerCurrency,
+              bonusDurationMonths: offerPatch.offerDurationMonths,
+              bonusStartAt: offerPatch.offerStartAt,
+              bonusEndAt: offerPatch.offerEndAt,
+              bonusAppliedAt: offerPatch.offerAppliedAt,
+              cycleDays: offerPatch.offerEndAt ? 0 : VENDOR_SERVICE_FEE_INTERVAL_DAYS
+            } : {
+              bonusType: '',
+              bonusId: '',
+              bonusLabel: '',
+              bonusAmount: 0,
+              bonusNormalAmount: 0,
+              bonusCurrency: '',
+              bonusDurationMonths: 0,
+              bonusStartAt: '',
+              bonusEndAt: '',
+              bonusAppliedAt: '',
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+            })
           };
           await pending.ref.set(patch, { merge: true });
           pending = {
@@ -3398,12 +3655,14 @@ exports.startVendorServiceFeePayment = onRequest(
         pending = await createVendorServiceFeeRequest({
           vendorId: user.uid,
           vendor,
-          amount: wantsProUpgrade ? proPlan.price : getVendorServiceFeeAmount(vendor) || proPlan.price,
+          amount: wantsProUpgrade ? proPayableAmount : (applicableOffer?.amount || getVendorServiceFeeAmount(vendor) || proPlan.price),
+          normalAmount: proPlan.price,
           currency: proPlan.currency,
           requestedBy: user.uid,
           reason: wantsProUpgrade ? 'vendor_pro_upgrade' : 'vendor_pro_renewal',
           planId: 'pro',
-          planLabel: 'PRO'
+          planLabel: 'PRO',
+          offer: applicableOffer
         });
 
         if (!pending) {
@@ -3457,6 +3716,11 @@ exports.startVendorServiceFeePayment = onRequest(
         status: 'initiated',
         amount,
         currency: pending.data?.currency || MONCASH_CURRENCY,
+        normalAmount: pending.data?.normalAmount || pending.data?.referenceAmount || proPlan.price,
+        bonusType: pending.data?.bonusType || '',
+        bonusId: pending.data?.bonusId || '',
+        bonusLabel: pending.data?.bonusLabel || '',
+        bonusEndAt: pending.data?.bonusEndAt || '',
         returnUrl: DEFAULT_RETURN_URL,
         alertUrl: DEFAULT_ALERT_URL,
         uniqueCode: providerOrderId,
@@ -3501,7 +3765,9 @@ exports.startVendorServiceFeePayment = onRequest(
         checkoutUrl: redirect.checkoutUrl,
         returnUrl: DEFAULT_RETURN_URL,
         alertUrl: DEFAULT_ALERT_URL,
-        amount
+        amount,
+        normalAmount: pending.data?.normalAmount || pending.data?.referenceAmount || proPlan.price,
+        applicableOffer
       });
     } catch (error) {
       logger.error('startVendorServiceFeePayment failed', error);

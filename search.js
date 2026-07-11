@@ -1,11 +1,31 @@
 // ============= SEARCH COMPONENT - AVEC NOUVELLE STRUCTURE THÈME =============
 import { db } from './firebase-init.js';
-import { isPublicProductVisible } from './catalog-products.js';
+import { isPublicProductVisible } from './catalog-products.js?v=20260711-1';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { 
   collection, query, where, getDocs, orderBy, limit 
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
+
+const SMARTCUT_SEARCH_HISTORY_KEY = 'smartcut_search_history';
+
+function saveSmartcutSearchTerm(term) {
+  const cleanTerm = String(term || '').trim();
+  if (cleanTerm.length < 2) return;
+
+  try {
+    const current = JSON.parse(localStorage.getItem(SMARTCUT_SEARCH_HISTORY_KEY) || '[]');
+    const list = Array.isArray(current) ? current : [];
+    const normalized = cleanTerm.toLowerCase();
+    const next = [
+      cleanTerm,
+      ...list.filter((entry) => String(entry || '').trim().toLowerCase() !== normalized)
+    ].slice(0, 20);
+    localStorage.setItem(SMARTCUT_SEARCH_HISTORY_KEY, JSON.stringify(next));
+  } catch (_) {
+    // L'historique est un confort pour les recommandations; la recherche doit continuer meme sans stockage.
+  }
+}
 
 class SearchComponent {
   constructor(options = {}) {
@@ -673,6 +693,7 @@ class SearchComponent {
     `;
     
     try {
+      saveSmartcutSearchTerm(searchTerm);
       const searchLower = searchTerm.toLowerCase();
       
       const [products, presentations] = await Promise.all([
@@ -892,7 +913,7 @@ class SearchComponent {
         
         if (type === 'product') {
           try {
-            const module = await import('./product-modal.js?v=20260525-5');
+            const module = await import('./product-modal.js?v=20260621-4');
             const ProductModal = module.default;
             
             new ProductModal({

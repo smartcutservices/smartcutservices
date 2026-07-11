@@ -1,9 +1,9 @@
 ﻿// ============= PRODUCT MODAL COMPONENT =============
 import { db } from './firebase-init.js';
-import { findPublicProductById, loadPublicProducts } from './catalog-products.js';
+import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260711-1';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
-import { buildProductPageUrl, buildProductShareUrl } from './product-links.js';
+import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260621-4';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
