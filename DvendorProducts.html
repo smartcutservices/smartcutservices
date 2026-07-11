@@ -2500,6 +2500,18 @@
         const planLabel = vendor.planLabel || this.vendorContext?.planLabel || (planId === 'pro' ? 'PRO' : 'BASIC');
         const isPro = Boolean(this.vendorServiceFee?.isPro) || this.isVendorProPlan(vendor);
         const proPrice = Number(proPlan.price || this.vendorContext?.planPrice || 1750);
+        const applicableOffer = this.vendorServiceFee?.applicableOffer || null;
+        const pendingOffer = currentFee?.bonusType ? {
+          type: currentFee.bonusType,
+          label: currentFee.bonusLabel,
+          amount: currentFee.bonusAmount || currentFee.amount,
+          normalAmount: currentFee.bonusNormalAmount || currentFee.normalAmount || proPrice,
+          endAt: currentFee.bonusEndAt || ''
+        } : null;
+        const activeOffer = pendingOffer || applicableOffer;
+        const payableProPrice = Number(activeOffer?.amount || proPrice);
+        const offerEndAt = activeOffer?.endAt || '';
+        const offerLabel = activeOffer?.label || (activeOffer?.type === 'special_vendor' ? 'Bonification speciale' : 'Offre premiere activation');
         const suspended = this.isServiceFeeSuspended();
         const paidAt = lastPayment?.paidAt || this.vendorContext?.serviceFeeLastPaidAt || '';
         const nextDueAt = lastPayment?.nextDueAt || vendor.serviceFeeNextDueAt || this.vendorContext?.serviceFeeNextDueAt || '';
@@ -2521,13 +2533,15 @@
         elements.vendorServiceFeeNextDue.textContent = this.formatDateTime(nextDueAt);
         elements.vendorServiceFeeWarning.style.display = (suspended || canUpgrade || renewalDue) ? 'block' : 'none';
         elements.vendorServiceFeeWarning.textContent = canUpgrade
-          ? 'Passez au Plan Pro pour publier un nombre illimite de produits, obtenir le badge vendeur verifie et ameliorer votre visibilite.'
+          ? (activeOffer
+              ? `${offerLabel}: payez ${this.formatCurrency(payableProPrice)} au lieu de ${this.formatCurrency(proPrice)}${offerEndAt ? ` jusqu au ${this.formatDateTime(offerEndAt)}` : ''}. Apres cette periode, le renouvellement revient au prix normal. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.`
+              : 'Passez au Plan Pro pour publier un nombre illimite de produits, obtenir le badge vendeur verifie et ameliorer votre visibilite. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.')
           : renewalDue
             ? 'Votre cycle Plan Pro de 30 jours est arrive a echeance. Renouvelez le paiement pour garder le store actif.'
             : 'Request payment for this store. Votre store est suspendu jusqu au paiement du frais de service mensuel.';
         elements.vendorServiceFeePayBtn.disabled = !paymentDue || String(currentFee?.status || '').toLowerCase() === 'paid';
         elements.vendorServiceFeePayBtn.innerHTML = canUpgrade
-          ? `<i class="fas fa-crown"></i> Passer au Plan Pro - ${this.formatCurrency(proPrice)}`
+          ? `<i class="fas fa-crown"></i> Passer au Plan Pro - ${this.formatCurrency(payableProPrice)}`
           : renewalDue || currentFee
             ? '<i class="fas fa-credit-card"></i> Payer / renouveler Plan Pro'
             : '<i class="fas fa-check-circle"></i> Plan Pro a jour';
@@ -2535,7 +2549,9 @@
         elements.vendorServiceFeeBadge.textContent = canUpgrade ? 'Plan Basic' : (suspended || renewalDue ? 'Paiement requis' : 'Plan Pro actif');
         elements.vendorServiceFeeBadge.className = `status-badge ${suspended || renewalDue ? 'status-rejected' : canUpgrade ? 'status-pending' : 'status-active'}`;
         elements.vendorServiceFeeSummary.textContent = canUpgrade
-          ? `Plan Basic actif: gratuit. Le Plan Pro coute ${this.formatCurrency(proPrice)} tous les 30 jours.`
+          ? (activeOffer
+              ? `Plan Basic actif: gratuit. Tarif applicable maintenant: ${this.formatCurrency(payableProPrice)}. Prix normal Plan Pro: ${this.formatCurrency(proPrice)}.`
+              : `Plan Basic actif: gratuit. Le Plan Pro coute ${this.formatCurrency(proPrice)} tous les 30 jours.`)
           : suspended
             ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'
             : renewalDue

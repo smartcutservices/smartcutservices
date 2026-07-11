@@ -3,7 +3,7 @@ import { db } from './firebase-init.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
-import { loadPublicProducts, isPublicProductVisible } from './catalog-products.js';
+import { loadPublicProducts, isPublicProductVisible } from './catalog-products.js?v=20260711-1';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   collection, query, getDocs, limit 

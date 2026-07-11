@@ -232,6 +232,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /vendorPlanSettings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /vendorPlanBonuses/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /vendorServiceFees/{docId} {
+      allow read: if isAdmin() || (isApprovedVendor() && resource.data.vendorId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
     match /vendors/{docId} {
       allow read: if signedIn();
       allow write: if isAdmin();

@@ -1,5 +1,5 @@
 import { auth, authReadyPromise, db } from './firebase-init.js';
-import { loadPublicProducts } from './catalog-products.js';
+import { loadPublicProducts } from './catalog-products.js?v=20260711-1';
 import { getResolvedProductImages, getFallbackProductImage } from './image-fallbacks.js';
 import { buildProductPageUrl } from './product-links.js';
 import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';

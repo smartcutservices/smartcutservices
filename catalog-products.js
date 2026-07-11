@@ -10,6 +10,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 const PUBLIC_COLLECTIONS = ['products', 'vendorProducts'];
+const BASIC_VENDOR_PUBLIC_PRODUCT_LIMIT = 5;
 
 function normalizeProduct(docSnap, source) {
   return {
@@ -28,27 +29,63 @@ export function isPublicProductVisible(product) {
   return true;
 }
 
+function getVendorId(product = {}) {
+  return String(product.vendorId || product.uid || product.sellerUid || product.ownerUid || '').trim();
+}
+
+function isVendorProductPro(product = {}) {
+  const planId = String(product.planId || '').toLowerCase();
+  const planLabel = String(product.planLabel || '').toLowerCase();
+  const feeStatus = String(product.vendorServiceFeeStatus || '').toLowerCase();
+  return (planId === 'pro' || planLabel.includes('pro')) && feeStatus !== 'suspended';
+}
+
+function getProductSortTime(product = {}) {
+  const parsed = new Date(product.updatedAt || product.createdAt || product.submittedAt || 0).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function applyVendorPublicVisibility(products = []) {
+  const baseVisible = products
+    .filter((product) => product && typeof product === 'object')
+    .filter(isPublicProductVisible);
+  const vendorGroups = new Map();
+
+  baseVisible.forEach((product) => {
+    if (product?.sourceCollection !== 'vendorProducts') return;
+    const vendorId = getVendorId(product);
+    if (!vendorId) return;
+    if (!vendorGroups.has(vendorId)) vendorGroups.set(vendorId, []);
+    vendorGroups.get(vendorId).push(product);
+  });
+
+  const allowedVendorProductIds = new Set();
+  vendorGroups.forEach((items) => {
+    const proActive = items.some(isVendorProductPro);
+    const sorted = [...items].sort((a, b) => getProductSortTime(b) - getProductSortTime(a));
+    const allowed = proActive ? sorted : sorted.slice(0, BASIC_VENDOR_PUBLIC_PRODUCT_LIMIT);
+    allowed.forEach((item) => allowedVendorProductIds.add(item.id));
+  });
+
+  return baseVisible.filter((product) => (
+    product?.sourceCollection !== 'vendorProducts' || allowedVendorProductIds.has(product.id)
+  ));
+}
+
 export async function loadPublicProducts({ maxPerCollection = 500 } = {}) {
   const snapshots = await Promise.all(
     PUBLIC_COLLECTIONS.map((name) => getDocs(query(collection(db, name), limit(maxPerCollection))))
   );
 
-  return snapshots
+  const products = snapshots
     .flatMap((snapshot, index) => snapshot.docs.map((item) => normalizeProduct(item, PUBLIC_COLLECTIONS[index])))
     .filter(isPublicProductVisible);
+  return applyVendorPublicVisibility(products);
 }
 
 export async function findPublicProductById(productId) {
-  for (const collectionName of PUBLIC_COLLECTIONS) {
-    const snap = await getDoc(doc(db, collectionName, productId));
-    if (snap.exists()) {
-      const product = normalizeProduct(snap, collectionName);
-      if (isPublicProductVisible(product)) {
-        return product;
-      }
-    }
-  }
-  return null;
+  const products = await loadPublicProducts({ maxPerCollection: 500 });
+  return products.find((product) => String(product.id) === String(productId)) || null;
 }
 
 export function subscribePublicProducts(callback, { maxPerCollection = 500 } = {}) {
@@ -56,9 +93,7 @@ export function subscribePublicProducts(callback, { maxPerCollection = 500 } = {
   let readyCount = 0;
 
   const emit = () => {
-    const merged = Array.from(state.values())
-      .flat()
-      .filter(isPublicProductVisible);
+    const merged = applyVendorPublicVisibility(Array.from(state.values()).flat());
     callback(merged);
   };
 
