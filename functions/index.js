@@ -516,6 +516,9 @@ function getStoredVendorBonusOffer(vendor = {}, proPlan = {}, nowMs = Date.now()
   const endMs = toDateMs(endAt);
   const amount = Math.max(0, toNumber(vendor.serviceFeeBonusAmount));
   if (!type || !endMs || endMs <= nowMs || amount <= 0) return null;
+  // Special vendor bonuses are controlled by vendorPlanBonuses only.
+  // If admin edits/deletes one, old profile fields must not keep the old price alive.
+  if (type === 'special_vendor') return null;
 
   const durationDays = normalizeBonusDurationDays({
     durationDays: vendor.serviceFeeBonusDurationDays,
@@ -3546,7 +3549,10 @@ exports.getVendorServiceFeeStatus = onRequest(
         return;
       }
 
-      const [pending, paid, planSettings] = await Promise.all([
+      let pending;
+      let paid;
+      let planSettings;
+      [pending, paid, planSettings] = await Promise.all([
         findLatestOpenVendorServiceFee(user.uid),
         findLatestVendorServiceFee(user.uid, 'paid'),
         getVendorPlanSettings()
@@ -3558,6 +3564,62 @@ exports.getVendorServiceFeeStatus = onRequest(
         settings: planSettings,
         proPlan
       });
+      if (pending) {
+        const now = new Date().toISOString();
+        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now);
+        const expectedAmount = Math.max(0, toNumber(applicableOffer?.amount || proPlan.price));
+        const pendingAmount = toNumber(pending.data?.amount);
+        const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
+        const pendingOfferId = String(pending.data?.bonusId || '').trim();
+        const expectedOfferId = String(offerPatch?.offerId || '').trim();
+        const needsPendingSync = pendingPlanId === 'pro'
+          && (pendingAmount !== expectedAmount || pendingOfferId !== expectedOfferId);
+        if (needsPendingSync) {
+          const patch = {
+            amount: expectedAmount,
+            normalAmount: proPlan.price,
+            referenceAmount: proPlan.price,
+            currency: proPlan.currency,
+            requestSource: 'vendor_pro_upgrade',
+            updatedAt: now,
+            ...(offerPatch ? {
+              bonusType: offerPatch.offerType,
+              bonusId: offerPatch.offerId,
+              bonusLabel: offerPatch.offerLabel,
+              bonusAmount: offerPatch.offerAmount,
+              bonusNormalAmount: offerPatch.offerNormalAmount,
+              bonusCurrency: offerPatch.offerCurrency,
+              bonusDurationDays: offerPatch.offerDurationDays,
+              bonusDurationMonths: offerPatch.offerDurationMonths,
+              bonusStartAt: offerPatch.offerStartAt,
+              bonusEndAt: offerPatch.offerEndAt,
+              bonusAppliedAt: offerPatch.offerAppliedAt,
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+            } : {
+              bonusType: '',
+              bonusId: '',
+              bonusLabel: '',
+              bonusAmount: 0,
+              bonusNormalAmount: 0,
+              bonusCurrency: '',
+              bonusDurationDays: 0,
+              bonusDurationMonths: 0,
+              bonusStartAt: '',
+              bonusEndAt: '',
+              bonusAppliedAt: '',
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+            })
+          };
+          await pending.ref.set(patch, { merge: true });
+          pending = {
+            ...pending,
+            data: {
+              ...pending.data,
+              ...patch
+            }
+          };
+        }
+      }
       let responseVendor = { ...vendor };
       let isPro = isVendorProPlan(responseVendor);
       const nextDueAt = paid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
