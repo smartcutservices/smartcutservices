@@ -489,12 +489,13 @@ async function vendorHasEverPaidPro(vendorId = '', vendor = {}) {
   });
 }
 
-function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString()) {
+function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString(), options = {}) {
   if (!offer) return null;
   const durationDays = normalizeBonusDurationDays(offer);
   const durationMonths = bonusDurationMonthsLabel(durationDays);
-  const startAt = offer.startAt || nowIso;
-  const endAt = offer.endAt || offer.endDate || addDaysIso(startAt, durationDays);
+  const deferActivation = options.deferActivation === true;
+  const startAt = deferActivation ? '' : (offer.startAt || nowIso);
+  const endAt = deferActivation ? '' : (offer.endAt || offer.endDate || addDaysIso(startAt, durationDays));
   return {
     offerId: offer.id || '',
     offerType: offer.type || '',
@@ -516,9 +517,6 @@ function getStoredVendorBonusOffer(vendor = {}, proPlan = {}, nowMs = Date.now()
   const endMs = toDateMs(endAt);
   const amount = Math.max(0, toNumber(vendor.serviceFeeBonusAmount));
   if (!type || !endMs || endMs <= nowMs || amount <= 0) return null;
-  // Special vendor bonuses are controlled by vendorPlanBonuses only.
-  // If admin edits/deletes one, old profile fields must not keep the old price alive.
-  if (type === 'special_vendor') return null;
 
   const durationDays = normalizeBonusDurationDays({
     durationDays: vendor.serviceFeeBonusDurationDays,
@@ -563,8 +561,8 @@ async function getActiveVendorSpecialBonus(vendorId = '', proPlan = {}, nowMs = 
     currency: offer.currency || proPlan.currency,
     durationDays: normalizeBonusDurationDays(offer),
     durationMonths: bonusDurationMonthsLabel(normalizeBonusDurationDays(offer)),
-    startAt: offer.startAt || offer.startDate || '',
-    endAt: offer.endAt || offer.endDate || '',
+    startAt: '',
+    endAt: '',
     status: 'active'
   };
 }
@@ -2544,7 +2542,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
 
   const now = new Date().toISOString();
   const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
-  const offerPayload = buildVendorPlanOfferPayload(offer, now);
+  const offerPayload = buildVendorPlanOfferPayload(offer, now, { deferActivation: true });
   const referenceAmount = Math.max(0, toNumber(normalAmount || offerPayload?.offerNormalAmount || feeAmount));
   const fee = {
     vendorId: normalizedVendorId,
@@ -2662,6 +2660,9 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
         firstActivationBonusFeeId: normalizedFeeId
       }
     : {};
+  const consumedSpecialBonusRef = bonusType === 'special_vendor' && feeData?.bonusId
+    ? db.collection(VENDOR_PLAN_BONUSES_COLLECTION).doc(String(feeData.bonusId))
+    : null;
 
   await db.runTransaction(async (transaction) => {
     transaction.set(feeRef, {
@@ -2709,6 +2710,16 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       serviceFeePaidPeriodEndAt: nextDueAt,
       updatedAt: now
     }, { merge: true });
+
+    if (consumedSpecialBonusRef) {
+      transaction.set(consumedSpecialBonusRef, {
+        enabled: false,
+        status: 'consumed',
+        consumedAt: now,
+        consumedFeeId: normalizedFeeId,
+        updatedAt: now
+      }, { merge: true });
+    }
   });
 
   await updateVendorProductsServiceStatus(normalizedVendorId, 'active', planUpgrade ? {
@@ -3566,14 +3577,15 @@ exports.getVendorServiceFeeStatus = onRequest(
       });
       if (pending) {
         const now = new Date().toISOString();
-        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now);
+        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now, { deferActivation: true });
         const expectedAmount = Math.max(0, toNumber(applicableOffer?.amount || proPlan.price));
         const pendingAmount = toNumber(pending.data?.amount);
         const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
         const pendingOfferId = String(pending.data?.bonusId || '').trim();
         const expectedOfferId = String(offerPatch?.offerId || '').trim();
+        const hasPrematureBonusDates = Boolean(pending.data?.bonusStartAt || pending.data?.bonusEndAt);
         const needsPendingSync = pendingPlanId === 'pro'
-          && (pendingAmount !== expectedAmount || pendingOfferId !== expectedOfferId);
+          && (pendingAmount !== expectedAmount || pendingOfferId !== expectedOfferId || hasPrematureBonusDates);
         if (needsPendingSync) {
           const patch = {
             amount: expectedAmount,
@@ -3715,10 +3727,12 @@ exports.startVendorServiceFeePayment = onRequest(
         const pendingAmount = toNumber(pending.data?.amount);
         const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
         const pendingOfferId = String(pending.data?.bonusId || '').trim();
-        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now);
+        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now, { deferActivation: true });
+        const hasPrematureBonusDates = Boolean(pending.data?.bonusStartAt || pending.data?.bonusEndAt);
         const needsUpgradeSync = pendingAmount !== proPayableAmount
           || pendingPlanId !== 'pro'
-          || pendingOfferId !== String(offerPatch?.offerId || '').trim();
+          || pendingOfferId !== String(offerPatch?.offerId || '').trim()
+          || hasPrematureBonusDates;
         if (needsUpgradeSync) {
           const patch = {
             amount: proPayableAmount,

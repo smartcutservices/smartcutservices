@@ -2535,7 +2535,10 @@
         const activeOffer = pendingOffer || applicableOffer;
         const payableProPrice = Number(activeOffer?.amount || proPrice);
         const offerEndAt = activeOffer?.endAt || '';
-        const offerLabel = activeOffer?.label || (activeOffer?.type === 'special_vendor' ? 'Bonification speciale' : 'Offre premiere activation');
+        const rawOfferLabel = activeOffer?.label || (activeOffer?.type === 'special_vendor' ? 'Bonification spéciale' : 'Offre première activation');
+        const offerLabel = String(rawOfferLabel)
+          .replace(/speciale/gi, 'spéciale')
+          .replace(/premiere/gi, 'première');
         const offerDurationDays = activeOffer ? this.normalizeBonusDurationDays(activeOffer) : 0;
         const offerDurationMonths = activeOffer ? this.bonusDurationMonthsLabel(offerDurationDays) : 0;
         const offerPeriodsRemaining = offerEndAt
@@ -2563,11 +2566,11 @@
         elements.vendorServiceFeeWarning.style.display = (suspended || canUpgrade || renewalDue) ? 'block' : 'none';
         elements.vendorServiceFeeWarning.textContent = canUpgrade
           ? (activeOffer
-              ? `${offerLabel}: prix bonifie ${this.formatCurrency(payableProPrice)} tous les 30 jours au lieu de ${this.formatCurrency(proPrice)}. Bonification valable pendant ${offerDurationMonths} mois${offerEndAt ? `, jusqu au ${this.formatDateTime(offerEndAt)}` : ''}. Chaque paiement active seulement 30 jours. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.`
-              : 'Passez au Plan Pro pour publier un nombre illimite de produits, obtenir le badge vendeur verifie et ameliorer votre visibilite. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.')
+              ? `${offerLabel}: prix bonifié ${this.formatCurrency(payableProPrice)} tous les 30 jours au lieu de ${this.formatCurrency(proPrice)}. Durée de bonification: ${offerDurationMonths} mois${offerEndAt ? `, jusqu'au ${this.formatDateTime(offerEndAt)}` : ', à partir du paiement confirmé'}. Chaque paiement active seulement 30 jours. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.`
+              : 'Passez au Plan Pro pour publier un nombre illimité de produits, obtenir le badge vendeur vérifié et améliorer votre visibilité. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.')
           : renewalDue
-            ? 'Votre cycle Plan Pro de 30 jours est arrive a echeance. Renouvelez le paiement pour garder le store actif.'
-            : 'Request payment for this store. Votre store est suspendu jusqu au paiement du frais de service mensuel.';
+            ? 'Votre cycle Plan Pro de 30 jours est arrivé à échéance. Renouvelez le paiement pour garder le store actif.'
+            : 'Votre store est suspendu jusqu’au paiement des frais de service mensuels.';
         elements.vendorServiceFeePayBtn.disabled = !paymentDue || String(currentFee?.status || '').toLowerCase() === 'paid';
         elements.vendorServiceFeePayBtn.innerHTML = canUpgrade
           ? `<i class="fas fa-crown"></i> Passer au Plan Pro - ${this.formatCurrency(payableProPrice)}`
@@ -2579,14 +2582,14 @@
         elements.vendorServiceFeeBadge.className = `status-badge ${suspended || renewalDue ? 'status-rejected' : canUpgrade ? 'status-pending' : 'status-active'}`;
         elements.vendorServiceFeeSummary.textContent = canUpgrade
           ? (activeOffer
-              ? `Plan Basic actif: gratuit. Montant a payer maintenant: ${this.formatCurrency(payableProPrice)} pour 30 jours. Fenetre bonifiee: ${offerDurationMonths} mois${offerPeriodsRemaining ? `, environ ${offerPeriodsRemaining} paiement(s) bonifie(s) restant(s)` : ''}. Prix normal ensuite: ${this.formatCurrency(proPrice)}.`
-              : `Plan Basic actif: gratuit. Le Plan Pro coute ${this.formatCurrency(proPrice)} tous les 30 jours.`)
+              ? `Plan Basic actif: gratuit. Montant à payer maintenant: ${this.formatCurrency(payableProPrice)} pour 30 jours. Fenêtre bonifiée: ${offerDurationMonths} mois${offerPeriodsRemaining ? `, environ ${offerPeriodsRemaining} paiement(s) bonifié(s) restant(s)` : ', à compter du paiement confirmé'}. Prix normal ensuite: ${this.formatCurrency(proPrice)}.`
+              : `Plan Basic actif: gratuit. Le Plan Pro coûte ${this.formatCurrency(proPrice)} tous les 30 jours.`)
           : suspended
-            ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'
+            ? 'Votre store est suspendu jusqu’au paiement confirmé des frais de service mensuels.'
             : renewalDue
               ? 'Renouvellement Plan Pro disponible maintenant.'
               : paidAt
-                ? `Dernier paiement confirme le ${this.formatDateTime(paidAt)}.`
+                ? `Dernier paiement confirmé le ${this.formatDateTime(paidAt)}.`
                 : 'Plan Pro actif. Aucun frais mensuel en attente pour le moment.';
 
         this.applyServiceFeeLock();
