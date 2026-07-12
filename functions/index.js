@@ -476,7 +476,7 @@ async function vendorHasEverPaidPro(vendorId = '', vendor = {}) {
   const normalizedVendorId = String(vendorId || '').trim();
   if (!normalizedVendorId) return true;
 
-  if (vendor.firstActivationBonusUsedAt || vendor.firstActivationBonusFeeId || vendor.proActivatedAt) return true;
+  if (vendor.firstActivationBonusUsedAt || vendor.firstActivationBonusFeeId) return true;
   if (isVendorProPlan(vendor) && vendor.serviceFeeLastPaidAt) return true;
 
   const snap = await db.collection(VENDOR_SERVICE_FEES_COLLECTION).where('vendorId', '==', normalizedVendorId).get();
