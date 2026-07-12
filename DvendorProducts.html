@@ -2469,6 +2469,29 @@
         return method || '-';
       }
 
+      normalizeBonusDurationDays(source = {}) {
+        const days = Number(source.durationDays || source.bonusDurationDays || source.offerDurationDays || 0);
+        if ([30, 90, 180].includes(days)) return days;
+        const months = Number(source.durationMonths || source.bonusDurationMonths || source.offerDurationMonths || 0);
+        if (months === 1) return 30;
+        if (months === 3) return 90;
+        if (months === 6) return 180;
+        const startMs = Date.parse(String(source.startAt || source.bonusStartAt || source.offerStartAt || source.startDate || ''));
+        const endMs = Date.parse(String(source.endAt || source.bonusEndAt || source.offerEndAt || source.endDate || ''));
+        if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs) {
+          const diffDays = Math.round((endMs - startMs) / (24 * 60 * 60 * 1000));
+          if (diffDays >= 150) return 180;
+          if (diffDays >= 60) return 90;
+          return 30;
+        }
+        return 30;
+      }
+
+      bonusDurationMonthsLabel(days = 30) {
+        const durationDays = this.normalizeBonusDurationDays({ durationDays: days });
+        return durationDays === 180 ? 6 : durationDays === 90 ? 3 : 1;
+      }
+
       isBasicPlanProductLimitReached() {
         if (this.isVendorProPlan()) return false;
         return (this.products || []).length >= 5;
@@ -2506,12 +2529,18 @@
           label: currentFee.bonusLabel,
           amount: currentFee.bonusAmount || currentFee.amount,
           normalAmount: currentFee.bonusNormalAmount || currentFee.normalAmount || proPrice,
+          durationDays: currentFee.bonusDurationDays || currentFee.durationDays || 30,
           endAt: currentFee.bonusEndAt || ''
         } : null;
         const activeOffer = pendingOffer || applicableOffer;
         const payableProPrice = Number(activeOffer?.amount || proPrice);
         const offerEndAt = activeOffer?.endAt || '';
         const offerLabel = activeOffer?.label || (activeOffer?.type === 'special_vendor' ? 'Bonification speciale' : 'Offre premiere activation');
+        const offerDurationDays = activeOffer ? this.normalizeBonusDurationDays(activeOffer) : 0;
+        const offerDurationMonths = activeOffer ? this.bonusDurationMonthsLabel(offerDurationDays) : 0;
+        const offerPeriodsRemaining = offerEndAt
+          ? Math.max(0, Math.ceil((new Date(offerEndAt).getTime() - Date.now()) / (30 * 24 * 60 * 60 * 1000)))
+          : 0;
         const suspended = this.isServiceFeeSuspended();
         const paidAt = lastPayment?.paidAt || this.vendorContext?.serviceFeeLastPaidAt || '';
         const nextDueAt = lastPayment?.nextDueAt || vendor.serviceFeeNextDueAt || this.vendorContext?.serviceFeeNextDueAt || '';
@@ -2534,7 +2563,7 @@
         elements.vendorServiceFeeWarning.style.display = (suspended || canUpgrade || renewalDue) ? 'block' : 'none';
         elements.vendorServiceFeeWarning.textContent = canUpgrade
           ? (activeOffer
-              ? `${offerLabel}: payez ${this.formatCurrency(payableProPrice)} au lieu de ${this.formatCurrency(proPrice)}${offerEndAt ? ` jusqu au ${this.formatDateTime(offerEndAt)}` : ''}. Apres cette periode, le renouvellement revient au prix normal. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.`
+              ? `${offerLabel}: prix bonifie ${this.formatCurrency(payableProPrice)} tous les 30 jours au lieu de ${this.formatCurrency(proPrice)}. Bonification valable pendant ${offerDurationMonths} mois${offerEndAt ? `, jusqu au ${this.formatDateTime(offerEndAt)}` : ''}. Chaque paiement active seulement 30 jours. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.`
               : 'Passez au Plan Pro pour publier un nombre illimite de produits, obtenir le badge vendeur verifie et ameliorer votre visibilite. Sans renouvellement, seuls 5 produits resteront visibles en Plan Basic.')
           : renewalDue
             ? 'Votre cycle Plan Pro de 30 jours est arrive a echeance. Renouvelez le paiement pour garder le store actif.'
@@ -2550,7 +2579,7 @@
         elements.vendorServiceFeeBadge.className = `status-badge ${suspended || renewalDue ? 'status-rejected' : canUpgrade ? 'status-pending' : 'status-active'}`;
         elements.vendorServiceFeeSummary.textContent = canUpgrade
           ? (activeOffer
-              ? `Plan Basic actif: gratuit. Tarif applicable maintenant: ${this.formatCurrency(payableProPrice)}. Prix normal Plan Pro: ${this.formatCurrency(proPrice)}.`
+              ? `Plan Basic actif: gratuit. Montant a payer maintenant: ${this.formatCurrency(payableProPrice)} pour 30 jours. Fenetre bonifiee: ${offerDurationMonths} mois${offerPeriodsRemaining ? `, environ ${offerPeriodsRemaining} paiement(s) bonifie(s) restant(s)` : ''}. Prix normal ensuite: ${this.formatCurrency(proPrice)}.`
               : `Plan Basic actif: gratuit. Le Plan Pro coute ${this.formatCurrency(proPrice)} tous les 30 jours.`)
           : suspended
             ? 'Votre store est suspendu jusqu au paiement confirme du frais de service mensuel.'

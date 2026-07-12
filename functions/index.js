@@ -376,6 +376,29 @@ function addMonthsIso(value, months = 1) {
   return date.toISOString();
 }
 
+function normalizeBonusDurationDays(source = {}) {
+  const rawDays = Number(source.durationDays || source.bonusDurationDays || source.offerDurationDays || 0);
+  if ([30, 90, 180].includes(rawDays)) return rawDays;
+  const rawMonths = Number(source.durationMonths || source.bonusDurationMonths || source.offerDurationMonths || 0);
+  if (rawMonths === 1) return 30;
+  if (rawMonths === 3) return 90;
+  if (rawMonths === 6) return 180;
+  const startMs = toDateMs(source.startAt || source.bonusStartAt || source.offerStartAt || source.startDate);
+  const endMs = toDateMs(source.endAt || source.bonusEndAt || source.offerEndAt || source.endDate);
+  if (startMs && endMs && endMs > startMs) {
+    const diffDays = Math.round((endMs - startMs) / (24 * 60 * 60 * 1000));
+    if (diffDays >= 150) return 180;
+    if (diffDays >= 60) return 90;
+    return 30;
+  }
+  return 30;
+}
+
+function bonusDurationMonthsLabel(days = 30) {
+  const normalizedDays = normalizeBonusDurationDays({ durationDays: days });
+  return normalizedDays === 180 ? 6 : normalizedDays === 90 ? 3 : 1;
+}
+
 function normalizeVendorServicePaymentMethod(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
   if (normalized.includes('nat')) return 'natcash';
@@ -429,8 +452,11 @@ function getFirstActivationBonusSettings(settings = {}, proPlan = {}) {
   const source = settings.firstActivationBonus || settings.firstActivationBonusOffer || {};
   const enabled = source.enabled === true || source.active === true || settings.firstActivationBonusEnabled === true;
   const amount = Math.max(0, toNumber(source.amount ?? source.promoPrice ?? source.price ?? settings.firstActivationBonusAmount));
-  const durationMonths = Number(source.durationMonths || settings.firstActivationBonusDurationMonths || 1);
-  const normalizedDuration = [1, 3, 6].includes(durationMonths) ? durationMonths : 1;
+  const durationDays = normalizeBonusDurationDays({
+    ...source,
+    durationDays: source.durationDays || settings.firstActivationBonusDurationDays,
+    durationMonths: source.durationMonths || settings.firstActivationBonusDurationMonths
+  });
   if (!enabled || amount <= 0) return null;
 
   return {
@@ -440,7 +466,8 @@ function getFirstActivationBonusSettings(settings = {}, proPlan = {}) {
     amount,
     normalAmount: proPlan.price,
     currency: proPlan.currency,
-    durationMonths: normalizedDuration,
+    durationDays,
+    durationMonths: bonusDurationMonthsLabel(durationDays),
     enabled: true
   };
 }
@@ -464,9 +491,10 @@ async function vendorHasEverPaidPro(vendorId = '', vendor = {}) {
 
 function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString()) {
   if (!offer) return null;
-  const durationMonths = Number(offer.durationMonths || 0);
+  const durationDays = normalizeBonusDurationDays(offer);
+  const durationMonths = bonusDurationMonthsLabel(durationDays);
   const startAt = offer.startAt || nowIso;
-  const endAt = offer.endAt || offer.endDate || (durationMonths > 0 ? addMonthsIso(startAt, durationMonths) : '');
+  const endAt = offer.endAt || offer.endDate || addDaysIso(startAt, durationDays);
   return {
     offerId: offer.id || '',
     offerType: offer.type || '',
@@ -474,10 +502,37 @@ function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString
     offerAmount: Math.max(0, toNumber(offer.amount)),
     offerNormalAmount: Math.max(0, toNumber(offer.normalAmount)),
     offerCurrency: offer.currency || MONCASH_CURRENCY,
+    offerDurationDays: durationDays,
     offerDurationMonths: durationMonths,
     offerStartAt: startAt,
     offerEndAt: endAt,
     offerAppliedAt: nowIso
+  };
+}
+
+function getStoredVendorBonusOffer(vendor = {}, proPlan = {}, nowMs = Date.now()) {
+  const type = String(vendor.serviceFeeBonusType || '').trim();
+  const endAt = vendor.serviceFeeBonusEndAt || '';
+  const endMs = toDateMs(endAt);
+  const amount = Math.max(0, toNumber(vendor.serviceFeeBonusAmount));
+  if (!type || !endMs || endMs <= nowMs || amount <= 0) return null;
+
+  const durationDays = normalizeBonusDurationDays({
+    durationDays: vendor.serviceFeeBonusDurationDays,
+    durationMonths: vendor.serviceFeeBonusDurationMonths
+  });
+  return {
+    id: vendor.serviceFeeBonusId || type,
+    type,
+    label: vendor.serviceFeeBonusLabel || (type === 'special_vendor' ? 'Bonification speciale Plan Pro' : 'Offre premiere activation Plan Pro'),
+    amount,
+    normalAmount: Math.max(0, toNumber(vendor.serviceFeeBonusNormalAmount || proPlan.price)),
+    currency: vendor.planCurrency || proPlan.currency,
+    durationDays,
+    durationMonths: bonusDurationMonthsLabel(durationDays),
+    startAt: vendor.serviceFeeBonusStartAt || '',
+    endAt,
+    status: 'active'
   };
 }
 
@@ -503,6 +558,8 @@ async function getActiveVendorSpecialBonus(vendorId = '', proPlan = {}, nowMs = 
     amount,
     normalAmount: proPlan.price,
     currency: offer.currency || proPlan.currency,
+    durationDays: normalizeBonusDurationDays(offer),
+    durationMonths: bonusDurationMonthsLabel(normalizeBonusDurationDays(offer)),
     startAt: offer.startAt || offer.startDate || '',
     endAt: offer.endAt || offer.endDate || '',
     status: 'active'
@@ -513,6 +570,9 @@ async function resolveVendorProOffer({ vendorId = '', vendor = {}, settings = {}
   const nowMs = toDateMs(nowIso) || Date.now();
   const specialOffer = await getActiveVendorSpecialBonus(vendorId, proPlan, nowMs);
   if (specialOffer) return specialOffer;
+
+  const storedOffer = getStoredVendorBonusOffer(vendor, proPlan, nowMs);
+  if (storedOffer) return storedOffer;
 
   const globalOffer = getFirstActivationBonusSettings(settings, proPlan);
   if (!globalOffer) return null;
@@ -2493,7 +2553,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
     referenceAmount,
     currency: currency || vendor.planCurrency || MONCASH_CURRENCY,
     status: 'pending',
-    cycleDays: offerPayload?.offerEndAt ? 0 : VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
     requestedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -2512,6 +2572,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
       bonusAmount: offerPayload.offerAmount,
       bonusNormalAmount: offerPayload.offerNormalAmount,
       bonusCurrency: offerPayload.offerCurrency,
+      bonusDurationDays: offerPayload.offerDurationDays,
       bonusDurationMonths: offerPayload.offerDurationMonths,
       bonusStartAt: offerPayload.offerStartAt,
       bonusEndAt: offerPayload.offerEndAt,
@@ -2552,11 +2613,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
   const feeSnap = await feeRef.get();
   const feeData = feeSnap.exists ? feeSnap.data() || {} : {};
   const now = paidAt || new Date().toISOString();
-  const bonusEndAt = feeData?.bonusEndAt && toDateMs(feeData.bonusEndAt) > toDateMs(now)
-    ? feeData.bonusEndAt
-    : '';
   const cycleDays = Math.max(1, toNumber(feeData?.cycleDays) || VENDOR_SERVICE_FEE_INTERVAL_DAYS);
-  const nextDueAt = bonusEndAt || addDaysIso(now, cycleDays);
+  const nextDueAt = addDaysIso(now, cycleDays);
   const paidPlanId = String(feeData?.planId || '').trim().toLowerCase();
   const paidPlanLabel = String(feeData?.planLabel || '').trim();
   const planUpgrade = paidPlanId === 'pro' || paidPlanLabel.toLowerCase().includes('pro');
@@ -2569,8 +2627,10 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
         serviceFeeBonusLabel: feeData?.bonusLabel || '',
         serviceFeeBonusAmount: Math.max(0, toNumber(feeData?.bonusAmount || feeData?.amount)),
         serviceFeeBonusNormalAmount: normalPlanPrice,
+        serviceFeeBonusDurationDays: normalizeBonusDurationDays(feeData),
+        serviceFeeBonusDurationMonths: bonusDurationMonthsLabel(normalizeBonusDurationDays(feeData)),
         serviceFeeBonusStartAt: feeData?.bonusStartAt || now,
-        serviceFeeBonusEndAt: feeData?.bonusEndAt || nextDueAt
+        serviceFeeBonusEndAt: feeData?.bonusEndAt || addDaysIso(feeData?.bonusStartAt || now, normalizeBonusDurationDays(feeData))
       }
     : {
         serviceFeeBonusType: '',
@@ -2578,6 +2638,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
         serviceFeeBonusLabel: '',
         serviceFeeBonusAmount: 0,
         serviceFeeBonusNormalAmount: 0,
+        serviceFeeBonusDurationDays: 0,
+        serviceFeeBonusDurationMonths: 0,
         serviceFeeBonusStartAt: '',
         serviceFeeBonusEndAt: ''
       };
@@ -2603,6 +2665,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       status: 'paid',
       paidAt: now,
       nextDueAt,
+      paidPeriodStartAt: now,
+      paidPeriodEndAt: nextDueAt,
       bonusPaid: Boolean(bonusType),
       paymentMethod: normalizeVendorServicePaymentMethod(method),
       paymentProvider: provider || normalizeVendorServicePaymentMethod(method),
@@ -2621,6 +2685,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       serviceFeeAmount: normalPlanPrice,
       serviceFeeLastPaidAt: now,
       serviceFeeNextDueAt: nextDueAt,
+      serviceFeePaidPeriodStartAt: now,
+      serviceFeePaidPeriodEndAt: nextDueAt,
       serviceFeePaymentMethod: normalizeVendorServicePaymentMethod(method),
       updatedAt: now
     }, { merge: true });
@@ -2636,6 +2702,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       serviceFeeAmount: normalPlanPrice,
       serviceFeeLastPaidAt: now,
       serviceFeeNextDueAt: nextDueAt,
+      serviceFeePaidPeriodStartAt: now,
+      serviceFeePaidPeriodEndAt: nextDueAt,
       updatedAt: now
     }, { merge: true });
   });
@@ -3606,11 +3674,12 @@ exports.startVendorServiceFeePayment = onRequest(
               bonusAmount: offerPatch.offerAmount,
               bonusNormalAmount: offerPatch.offerNormalAmount,
               bonusCurrency: offerPatch.offerCurrency,
+              bonusDurationDays: offerPatch.offerDurationDays,
               bonusDurationMonths: offerPatch.offerDurationMonths,
               bonusStartAt: offerPatch.offerStartAt,
               bonusEndAt: offerPatch.offerEndAt,
               bonusAppliedAt: offerPatch.offerAppliedAt,
-              cycleDays: offerPatch.offerEndAt ? 0 : VENDOR_SERVICE_FEE_INTERVAL_DAYS
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
             } : {
               bonusType: '',
               bonusId: '',
@@ -3618,6 +3687,7 @@ exports.startVendorServiceFeePayment = onRequest(
               bonusAmount: 0,
               bonusNormalAmount: 0,
               bonusCurrency: '',
+              bonusDurationDays: 0,
               bonusDurationMonths: 0,
               bonusStartAt: '',
               bonusEndAt: '',
@@ -3720,6 +3790,7 @@ exports.startVendorServiceFeePayment = onRequest(
         bonusType: pending.data?.bonusType || '',
         bonusId: pending.data?.bonusId || '',
         bonusLabel: pending.data?.bonusLabel || '',
+        bonusDurationDays: pending.data?.bonusDurationDays || 0,
         bonusEndAt: pending.data?.bonusEndAt || '',
         returnUrl: DEFAULT_RETURN_URL,
         alertUrl: DEFAULT_ALERT_URL,
