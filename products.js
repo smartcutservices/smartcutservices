@@ -325,7 +325,7 @@ class SierraProducts {
     if (!item) return;
 
     try {
-      const { getCartManager } = await import('./cart.js?v=20260525-3');
+      const { getCartManager } = await import('./cart.js?v=20260714-1');
       const cart = getCartManager();
       if (cart && typeof cart.addItem === 'function') {
         cart.addItem(item);
