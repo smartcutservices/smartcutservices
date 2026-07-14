@@ -40,6 +40,7 @@ class CartManager {
     this.guestClient = null;
     this.preloadPromise = null;
     this.modalOpenedAt = 0;
+    this.modalRootSelector = '[data-smartcut-cart-modal="true"], .smartcut-cart-modal-root';
     
     
     // S'abonner aux changements de thème
@@ -1751,11 +1752,30 @@ class CartManager {
       this.renderCartModal();
     }
   }
+
+  getCartModalRoots() {
+    return Array.from(document.querySelectorAll(this.modalRootSelector));
+  }
+
+  removeDuplicateCartModals(except = null) {
+    this.getCartModalRoots().forEach((node) => {
+      if (node !== except) {
+        node.remove();
+      }
+    });
+  }
   
   openCartModal() {
+    if (this.modal && !document.body.contains(this.modal)) {
+      this.modal = null;
+    }
+
     if (this.modal) {
       return;
     }
+
+    this.removeDuplicateCartModals();
+    this.loadCart();
 
     this.warmUpClientContext().catch((error) => {
       console.error('❌ Erreur prechargement panier:', error);
@@ -1763,7 +1783,9 @@ class CartManager {
     
     this.modalOpenedAt = Date.now();
     this.modal = document.createElement('div');
-    this.modal.className = `cart-modal-${this.uniqueId}`;
+    this.modal.className = `cart-modal-${this.uniqueId} smartcut-cart-modal-root`;
+    this.modal.dataset.smartcutCartModal = 'true';
+    this.modal.dataset.cartManagerId = this.uniqueId;
     this.renderCartModal();
     document.body.appendChild(this.modal);
     
@@ -1781,22 +1803,23 @@ class CartManager {
   }
   
   closeCartModal() {
-    if (!this.modal) return;
+    const modals = this.getCartModalRoots();
+    if (!this.modal && !modals.length) return;
     
-    const overlay = this.modal.querySelector('.cart-overlay');
-    const container = this.modal.querySelector('.cart-container');
-    
-    if (overlay) overlay.style.opacity = '0';
-    if (container) {
-      container.style.opacity = '0';
-      container.style.transform = 'translateX(100%)';
-    }
+    modals.forEach((modal) => {
+      const overlay = modal.querySelector('.cart-overlay');
+      const container = modal.querySelector('.cart-container');
+      
+      if (overlay) overlay.style.opacity = '0';
+      if (container) {
+        container.style.opacity = '0';
+        container.style.transform = 'translateX(100%)';
+      }
+    });
     
     setTimeout(() => {
-      if (this.modal) {
-        this.modal.remove();
-        this.modal = null;
-      }
+      modals.forEach((modal) => modal.remove());
+      this.modal = null;
       document.body.style.overflow = '';
     }, 300);
   }
@@ -2040,7 +2063,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js?v=20260621-4')
+    import('./product-modal.js?v=20260714-1')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {
@@ -2975,10 +2998,20 @@ class CartManager {
 }
 
 let cartInstance = null;
+const GLOBAL_CART_MANAGER_KEY = '__smartCutCartManager';
 
 export function getCartManager(options = {}) {
+  const globalScope = typeof window !== 'undefined' ? window : globalThis;
+  if (globalScope?.[GLOBAL_CART_MANAGER_KEY]) {
+    cartInstance = globalScope[GLOBAL_CART_MANAGER_KEY];
+    return cartInstance;
+  }
+
   if (!cartInstance) {
     cartInstance = new CartManager(options);
+  }
+  if (globalScope) {
+    globalScope[GLOBAL_CART_MANAGER_KEY] = cartInstance;
   }
   return cartInstance;
 }

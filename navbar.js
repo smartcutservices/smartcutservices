@@ -323,6 +323,9 @@ class Navbar {
 
     const bindResponsivePress = (target, handler) => {
       if (!target) return;
+      if (target.dataset.smartcutCartBound === 'true') return;
+      target.dataset.smartcutCartBound = 'true';
+
       let lastPointerUpAt = 0;
 
       target.addEventListener('pointerup', (event) => {
@@ -340,7 +343,7 @@ class Navbar {
       });
     };
 
-    [desktopCart, mobileCart, desktopCartButton, mobileCartButton].forEach((target) => {
+    [desktopCartButton || desktopCart, mobileCartButton || mobileCart].forEach((target) => {
       if (!target) return;
       bindResponsivePress(target, handleOpenCart);
     });

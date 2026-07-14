@@ -1866,7 +1866,7 @@ class ProductModal {
 
  addToCart() {
   // Récupérer l'instance du panier
-  import('./cart.js?v=20260525-3').then(({ getCartManager }) => {
+  import('./cart.js?v=20260714-1').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     

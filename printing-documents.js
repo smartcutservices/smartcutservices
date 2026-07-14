@@ -1,6 +1,6 @@
 import { db } from './firebase-init.js';
 import { uploadPdfFile } from './firebase-storage.js';
-import { getCartManager } from './cart.js?v=20260531-13';
+import { getCartManager } from './cart.js?v=20260714-1';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import {
   normalizePrintingConfig,
