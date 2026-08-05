@@ -269,6 +269,78 @@ async function isAdminUser(uid) {
   return String(clientSnap.data()?.role || '').toLowerCase() === 'admin';
 }
 
+const SMART_MANAGEMENT_ROLE_ALIASES = {
+  cashier: 'caissier',
+  caissiere: 'caissier',
+  caissière: 'caissier',
+  stock: 'stock_manager',
+  responsable_stock: 'stock_manager',
+  inventory_manager: 'stock_manager',
+  readonly: 'lecture_seule',
+  read_only: 'lecture_seule',
+  viewer: 'lecture_seule',
+};
+
+const SMART_MANAGEMENT_ROLES = new Set([
+  'admin',
+  'manager',
+  'caissier',
+  'stock_manager',
+  'responsable_ecommerce',
+  'lecture_seule',
+]);
+
+function normalizeSmartManagementRole(role = '') {
+  const normalized = String(role || '').trim().toLowerCase();
+  return SMART_MANAGEMENT_ROLE_ALIASES[normalized] || normalized;
+}
+
+async function getSmartManagementAccess(uid) {
+  if (!uid) return { allowed: false, role: '' };
+  const clientSnap = await db.collection('clients').doc(uid).get();
+  if (!clientSnap.exists) return { allowed: false, role: '' };
+  const data = clientSnap.data() || {};
+  const role = normalizeSmartManagementRole(data.role || '');
+  const isAdmin = role === 'admin';
+  const allowed = isAdmin || data.smartManagementAccess === true || data.dashboardAccess === true || SMART_MANAGEMENT_ROLES.has(role);
+  return { allowed, role, isAdmin };
+}
+
+function isPosStockAdjustment(body = {}, lines = []) {
+  const marker = [
+    body.reason,
+    body.note,
+    body.reference,
+    body.source,
+    ...lines.flatMap((line) => [line.reason, line.note])
+  ].map((value) => String(value || '').toLowerCase()).join(' ');
+  const allLinesAreSaleDeductions = lines.length > 0 && lines.every((line) => (
+    Number.isInteger(line.quantity)
+      && line.quantity < 0
+      && (line.countedQuantity === null || line.countedQuantity === undefined)
+  ));
+  return allLinesAreSaleDeductions && (
+    marker.includes('vente pos')
+      || marker.includes('vente en magasin')
+      || marker.includes('smart-caisse')
+  );
+}
+
+async function canRunSmartStockOperation(uid, operationType, body = {}, lines = []) {
+  const access = await getSmartManagementAccess(uid);
+  if (!access.allowed) return false;
+  if (access.isAdmin || access.role === 'manager' || access.role === 'stock_manager') return true;
+  if (access.role === 'caissier') {
+    return operationType === 'ADJUSTMENT' && isPosStockAdjustment(body, lines);
+  }
+  return false;
+}
+
+async function canRunSmartTransferOperation(uid) {
+  const access = await getSmartManagementAccess(uid);
+  return access.allowed && ['admin', 'manager', 'stock_manager'].includes(access.role);
+}
+
 async function deleteDocumentRefs(refs = []) {
   const uniqueRefs = new Map();
   refs.forEach((ref) => {
@@ -329,6 +401,809 @@ async function deleteLinkedVendorAccount(vendorId) {
   };
 }
 
+const SMART_STOCK_BALANCES_COLLECTION = 'smartManagementStockBalances';
+const SMART_STOCK_MOVEMENTS_COLLECTION = 'smartManagementStockMovements';
+const SMART_STOCK_OPERATIONS_COLLECTION = 'smartManagementStockOperations';
+const SMART_STOCK_TRANSFERS_COLLECTION = 'smartManagementStockTransfers';
+
+function smartStockSafeId(value = '') {
+  return String(value || 'none').trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'none';
+}
+
+function smartStockBalanceId({ locationId = '', productId = '', variantId = '' } = {}) {
+  return [
+    smartStockSafeId(locationId),
+    smartStockSafeId(productId),
+    smartStockSafeId(variantId || 'simple')
+  ].join('__');
+}
+
+function getAdminTimestamp() {
+  return admin.firestore.FieldValue.serverTimestamp();
+}
+
+function normalizeStockQuantity(value, { integer = true } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return NaN;
+  return integer ? Math.trunc(number) : number;
+}
+
+function extractSmartProductVariants(product = {}) {
+  const source = Array.isArray(product.variants) ? product.variants
+    : Array.isArray(product.variations) ? product.variations
+      : [];
+  return source.map((variant, index) => ({
+    id: String(variant.id || variant.variantId || variant.sku || `variant-${index + 1}`),
+    label: sanitizeText(variant.label || variant.name || variant.title || variant.optionLabel || `Variante ${index + 1}`, 180),
+    sku: sanitizeText(variant.sku || '', 120).toUpperCase(),
+    barcode: sanitizeText(variant.barcode || variant.codebarre || '', 120),
+    purchasePrice: Math.max(0, toNumber(variant.purchasePrice || variant.costPrice || variant.buyingPrice)),
+    salePrice: Math.max(0, toNumber(variant.salePrice || variant.price || variant.specificPrice || variant.prix)),
+    status: String(variant.status || '').toLowerCase() === 'inactive' || variant.active === false ? 'inactive' : 'active'
+  }));
+}
+
+function normalizeStockLine(raw = {}) {
+  return {
+    productId: sanitizeText(raw.productId, 160),
+    variantId: sanitizeText(raw.variantId || '', 160),
+    locationId: sanitizeText(raw.locationId, 160),
+    quantity: normalizeStockQuantity(raw.quantity),
+    countedQuantity: raw.countedQuantity === undefined || raw.countedQuantity === '' ? null : normalizeStockQuantity(raw.countedQuantity),
+    unitCost: Math.max(0, toNumber(raw.unitCost)),
+    lowStockThreshold: Math.max(0, normalizeStockQuantity(raw.lowStockThreshold || 5)),
+    reason: sanitizeText(raw.reason || '', 180),
+    note: sanitizeText(raw.note || '', 800),
+    oldGlobalStockObserved: raw.oldGlobalStockObserved === undefined ? null : normalizeStockQuantity(raw.oldGlobalStockObserved),
+    confirmDifference: raw.confirmDifference === true,
+  };
+}
+
+function buildStockMovementPatch({ operationType, reference, line, locationSnap, productSnap, variant, beforePhysical, beforeReserved, afterPhysical, unitCost, actorUid, note, reason }) {
+  const product = productSnap.data() || {};
+  const location = locationSnap.data() || {};
+  const variation = afterPhysical - beforePhysical;
+  const salePrice = variant ? Math.max(0, toNumber(variant.salePrice)) : Math.max(0, toNumber(product.salePrice || product.price || product.basePrice || product.prix));
+  const purchasePrice = Math.max(0, toNumber(unitCost || (variant ? variant.purchasePrice : product.purchasePrice || product.costPrice || product.buyingPrice)));
+  return {
+    type: operationType,
+    reference,
+    productId: line.productId,
+    productName: sanitizeText(product.name || product.title || 'Produit', 220),
+    variantId: line.variantId || '',
+    variantLabel: variant?.label || '',
+    locationId: line.locationId,
+    locationName: sanitizeText(location.name || location.code || 'Emplacement', 220),
+    sku: sanitizeText(variant?.sku || product.sku || '', 140),
+    barcode: sanitizeText(variant?.barcode || product.barcode || product.codebarre || '', 140),
+    categoryId: sanitizeText(product.categoryId || product.categorySlug || '', 140),
+    categoryName: sanitizeText(product.categoryName || product.category || product.categoryLabel || '', 180),
+    beforePhysicalQty: beforePhysical,
+    beforeReservedQty: beforeReserved,
+    beforeAvailableQty: beforePhysical - beforeReserved,
+    quantityChange: variation,
+    afterPhysicalQty: afterPhysical,
+    afterReservedQty: beforeReserved,
+    afterAvailableQty: afterPhysical - beforeReserved,
+    reason: reason || sanitizeText(line.reason || operationType, 180),
+    note: note || line.note || '',
+    businessReference: reference,
+    unitCost: purchasePrice,
+    salePrice,
+    actorUid,
+    createdAt: getAdminTimestamp()
+  };
+}
+
+function buildStockBalancePatch({ line, locationSnap, productSnap, variant, afterPhysical, beforeReserved, unitCost, operationType, actorUid }) {
+  const product = productSnap.data() || {};
+  const location = locationSnap.data() || {};
+  const salePrice = variant ? Math.max(0, toNumber(variant.salePrice)) : Math.max(0, toNumber(product.salePrice || product.price || product.basePrice || product.prix));
+  const purchasePrice = Math.max(0, toNumber(unitCost || (variant ? variant.purchasePrice : product.purchasePrice || product.costPrice || product.buyingPrice)));
+  const thresholdSource = line.lowStockThreshold !== undefined && line.lowStockThreshold !== null && line.lowStockThreshold !== ''
+    ? line.lowStockThreshold
+    : product.lowStockThreshold !== undefined && product.lowStockThreshold !== null && product.lowStockThreshold !== ''
+      ? product.lowStockThreshold
+      : 5;
+  const threshold = Math.max(0, normalizeStockQuantity(thresholdSource));
+  const availableQty = afterPhysical - beforeReserved;
+  const calculatedStatus = afterPhysical <= 0 || availableQty <= 0 ? 'out_of_stock'
+    : availableQty <= threshold ? 'low_stock'
+      : 'available';
+  return {
+    locationId: line.locationId,
+    locationName: sanitizeText(location.name || location.code || 'Emplacement', 220),
+    productId: line.productId,
+    productName: sanitizeText(product.name || product.title || 'Produit', 220),
+    variantId: line.variantId || '',
+    variantLabel: variant?.label || '',
+    sku: sanitizeText(variant?.sku || product.sku || '', 140),
+    barcode: sanitizeText(variant?.barcode || product.barcode || product.codebarre || '', 140),
+    categoryId: sanitizeText(product.categoryId || product.categorySlug || '', 140),
+    categoryName: sanitizeText(product.categoryName || product.category || product.categoryLabel || '', 180),
+    productType: line.variantId ? 'variants' : 'simple',
+    image: sanitizeText(variant?.image || product.image || product.imageUrl || (Array.isArray(product.images) ? product.images[0] : ''), 800),
+    physicalQty: afterPhysical,
+    reservedQty: beforeReserved,
+    availableQty,
+    lowStockThreshold: threshold,
+    status: calculatedStatus,
+    productStatus: String(product.status || '').toLowerCase() === 'inactive' || product.active === false ? 'inactive' : 'active',
+    unitCost: purchasePrice,
+    salePrice,
+    stockValueAtCost: purchasePrice * afterPhysical,
+    stockValueAtSale: salePrice * afterPhysical,
+    initialized: true,
+    lastMovementType: operationType,
+    updatedAt: getAdminTimestamp(),
+    updatedBy: actorUid
+  };
+}
+
+function makeSmartTransferNumber() {
+  const year = new Date().getFullYear();
+  const stamp = Date.now().toString(36).toUpperCase();
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `TRF-${year}-${stamp}-${suffix}`;
+}
+
+function normalizeStockTransferLine(raw = {}, index = 0) {
+  return {
+    lineId: sanitizeText(raw.lineId || `line-${index + 1}`, 80),
+    productId: sanitizeText(raw.productId, 160),
+    variantId: sanitizeText(raw.variantId || '', 160),
+    quantity: normalizeStockQuantity(raw.quantity),
+    receivedQty: normalizeStockQuantity(raw.receivedQty || 0),
+    discrepancyQty: normalizeStockQuantity(raw.discrepancyQty || 0),
+    unitCost: Math.max(0, toNumber(raw.unitCost)),
+    lowStockThreshold: Math.max(0, normalizeStockQuantity(raw.lowStockThreshold || 5)),
+    note: sanitizeText(raw.note || '', 800)
+  };
+}
+
+function buildTransferHistoryEvent({ type, fromStatus, toStatus, uid, note }) {
+  return {
+    type,
+    fromStatus: fromStatus || '',
+    toStatus: toStatus || '',
+    uid,
+    note: sanitizeText(note || '', 800),
+    at: admin.firestore.Timestamp.now()
+  };
+}
+
+function getTransferLineKey(line = {}) {
+  return `${line.productId}|${line.variantId || 'simple'}`;
+}
+
+function getTransferRemainingQty(line = {}) {
+  return Math.max(
+    0,
+    normalizeStockQuantity(line.shippedQty || 0)
+      - normalizeStockQuantity(line.receivedQty || 0)
+      - normalizeStockQuantity(line.closedDiscrepancyQty || 0)
+  );
+}
+
+async function executeSmartTransferOperation({ decodedUser, body }) {
+  const canManageTransfer = await canRunSmartTransferOperation(decodedUser.uid);
+  if (!canManageTransfer) {
+    return { status: 403, body: { ok: false, error: 'smart-management-access-denied' } };
+  }
+
+  const action = sanitizeText(body.action || body.transferAction || '', 80).toLowerCase();
+  const idempotencyKey = sanitizeText(body.idempotencyKey, 180);
+  const transferId = sanitizeText(body.transferId, 180);
+  const note = sanitizeText(body.note || '', 900);
+
+  if (!idempotencyKey) {
+    return { status: 400, body: { ok: false, error: 'missing-idempotency-key' } };
+  }
+  if (!['create_draft', 'submit', 'approve', 'reject', 'cancel', 'ship', 'receive'].includes(action)) {
+    return { status: 400, body: { ok: false, error: 'invalid-transfer-action' } };
+  }
+
+  const operationRef = db.collection(SMART_STOCK_OPERATIONS_COLLECTION).doc(idempotencyKey);
+  const operationResult = { transferId: '', movementIds: [] };
+
+  await db.runTransaction(async (transaction) => {
+    const operationSnap = await transaction.get(operationRef);
+    if (operationSnap.exists) {
+      const data = operationSnap.data() || {};
+      if (data.status === 'completed') {
+        operationResult.transferId = data.transferId || transferId || '';
+        operationResult.movementIds = Array.isArray(data.movementIds) ? data.movementIds : [];
+        return;
+      }
+      throw new Error('Operation deja en cours ou incomplete.');
+    }
+
+    const now = getAdminTimestamp();
+
+    if (action === 'create_draft') {
+      const sourceLocationId = sanitizeText(body.sourceLocationId, 160);
+      const destinationLocationId = sanitizeText(body.destinationLocationId, 160);
+      const reason = sanitizeText(body.reason || 'Transfert interne', 220);
+      const lines = Array.isArray(body.lines) ? body.lines.map(normalizeStockTransferLine) : [];
+      if (!sourceLocationId || !destinationLocationId) throw new Error('Source et destination obligatoires.');
+      if (sourceLocationId === destinationLocationId) throw new Error('La source et la destination doivent etre differentes.');
+      if (!lines.length) throw new Error('Ajoutez au moins une ligne.');
+
+      const sourceRef = db.collection('smartManagementLocations').doc(sourceLocationId);
+      const destinationRef = db.collection('smartManagementLocations').doc(destinationLocationId);
+      const [sourceSnap, destinationSnap] = await Promise.all([
+        transaction.get(sourceRef),
+        transaction.get(destinationRef)
+      ]);
+      if (!sourceSnap.exists || String(sourceSnap.data()?.status || 'active') !== 'active') throw new Error('Emplacement source introuvable ou inactif.');
+      if (!destinationSnap.exists || String(destinationSnap.data()?.status || 'active') !== 'active') throw new Error('Emplacement destination introuvable ou inactif.');
+
+      const prepared = [];
+      const seen = new Set();
+      for (let index = 0; index < lines.length; index += 1) {
+        const line = { ...lines[index], lineId: lines[index].lineId || `line-${index + 1}` };
+        const key = getTransferLineKey(line);
+        if (!line.productId) throw new Error('Produit obligatoire sur chaque ligne.');
+        if (seen.has(key)) throw new Error('Lignes dupliquees: fusionnez les quantites avant validation.');
+        seen.add(key);
+        if (!Number.isInteger(line.quantity) || line.quantity <= 0) throw new Error('Chaque quantite doit etre entiere et positive.');
+
+        const productRef = db.collection('products').doc(line.productId);
+        const sourceBalanceRef = db.collection(SMART_STOCK_BALANCES_COLLECTION).doc(smartStockBalanceId({
+          locationId: sourceLocationId,
+          productId: line.productId,
+          variantId: line.variantId
+        }));
+        const [productSnap, sourceBalanceSnap] = await Promise.all([
+          transaction.get(productRef),
+          transaction.get(sourceBalanceRef)
+        ]);
+        if (!productSnap.exists) throw new Error('Produit introuvable.');
+        const product = productSnap.data() || {};
+        if (String(product.status || '').toLowerCase() === 'inactive' || product.active === false) throw new Error('Produit inactif: transfert refuse.');
+        const variants = extractSmartProductVariants(product);
+        const hasVariants = variants.length || product.productType === 'variants';
+        const variant = line.variantId ? variants.find((item) => item.id === line.variantId) : null;
+        if (hasVariants && !line.variantId) throw new Error('Ce produit utilise des variantes: choisissez une variante.');
+        if (line.variantId && !variant) throw new Error('Variante invalide pour ce produit.');
+        if (variant && variant.status === 'inactive') throw new Error('Variante inactive: transfert refuse.');
+        const sourceBalance = sourceBalanceSnap.exists ? sourceBalanceSnap.data() || {} : {};
+        const available = normalizeStockQuantity(sourceBalance.availableQty || 0);
+        if (line.quantity > available) throw new Error(`Stock disponible insuffisant pour ${product.name || product.title || 'Produit'}.`);
+
+        prepared.push({ line, productSnap, variant, sourceBalanceSnap, sourceBalanceRef });
+      }
+
+      const transferRef = db.collection(SMART_STOCK_TRANSFERS_COLLECTION).doc();
+      const source = sourceSnap.data() || {};
+      const destination = destinationSnap.data() || {};
+      const transferNumber = makeSmartTransferNumber();
+      const transferLines = prepared.map((entry) => {
+        const product = entry.productSnap.data() || {};
+        return {
+          lineId: entry.line.lineId,
+          productId: entry.line.productId,
+          productName: sanitizeText(product.name || product.title || 'Produit', 220),
+          variantId: entry.line.variantId || '',
+          variantLabel: entry.variant?.label || '',
+          sku: sanitizeText(entry.variant?.sku || product.sku || '', 140),
+          barcode: sanitizeText(entry.variant?.barcode || product.barcode || product.codebarre || '', 140),
+          requestedQty: entry.line.quantity,
+          shippedQty: 0,
+          receivedQty: 0,
+          discrepancyQty: 0,
+          closedDiscrepancyQty: 0,
+          unitCost: entry.line.unitCost,
+          lowStockThreshold: entry.line.lowStockThreshold,
+          note: entry.line.note || ''
+        };
+      });
+      transaction.set(transferRef, {
+        transferNumber,
+        reference: transferNumber,
+        status: 'draft',
+        sourceLocationId,
+        sourceLocationName: sanitizeText(source.name || source.code || 'Source', 220),
+        destinationLocationId,
+        destinationLocationName: sanitizeText(destination.name || destination.code || 'Destination', 220),
+        expectedShipDate: sanitizeText(body.expectedShipDate || '', 40),
+        expectedReceiveDate: sanitizeText(body.expectedReceiveDate || '', 40),
+        reason,
+        note,
+        lines: transferLines,
+        lineCount: transferLines.length,
+        requestedQty: transferLines.reduce((sum, line) => sum + line.requestedQty, 0),
+        shippedQty: 0,
+        receivedQty: 0,
+        inTransitQty: 0,
+        createdBy: decodedUser.uid,
+        updatedBy: decodedUser.uid,
+        history: [buildTransferHistoryEvent({ type: 'creation', fromStatus: '', toStatus: 'draft', uid: decodedUser.uid, note })],
+        createdAt: now,
+        updatedAt: now
+      });
+      transaction.set(operationRef, {
+        idempotencyKey,
+        operationType: 'TRANSFER',
+        action,
+        transferId: transferRef.id,
+        transferNumber,
+        status: 'completed',
+        movementIds: [],
+        actorUid: decodedUser.uid,
+        createdAt: now,
+        updatedAt: now
+      });
+      operationResult.transferId = transferRef.id;
+      return;
+    }
+
+    if (!transferId) throw new Error('transferId obligatoire.');
+    const transferRef = db.collection(SMART_STOCK_TRANSFERS_COLLECTION).doc(transferId);
+    const transferSnap = await transaction.get(transferRef);
+    if (!transferSnap.exists) throw new Error('Transfert introuvable.');
+    const transfer = transferSnap.data() || {};
+    const currentStatus = String(transfer.status || 'draft');
+    const lines = Array.isArray(transfer.lines) ? transfer.lines : [];
+    const sourceRef = db.collection('smartManagementLocations').doc(transfer.sourceLocationId);
+    const destinationRef = db.collection('smartManagementLocations').doc(transfer.destinationLocationId);
+    const [sourceSnap, destinationSnap] = await Promise.all([
+      transaction.get(sourceRef),
+      transaction.get(destinationRef)
+    ]);
+    if (!sourceSnap.exists || !destinationSnap.exists) throw new Error('Emplacement source ou destination introuvable.');
+
+    const transitionPatch = {
+      updatedAt: now,
+      updatedBy: decodedUser.uid
+    };
+    const movementIds = [];
+
+    if (action === 'submit') {
+      if (currentStatus !== 'draft') throw new Error('Seul un brouillon peut etre soumis.');
+      if (!lines.length) throw new Error('Transfert sans ligne.');
+      transitionPatch.status = 'pending_approval';
+      transitionPatch.submittedBy = decodedUser.uid;
+      transitionPatch.submittedAt = now;
+      transitionPatch.history = admin.firestore.FieldValue.arrayUnion(buildTransferHistoryEvent({ type: 'submission', fromStatus: currentStatus, toStatus: 'pending_approval', uid: decodedUser.uid, note }));
+    } else if (action === 'approve') {
+      if (currentStatus !== 'pending_approval') throw new Error('Seul un transfert en attente peut etre approuve.');
+      transitionPatch.status = 'approved';
+      transitionPatch.approvedBy = decodedUser.uid;
+      transitionPatch.approvedAt = now;
+      transitionPatch.history = admin.firestore.FieldValue.arrayUnion(buildTransferHistoryEvent({ type: 'approval', fromStatus: currentStatus, toStatus: 'approved', uid: decodedUser.uid, note }));
+    } else if (action === 'reject') {
+      if (currentStatus !== 'pending_approval') throw new Error('Seul un transfert en attente peut etre refuse.');
+      if (!note) throw new Error('Une justification est obligatoire pour refuser.');
+      transitionPatch.status = 'rejected';
+      transitionPatch.rejectedBy = decodedUser.uid;
+      transitionPatch.rejectedAt = now;
+      transitionPatch.rejectionNote = note;
+      transitionPatch.history = admin.firestore.FieldValue.arrayUnion(buildTransferHistoryEvent({ type: 'rejection', fromStatus: currentStatus, toStatus: 'rejected', uid: decodedUser.uid, note }));
+    } else if (action === 'cancel') {
+      if (!['draft', 'approved'].includes(currentStatus)) throw new Error('Ce statut ne peut pas etre annule directement.');
+      if (!note) throw new Error('Une justification est obligatoire pour annuler.');
+      transitionPatch.status = 'cancelled';
+      transitionPatch.cancelledBy = decodedUser.uid;
+      transitionPatch.cancelledAt = now;
+      transitionPatch.cancellationNote = note;
+      transitionPatch.history = admin.firestore.FieldValue.arrayUnion(buildTransferHistoryEvent({ type: 'cancellation', fromStatus: currentStatus, toStatus: 'cancelled', uid: decodedUser.uid, note }));
+    } else if (action === 'ship') {
+      if (currentStatus !== 'approved') throw new Error('Seul un transfert approuve peut etre expedie.');
+      const prepared = [];
+      for (const line of lines) {
+        const sourceLine = {
+          productId: line.productId,
+          variantId: line.variantId || '',
+          locationId: transfer.sourceLocationId,
+          quantity: normalizeStockQuantity(line.requestedQty),
+          unitCost: line.unitCost,
+          lowStockThreshold: line.lowStockThreshold,
+          note: line.note || ''
+        };
+        const productRef = db.collection('products').doc(sourceLine.productId);
+        const balanceRef = db.collection(SMART_STOCK_BALANCES_COLLECTION).doc(smartStockBalanceId(sourceLine));
+        const [productSnap, balanceSnap] = await Promise.all([
+          transaction.get(productRef),
+          transaction.get(balanceRef)
+        ]);
+        if (!productSnap.exists) throw new Error('Produit introuvable pendant expedition.');
+        if (!balanceSnap.exists) throw new Error('Stock source introuvable pendant expedition.');
+        const product = productSnap.data() || {};
+        const variant = sourceLine.variantId ? extractSmartProductVariants(product).find((item) => item.id === sourceLine.variantId) : null;
+        const balance = balanceSnap.data() || {};
+        const available = normalizeStockQuantity(balance.availableQty || 0);
+        if (sourceLine.quantity > available) throw new Error(`Stock insuffisant pour expedier ${product.name || product.title || 'Produit'}.`);
+        prepared.push({ line, sourceLine, productSnap, balanceSnap, balanceRef, variant });
+      }
+      const nextLines = lines.map((line) => ({ ...line, shippedQty: normalizeStockQuantity(line.requestedQty) }));
+      prepared.forEach((entry) => {
+        const current = entry.balanceSnap.data() || {};
+        const beforePhysical = normalizeStockQuantity(current.physicalQty || 0);
+        const beforeReserved = Math.max(0, normalizeStockQuantity(current.reservedQty || 0));
+        const afterPhysical = beforePhysical - entry.sourceLine.quantity;
+        if (afterPhysical < 0 || afterPhysical - beforeReserved < 0) throw new Error('Expedition refusee: stock source negatif.');
+        const movementRef = db.collection(SMART_STOCK_MOVEMENTS_COLLECTION).doc();
+        transaction.set(entry.balanceRef, {
+          ...buildStockBalancePatch({
+            line: entry.sourceLine,
+            locationSnap: sourceSnap,
+            productSnap: entry.productSnap,
+            variant: entry.variant,
+            afterPhysical,
+            beforeReserved,
+            unitCost: entry.sourceLine.unitCost,
+            operationType: 'TRANSFER_OUT',
+            actorUid: decodedUser.uid
+          }),
+          createdAt: current.createdAt || now
+        }, { merge: true });
+        transaction.set(movementRef, {
+          ...buildStockMovementPatch({
+            operationType: 'TRANSFER_OUT',
+            reference: transfer.transferNumber || transfer.reference || transferId,
+            line: entry.sourceLine,
+            locationSnap: sourceSnap,
+            productSnap: entry.productSnap,
+            variant: entry.variant,
+            beforePhysical,
+            beforeReserved,
+            afterPhysical,
+            unitCost: entry.sourceLine.unitCost,
+            actorUid: decodedUser.uid,
+            note,
+            reason: 'Transfert expedie'
+          }),
+          transferId,
+          transferNumber: transfer.transferNumber || transfer.reference || '',
+          idempotencyKey,
+          operationCreatedAt: now
+        });
+        movementIds.push(movementRef.id);
+      });
+      transitionPatch.status = 'in_transit';
+      transitionPatch.lines = nextLines;
+      transitionPatch.shippedQty = nextLines.reduce((sum, line) => sum + normalizeStockQuantity(line.shippedQty || 0), 0);
+      transitionPatch.inTransitQty = transitionPatch.shippedQty - normalizeStockQuantity(transfer.receivedQty || 0);
+      transitionPatch.shippedBy = decodedUser.uid;
+      transitionPatch.shippedAt = now;
+      transitionPatch.history = admin.firestore.FieldValue.arrayUnion(buildTransferHistoryEvent({ type: 'shipping', fromStatus: currentStatus, toStatus: 'in_transit', uid: decodedUser.uid, note }));
+    } else if (action === 'receive') {
+      if (!['in_transit', 'partially_received'].includes(currentStatus)) throw new Error('Ce transfert ne peut pas etre recu maintenant.');
+      const receiveLines = Array.isArray(body.receiveLines) ? body.receiveLines : [];
+      const prepared = [];
+      const nextLines = lines.map((line) => ({ ...line }));
+      let totalReceivedNow = 0;
+      let totalDiscrepancyNow = 0;
+      for (const raw of receiveLines) {
+        const lineId = sanitizeText(raw.lineId, 80);
+        const index = nextLines.findIndex((line) => line.lineId === lineId);
+        if (index < 0) throw new Error('Ligne de reception invalide.');
+        const receivedNow = normalizeStockQuantity(raw.receivedQty || 0);
+        const discrepancyNow = normalizeStockQuantity(raw.discrepancyQty || 0);
+        if (receivedNow < 0 || discrepancyNow < 0) throw new Error('Reception invalide: quantite negative.');
+        if (receivedNow === 0 && discrepancyNow === 0) continue;
+        const remaining = getTransferRemainingQty(nextLines[index]);
+        if (receivedNow + discrepancyNow > remaining) throw new Error('Reception superieure au restant.');
+        const line = nextLines[index];
+        const destinationLine = {
+          productId: line.productId,
+          variantId: line.variantId || '',
+          locationId: transfer.destinationLocationId,
+          quantity: receivedNow,
+          unitCost: line.unitCost,
+          lowStockThreshold: line.lowStockThreshold,
+          note: sanitizeText(raw.note || '', 800)
+        };
+        if (receivedNow > 0) {
+          const productRef = db.collection('products').doc(destinationLine.productId);
+          const balanceRef = db.collection(SMART_STOCK_BALANCES_COLLECTION).doc(smartStockBalanceId(destinationLine));
+          const [productSnap, balanceSnap] = await Promise.all([
+            transaction.get(productRef),
+            transaction.get(balanceRef)
+          ]);
+          if (!productSnap.exists) throw new Error('Produit introuvable pendant reception.');
+          const product = productSnap.data() || {};
+          const variant = destinationLine.variantId ? extractSmartProductVariants(product).find((item) => item.id === destinationLine.variantId) : null;
+          prepared.push({ index, receivedNow, discrepancyNow, destinationLine, productSnap, balanceSnap, balanceRef, variant });
+        } else {
+          prepared.push({ index, receivedNow, discrepancyNow, destinationLine, productSnap: null, balanceSnap: null, balanceRef: null, variant: null });
+        }
+        totalReceivedNow += receivedNow;
+        totalDiscrepancyNow += discrepancyNow;
+      }
+      if (totalReceivedNow + totalDiscrepancyNow <= 0) throw new Error('Indiquez au moins une quantite traitee.');
+
+      prepared.forEach((entry) => {
+        nextLines[entry.index].receivedQty = normalizeStockQuantity(nextLines[entry.index].receivedQty || 0) + entry.receivedNow;
+        nextLines[entry.index].discrepancyQty = normalizeStockQuantity(nextLines[entry.index].discrepancyQty || 0) + entry.discrepancyNow;
+        if (entry.receivedNow <= 0) return;
+        const current = entry.balanceSnap?.exists ? entry.balanceSnap.data() || {} : {};
+        const beforePhysical = normalizeStockQuantity(current.physicalQty || 0);
+        const beforeReserved = Math.max(0, normalizeStockQuantity(current.reservedQty || 0));
+        const afterPhysical = beforePhysical + entry.receivedNow;
+        const movementRef = db.collection(SMART_STOCK_MOVEMENTS_COLLECTION).doc();
+        transaction.set(entry.balanceRef, {
+          ...buildStockBalancePatch({
+            line: entry.destinationLine,
+            locationSnap: destinationSnap,
+            productSnap: entry.productSnap,
+            variant: entry.variant,
+            afterPhysical,
+            beforeReserved,
+            unitCost: entry.destinationLine.unitCost,
+            operationType: 'TRANSFER_IN',
+            actorUid: decodedUser.uid
+          }),
+          createdAt: current.createdAt || now
+        }, { merge: true });
+        transaction.set(movementRef, {
+          ...buildStockMovementPatch({
+            operationType: 'TRANSFER_IN',
+            reference: transfer.transferNumber || transfer.reference || transferId,
+            line: entry.destinationLine,
+            locationSnap: destinationSnap,
+            productSnap: entry.productSnap,
+            variant: entry.variant,
+            beforePhysical,
+            beforeReserved,
+            afterPhysical,
+            unitCost: entry.destinationLine.unitCost,
+            actorUid: decodedUser.uid,
+            note,
+            reason: 'Transfert recu'
+          }),
+          transferId,
+          transferNumber: transfer.transferNumber || transfer.reference || '',
+          idempotencyKey,
+          operationCreatedAt: now
+        });
+        movementIds.push(movementRef.id);
+      });
+      const shippedQty = nextLines.reduce((sum, line) => sum + normalizeStockQuantity(line.shippedQty || 0), 0);
+      const receivedQty = nextLines.reduce((sum, line) => sum + normalizeStockQuantity(line.receivedQty || 0), 0);
+      const discrepancyQty = nextLines.reduce((sum, line) => sum + normalizeStockQuantity(line.discrepancyQty || 0), 0);
+      const inTransitQty = Math.max(0, shippedQty - receivedQty - discrepancyQty);
+      const nextStatus = inTransitQty <= 0 ? 'received' : 'partially_received';
+      transitionPatch.status = nextStatus;
+      transitionPatch.lines = nextLines;
+      transitionPatch.receivedQty = receivedQty;
+      transitionPatch.discrepancyQty = discrepancyQty;
+      transitionPatch.inTransitQty = inTransitQty;
+      transitionPatch.receivedBy = decodedUser.uid;
+      transitionPatch.receivedAt = now;
+      transitionPatch.history = admin.firestore.FieldValue.arrayUnion(buildTransferHistoryEvent({ type: nextStatus === 'received' ? 'full_reception' : 'partial_reception', fromStatus: currentStatus, toStatus: nextStatus, uid: decodedUser.uid, note }));
+    }
+
+    transaction.update(transferRef, transitionPatch);
+    transaction.set(operationRef, {
+      idempotencyKey,
+      operationType: 'TRANSFER',
+      action,
+      transferId,
+      transferNumber: transfer.transferNumber || transfer.reference || '',
+      status: 'completed',
+      movementIds,
+      actorUid: decodedUser.uid,
+      createdAt: now,
+      updatedAt: now
+    });
+    operationResult.transferId = transferId;
+    operationResult.movementIds = movementIds;
+  });
+
+  return { status: 200, body: { ok: true, transferId: operationResult.transferId, movementIds: operationResult.movementIds, idempotencyKey } };
+}
+
+async function executeSmartStockOperation({ decodedUser, body }) {
+  const operationType = sanitizeText(body.operationType, 60).toUpperCase();
+  const idempotencyKey = sanitizeText(body.idempotencyKey, 180);
+  const reference = sanitizeText(body.reference || `${operationType}-${Date.now()}`, 180);
+  const note = sanitizeText(body.note || '', 900);
+  const reason = sanitizeText(body.reason || '', 180);
+  const supplier = sanitizeText(body.supplier || '', 220);
+  const lines = Array.isArray(body.lines) ? body.lines.map(normalizeStockLine) : [normalizeStockLine(body)];
+
+  if (operationType === 'TRANSFER') {
+    return executeSmartTransferOperation({ decodedUser, body });
+  }
+
+  const canManageStock = await canRunSmartStockOperation(decodedUser.uid, operationType, body, lines);
+  if (!canManageStock) {
+    return { status: 403, body: { ok: false, error: 'smart-management-access-denied' } };
+  }
+
+  if (!['INITIAL_STOCK', 'RECEIPT', 'ADJUSTMENT'].includes(operationType)) {
+    return { status: 400, body: { ok: false, error: 'invalid-operation-type' } };
+  }
+  if (!idempotencyKey) {
+    return { status: 400, body: { ok: false, error: 'missing-idempotency-key' } };
+  }
+  if (!lines.length) {
+    return { status: 400, body: { ok: false, error: 'missing-lines' } };
+  }
+
+  const operationRef = db.collection(SMART_STOCK_OPERATIONS_COLLECTION).doc(idempotencyKey);
+  const movementIds = [];
+
+  await db.runTransaction(async (transaction) => {
+    const operationSnap = await transaction.get(operationRef);
+    if (operationSnap.exists) {
+      const data = operationSnap.data() || {};
+      if (data.status === 'completed') {
+        movementIds.push(...(Array.isArray(data.movementIds) ? data.movementIds : []));
+        return;
+      }
+      throw new Error('Operation deja en cours ou incomplete.');
+    }
+
+    const prepared = [];
+    const seen = new Set();
+    for (const line of lines) {
+      if (!line.productId || !line.locationId) throw new Error('Produit et emplacement obligatoires.');
+      const key = `${line.locationId}|${line.productId}|${line.variantId || 'simple'}`;
+      if (seen.has(key)) throw new Error('Lignes dupliquees: fusionnez les quantites avant validation.');
+      seen.add(key);
+      if (operationType === 'RECEIPT' && (!Number.isInteger(line.quantity) || line.quantity <= 0)) throw new Error('La reception exige une quantite positive.');
+      if (operationType === 'INITIAL_STOCK' && (!Number.isInteger(line.quantity) || line.quantity < 0)) throw new Error('Le stock initial doit etre superieur ou egal a zero.');
+      if (operationType === 'ADJUSTMENT') {
+        const hasDelta = Number.isInteger(line.quantity) && line.quantity !== 0;
+        const hasCount = Number.isInteger(line.countedQuantity) && line.countedQuantity >= 0;
+        if (!hasDelta && !hasCount) throw new Error('Ajustement invalide: indiquez une variation ou une quantite comptee.');
+        if (line.reason === 'Autre' && !line.note) throw new Error('Une justification est obligatoire pour le motif Autre.');
+      }
+
+      const locationRef = db.collection('smartManagementLocations').doc(line.locationId);
+      const productRef = db.collection('products').doc(line.productId);
+      const balanceRef = db.collection(SMART_STOCK_BALANCES_COLLECTION).doc(smartStockBalanceId(line));
+      const [locationSnap, productSnap, balanceSnap] = await Promise.all([
+        transaction.get(locationRef),
+        transaction.get(productRef),
+        transaction.get(balanceRef)
+      ]);
+      if (!locationSnap.exists || String(locationSnap.data()?.status || 'active') !== 'active') throw new Error('Emplacement introuvable ou inactif.');
+      if (!productSnap.exists) throw new Error('Produit introuvable.');
+      const product = productSnap.data() || {};
+      const productInactive = String(product.status || '').toLowerCase() === 'inactive' || product.active === false;
+      if (productInactive && operationType !== 'ADJUSTMENT') throw new Error('Produit inactif: operation non autorisee.');
+      const variants = extractSmartProductVariants(product);
+      const hasVariants = variants.length || product.productType === 'variants';
+      const variant = line.variantId ? variants.find((item) => item.id === line.variantId) : null;
+      if (hasVariants && !line.variantId) throw new Error('Ce produit utilise des variantes: choisissez une variante.');
+      if (line.variantId && !variant) throw new Error('Variante invalide pour ce produit.');
+      if (variant && variant.status === 'inactive' && operationType !== 'ADJUSTMENT') throw new Error('Variante inactive: operation non autorisee.');
+
+      prepared.push({ line, locationSnap, productSnap, balanceSnap, balanceRef, variant });
+    }
+
+    const now = getAdminTimestamp();
+    const writtenMovements = [];
+    prepared.forEach((entry) => {
+      const current = entry.balanceSnap.exists ? entry.balanceSnap.data() || {} : {};
+      const legacyPhysicalQty = !entry.balanceSnap.exists && operationType === 'ADJUSTMENT'
+        && Number.isInteger(entry.line.oldGlobalStockObserved) && entry.line.oldGlobalStockObserved >= 0
+        ? entry.line.oldGlobalStockObserved
+        : 0;
+      const beforePhysical = normalizeStockQuantity(entry.balanceSnap.exists ? current.physicalQty || 0 : legacyPhysicalQty);
+      const beforeReserved = Math.max(0, normalizeStockQuantity(current.reservedQty || 0));
+      let afterPhysical = beforePhysical;
+      let movementType = operationType;
+
+      if (operationType === 'INITIAL_STOCK') {
+        if (current.initialized === true) throw new Error('Cette reference est deja initialisee dans cet emplacement.');
+        afterPhysical = entry.line.quantity;
+      } else if (operationType === 'RECEIPT') {
+        afterPhysical = beforePhysical + entry.line.quantity;
+      } else if (operationType === 'ADJUSTMENT') {
+        afterPhysical = Number.isInteger(entry.line.countedQuantity)
+          ? entry.line.countedQuantity
+          : beforePhysical + entry.line.quantity;
+        movementType = afterPhysical >= beforePhysical ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+      }
+
+      if (afterPhysical < 0) throw new Error('Operation refusee: quantite physique negative.');
+      if (afterPhysical - beforeReserved < 0) throw new Error('Operation refusee: quantite disponible incoherente.');
+
+      const movementRef = db.collection(SMART_STOCK_MOVEMENTS_COLLECTION).doc();
+      const movementPatch = buildStockMovementPatch({
+        operationType: movementType,
+        reference,
+        line: entry.line,
+        locationSnap: entry.locationSnap,
+        productSnap: entry.productSnap,
+        variant: entry.variant,
+        beforePhysical,
+        beforeReserved,
+        afterPhysical,
+        unitCost: entry.line.unitCost,
+        actorUid: decodedUser.uid,
+        note,
+        reason
+      });
+      transaction.set(entry.balanceRef, {
+        ...buildStockBalancePatch({
+          line: entry.line,
+          locationSnap: entry.locationSnap,
+          productSnap: entry.productSnap,
+          variant: entry.variant,
+          afterPhysical,
+          beforeReserved,
+          unitCost: entry.line.unitCost,
+          operationType: movementType,
+          actorUid: decodedUser.uid
+        }),
+        createdAt: current.createdAt || now,
+        initializedAt: current.initializedAt || (operationType === 'INITIAL_STOCK' ? now : null),
+        oldGlobalStockObserved: operationType === 'INITIAL_STOCK' ? entry.line.oldGlobalStockObserved : current.oldGlobalStockObserved ?? entry.line.oldGlobalStockObserved ?? null,
+        initializationReference: current.initializationReference || (operationType === 'INITIAL_STOCK' ? reference : '')
+      }, { merge: true });
+      transaction.set(movementRef, {
+        ...movementPatch,
+        supplier,
+        idempotencyKey,
+        operationCreatedAt: now
+      });
+      if (operationType === 'ADJUSTMENT' && entry.line.reason === 'Vente en magasin') {
+        const productData = entry.productSnap.data() || {};
+        const quantityChange = afterPhysical - beforePhysical;
+        const productPatch = { updatedAt: now };
+        const variantsField = Array.isArray(productData.variants) ? 'variants'
+          : Array.isArray(productData.variations) ? 'variations'
+            : '';
+
+        if (entry.line.variantId && variantsField) {
+          productPatch[variantsField] = productData[variantsField].map((variant, index) => {
+            const variantId = String(variant.id || variant.variantId || variant.sku || `variant-${index + 1}`);
+            if (variantId !== entry.line.variantId) return variant;
+            const currentVariantStock = normalizeStockQuantity(
+              variant.stock ?? variant.totalStock ?? variant.quantity ?? variant.qty ?? beforePhysical
+            );
+            const nextVariantStock = Math.max(0, currentVariantStock + quantityChange);
+            return {
+              ...variant,
+              stock: nextVariantStock,
+              totalStock: variant.totalStock !== undefined ? nextVariantStock : variant.totalStock,
+              quantity: variant.quantity !== undefined ? nextVariantStock : variant.quantity,
+              qty: variant.qty !== undefined ? nextVariantStock : variant.qty
+            };
+          });
+        }
+
+        const currentGlobalStock = normalizeStockQuantity(
+          productData.stock ?? productData.totalStock ?? productData.quantity ?? productData.qty ?? beforePhysical
+        );
+        if (Number.isFinite(currentGlobalStock)) {
+          const nextGlobalStock = Math.max(0, currentGlobalStock + quantityChange);
+          productPatch.stock = nextGlobalStock;
+          if (productData.totalStock !== undefined) productPatch.totalStock = nextGlobalStock;
+          if (productData.quantity !== undefined) productPatch.quantity = nextGlobalStock;
+          if (productData.qty !== undefined) productPatch.qty = nextGlobalStock;
+        }
+
+        transaction.update(entry.productSnap.ref, productPatch);
+      }
+      writtenMovements.push(movementRef.id);
+    });
+
+    transaction.set(operationRef, {
+      idempotencyKey,
+      operationType,
+      reference,
+      status: 'completed',
+      movementIds: writtenMovements,
+      lineCount: prepared.length,
+      actorUid: decodedUser.uid,
+      supplier,
+      note,
+      createdAt: now,
+      updatedAt: now
+    });
+    movementIds.push(...writtenMovements);
+  });
+
+  return { status: 200, body: { ok: true, movementIds, idempotencyKey } };
+}
+
 function isApprovedVendorProfile(profile) {
   if (!profile) return false;
   const role = String(profile.role || '').toLowerCase();
@@ -374,6 +1249,29 @@ function addMonthsIso(value, months = 1) {
   const date = Number.isNaN(base.getTime()) ? new Date() : base;
   date.setMonth(date.getMonth() + Number(months || 1));
   return date.toISOString();
+}
+
+function normalizeBonusDurationDays(source = {}) {
+  const rawDays = Number(source.durationDays || source.bonusDurationDays || source.offerDurationDays || 0);
+  if ([30, 90, 180].includes(rawDays)) return rawDays;
+  const rawMonths = Number(source.durationMonths || source.bonusDurationMonths || source.offerDurationMonths || 0);
+  if (rawMonths === 1) return 30;
+  if (rawMonths === 3) return 90;
+  if (rawMonths === 6) return 180;
+  const startMs = toDateMs(source.startAt || source.bonusStartAt || source.offerStartAt || source.startDate);
+  const endMs = toDateMs(source.endAt || source.bonusEndAt || source.offerEndAt || source.endDate);
+  if (startMs && endMs && endMs > startMs) {
+    const diffDays = Math.round((endMs - startMs) / (24 * 60 * 60 * 1000));
+    if (diffDays >= 150) return 180;
+    if (diffDays >= 60) return 90;
+    return 30;
+  }
+  return 30;
+}
+
+function bonusDurationMonthsLabel(days = 30) {
+  const normalizedDays = normalizeBonusDurationDays({ durationDays: days });
+  return normalizedDays === 180 ? 6 : normalizedDays === 90 ? 3 : 1;
 }
 
 function normalizeVendorServicePaymentMethod(value = '') {
@@ -429,8 +1327,11 @@ function getFirstActivationBonusSettings(settings = {}, proPlan = {}) {
   const source = settings.firstActivationBonus || settings.firstActivationBonusOffer || {};
   const enabled = source.enabled === true || source.active === true || settings.firstActivationBonusEnabled === true;
   const amount = Math.max(0, toNumber(source.amount ?? source.promoPrice ?? source.price ?? settings.firstActivationBonusAmount));
-  const durationMonths = Number(source.durationMonths || settings.firstActivationBonusDurationMonths || 1);
-  const normalizedDuration = [1, 3, 6].includes(durationMonths) ? durationMonths : 1;
+  const durationDays = normalizeBonusDurationDays({
+    ...source,
+    durationDays: source.durationDays || settings.firstActivationBonusDurationDays,
+    durationMonths: source.durationMonths || settings.firstActivationBonusDurationMonths
+  });
   if (!enabled || amount <= 0) return null;
 
   return {
@@ -440,7 +1341,8 @@ function getFirstActivationBonusSettings(settings = {}, proPlan = {}) {
     amount,
     normalAmount: proPlan.price,
     currency: proPlan.currency,
-    durationMonths: normalizedDuration,
+    durationDays,
+    durationMonths: bonusDurationMonthsLabel(durationDays),
     enabled: true
   };
 }
@@ -449,7 +1351,7 @@ async function vendorHasEverPaidPro(vendorId = '', vendor = {}) {
   const normalizedVendorId = String(vendorId || '').trim();
   if (!normalizedVendorId) return true;
 
-  if (vendor.firstActivationBonusUsedAt || vendor.firstActivationBonusFeeId || vendor.proActivatedAt) return true;
+  if (vendor.firstActivationBonusUsedAt || vendor.firstActivationBonusFeeId) return true;
   if (isVendorProPlan(vendor) && vendor.serviceFeeLastPaidAt) return true;
 
   const snap = await db.collection(VENDOR_SERVICE_FEES_COLLECTION).where('vendorId', '==', normalizedVendorId).get();
@@ -462,11 +1364,13 @@ async function vendorHasEverPaidPro(vendorId = '', vendor = {}) {
   });
 }
 
-function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString()) {
+function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString(), options = {}) {
   if (!offer) return null;
-  const durationMonths = Number(offer.durationMonths || 0);
-  const startAt = offer.startAt || nowIso;
-  const endAt = offer.endAt || offer.endDate || (durationMonths > 0 ? addMonthsIso(startAt, durationMonths) : '');
+  const durationDays = normalizeBonusDurationDays(offer);
+  const durationMonths = bonusDurationMonthsLabel(durationDays);
+  const deferActivation = options.deferActivation === true;
+  const startAt = deferActivation ? '' : (offer.startAt || nowIso);
+  const endAt = deferActivation ? '' : (offer.endAt || offer.endDate || addDaysIso(startAt, durationDays));
   return {
     offerId: offer.id || '',
     offerType: offer.type || '',
@@ -474,10 +1378,37 @@ function buildVendorPlanOfferPayload(offer = {}, nowIso = new Date().toISOString
     offerAmount: Math.max(0, toNumber(offer.amount)),
     offerNormalAmount: Math.max(0, toNumber(offer.normalAmount)),
     offerCurrency: offer.currency || MONCASH_CURRENCY,
+    offerDurationDays: durationDays,
     offerDurationMonths: durationMonths,
     offerStartAt: startAt,
     offerEndAt: endAt,
     offerAppliedAt: nowIso
+  };
+}
+
+function getStoredVendorBonusOffer(vendor = {}, proPlan = {}, nowMs = Date.now()) {
+  const type = String(vendor.serviceFeeBonusType || '').trim();
+  const endAt = vendor.serviceFeeBonusEndAt || '';
+  const endMs = toDateMs(endAt);
+  const amount = Math.max(0, toNumber(vendor.serviceFeeBonusAmount));
+  if (!type || !endMs || endMs <= nowMs || amount <= 0) return null;
+
+  const durationDays = normalizeBonusDurationDays({
+    durationDays: vendor.serviceFeeBonusDurationDays,
+    durationMonths: vendor.serviceFeeBonusDurationMonths
+  });
+  return {
+    id: vendor.serviceFeeBonusId || type,
+    type,
+    label: vendor.serviceFeeBonusLabel || (type === 'special_vendor' ? 'Bonification speciale Plan Pro' : 'Offre premiere activation Plan Pro'),
+    amount,
+    normalAmount: Math.max(0, toNumber(vendor.serviceFeeBonusNormalAmount || proPlan.price)),
+    currency: vendor.planCurrency || proPlan.currency,
+    durationDays,
+    durationMonths: bonusDurationMonthsLabel(durationDays),
+    startAt: vendor.serviceFeeBonusStartAt || '',
+    endAt,
+    status: 'active'
   };
 }
 
@@ -503,8 +1434,10 @@ async function getActiveVendorSpecialBonus(vendorId = '', proPlan = {}, nowMs = 
     amount,
     normalAmount: proPlan.price,
     currency: offer.currency || proPlan.currency,
-    startAt: offer.startAt || offer.startDate || '',
-    endAt: offer.endAt || offer.endDate || '',
+    durationDays: normalizeBonusDurationDays(offer),
+    durationMonths: bonusDurationMonthsLabel(normalizeBonusDurationDays(offer)),
+    startAt: '',
+    endAt: '',
     status: 'active'
   };
 }
@@ -513,6 +1446,9 @@ async function resolveVendorProOffer({ vendorId = '', vendor = {}, settings = {}
   const nowMs = toDateMs(nowIso) || Date.now();
   const specialOffer = await getActiveVendorSpecialBonus(vendorId, proPlan, nowMs);
   if (specialOffer) return specialOffer;
+
+  const storedOffer = getStoredVendorBonusOffer(vendor, proPlan, nowMs);
+  if (storedOffer) return storedOffer;
 
   const globalOffer = getFirstActivationBonusSettings(settings, proPlan);
   if (!globalOffer) return null;
@@ -1184,9 +2120,13 @@ function getVendorDeliveryDetailsForOrder(order = {}, vendorUid = '', relevantIt
       .map((item) => String(item?.productId || '').trim())
       .filter(Boolean)
   );
-  const details = Array.isArray(order?.delivery?.vendorDeliveryDetails)
+  const vendorDetails = Array.isArray(order?.delivery?.vendorDeliveryDetails)
     ? order.delivery.vendorDeliveryDetails
     : [];
+  const productDetails = Array.isArray(order?.delivery?.productDeliveryDetails)
+    ? order.delivery.productDeliveryDetails.filter((entry) => String(entry?.ownerType || '').trim().toLowerCase() === 'vendor')
+    : [];
+  const details = vendorDetails.length ? vendorDetails : productDetails;
 
   return details.filter((entry) => (
     String(entry?.vendorId || '').trim() === normalizedVendorId ||
@@ -1199,6 +2139,9 @@ function getVendorDeliveryAmount(order = {}, vendorUid = '', relevantItems = [])
   if (details.length) {
     return details.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.fee)), 0);
   }
+
+  const storedVendorFee = toNumber(order?.delivery?.vendorDeliveryFee ?? order?.delivery?.vendorDeliveryAmount);
+  if (storedVendorFee > 0) return storedVendorFee;
 
   return isVendorExclusiveOrder(order, vendorUid) ? getOrderDeliveryAmount(order) : 0;
 }
@@ -1230,36 +2173,49 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
   const deliveryAmount = vendorManagedDelivery
     ? getVendorDeliveryAmount(order, vendorUid, relevantItems)
     : 0;
-  const productGrossBeforeDelivery = relevantItems.reduce((sum, item) => sum + Math.max(0, toNumber(item.productGrossAmount)), 0);
-  relevantItems = relevantItems.map((item) => {
+  const deliveryMatches = relevantItems.map((item) => {
     const itemProductId = String(item?.productId || '').trim();
     const itemName = String(item?.name || 'Produit').trim();
-    const matchingDelivery = vendorManagedDelivery
+    return vendorManagedDelivery
       ? vendorDeliveryDetails.find((entry) => (
           (itemProductId && String(entry?.productId || '').trim() === itemProductId) ||
           String(entry?.productName || '').trim() === itemName
         ))
       : null;
-    const fallbackDeliveryShare = vendorManagedDelivery && !vendorDeliveryDetails.length && deliveryAmount > 0 && productGrossBeforeDelivery > 0
-      ? deliveryAmount * (Math.max(0, toNumber(item.productGrossAmount)) / productGrossBeforeDelivery)
+  });
+  const knownDeliveryAmount = deliveryMatches.reduce((sum, entry) => {
+    return sum + Math.max(0, toNumber(entry?.fee));
+  }, 0);
+  const unresolvedDeliveryItems = relevantItems.filter((item, index) => !deliveryMatches[index]);
+  const unresolvedDeliveryGross = unresolvedDeliveryItems.reduce((sum, item) => {
+    return sum + Math.max(0, toNumber(item.productGrossAmount));
+  }, 0);
+  const remainingDeliveryAmount = Math.max(0, deliveryAmount - knownDeliveryAmount);
+  relevantItems = relevantItems.map((item, index) => {
+    const matchingDelivery = deliveryMatches[index];
+    const fallbackDeliveryShare = vendorManagedDelivery && !matchingDelivery && remainingDeliveryAmount > 0
+      ? (unresolvedDeliveryGross > 0
+          ? remainingDeliveryAmount * (Math.max(0, toNumber(item.productGrossAmount)) / unresolvedDeliveryGross)
+          : remainingDeliveryAmount / Math.max(1, unresolvedDeliveryItems.length))
       : 0;
     const itemDeliveryAmount = Math.max(0, toNumber(matchingDelivery?.fee) || fallbackDeliveryShare);
-    const commissionBaseAmount = Math.max(0, toNumber(item.productGrossAmount) + itemDeliveryAmount);
+    const productGross = Math.max(0, toNumber(item.productGrossAmount));
+    const commissionBaseAmount = productGross;
     const commissionAmount = commissionBaseAmount * (Number(item.commissionRate || 0) / 100);
     return {
       ...item,
       deliveryAmount: itemDeliveryAmount,
       commissionBaseAmount,
-      grossAmount: commissionBaseAmount,
+      grossAmount: productGross + itemDeliveryAmount,
       commissionAmount,
-      vendorNetAmount: Math.max(0, commissionBaseAmount - commissionAmount)
+      vendorNetAmount: Math.max(0, productGross - commissionAmount + itemDeliveryAmount)
     };
   });
   const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
   const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
   const productNetAmount = relevantItems.reduce((sum, item) => sum + item.productNetAmount, 0);
   const grossAmount = productGrossAmount + deliveryAmount;
-  const vendorNetAmount = Math.max(0, grossAmount - commissionAmount);
+  const vendorNetAmount = Math.max(0, productGrossAmount - commissionAmount + deliveryAmount);
   const vendorDelivery = vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
     ? {
         ...order.delivery,
@@ -2481,7 +3437,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
 
   const now = new Date().toISOString();
   const feeRef = db.collection(VENDOR_SERVICE_FEES_COLLECTION).doc();
-  const offerPayload = buildVendorPlanOfferPayload(offer, now);
+  const offerPayload = buildVendorPlanOfferPayload(offer, now, { deferActivation: true });
   const referenceAmount = Math.max(0, toNumber(normalAmount || offerPayload?.offerNormalAmount || feeAmount));
   const fee = {
     vendorId: normalizedVendorId,
@@ -2493,7 +3449,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
     referenceAmount,
     currency: currency || vendor.planCurrency || MONCASH_CURRENCY,
     status: 'pending',
-    cycleDays: offerPayload?.offerEndAt ? 0 : VENDOR_SERVICE_FEE_INTERVAL_DAYS,
+    cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS,
     requestedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -2512,6 +3468,7 @@ async function createVendorServiceFeeRequest({ vendorId = '', vendor = {}, amoun
       bonusAmount: offerPayload.offerAmount,
       bonusNormalAmount: offerPayload.offerNormalAmount,
       bonusCurrency: offerPayload.offerCurrency,
+      bonusDurationDays: offerPayload.offerDurationDays,
       bonusDurationMonths: offerPayload.offerDurationMonths,
       bonusStartAt: offerPayload.offerStartAt,
       bonusEndAt: offerPayload.offerEndAt,
@@ -2552,11 +3509,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
   const feeSnap = await feeRef.get();
   const feeData = feeSnap.exists ? feeSnap.data() || {} : {};
   const now = paidAt || new Date().toISOString();
-  const bonusEndAt = feeData?.bonusEndAt && toDateMs(feeData.bonusEndAt) > toDateMs(now)
-    ? feeData.bonusEndAt
-    : '';
   const cycleDays = Math.max(1, toNumber(feeData?.cycleDays) || VENDOR_SERVICE_FEE_INTERVAL_DAYS);
-  const nextDueAt = bonusEndAt || addDaysIso(now, cycleDays);
+  const nextDueAt = addDaysIso(now, cycleDays);
   const paidPlanId = String(feeData?.planId || '').trim().toLowerCase();
   const paidPlanLabel = String(feeData?.planLabel || '').trim();
   const planUpgrade = paidPlanId === 'pro' || paidPlanLabel.toLowerCase().includes('pro');
@@ -2569,8 +3523,10 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
         serviceFeeBonusLabel: feeData?.bonusLabel || '',
         serviceFeeBonusAmount: Math.max(0, toNumber(feeData?.bonusAmount || feeData?.amount)),
         serviceFeeBonusNormalAmount: normalPlanPrice,
+        serviceFeeBonusDurationDays: normalizeBonusDurationDays(feeData),
+        serviceFeeBonusDurationMonths: bonusDurationMonthsLabel(normalizeBonusDurationDays(feeData)),
         serviceFeeBonusStartAt: feeData?.bonusStartAt || now,
-        serviceFeeBonusEndAt: feeData?.bonusEndAt || nextDueAt
+        serviceFeeBonusEndAt: feeData?.bonusEndAt || addDaysIso(feeData?.bonusStartAt || now, normalizeBonusDurationDays(feeData))
       }
     : {
         serviceFeeBonusType: '',
@@ -2578,6 +3534,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
         serviceFeeBonusLabel: '',
         serviceFeeBonusAmount: 0,
         serviceFeeBonusNormalAmount: 0,
+        serviceFeeBonusDurationDays: 0,
+        serviceFeeBonusDurationMonths: 0,
         serviceFeeBonusStartAt: '',
         serviceFeeBonusEndAt: ''
       };
@@ -2597,12 +3555,17 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
         firstActivationBonusFeeId: normalizedFeeId
       }
     : {};
+  const consumedSpecialBonusRef = bonusType === 'special_vendor' && feeData?.bonusId
+    ? db.collection(VENDOR_PLAN_BONUSES_COLLECTION).doc(String(feeData.bonusId))
+    : null;
 
   await db.runTransaction(async (transaction) => {
     transaction.set(feeRef, {
       status: 'paid',
       paidAt: now,
       nextDueAt,
+      paidPeriodStartAt: now,
+      paidPeriodEndAt: nextDueAt,
       bonusPaid: Boolean(bonusType),
       paymentMethod: normalizeVendorServicePaymentMethod(method),
       paymentProvider: provider || normalizeVendorServicePaymentMethod(method),
@@ -2621,6 +3584,8 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       serviceFeeAmount: normalPlanPrice,
       serviceFeeLastPaidAt: now,
       serviceFeeNextDueAt: nextDueAt,
+      serviceFeePaidPeriodStartAt: now,
+      serviceFeePaidPeriodEndAt: nextDueAt,
       serviceFeePaymentMethod: normalizeVendorServicePaymentMethod(method),
       updatedAt: now
     }, { merge: true });
@@ -2636,8 +3601,20 @@ async function activateVendorAfterServiceFee({ vendorId = '', feeId = '', method
       serviceFeeAmount: normalPlanPrice,
       serviceFeeLastPaidAt: now,
       serviceFeeNextDueAt: nextDueAt,
+      serviceFeePaidPeriodStartAt: now,
+      serviceFeePaidPeriodEndAt: nextDueAt,
       updatedAt: now
     }, { merge: true });
+
+    if (consumedSpecialBonusRef) {
+      transaction.set(consumedSpecialBonusRef, {
+        enabled: false,
+        status: 'consumed',
+        consumedAt: now,
+        consumedFeeId: normalizedFeeId,
+        updatedAt: now
+      }, { merge: true });
+    }
   });
 
   await updateVendorProductsServiceStatus(normalizedVendorId, 'active', planUpgrade ? {
@@ -3478,7 +4455,10 @@ exports.getVendorServiceFeeStatus = onRequest(
         return;
       }
 
-      const [pending, paid, planSettings] = await Promise.all([
+      let pending;
+      let paid;
+      let planSettings;
+      [pending, paid, planSettings] = await Promise.all([
         findLatestOpenVendorServiceFee(user.uid),
         findLatestVendorServiceFee(user.uid, 'paid'),
         getVendorPlanSettings()
@@ -3490,6 +4470,63 @@ exports.getVendorServiceFeeStatus = onRequest(
         settings: planSettings,
         proPlan
       });
+      if (pending) {
+        const now = new Date().toISOString();
+        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now, { deferActivation: true });
+        const expectedAmount = Math.max(0, toNumber(applicableOffer?.amount || proPlan.price));
+        const pendingAmount = toNumber(pending.data?.amount);
+        const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
+        const pendingOfferId = String(pending.data?.bonusId || '').trim();
+        const expectedOfferId = String(offerPatch?.offerId || '').trim();
+        const hasPrematureBonusDates = Boolean(pending.data?.bonusStartAt || pending.data?.bonusEndAt);
+        const needsPendingSync = pendingPlanId === 'pro'
+          && (pendingAmount !== expectedAmount || pendingOfferId !== expectedOfferId || hasPrematureBonusDates);
+        if (needsPendingSync) {
+          const patch = {
+            amount: expectedAmount,
+            normalAmount: proPlan.price,
+            referenceAmount: proPlan.price,
+            currency: proPlan.currency,
+            requestSource: 'vendor_pro_upgrade',
+            updatedAt: now,
+            ...(offerPatch ? {
+              bonusType: offerPatch.offerType,
+              bonusId: offerPatch.offerId,
+              bonusLabel: offerPatch.offerLabel,
+              bonusAmount: offerPatch.offerAmount,
+              bonusNormalAmount: offerPatch.offerNormalAmount,
+              bonusCurrency: offerPatch.offerCurrency,
+              bonusDurationDays: offerPatch.offerDurationDays,
+              bonusDurationMonths: offerPatch.offerDurationMonths,
+              bonusStartAt: offerPatch.offerStartAt,
+              bonusEndAt: offerPatch.offerEndAt,
+              bonusAppliedAt: offerPatch.offerAppliedAt,
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+            } : {
+              bonusType: '',
+              bonusId: '',
+              bonusLabel: '',
+              bonusAmount: 0,
+              bonusNormalAmount: 0,
+              bonusCurrency: '',
+              bonusDurationDays: 0,
+              bonusDurationMonths: 0,
+              bonusStartAt: '',
+              bonusEndAt: '',
+              bonusAppliedAt: '',
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
+            })
+          };
+          await pending.ref.set(patch, { merge: true });
+          pending = {
+            ...pending,
+            data: {
+              ...pending.data,
+              ...patch
+            }
+          };
+        }
+      }
       let responseVendor = { ...vendor };
       let isPro = isVendorProPlan(responseVendor);
       const nextDueAt = paid?.data?.nextDueAt || vendor.serviceFeeNextDueAt || '';
@@ -3585,10 +4622,12 @@ exports.startVendorServiceFeePayment = onRequest(
         const pendingAmount = toNumber(pending.data?.amount);
         const pendingPlanId = String(pending.data?.planId || '').trim().toLowerCase();
         const pendingOfferId = String(pending.data?.bonusId || '').trim();
-        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now);
+        const offerPatch = buildVendorPlanOfferPayload(applicableOffer, now, { deferActivation: true });
+        const hasPrematureBonusDates = Boolean(pending.data?.bonusStartAt || pending.data?.bonusEndAt);
         const needsUpgradeSync = pendingAmount !== proPayableAmount
           || pendingPlanId !== 'pro'
-          || pendingOfferId !== String(offerPatch?.offerId || '').trim();
+          || pendingOfferId !== String(offerPatch?.offerId || '').trim()
+          || hasPrematureBonusDates;
         if (needsUpgradeSync) {
           const patch = {
             amount: proPayableAmount,
@@ -3606,11 +4645,12 @@ exports.startVendorServiceFeePayment = onRequest(
               bonusAmount: offerPatch.offerAmount,
               bonusNormalAmount: offerPatch.offerNormalAmount,
               bonusCurrency: offerPatch.offerCurrency,
+              bonusDurationDays: offerPatch.offerDurationDays,
               bonusDurationMonths: offerPatch.offerDurationMonths,
               bonusStartAt: offerPatch.offerStartAt,
               bonusEndAt: offerPatch.offerEndAt,
               bonusAppliedAt: offerPatch.offerAppliedAt,
-              cycleDays: offerPatch.offerEndAt ? 0 : VENDOR_SERVICE_FEE_INTERVAL_DAYS
+              cycleDays: VENDOR_SERVICE_FEE_INTERVAL_DAYS
             } : {
               bonusType: '',
               bonusId: '',
@@ -3618,6 +4658,7 @@ exports.startVendorServiceFeePayment = onRequest(
               bonusAmount: 0,
               bonusNormalAmount: 0,
               bonusCurrency: '',
+              bonusDurationDays: 0,
               bonusDurationMonths: 0,
               bonusStartAt: '',
               bonusEndAt: '',
@@ -3720,6 +4761,7 @@ exports.startVendorServiceFeePayment = onRequest(
         bonusType: pending.data?.bonusType || '',
         bonusId: pending.data?.bonusId || '',
         bonusLabel: pending.data?.bonusLabel || '',
+        bonusDurationDays: pending.data?.bonusDurationDays || 0,
         bonusEndAt: pending.data?.bonusEndAt || '',
         returnUrl: DEFAULT_RETURN_URL,
         alertUrl: DEFAULT_ALERT_URL,
@@ -5355,6 +6397,264 @@ exports.createVendorPayout = onRequest(
         ok: false,
         error: 'vendor-payout-failed',
         message: error?.message || 'Unable to create vendor payout'
+      });
+    }
+  }
+);
+
+async function executeSmartCaisseSale({ decodedUser, body = {} }) {
+  const access = await getSmartManagementAccess(decodedUser.uid);
+  if (!access.allowed || !['admin', 'manager', 'caissier'].includes(access.role)) {
+    return { status: 403, body: { ok: false, error: 'smart-management-access-denied' } };
+  }
+
+  const idempotencyKey = sanitizeText(body.idempotencyKey, 180);
+  const reference = sanitizeText(body.reference || `CAISSE-${Date.now()}`, 180);
+  const reason = sanitizeText(body.reason || 'Vente en magasin', 180);
+  const note = sanitizeText(body.note || '', 900);
+  const rawItems = Array.isArray(body.items) ? body.items : [];
+  const items = rawItems.map((item) => ({
+    productId: sanitizeText(item?.productId, 160),
+    variantId: sanitizeText(item?.variantId || '', 160),
+    sourceType: sanitizeText(item?.sourceType || '', 80),
+    vendorId: sanitizeText(item?.vendorId || '', 160),
+    quantity: normalizeStockQuantity(item?.quantity),
+    unitCost: Math.max(0, toNumber(item?.unitCost))
+  }));
+
+  if (!idempotencyKey) return { status: 400, body: { ok: false, error: 'missing-idempotency-key' } };
+  if (!items.length || items.some((item) => !item.productId || !Number.isInteger(item.quantity) || item.quantity <= 0)) {
+    return { status: 400, body: { ok: false, error: 'invalid-sale-items', message: 'Les articles de la vente sont invalides.' } };
+  }
+
+  const operationRef = db.collection(SMART_STOCK_OPERATIONS_COLLECTION).doc(idempotencyKey);
+  const movementIds = [];
+
+  await db.runTransaction(async (transaction) => {
+    const operationSnap = await transaction.get(operationRef);
+    if (operationSnap.exists) {
+      const operation = operationSnap.data() || {};
+      if (operation.status === 'completed') {
+        movementIds.push(...(Array.isArray(operation.movementIds) ? operation.movementIds : []));
+        return;
+      }
+      throw new Error('Cette vente est deja en cours ou incomplete.');
+    }
+
+    const seen = new Set();
+    const prepared = [];
+    for (const item of items) {
+      const key = `${item.sourceType || 'smart-cut'}|${item.vendorId}|${item.productId}|${item.variantId || 'simple'}`;
+      if (seen.has(key)) throw new Error('Articles dupliques dans la vente.');
+      seen.add(key);
+
+      const collectionName = getProductCollectionName(item);
+      const productRef = db.collection(collectionName).doc(item.productId);
+      const productSnap = await transaction.get(productRef);
+      if (!productSnap.exists) throw new Error('Produit introuvable.');
+      const product = productSnap.data() || {};
+      if (String(product.status || '').toLowerCase() === 'inactive' || product.active === false) {
+        throw new Error('Produit inactif: vente refusee.');
+      }
+      if (product.isDigitalProduct === true || product.productType === 'digital') continue;
+
+      const stockField = ['stock', 'totalStock', 'quantity', 'qty'].find((field) => (
+        product[field] !== undefined && product[field] !== null && product[field] !== ''
+      ));
+      const currentStock = stockField ? normalizeStockQuantity(product[stockField]) : NaN;
+
+      const variantsField = Array.isArray(product.variants) ? 'variants' : Array.isArray(product.variations) ? 'variations' : '';
+      const variants = variantsField ? product[variantsField] : [];
+      let variantIndex = -1;
+      if (item.variantId) {
+        variantIndex = variants.findIndex((variant, index) => (
+          String(variant?.id || variant?.variantId || variant?.sku || `variant-${index + 1}`) === item.variantId
+        ));
+        if (variantIndex < 0) throw new Error('Variante invalide pour ce produit.');
+      } else if (variants.length) {
+        throw new Error('Variante obligatoire pour ce produit.');
+      }
+
+      const selectedVariant = variantIndex >= 0 ? variants[variantIndex] : null;
+      const variantStockField = selectedVariant
+        ? ['stock', 'totalStock', 'quantity', 'qty'].find((field) => (
+          selectedVariant[field] !== undefined && selectedVariant[field] !== null && selectedVariant[field] !== ''
+        ))
+        : '';
+      const currentVariantStock = variantStockField ? normalizeStockQuantity(selectedVariant[variantStockField]) : NaN;
+      if (!Number.isInteger(currentStock) && !Number.isInteger(currentVariantStock)) {
+        throw new Error(`Stock introuvable pour ${product.name || product.title || 'ce produit'}.`);
+      }
+      if (Number.isInteger(currentStock) && currentStock < item.quantity) {
+        throw new Error(`Stock insuffisant pour ${product.name || product.title || 'ce produit'}.`);
+      }
+      if (Number.isInteger(currentVariantStock) && currentVariantStock < item.quantity) {
+        throw new Error(`Stock insuffisant pour ${product.name || product.title || 'ce produit'}.`);
+      }
+
+      prepared.push({ item, productRef, product, stockField, currentStock, variantsField, variants, variantIndex, variantStockField, currentVariantStock });
+    }
+
+    for (const entry of prepared) {
+      const { item, productRef, product, stockField, currentStock, variantsField, variants, variantIndex, variantStockField, currentVariantStock } = entry;
+      const nextStock = Number.isInteger(currentStock) ? currentStock - item.quantity : null;
+      const nextVariantStock = Number.isInteger(currentVariantStock) ? currentVariantStock - item.quantity : null;
+      const movementBefore = Number.isInteger(currentStock) ? currentStock : currentVariantStock;
+      const movementAfter = Number.isInteger(nextStock) ? nextStock : nextVariantStock;
+      const patch = { updatedAt: getAdminTimestamp() };
+      if (stockField && Number.isInteger(nextStock)) patch[stockField] = nextStock;
+      if (variantsField && variantIndex >= 0 && variantStockField) {
+        const nextVariants = variants.map((variant) => ({ ...variant }));
+        const variant = { ...nextVariants[variantIndex] };
+        variant[variantStockField] = Math.max(0, nextVariantStock);
+        nextVariants[variantIndex] = variant;
+        patch[variantsField] = nextVariants;
+      }
+      transaction.update(productRef, patch);
+
+      const movementRef = db.collection(SMART_STOCK_MOVEMENTS_COLLECTION).doc();
+      transaction.set(movementRef, {
+        type: 'POS_SALE',
+        reference,
+        productId: item.productId,
+        productName: sanitizeText(product.name || product.title || 'Produit', 220),
+        variantId: item.variantId || '',
+        locationId: '',
+        locationName: 'Caisse globale',
+        beforePhysicalQty: movementBefore,
+        beforeAvailableQty: movementBefore,
+        quantityChange: -item.quantity,
+        afterPhysicalQty: movementAfter,
+        afterAvailableQty: movementAfter,
+        reason,
+        note,
+        businessReference: reference,
+        unitCost: item.unitCost,
+        salePrice: Math.max(0, toNumber(product.salePrice || product.price || product.basePrice || product.prix)),
+        actorUid: decodedUser.uid,
+        createdAt: getAdminTimestamp()
+      });
+      movementIds.push(movementRef.id);
+    }
+
+    transaction.set(operationRef, {
+      idempotencyKey,
+      operationType: 'POS_SALE_GLOBAL',
+      reference,
+      status: 'completed',
+      movementIds,
+      lineCount: prepared.length,
+      actorUid: decodedUser.uid,
+      reason,
+      note,
+      createdAt: getAdminTimestamp(),
+      updatedAt: getAdminTimestamp()
+    });
+  });
+
+  return { status: 200, body: { ok: true, movementIds, idempotencyKey } };
+}
+
+exports.smartCaisseSale = onRequest(
+  { region: REGION, cors: true },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+      const result = await executeSmartCaisseSale({ decodedUser, body: req.body || {} });
+      sendJson(res, result.status, result.body);
+    } catch (error) {
+      logger.error('smartCaisseSale failed', { message: error?.message || String(error), stack: error?.stack || '' });
+      sendJson(res, 400, { ok: false, error: 'smart-caisse-sale-failed', message: error?.message || 'Vente impossible.' });
+    }
+  }
+);
+
+exports.updateSmartManagementUserPassword = onRequest(
+  { region: REGION, cors: true },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid || !(await isAdminUser(decodedUser.uid))) {
+        sendJson(res, 403, { ok: false, error: 'admin-required', message: 'Accès administrateur requis.' });
+        return;
+      }
+
+      const uid = sanitizeText(req.body?.uid, 128);
+      const password = String(req.body?.password || '');
+      if (!uid || password.length < 6 || password.length > 128) {
+        sendJson(res, 400, { ok: false, error: 'invalid-password', message: 'Le mot de passe doit contenir entre 6 et 128 caractères.' });
+        return;
+      }
+
+      const smartUserRef = db.collection('smartManagementUsers').doc(uid);
+      const smartUserSnap = await smartUserRef.get();
+      if (!smartUserSnap.exists) {
+        sendJson(res, 404, { ok: false, error: 'smart-management-user-not-found', message: 'Utilisateur Smart Management introuvable.' });
+        return;
+      }
+
+      await admin.auth().updateUser(uid, { password });
+      await smartUserRef.set({
+        passwordUpdatedAt: getAdminTimestamp(),
+        passwordUpdatedBy: decodedUser.uid,
+        updatedAt: getAdminTimestamp(),
+      }, { merge: true });
+
+      sendJson(res, 200, { ok: true });
+    } catch (error) {
+      logger.error('updateSmartManagementUserPassword failed', {
+        message: error?.message || String(error),
+        stack: error?.stack || ''
+      });
+      sendJson(res, 400, { ok: false, error: 'smart-management-password-update-failed', message: 'Impossible de modifier le mot de passe.' });
+    }
+  }
+);
+
+exports.smartManagementStockOperation = onRequest(
+  { region: REGION, cors: true },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+
+    try {
+      const decodedUser = await verifyBearerUser(req);
+      if (!decodedUser?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+      const result = await executeSmartStockOperation({
+        decodedUser,
+        body: req.body || {}
+      });
+      sendJson(res, result.status, result.body);
+    } catch (error) {
+      logger.error('smartManagementStockOperation failed', {
+        message: error?.message || String(error),
+        stack: error?.stack || ''
+      });
+      sendJson(res, 400, {
+        ok: false,
+        error: 'stock-operation-failed',
+        message: error?.message || 'Operation de stock impossible.'
       });
     }
   }
