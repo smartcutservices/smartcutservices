@@ -1245,9 +1245,13 @@ function getVendorDeliveryDetailsForOrder(order = {}, vendorUid = '', relevantIt
       .map((item) => String(item?.productId || '').trim())
       .filter(Boolean)
   );
-  const details = Array.isArray(order?.delivery?.vendorDeliveryDetails)
+  const vendorDetails = Array.isArray(order?.delivery?.vendorDeliveryDetails)
     ? order.delivery.vendorDeliveryDetails
     : [];
+  const productDetails = Array.isArray(order?.delivery?.productDeliveryDetails)
+    ? order.delivery.productDeliveryDetails.filter((entry) => String(entry?.ownerType || '').trim().toLowerCase() === 'vendor')
+    : [];
+  const details = vendorDetails.length ? vendorDetails : productDetails;
 
   return details.filter((entry) => (
     String(entry?.vendorId || '').trim() === normalizedVendorId ||
@@ -1260,6 +1264,9 @@ function getVendorDeliveryAmount(order = {}, vendorUid = '', relevantItems = [])
   if (details.length) {
     return details.reduce((sum, entry) => sum + Math.max(0, toNumber(entry?.fee)), 0);
   }
+
+  const storedVendorFee = toNumber(order?.delivery?.vendorDeliveryFee ?? order?.delivery?.vendorDeliveryAmount);
+  if (storedVendorFee > 0) return storedVendorFee;
 
   return isVendorExclusiveOrder(order, vendorUid) ? getOrderDeliveryAmount(order) : 0;
 }
@@ -1291,36 +1298,49 @@ function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProduct
   const deliveryAmount = vendorManagedDelivery
     ? getVendorDeliveryAmount(order, vendorUid, relevantItems)
     : 0;
-  const productGrossBeforeDelivery = relevantItems.reduce((sum, item) => sum + Math.max(0, toNumber(item.productGrossAmount)), 0);
-  relevantItems = relevantItems.map((item) => {
+  const deliveryMatches = relevantItems.map((item) => {
     const itemProductId = String(item?.productId || '').trim();
     const itemName = String(item?.name || 'Produit').trim();
-    const matchingDelivery = vendorManagedDelivery
+    return vendorManagedDelivery
       ? vendorDeliveryDetails.find((entry) => (
           (itemProductId && String(entry?.productId || '').trim() === itemProductId) ||
           String(entry?.productName || '').trim() === itemName
         ))
       : null;
-    const fallbackDeliveryShare = vendorManagedDelivery && !vendorDeliveryDetails.length && deliveryAmount > 0 && productGrossBeforeDelivery > 0
-      ? deliveryAmount * (Math.max(0, toNumber(item.productGrossAmount)) / productGrossBeforeDelivery)
+  });
+  const knownDeliveryAmount = deliveryMatches.reduce((sum, entry) => {
+    return sum + Math.max(0, toNumber(entry?.fee));
+  }, 0);
+  const unresolvedDeliveryItems = relevantItems.filter((item, index) => !deliveryMatches[index]);
+  const unresolvedDeliveryGross = unresolvedDeliveryItems.reduce((sum, item) => {
+    return sum + Math.max(0, toNumber(item.productGrossAmount));
+  }, 0);
+  const remainingDeliveryAmount = Math.max(0, deliveryAmount - knownDeliveryAmount);
+  relevantItems = relevantItems.map((item, index) => {
+    const matchingDelivery = deliveryMatches[index];
+    const fallbackDeliveryShare = vendorManagedDelivery && !matchingDelivery && remainingDeliveryAmount > 0
+      ? (unresolvedDeliveryGross > 0
+          ? remainingDeliveryAmount * (Math.max(0, toNumber(item.productGrossAmount)) / unresolvedDeliveryGross)
+          : remainingDeliveryAmount / Math.max(1, unresolvedDeliveryItems.length))
       : 0;
     const itemDeliveryAmount = Math.max(0, toNumber(matchingDelivery?.fee) || fallbackDeliveryShare);
-    const commissionBaseAmount = Math.max(0, toNumber(item.productGrossAmount) + itemDeliveryAmount);
+    const productGross = Math.max(0, toNumber(item.productGrossAmount));
+    const commissionBaseAmount = productGross;
     const commissionAmount = commissionBaseAmount * (Number(item.commissionRate || 0) / 100);
     return {
       ...item,
       deliveryAmount: itemDeliveryAmount,
       commissionBaseAmount,
-      grossAmount: commissionBaseAmount,
+      grossAmount: productGross + itemDeliveryAmount,
       commissionAmount,
-      vendorNetAmount: Math.max(0, commissionBaseAmount - commissionAmount)
+      vendorNetAmount: Math.max(0, productGross - commissionAmount + itemDeliveryAmount)
     };
   });
   const productGrossAmount = relevantItems.reduce((sum, item) => sum + item.productGrossAmount, 0);
   const commissionAmount = relevantItems.reduce((sum, item) => sum + item.commissionAmount, 0);
   const productNetAmount = relevantItems.reduce((sum, item) => sum + item.productNetAmount, 0);
   const grossAmount = productGrossAmount + deliveryAmount;
-  const vendorNetAmount = Math.max(0, grossAmount - commissionAmount);
+  const vendorNetAmount = Math.max(0, productGrossAmount - commissionAmount + deliveryAmount);
   const vendorDelivery = vendorManagedDelivery && order?.delivery && typeof order.delivery === 'object'
     ? {
         ...order.delivery,
