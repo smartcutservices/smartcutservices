@@ -589,6 +589,22 @@ function isVendorProPlan(vendor = {}) {
   return planId === 'pro' || planLabel.includes('pro');
 }
 
+const PRO_VENDOR_COMMISSION_RATE = 10;
+
+function isVendorProPlanActive(vendor = {}, nowMs = Date.now()) {
+  if (!isVendorProPlan(vendor)) return false;
+
+  const serviceStatus = String(vendor?.serviceFeeStatus || '').trim().toLowerCase();
+  if (['basic_limited', 'expired', 'unpaid'].includes(serviceStatus)) return false;
+
+  const nextDueMs = toDateMs(vendor?.serviceFeeNextDueAt || vendor?.serviceFeePaidPeriodEndAt || '');
+  if (nextDueMs > 0 && nextDueMs <= nowMs) return false;
+
+  // Older PRO profiles may not have a cycle date. Keep them active until
+  // the payment cycle is recorded and can be checked on the next request.
+  return true;
+}
+
 function isVendorServiceFeeVendor(vendor = {}) {
   return getVendorServiceFeeAmount(vendor) > 0;
 }
@@ -1066,11 +1082,13 @@ function getCommissionRate(rule = null) {
   return Number.isFinite(rate) ? Math.max(0, rate) : 0;
 }
 
-function buildVendorItemMetrics(item = {}) {
+function buildVendorItemMetrics(item = {}, { vendorProActive = false } = {}) {
   const quantity = Math.max(1, Number(item?.quantity || 1));
   const unitPrice = Number(item?.price || 0);
   const productGrossAmount = unitPrice * quantity;
-  const commissionRate = getCommissionRate(item?.commissionRule);
+  const commissionRate = vendorProActive
+    ? PRO_VENDOR_COMMISSION_RATE
+    : getCommissionRate(item?.commissionRule);
   const productCommissionAmount = productGrossAmount * (commissionRate / 100);
   const productNetAmount = Math.max(0, productGrossAmount - productCommissionAmount);
 
@@ -1279,8 +1297,9 @@ function isVendorExclusiveOrder(order = {}, vendorUid = '') {
   return items.every((item) => String(item?.vendorId || '').trim() === normalizedVendorId);
 }
 
-function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '') {
-  let relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds).map(buildVendorItemMetrics);
+function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '', vendorProActive = false) {
+  let relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds)
+    .map((item) => buildVendorItemMetrics(item, { vendorProActive }));
   if (!relevantItems.length) return null;
 
   const normalizedVendorUid = String(vendorUid || '').trim();
@@ -1603,7 +1622,7 @@ function isWithinVendorPayoutRange(createdAtMs, dateFromMs, dateToMs) {
   return true;
 }
 
-function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds, settledVendorRefs, dateFromMs = 0, dateToMs = 0 }) {
+function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds, settledVendorRefs, dateFromMs = 0, dateToMs = 0, vendorProActive = false }) {
   const outstandingOrders = [];
   let productGrossAmount = 0;
   let deliveryAmount = 0;
@@ -1617,7 +1636,7 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
     const vendorRef = createVendorCoveredRef(snap.ref.path, vendorId);
     if (!isConfirmedOrder(order) || settledVendorRefs.has(vendorRef) || settledVendorRefs.has(snap.ref.path)) return;
 
-    const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path);
+    const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path, vendorProActive);
     if (!context) return;
 
     const createdAtMs = toDateMs(context.paidAt || context.updatedAt || context.createdAt);
@@ -4846,6 +4865,7 @@ exports.createVendorDashboardAccess = onRequest(
         sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
         return;
       }
+      const vendorProActive = isVendorProPlanActive(vendorProfile);
 
       const customToken = await admin.auth().createCustomToken(decodedUser.uid, {
         role: 'vendor',
@@ -4953,7 +4973,7 @@ exports.getVendorDashboardAnalytics = onRequest(
 
       ordersSnap.docs.forEach((snap) => {
         const order = snap.data() || {};
-        const orderContext = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path);
+        const orderContext = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path, vendorProActive);
         if (!orderContext) return;
 
         const status = normalizeOrderStatus(order);
@@ -5085,6 +5105,7 @@ exports.requestVendorPayout = onRequest(
         sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
         return;
       }
+      const vendorProActive = isVendorProPlanActive(vendorProfile);
 
       const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', decodedUser.uid).get();
       let latestBlockingRequestMs = 0;
@@ -5137,7 +5158,8 @@ exports.requestVendorPayout = onRequest(
         ordersSnap,
         vendorId: decodedUser.uid,
         vendorProductIds,
-        settledVendorRefs
+        settledVendorRefs,
+        vendorProActive
       });
 
       if (!payoutMetrics.outstandingOrders.length || payoutMetrics.netAmount <= 0) {
@@ -5223,6 +5245,7 @@ exports.getVendorDashboardOrders = onRequest(
         sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
         return;
       }
+      const vendorProActive = isVendorProPlanActive(vendorProfile);
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
@@ -5231,7 +5254,7 @@ exports.getVendorDashboardOrders = onRequest(
 
       ordersSnap.docs.forEach((snap) => {
         const order = { id: snap.id, ...(snap.data() || {}) };
-        const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path);
+        const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path, vendorProActive);
         if (!context) return;
 
         orders.push({
@@ -5295,6 +5318,7 @@ exports.updateVendorOrderFulfillment = onRequest(
         sendJson(res, 403, { ok: false, error: 'vendor-access-denied' });
         return;
       }
+      const vendorProActive = isVendorProPlanActive(vendorProfile);
 
       const body = parseBody(req);
       const orderId = String(body?.orderId || '').trim();
@@ -5332,7 +5356,7 @@ exports.updateVendorOrderFulfillment = onRequest(
       }
 
       const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
-      const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, orderSnap.ref.path);
+      const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, orderSnap.ref.path, vendorProActive);
       if (!context) {
         sendJson(res, 403, { ok: false, error: 'vendor-order-access-denied' });
         return;
@@ -5417,6 +5441,7 @@ exports.createVendorPayout = onRequest(
         sendJson(res, 404, { ok: false, error: 'vendor-not-found' });
         return;
       }
+      const vendorProActive = isVendorProPlanActive(vendorProfile);
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', vendorId).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
@@ -5458,7 +5483,8 @@ exports.createVendorPayout = onRequest(
         vendorProductIds,
         settledVendorRefs,
         dateFromMs,
-        dateToMs
+        dateToMs,
+        vendorProActive
       });
 
       if (!payoutMetrics.outstandingOrders.length || payoutMetrics.netAmount <= 0) {
