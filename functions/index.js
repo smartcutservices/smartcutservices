@@ -605,6 +605,83 @@ function isVendorProPlanActive(vendor = {}, nowMs = Date.now()) {
   return true;
 }
 
+function getStoredCommissionRate(item = {}) {
+  const snapshotRate = Number(item?.commissionSnapshot?.rate ?? item?.commissionRate);
+  return Number.isFinite(snapshotRate) ? Math.max(0, snapshotRate) : null;
+}
+
+async function isVendorProActiveAt(vendorId = '', atIso = '') {
+  const normalizedVendorId = String(vendorId || '').trim();
+  if (!normalizedVendorId) return false;
+
+  const atMs = toDateMs(atIso) || Date.now();
+  const [vendorSnap, feesSnap] = await Promise.all([
+    db.collection('vendors').doc(normalizedVendorId).get(),
+    db.collection(VENDOR_SERVICE_FEES_COLLECTION).where('vendorId', '==', normalizedVendorId).get()
+  ]);
+
+  const paidProCycles = feesSnap.docs
+    .map((docSnap) => docSnap.data() || {})
+    .filter((fee) => {
+      const status = String(fee?.status || '').trim().toLowerCase();
+      const planId = String(fee?.planId || '').trim().toLowerCase();
+      const planLabel = String(fee?.planLabel || '').trim().toLowerCase();
+      return status === 'paid' && (planId === 'pro' || planLabel.includes('pro'));
+    });
+
+  if (paidProCycles.length) {
+    return paidProCycles.some((fee) => {
+      const startMs = toDateMs(fee?.paidPeriodStartAt || fee?.paidAt || fee?.createdAt);
+      const endMs = toDateMs(fee?.paidPeriodEndAt || fee?.nextDueAt);
+      return startMs > 0 && startMs <= atMs && (!endMs || atMs < endMs);
+    });
+  }
+
+  // A plan label alone is not enough to activate the Pro commission. The
+  // vendor must have a paid cycle with a payment date and a valid due date.
+  const vendor = vendorSnap.exists ? vendorSnap.data() || {} : {};
+  const startMs = toDateMs(vendor?.serviceFeePaidPeriodStartAt || vendor?.serviceFeeLastPaidAt);
+  const endMs = toDateMs(vendor?.serviceFeePaidPeriodEndAt || vendor?.serviceFeeNextDueAt);
+  return startMs > 0 && startMs <= atMs && (!endMs || atMs < endMs);
+}
+
+async function snapshotOrderCommissionRates(items = [], paidAt = '') {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  const vendorIds = Array.from(new Set(
+    normalizedItems
+      .map((item) => String(item?.vendorId || '').trim())
+      .filter(Boolean)
+  ));
+  if (!vendorIds.length) return normalizedItems;
+
+  const activeByVendor = new Map(
+    await Promise.all(vendorIds.map(async (vendorId) => [
+      vendorId,
+      await isVendorProActiveAt(vendorId, paidAt)
+    ]))
+  );
+
+  return normalizedItems.map((item) => {
+    const vendorId = String(item?.vendorId || '').trim();
+    if (!vendorId) return item;
+
+    const vendorProActive = activeByVendor.get(vendorId) === true;
+    const commissionRate = vendorProActive
+      ? PRO_VENDOR_COMMISSION_RATE
+      : getCommissionRate(item?.commissionRule);
+
+    return {
+      ...item,
+      commissionRate,
+      commissionSnapshot: {
+        rate: commissionRate,
+        source: vendorProActive ? 'vendor_pro_plan' : 'category_rule',
+        appliedAt: paidAt || new Date().toISOString()
+      }
+    };
+  });
+}
+
 function isVendorServiceFeeVendor(vendor = {}) {
   return getVendorServiceFeeAmount(vendor) > 0;
 }
@@ -944,6 +1021,14 @@ function normalizeItems(items) {
           vendorId: item?.vendorId || '',
           vendorName: item?.vendorName || '',
           commissionRule: item?.commissionRule || null,
+          commissionRate: Number.isFinite(Number(item?.commissionRate)) ? Number(item.commissionRate) : null,
+          commissionSnapshot: item?.commissionSnapshot && typeof item.commissionSnapshot === 'object'
+            ? {
+                rate: Number.isFinite(Number(item.commissionSnapshot.rate)) ? Number(item.commissionSnapshot.rate) : null,
+                source: String(item.commissionSnapshot.source || '').trim(),
+                appliedAt: String(item.commissionSnapshot.appliedAt || '').trim()
+              }
+            : null,
           sourceType: item?.sourceType || '',
           sourceCollection: item?.sourceCollection || '',
           categoryId: item?.categoryId || '',
@@ -1086,9 +1171,10 @@ function buildVendorItemMetrics(item = {}, { vendorProActive = false } = {}) {
   const quantity = Math.max(1, Number(item?.quantity || 1));
   const unitPrice = Number(item?.price || 0);
   const productGrossAmount = unitPrice * quantity;
-  const commissionRate = vendorProActive
-    ? PRO_VENDOR_COMMISSION_RATE
-    : getCommissionRate(item?.commissionRule);
+  // Commission is a property of the sale, not of the vendor's current plan.
+  // New paid orders store commissionSnapshot; legacy orders fall back to the
+  // category rule instead of being recalculated from today's plan status.
+  const commissionRate = getStoredCommissionRate(item) ?? getCommissionRate(item?.commissionRule);
   const productCommissionAmount = productGrossAmount * (commissionRate / 100);
   const productNetAmount = Math.max(0, productGrossAmount - productCommissionAmount);
 
@@ -2942,6 +3028,15 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   }
 
   if (paymentStatus === 'paid') {
+    const orderSnapshot = await db
+      .collection('clients')
+      .doc(clientId)
+      .collection('orders')
+      .doc(orderId)
+      .get();
+    const orderSnapshotData = orderSnapshot.exists ? orderSnapshot.data() || {} : {};
+    const snapshotItems = await snapshotOrderCommissionRates(orderSnapshotData.items || [], now);
+
     await db.runTransaction(async (transaction) => {
       const freshSessionSnap = await transaction.get(session.ref);
       const freshSessionData = freshSessionSnap.data() || {};
@@ -3094,6 +3189,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       }, { merge: true });
 
       transaction.set(orderRef, orderPatch, { merge: true });
+      if (!alreadyApplied && snapshotItems.length) {
+        transaction.set(orderRef, { items: snapshotItems }, { merge: true });
+      }
 
       vendorNotifications.forEach((notification) => {
         const notificationRef = db.collection('notificationBroadcasts').doc(notification.id);
