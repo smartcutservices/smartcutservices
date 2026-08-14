@@ -1079,9 +1079,62 @@ function sanitizeCommissionRule(rule, fallbackCategory = '') {
   };
 }
 
+function normalizeCommissionCategoryKey(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-');
+}
+
+async function loadCommissionRuleMap() {
+  const snapshot = await db.collection('vendorCommissionRules').get();
+  const rules = new Map();
+  snapshot.docs.forEach((entry) => {
+    const data = entry.data() || {};
+    if (data.active === false) return;
+    const rule = sanitizeCommissionRule(data, data.category || entry.id);
+    if (!rule) return;
+    [entry.id, data.category, data.categoryId, rule.category]
+      .map(normalizeCommissionCategoryKey)
+      .filter(Boolean)
+      .forEach((key) => rules.set(key, rule));
+  });
+  return rules;
+}
+
+function resolveCommissionRule(item = {}, productData = {}, ruleMap = new Map()) {
+  const explicitRule = sanitizeCommissionRule(
+    item?.commissionRule || productData?.commissionRule,
+    item?.category || productData?.category || productData?.categoryName || ''
+  );
+  if (explicitRule) return explicitRule;
+
+  const categoryValues = [
+    item?.category,
+    item?.categoryName,
+    item?.categoryId,
+    productData?.category,
+    productData?.categoryName,
+    productData?.categoryId
+  ];
+  for (const value of categoryValues) {
+    const rule = ruleMap.get(normalizeCommissionCategoryKey(value));
+    if (rule) return rule;
+  }
+  return null;
+}
+
 async function enrichMarketplaceItems(items = []) {
   const normalizedItems = normalizeItems(items);
   if (!normalizedItems.length) return [];
+  const commissionRuleMap = await loadCommissionRuleMap().catch((error) => {
+    logger.warn('Unable to load vendor commission rules for order enrichment', {
+      message: error?.message || ''
+    });
+    return new Map();
+  });
 
   return Promise.all(normalizedItems.map(async (item) => {
     const itemVendorId = String(item?.vendorId || '').trim();
@@ -1094,7 +1147,7 @@ async function enrichMarketplaceItems(items = []) {
           ...item,
           sourceCollection: isVendorItem ? 'vendorProducts' : 'products',
           sourceType: isVendorItem ? 'vendor' : (item?.sourceType || 'smartcut'),
-          commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+          commissionRule: resolveCommissionRule(item, {}, commissionRuleMap)
         };
       }
 
@@ -1105,7 +1158,7 @@ async function enrichMarketplaceItems(items = []) {
           ...item,
           sourceCollection: collectionName,
           sourceType: isVendorItem ? 'vendor' : 'smartcut',
-          commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+          commissionRule: resolveCommissionRule(item, {}, commissionRuleMap)
         };
       }
 
@@ -1128,7 +1181,7 @@ async function enrichMarketplaceItems(items = []) {
         image: item?.image || (Array.isArray(productData?.images) ? productData.images[0] || '' : ''),
         vendorId: itemVendorId || String(productData?.vendorId || '').trim(),
         vendorName: item?.vendorName || String(productData?.vendorName || productData?.shopName || '').trim(),
-        commissionRule: sanitizeCommissionRule(item?.commissionRule || productData?.commissionRule, resolvedCategory),
+        commissionRule: resolveCommissionRule(item, productData, commissionRuleMap),
         sourceCollection: collectionName,
         sourceType: isVendorItem ? 'vendor' : 'smartcut',
         categoryId: String(item?.categoryId || productData?.categoryId || '').trim(),
@@ -1156,7 +1209,7 @@ async function enrichMarketplaceItems(items = []) {
         ...item,
         sourceCollection: isVendorItem ? 'vendorProducts' : 'products',
         sourceType: isVendorItem ? 'vendor' : 'smartcut',
-        commissionRule: sanitizeCommissionRule(item?.commissionRule, item?.category || '')
+        commissionRule: resolveCommissionRule(item, {}, commissionRuleMap)
       };
     }
   }));
@@ -1167,19 +1220,21 @@ function getCommissionRate(rule = null) {
   return Number.isFinite(rate) ? Math.max(0, rate) : 0;
 }
 
-function buildVendorItemMetrics(item = {}, { vendorProActive = false } = {}) {
+function buildVendorItemMetrics(item = {}, { vendorProActive = false, commissionRuleMap = new Map(), productData = {} } = {}) {
   const quantity = Math.max(1, Number(item?.quantity || 1));
   const unitPrice = Number(item?.price || 0);
   const productGrossAmount = unitPrice * quantity;
   // Commission is a property of the sale, not of the vendor's current plan.
   // New paid orders store commissionSnapshot; legacy orders fall back to the
   // category rule instead of being recalculated from today's plan status.
-  const commissionRate = getStoredCommissionRate(item) ?? getCommissionRate(item?.commissionRule);
+  const commissionRule = resolveCommissionRule(item, productData, commissionRuleMap);
+  const commissionRate = getStoredCommissionRate(item) ?? getCommissionRate(commissionRule);
   const productCommissionAmount = productGrossAmount * (commissionRate / 100);
   const productNetAmount = Math.max(0, productGrossAmount - productCommissionAmount);
 
   return {
     ...item,
+    commissionRule: commissionRule || item?.commissionRule || null,
     quantity,
     unitPrice,
     productGrossAmount,
@@ -1383,9 +1438,13 @@ function isVendorExclusiveOrder(order = {}, vendorUid = '') {
   return items.every((item) => String(item?.vendorId || '').trim() === normalizedVendorId);
 }
 
-function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '', vendorProActive = false) {
+function getRelevantVendorOrderContext(order = {}, vendorUid = '', vendorProductIds = new Set(), refPath = '', vendorProActive = false, commissionRuleMap = new Map(), productDataMap = new Map()) {
   let relevantItems = getRelevantVendorItems(order, vendorUid, vendorProductIds)
-    .map((item) => buildVendorItemMetrics(item, { vendorProActive }));
+    .map((item) => buildVendorItemMetrics(item, {
+      vendorProActive,
+      commissionRuleMap,
+      productData: productDataMap.get(String(item?.productId || '').trim()) || {}
+    }));
   if (!relevantItems.length) return null;
 
   const normalizedVendorUid = String(vendorUid || '').trim();
@@ -1708,7 +1767,7 @@ function isWithinVendorPayoutRange(createdAtMs, dateFromMs, dateToMs) {
   return true;
 }
 
-function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds, settledVendorRefs, dateFromMs = 0, dateToMs = 0, vendorProActive = false }) {
+function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds, settledVendorRefs, dateFromMs = 0, dateToMs = 0, vendorProActive = false, commissionRuleMap = new Map(), productDataMap = new Map() }) {
   const outstandingOrders = [];
   let productGrossAmount = 0;
   let deliveryAmount = 0;
@@ -1722,7 +1781,7 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
     const vendorRef = createVendorCoveredRef(snap.ref.path, vendorId);
     if (!isConfirmedOrder(order) || settledVendorRefs.has(vendorRef) || settledVendorRefs.has(snap.ref.path)) return;
 
-    const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path, vendorProActive);
+    const context = getRelevantVendorOrderContext(order, vendorId, vendorProductIds, snap.ref.path, vendorProActive, commissionRuleMap, productDataMap);
     if (!context) return;
 
     const createdAtMs = toDateMs(context.paidAt || context.updatedAt || context.createdAt);
@@ -1760,6 +1819,11 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
     itemCount,
     ...getPayoutPeriodBounds(outstandingOrders)
   };
+}
+
+async function loadVendorProductDataMap(vendorId = '') {
+  const snapshot = await db.collection('vendorProducts').where('vendorId', '==', vendorId).get();
+  return new Map(snapshot.docs.map((entry) => [entry.id, entry.data() || {}]));
 }
 
 function buildOrderTotals(items, delivery) {
@@ -5014,6 +5078,8 @@ exports.getVendorDashboardAnalytics = onRequest(
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const productDataMap = new Map(vendorProductsSnap.docs.map((item) => [item.id, item.data() || {}]));
+      const commissionRuleMap = await loadCommissionRuleMap();
       const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', decodedUser.uid).get();
       const settledVendorRefs = new Set();
       let settledNetAmount = 0;
@@ -5071,7 +5137,7 @@ exports.getVendorDashboardAnalytics = onRequest(
 
       ordersSnap.docs.forEach((snap) => {
         const order = snap.data() || {};
-        const orderContext = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path, vendorProActive);
+        const orderContext = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path, vendorProActive, commissionRuleMap, productDataMap);
         if (!orderContext) return;
 
         const status = normalizeOrderStatus(order);
@@ -5251,13 +5317,17 @@ exports.requestVendorPayout = onRequest(
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const productDataMap = new Map(vendorProductsSnap.docs.map((item) => [item.id, item.data() || {}]));
+      const commissionRuleMap = await loadCommissionRuleMap();
       const ordersSnap = await db.collectionGroup('orders').get();
       const payoutMetrics = collectVendorOutstandingOrders({
         ordersSnap,
         vendorId: decodedUser.uid,
         vendorProductIds,
         settledVendorRefs,
-        vendorProActive
+        vendorProActive,
+        commissionRuleMap,
+        productDataMap
       });
 
       if (!payoutMetrics.outstandingOrders.length || payoutMetrics.netAmount <= 0) {
@@ -5347,12 +5417,14 @@ exports.getVendorDashboardOrders = onRequest(
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const productDataMap = new Map(vendorProductsSnap.docs.map((item) => [item.id, item.data() || {}]));
+      const commissionRuleMap = await loadCommissionRuleMap();
       const ordersSnap = await db.collectionGroup('orders').get();
       const orders = [];
 
       ordersSnap.docs.forEach((snap) => {
         const order = { id: snap.id, ...(snap.data() || {}) };
-        const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path, vendorProActive);
+        const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, snap.ref.path, vendorProActive, commissionRuleMap, productDataMap);
         if (!context) return;
 
         orders.push({
@@ -5436,6 +5508,8 @@ exports.updateVendorOrderFulfillment = onRequest(
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', decodedUser.uid).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const productDataMap = new Map(vendorProductsSnap.docs.map((item) => [item.id, item.data() || {}]));
+      const commissionRuleMap = await loadCommissionRuleMap();
 
       let orderSnap = null;
       if (refPath) {
@@ -5454,7 +5528,7 @@ exports.updateVendorOrderFulfillment = onRequest(
       }
 
       const order = { id: orderSnap.id, ...(orderSnap.data() || {}) };
-      const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, orderSnap.ref.path, vendorProActive);
+      const context = getRelevantVendorOrderContext(order, decodedUser.uid, vendorProductIds, orderSnap.ref.path, vendorProActive, commissionRuleMap, productDataMap);
       if (!context) {
         sendJson(res, 403, { ok: false, error: 'vendor-order-access-denied' });
         return;
@@ -5543,6 +5617,8 @@ exports.createVendorPayout = onRequest(
 
       const vendorProductsSnap = await db.collection('vendorProducts').where('vendorId', '==', vendorId).get();
       const vendorProductIds = new Set(vendorProductsSnap.docs.map((item) => item.id));
+      const productDataMap = new Map(vendorProductsSnap.docs.map((item) => [item.id, item.data() || {}]));
+      const commissionRuleMap = await loadCommissionRuleMap();
       const payoutsSnap = await db.collection('vendorPayouts').where('vendorId', '==', vendorId).get();
       const settledVendorRefs = new Set();
       payoutsSnap.docs.forEach((snap) => {
@@ -5582,7 +5658,9 @@ exports.createVendorPayout = onRequest(
         settledVendorRefs,
         dateFromMs,
         dateToMs,
-        vendorProActive
+        vendorProActive,
+        commissionRuleMap,
+        productDataMap
       });
 
       if (!payoutMetrics.outstandingOrders.length || payoutMetrics.netAmount <= 0) {
