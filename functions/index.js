@@ -606,8 +606,20 @@ function isVendorProPlanActive(vendor = {}, nowMs = Date.now()) {
 }
 
 function getStoredCommissionRate(item = {}) {
-  const snapshotRate = Number(item?.commissionSnapshot?.rate ?? item?.commissionRate);
-  return Number.isFinite(snapshotRate) ? Math.max(0, snapshotRate) : null;
+  const snapshot = item?.commissionSnapshot || {};
+  const snapshotRate = Number(snapshot?.rate);
+  const snapshotSource = String(snapshot?.source || '').trim().toLowerCase();
+  if (Number.isFinite(snapshotRate) && (
+    snapshotRate > 0 ||
+    ['vendor_pro_plan', 'product_override'].includes(snapshotSource)
+  )) {
+    return Math.max(0, snapshotRate);
+  }
+
+  const directRate = Number(item?.commissionRate);
+  return Number.isFinite(directRate) && directRate > 0
+    ? Math.max(0, directRate)
+    : null;
 }
 
 async function isVendorProActiveAt(vendorId = '', atIso = '') {
