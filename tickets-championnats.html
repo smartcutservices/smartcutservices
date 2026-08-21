@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Tickets officiels des championnats JwetPro, paiement sécurisé par Smart Cut Services.">
+  <title>Tickets & Championnats | Smart Cut Services</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/tickets-championnats.css?v=20260820-1">
+</head>
+<body>
+  <header class="ticket-header">
+    <a class="brand" href="/"><img src="/logo.png" alt="Smart Cut Services"><span>Smart Cut Services</span></a>
+    <a class="back-link" href="https://jwetpro.com">Ouvrir JwetPro</a>
+  </header>
+  <main>
+    <section class="ticket-hero">
+      <p class="eyebrow">Paiement officiel JwetPro</p>
+      <h1>Tickets & Championnats</h1>
+      <p>Consultez les inscriptions ouvertes. Pour acheter un ticket, commencez toujours depuis votre compte JwetPro afin de réserver votre place en toute sécurité.</p>
+    </section>
+    <section class="catalogue" aria-labelledby="catalogue-title">
+      <div class="section-heading"><h2 id="catalogue-title">Inscriptions ouvertes</h2><span id="ticket-count"></span></div>
+      <div id="ticket-list" class="ticket-grid" aria-live="polite">
+        <div class="ticket-state">Chargement des championnats...</div>
+      </div>
+    </section>
+    <section class="security-note">
+      <strong>Parcours sécurisé</strong>
+      <p>La place est réservée depuis JwetPro pendant 20 minutes. Smart Cut confirme uniquement les paiements vérifiés par MonCash.</p>
+    </section>
+  </main>
+  <script type="module" src="/tickets-championnats.js?v=20260820-1"></script>
+</body>
+</html>

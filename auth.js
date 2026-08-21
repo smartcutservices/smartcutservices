@@ -94,11 +94,28 @@ class AuthManager {
       });
 
     // Écouter les changements d'authentification
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (!this.isAuthReady && !user) {
         console.info('[AUTH] State null ignore avant persistence');
         logAuthDebug('state:null-ignored-before-ready');
         return;
+      }
+
+      // Employee accounts belong to Smart Management, not the public storefront.
+      // This also clears a persisted employee session when they open the storefront.
+      if (user && !user.isAnonymous && !document.getElementById('smart-management-root')) {
+        try {
+          const smartUserSnap = await getDoc(doc(db, 'smartManagementUsers', user.uid));
+          const smartUser = smartUserSnap.exists() ? smartUserSnap.data() : null;
+          if (smartUser?.smartManagementAccess === true && smartUser?.status === 'active') {
+            console.warn('[AUTH] Compte Smart Management refuse sur le site public', { uid: user.uid });
+            this.isExplicitLogout = true;
+            await signOut(auth);
+            return;
+          }
+        } catch (accessError) {
+          console.warn('[AUTH] Vérification de session Smart Management indisponible', accessError);
+        }
       }
 
       const previousUser = this.currentUser;
@@ -378,7 +395,7 @@ class AuthManager {
         transition: opacity 0.3s ease;
       ">
         <div class="auth-container" style="
-          background: #F5F1E8;
+          background: #EAEDED;
           border-radius: 1.5rem;
           width: 100%;
           max-width: 400px;
@@ -398,9 +415,9 @@ class AuthManager {
             margin-bottom: 2rem;
           ">
             <h2 style="
-              font-family: 'Cormorant Garamond', serif;
+              font-family: 'Amazon Ember', Arial, sans-serif;
               font-size: 1.8rem;
-              color: #1F1E1C;
+              color: #0F1111;
               margin: 0;
             ">
               ${mode === 'login' ? 'Connexion' : 'Inscription'}
@@ -410,7 +427,7 @@ class AuthManager {
               border: none;
               font-size: 1.5rem;
               cursor: pointer;
-              color: #8B7E6B;
+              color: #565959;
               transition: all 0.2s;
               padding: 0.5rem;
               width: 40px;
@@ -419,7 +436,7 @@ class AuthManager {
               align-items: center;
               justify-content: center;
               border-radius: 50%;
-            " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#C6A75E'" onmouseout="this.style.background='transparent'; this.style.color='#8B7E6B'">
+            " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#FFA41C'" onmouseout="this.style.background='transparent'; this.style.color='#565959'">
               <i class="fas fa-times"></i>
             </button>
           </div>
@@ -430,27 +447,27 @@ class AuthManager {
               <div class="new-profile-fields" style="display:grid;gap:0.75rem;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                   <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Nom *</label>
+                    <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Nom *</label>
                     <input type="text" id="lastName" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Dupont">
                   </div>
                   <div>
-                    <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Prenom *</label>
+                    <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Prenom *</label>
                     <input type="text" id="firstName" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Jean">
                   </div>
                 </div>
                 <div>
-                  <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Date de naissance *</label>
+                  <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Date de naissance *</label>
                   <input type="date" id="birthDate" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">
                 </div>
                 <div>
-                  <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Telephone *</label>
+                  <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Telephone *</label>
                   <input type="tel" id="newPhone" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Ex: 37 00 00 00">
                 </div>
                 <div style="padding:0.9rem;border:1px solid rgba(198,167,94,0.25);border-radius:0.75rem;background:rgba(198,167,94,0.07);">
-                  <h4 style="margin:0 0 0.75rem 0;color:#1F1E1C;font-size:1rem;">Adresse</h4>
+                  <h4 style="margin:0 0 0.75rem 0;color:#0F1111;font-size:1rem;">Adresse</h4>
                   ${this.renderAddressFields('register')}
-                  <label style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.75rem;color:#8B7E6B;font-size:0.9rem;">
-                    <input type="checkbox" id="registerUseAsDelivery" checked style="margin-top:0.15rem;accent-color:#C6A75E;">
+                  <label style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.75rem;color:#565959;font-size:0.9rem;">
+                    <input type="checkbox" id="registerUseAsDelivery" checked style="margin-top:0.15rem;accent-color:#FFA41C;">
                     Utiliser cette adresse comme adresse de livraison
                   </label>
                 </div>
@@ -460,7 +477,7 @@ class AuthManager {
                   display: block;
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
-                  color: #8B7E6B;
+                  color: #565959;
                 ">Nom complet</label>
                 <input type="text" id="displayName" required style="
                   width: 100%;
@@ -477,7 +494,7 @@ class AuthManager {
                   display: block;
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
-                  color: #8B7E6B;
+                  color: #565959;
                 ">Âge</label>
                 <input type="number" id="age" min="1" max="120" required style="
                   width: 100%;
@@ -494,7 +511,7 @@ class AuthManager {
                   display: block;
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
-                  color: #8B7E6B;
+                  color: #565959;
                 ">Numéro téléphone</label>
                 <input type="tel" id="phone" required style="
                   width: 100%;
@@ -511,7 +528,7 @@ class AuthManager {
                   display: block;
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
-                  color: #8B7E6B;
+                  color: #565959;
                 ">Sexe</label>
                 <select id="sexe" required style="
                   width: 100%;
@@ -534,7 +551,7 @@ class AuthManager {
                 display: block;
                 margin-bottom: 0.5rem;
                 font-size: 0.9rem;
-                color: #8B7E6B;
+                color: #565959;
               ">Email</label>
               <input type="email" id="email" required style="
                 width: 100%;
@@ -551,7 +568,7 @@ class AuthManager {
                 display: block;
                 margin-bottom: 0.5rem;
                 font-size: 0.9rem;
-                color: #8B7E6B;
+                color: #565959;
               ">Rentrez votre mot de passe *</label>
               <input type="password" id="password" required style="
                 width: 100%;
@@ -569,7 +586,7 @@ class AuthManager {
                   display: block;
                   margin-bottom: 0.5rem;
                   font-size: 0.9rem;
-                  color: #8B7E6B;
+                  color: #565959;
                 ">Confirmez votre mot de passe *</label>
                 <input type="password" id="confirmPassword" required style="
                   width: 100%;
@@ -587,7 +604,7 @@ class AuthManager {
                 <button type="button" id="forgotPassword" style="
                   background: none;
                   border: none;
-                  color: #C6A75E;
+                  color: #FFA41C;
                   font-size: 0.85rem;
                   cursor: pointer;
                 ">Mot de passe oublié ?</button>
@@ -596,17 +613,17 @@ class AuthManager {
             
             <button type="submit" id="submitAuth" style="
               width: 100%;
-              background: #1F1E1C;
-              color: #F5F1E8;
-              border: 1px solid #C6A75E;
+              background: #FFD814;
+              color: #0F1111;
+              border: 1px solid #FCD200;
               padding: 1rem;
               border-radius: 0.5rem;
               font-size: 1rem;
-              font-weight: 500;
+              font-weight: 700;
               cursor: pointer;
               transition: all 0.3s;
               margin-top: 1rem;
-            " onmouseover="this.style.background='#C6A75E'; this.style.color='#1F1E1C'" onmouseout="this.style.background='#1F1E1C'; this.style.color='#F5F1E8'">
+            " onmouseover="this.style.background='#F7CA00'" onmouseout="this.style.background='#FFD814'">
               ${mode === 'login' ? 'Se connecter' : 'S\'inscrire'}
             </button>
           </form>
@@ -619,7 +636,7 @@ class AuthManager {
             margin: 1.5rem 0;
           ">
             <div style="flex: 1; height: 1px; background: rgba(198, 167, 94, 0.2);"></div>
-            <span style="color: #8B7E6B; font-size: 0.9rem;">ou</span>
+            <span style="color: #565959; font-size: 0.9rem;">ou</span>
             <div style="flex: 1; height: 1px; background: rgba(198, 167, 94, 0.2);"></div>
           </div>
           
@@ -627,7 +644,7 @@ class AuthManager {
           <button id="googleSignIn" style="
             width: 100%;
             background: white;
-            color: #1F1E1C;
+            color: #0F1111;
             border: 1px solid rgba(198, 167, 94, 0.3);
             padding: 1rem;
             border-radius: 0.5rem;
@@ -639,7 +656,7 @@ class AuthManager {
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-          " onmouseover="this.style.background='#F5F1E8'" onmouseout="this.style.background='white'">
+          " onmouseover="this.style.background='#EAEDED'" onmouseout="this.style.background='white'">
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 20px; height: 20px;">
             <span>Continuer avec Google</span>
           </button>
@@ -651,13 +668,13 @@ class AuthManager {
             border-top: 1px solid rgba(198, 167, 94, 0.2);
             padding-top: 1.5rem;
           ">
-            <p style="color: #8B7E6B; margin-bottom: 0.5rem;">
+            <p style="color: #565959; margin-bottom: 0.5rem;">
               ${mode === 'login' ? 'Pas encore de compte ?' : 'Déjà un compte ?'}
             </p>
             <button id="switchMode" style="
               background: none;
               border: none;
-              color: #C6A75E;
+              color: #FFA41C;
               font-size: 1rem;
               font-weight: 500;
               cursor: pointer;
@@ -683,7 +700,7 @@ class AuthManager {
         .auth-container {
           animation: authSlideIn 0.3s ease forwards;
           scrollbar-width: thin;
-          scrollbar-color: #C6A75E rgba(198, 167, 94, 0.12);
+          scrollbar-color: #FFA41C rgba(198, 167, 94, 0.12);
         }
 
         .auth-container::-webkit-scrollbar {
@@ -691,7 +708,7 @@ class AuthManager {
         }
 
         .auth-container::-webkit-scrollbar-thumb {
-          background: #C6A75E;
+          background: #FFA41C;
           border-radius: 999px;
         }
 
@@ -701,13 +718,13 @@ class AuthManager {
         
         .auth-container input:focus {
           outline: none;
-          border-color: #C6A75E;
+          border-color: #FFA41C;
           box-shadow: 0 0 0 2px rgba(198, 167, 94, 0.2);
         }
 
         .auth-container select:focus {
           outline: none;
-          border-color: #C6A75E;
+          border-color: #FFA41C;
           box-shadow: 0 0 0 2px rgba(198, 167, 94, 0.2);
         }
         
@@ -741,22 +758,22 @@ class AuthManager {
     return `
       <div style="display:grid;gap:0.75rem;">
         <div>
-          <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Adresse *</label>
+          <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Adresse *</label>
           <input type="text" id="${prefix}Address" value="${this.escapeAttribute(values.address || '')}" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;" placeholder="Rue, numéro, quartier">
         </div>
         <div>
-          <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Pays *</label>
+          <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Pays *</label>
           <select id="${prefix}Country" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">
             <option value="Haiti" selected>Haiti</option>
           </select>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
           <div>
-            <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Departement *</label>
+            <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Departement *</label>
             <select id="${prefix}Department" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">${departmentOptions}</select>
           </div>
           <div>
-            <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#8B7E6B;">Commune *</label>
+            <label style="display:block;margin-bottom:0.5rem;font-size:0.9rem;color:#565959;">Commune *</label>
             <select id="${prefix}Commune" required style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;font-size:1rem;background:white;">${communeOptions}</select>
           </div>
         </div>
@@ -920,6 +937,20 @@ class AuthManager {
     
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const isSmartManagementLogin = Boolean(document.getElementById('smart-management-root'));
+      try {
+        const smartUserSnap = await getDoc(doc(db, 'smartManagementUsers', userCredential.user.uid));
+        const smartUser = smartUserSnap.exists() ? smartUserSnap.data() : null;
+        if (!isSmartManagementLogin && smartUser?.smartManagementAccess === true && smartUser?.status === 'active') {
+          await signOut(auth);
+          const smartManagementError = new Error('smart_management_account');
+          smartManagementError.code = 'auth/smart-management-account';
+          throw smartManagementError;
+        }
+      } catch (accessError) {
+        if (accessError?.code === 'auth/smart-management-account') throw accessError;
+        console.warn('[AUTH] Vérification du compte Smart Management indisponible', accessError);
+      }
       console.info('[AUTH] Login email reussi', {
         uid: userCredential?.user?.uid || null,
         email: userCredential?.user?.email || null,
@@ -958,7 +989,9 @@ class AuthManager {
         message: error?.message || String(error)
       });
       errorDiv.style.display = 'block';
-      errorDiv.textContent = this.getErrorMessage(error.code);
+      errorDiv.textContent = error?.code === 'auth/smart-management-account'
+        ? 'Ce compte est réservé à Smart Management. Utilisez le lien de connexion réservé aux employés.'
+        : this.getErrorMessage(error.code);
     }
   }
   
@@ -1218,39 +1251,39 @@ class AuthManager {
       `;
 
       overlay.innerHTML = `
-        <div style="width:100%;max-width:460px;max-height:90vh;overflow:auto;background:#F5F1E8;border-radius:1rem;box-shadow:0 20px 40px rgba(0,0,0,0.25);padding:1.25rem;">
-          <h3 style="margin:0 0 0.35rem 0;font-size:1.2rem;color:#1F1E1C;">Compléter votre profil</h3>
-          <p style="margin:0 0 1rem 0;color:#8B7E6B;font-size:0.9rem;">Nom, date de naissance, téléphone et adresse sont requis.</p>
+        <div style="width:100%;max-width:460px;max-height:90vh;overflow:auto;background:#EAEDED;border-radius:1rem;box-shadow:0 20px 40px rgba(0,0,0,0.25);padding:1.25rem;">
+          <h3 style="margin:0 0 0.35rem 0;font-size:1.2rem;color:#0F1111;">Compléter votre profil</h3>
+          <p style="margin:0 0 1rem 0;color:#565959;font-size:0.9rem;">Nom, date de naissance, téléphone et adresse sont requis.</p>
 
           <div style="display:flex;flex-direction:column;gap:0.75rem;">
             <div>
-              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Nom *</label>
+              <label style="display:block;margin-bottom:0.3rem;color:#565959;font-size:0.9rem;">Nom *</label>
               <input id="googleExtraLastName" type="text" value="${this.escapeAttribute(lastNameValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
             </div>
             <div>
-              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Prenom *</label>
+              <label style="display:block;margin-bottom:0.3rem;color:#565959;font-size:0.9rem;">Prenom *</label>
               <input id="googleExtraFirstName" type="text" value="${this.escapeAttribute(firstNameValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
             </div>
             <div>
-              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Date de naissance *</label>
+              <label style="display:block;margin-bottom:0.3rem;color:#565959;font-size:0.9rem;">Date de naissance *</label>
               <input id="googleExtraBirthDate" type="date" value="${this.escapeAttribute(birthDateValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
             </div>
             <div>
-              <label style="display:block;margin-bottom:0.3rem;color:#8B7E6B;font-size:0.9rem;">Telephone *</label>
+              <label style="display:block;margin-bottom:0.3rem;color:#565959;font-size:0.9rem;">Telephone *</label>
               <input id="googleExtraPhone" type="tel" value="${this.escapeAttribute(phoneValue)}" style="width:100%;padding:0.7rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:#fff;">
             </div>
             ${this.renderAddressFields('googleExtra', existingAddress)}
             <div style="display:flex;align-items:center;gap:0.5rem;">
-              <input type="checkbox" id="googleExtraUseAsDelivery" checked style="accent-color:#C6A75E;">
-              <label for="googleExtraUseAsDelivery" style="color:#8B7E6B;font-size:0.9rem;">Utiliser cette adresse comme adresse de livraison</label>
+              <input type="checkbox" id="googleExtraUseAsDelivery" checked style="accent-color:#FFA41C;">
+              <label for="googleExtraUseAsDelivery" style="color:#565959;font-size:0.9rem;">Utiliser cette adresse comme adresse de livraison</label>
             </div>
           </div>
 
           <div id="googleExtraError" style="display:none;margin-top:0.8rem;padding:0.6rem;border-radius:0.5rem;background:#FEE2E2;color:#991B1B;font-size:0.85rem;"></div>
 
           <div style="display:flex;gap:0.6rem;justify-content:flex-end;margin-top:1rem;">
-            <button type="button" id="googleExtraCancel" style="padding:0.65rem 0.9rem;border:1px solid rgba(198,167,94,0.4);background:#fff;color:#1F1E1C;border-radius:0.5rem;cursor:pointer;">Annuler</button>
-            <button type="button" id="googleExtraSave" style="padding:0.65rem 0.9rem;border:none;background:#1F1E1C;color:#F5F1E8;border-radius:0.5rem;cursor:pointer;">Enregistrer</button>
+            <button type="button" id="googleExtraCancel" style="padding:0.65rem 0.9rem;border:1px solid rgba(198,167,94,0.4);background:#fff;color:#0F1111;border-radius:0.5rem;cursor:pointer;">Annuler</button>
+            <button type="button" id="googleExtraSave" style="padding:0.65rem 0.9rem;border:none;background:#0F1111;color:#EAEDED;border-radius:0.5rem;cursor:pointer;">Enregistrer</button>
           </div>
         </div>
       `;
@@ -1315,25 +1348,25 @@ class AuthManager {
         <div style="
           width: 100%;
           max-width: 420px;
-          background: #F5F1E8;
+          background: #EAEDED;
           border-radius: 1rem;
           box-shadow: 0 20px 40px rgba(0,0,0,0.25);
           padding: 1.25rem;
         ">
-          <h3 style="margin:0 0 0.35rem 0; font-size:1.2rem; color:#1F1E1C;">Compléter votre profil</h3>
-          <p style="margin:0 0 1rem 0; color:#8B7E6B; font-size:0.9rem;">Âge, sexe et téléphone sont requis.</p>
+          <h3 style="margin:0 0 0.35rem 0; font-size:1.2rem; color:#0F1111;">Compléter votre profil</h3>
+          <p style="margin:0 0 1rem 0; color:#565959; font-size:0.9rem;">Âge, sexe et téléphone sont requis.</p>
 
           <div style="display:flex; flex-direction:column; gap:0.75rem;">
             <div>
-              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">Âge</label>
+              <label style="display:block; margin-bottom:0.3rem; color:#565959; font-size:0.9rem;">Âge</label>
               <input id="googleExtraAge" type="number" min="1" max="120" value="${ageValue}" style="width:100%; padding:0.7rem; border:1px solid rgba(198, 167, 94, 0.3); border-radius:0.5rem; background:#fff;">
             </div>
             <div>
-              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">Numéro téléphone</label>
+              <label style="display:block; margin-bottom:0.3rem; color:#565959; font-size:0.9rem;">Numéro téléphone</label>
               <input id="googleExtraPhone" type="tel" value="${phoneValue}" style="width:100%; padding:0.7rem; border:1px solid rgba(198, 167, 94, 0.3); border-radius:0.5rem; background:#fff;">
             </div>
             <div>
-              <label style="display:block; margin-bottom:0.3rem; color:#8B7E6B; font-size:0.9rem;">Sexe</label>
+              <label style="display:block; margin-bottom:0.3rem; color:#565959; font-size:0.9rem;">Sexe</label>
               <select id="googleExtraSexe" style="width:100%; padding:0.7rem; border:1px solid rgba(198, 167, 94, 0.3); border-radius:0.5rem; background:#fff;">
                 <option value="">Choisir...</option>
                 <option value="Homme" ${sexeValue === 'Homme' ? 'selected' : ''}>Homme</option>
@@ -1346,8 +1379,8 @@ class AuthManager {
           <div id="googleExtraError" style="display:none; margin-top:0.8rem; padding:0.6rem; border-radius:0.5rem; background:#FEE2E2; color:#991B1B; font-size:0.85rem;"></div>
 
           <div style="display:flex; gap:0.6rem; justify-content:flex-end; margin-top:1rem;">
-            <button type="button" id="googleExtraCancel" style="padding:0.65rem 0.9rem; border:1px solid rgba(198, 167, 94, 0.4); background:#fff; color:#1F1E1C; border-radius:0.5rem; cursor:pointer;">Annuler</button>
-            <button type="button" id="googleExtraSave" style="padding:0.65rem 0.9rem; border:none; background:#1F1E1C; color:#F5F1E8; border-radius:0.5rem; cursor:pointer;">Enregistrer</button>
+            <button type="button" id="googleExtraCancel" style="padding:0.65rem 0.9rem; border:1px solid rgba(198, 167, 94, 0.4); background:#fff; color:#0F1111; border-radius:0.5rem; cursor:pointer;">Annuler</button>
+            <button type="button" id="googleExtraSave" style="padding:0.65rem 0.9rem; border:none; background:#0F1111; color:#EAEDED; border-radius:0.5rem; cursor:pointer;">Enregistrer</button>
           </div>
         </div>
       `;

@@ -1,8 +1,8 @@
-﻿import { db } from './firebase-init.js?v=20260523-6';
+import { db } from './firebase-init.js?v=20260523-6';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js';
-import Navbar from './navbar.js?v=20260714-1';
-import { getCartManager } from './cart.js?v=20260714-1';
+import './search.js?v=20260816-4';
+import Navbar from './navbar.js?v=20260816-1';
+import { getCartManager } from './cart.js?v=20260816-1';
 import { getAuthManager } from './auth.js?v=20260523-6';
 import { getProfilePanel } from './profile-panel.js?v=20260525-6';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
@@ -35,9 +35,9 @@ class SierraHeaderNebula {
         --primary-color: #3a4e3f;
         --secondary-color: #b89b7b;
         --accent-color: #7c3e3e;
-        --primary-font: 'Cormorant Garamond', serif;
-        --brand-font: 'Playfair Display', 'Cormorant Garamond', serif;
-        --secondary-font: 'Manrope', sans-serif;
+        --primary-font: 'Amazon Ember', Arial, sans-serif;
+        --brand-font: 'Playfair Display', 'Amazon Ember', Arial, sans-serif;
+        --secondary-font: 'Amazon Ember', sans-serif;
         --announce-height: 0px;
         --header-height: 156px;
         --header-height-mobile: 92px;
@@ -171,7 +171,7 @@ class SierraHeaderNebula {
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.12);
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 0.9rem;
         font-weight: 700;
         flex-shrink: 0;
@@ -180,7 +180,7 @@ class SierraHeaderNebula {
       .desktop-nav-action {
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 0.9rem;
         font-weight: 700;
         background: rgba(255, 255, 255, 0.78);
@@ -204,7 +204,7 @@ class SierraHeaderNebula {
       .currency-selector {
         border: 1px solid rgba(184, 155, 123, 0.2);
         background: rgba(255, 255, 255, 0.78);
-        color: #1f1e1c;
+        color: #0f1111;
         border-radius: 999px;
         min-height: 44px;
         padding: 0 0.75rem;
@@ -273,7 +273,7 @@ class SierraHeaderNebula {
 
       .desktop-search-bar i,
       .mobile-search-bar i {
-        color: #8b7e6b;
+        color: #565959;
       }
 
       .desktop-search-input,
@@ -320,8 +320,8 @@ class SierraHeaderNebula {
         display: none;
         align-items: center;
         justify-content: center;
-        background: #C6A75E;
-        color: #1F1E1C;
+        background: #FFA41C;
+        color: #0F1111;
         font-size: 0.72rem;
         font-weight: 800;
         line-height: 1;
@@ -443,7 +443,7 @@ class SierraHeaderNebula {
         padding: 0.55rem 0.9rem;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.16);
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 0.88rem;
         font-weight: 700;
         flex-shrink: 0;
@@ -644,7 +644,7 @@ class SierraHeaderNebula {
       .mobile-category-name {
         font-size: 0.82rem;
         line-height: 1.2;
-        color: #1f1e1c;
+        color: #0f1111;
       }
 
       .mobile-back-arrow {
@@ -754,7 +754,7 @@ class SierraHeaderNebula {
           <div class="desktop-top-row">
             <div class="desktop-logo-area">
               <a class="header-home-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
-                <img id="desktopLogoImg" class="desktop-logo" src="" alt="logo" style="display: none;">
+                <img id="desktopLogoImg" class="desktop-logo" src="" alt="Smart Cut Services" style="display: none;">
                 <span id="desktopCompanyName" class="desktop-company-name">Smart Cut Services</span>
               </a>
             </div>
@@ -790,8 +790,8 @@ class SierraHeaderNebula {
           <div class="mobile-top-bar">
           <div class="mobile-logo-center">
             <a class="mobile-logo-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
-              <img id="mobileLogoImg" class="mobile-logo" src="" alt="logo" style="display: none;">
-              <span id="mobileLogoText" class="mobile-logo-text">logo</span>
+              <img id="mobileLogoImg" class="mobile-logo" src="" alt="Smart Cut Services" style="display: none;">
+              <span id="mobileLogoText" class="mobile-logo-text">Smart Cut</span>
             </a>
           </div>
           <div id="mobileSearchBarTrigger" class="header-search-trigger mobile-search-bar" role="search">
@@ -818,7 +818,7 @@ class SierraHeaderNebula {
               <span>Catégories</span>
             </button>
             <div class="mobile-nav-items">
-              <a class="mobile-nav-item" href="./vendor-application.html">Devenir vendeur</a>
+              <a class="mobile-nav-item" href="./vendor-application.html">Vendre</a>
               <a class="mobile-nav-item" href="./printing-hub.html">Imprimerie</a>
             </div>
           </div>
@@ -841,7 +841,7 @@ class SierraHeaderNebula {
       <div id="mobileMenuFullscreenOrion99">
         <div class="mobile-menu-header">
           <span class="mobile-menu-title">Catégories</span>
-          <button id="closeMobileMenuBtn" class="mobile-menu-close">
+          <button id="closeMobileMenuBtn" class="mobile-menu-close" type="button" aria-label="Fermer le menu">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -1198,8 +1198,10 @@ class SierraHeaderNebula {
 
         if (currentScrollY > lastScrollY && currentScrollY > 150) {
           header.style.transform = 'translateY(-100%)';
+          document.documentElement.classList.add('smart-header-hidden');
         } else {
           header.style.transform = 'translateY(0)';
+          document.documentElement.classList.remove('smart-header-hidden');
         }
 
         lastScrollY = currentScrollY;

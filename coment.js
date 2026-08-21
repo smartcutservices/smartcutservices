@@ -286,23 +286,23 @@ class CommentaireComponent {
     const typography = this.theme.getTypography();
     
     // Couleurs selon la structure du thème
-    const primaryColor = colors?.text?.title || '#1F1E1C';
-    const secondaryColor = colors?.text?.subtitle || '#C6A75E';
+    const primaryColor = colors?.text?.title || '#0F1111';
+    const secondaryColor = colors?.text?.subtitle || '#FFA41C';
     const textColor = colors?.text?.body || '#2C3E50';
-    const lightBg = colors?.background?.card || '#F5F1E8';
+    const lightBg = colors?.background?.card || '#EAEDED';
     const borderColor = colors?.background?.card ? `${colors.background.card}80` : '#d4c8bc';
-    const buttonBg = colors?.background?.button || '#1F1E1C';
+    const buttonBg = colors?.background?.button || '#0F1111';
     const buttonText = colors?.text?.button || '#FFFFFF';
     
     // Polices
-    const primaryFont = typography?.family || fonts?.primary || "'Cormorant Garamond', serif";
-    const secondaryFont = fonts?.secondary || "'Manrope', sans-serif";
+    const primaryFont = typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif";
+    const secondaryFont = fonts?.secondary || "'Amazon Ember', Arial, sans-serif";
     
     // Style CSS avec les animations
     const style = document.createElement('style');
     style.textContent = `
       .comment-oldmoney-${this.uniqueId} {
-        font-family: ${primaryFont}, 'Times New Roman', serif;
+        font-family: ${primaryFont}, Arial, sans-serif;
         width: 100%;
         max-width: 800px;
         margin: 0 auto;
@@ -332,170 +332,143 @@ class CommentaireComponent {
       
       .comment-card-${this.uniqueId} {
         background: white;
-        border: 1px solid ${borderColor};
-        padding: 1.25rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        border: 1px solid #D5D9D9;
+        border-radius: 8px;
+        padding: 1rem 1.15rem;
+        transition: border-color 0.2s ease;
         display: flex;
         flex-direction: column;
         transform-origin: center;
-        will-change: transform, opacity, box-shadow;
+        will-change: transform, opacity;
       }
-      
+
       .comment-card-${this.uniqueId}:hover {
-        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
-        border-color: ${secondaryColor};
+        border-color: #C7CDCD;
       }
-      
+
       .comment-card-content-${this.uniqueId} {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
         height: 100%;
       }
-      
+
+      .comment-card-head-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: ${secondaryColor};
+      }
+
+      .comment-card-head-${this.uniqueId} i {
+        font-size: 0.8rem;
+      }
+
+      .comment-card-head-${this.uniqueId} span {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #565959;
+      }
+
       .comment-card-text-${this.uniqueId} {
-        font-size: 1rem;
+        font-size: 0.94rem;
         line-height: 1.5;
         color: ${textColor};
-        font-style: italic;
-        quotes: "«" "»";
+        font-style: normal;
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-height: 4.5rem;
-        position: relative;
       }
-      
-      .comment-card-text-${this.uniqueId}::before {
-        content: "« ";
-        color: ${secondaryColor};
-        font-size: 1.2rem;
-        opacity: 0.7;
-      }
-      
-      .comment-card-text-${this.uniqueId}::after {
-        content: " »";
-        color: ${secondaryColor};
-        font-size: 1.2rem;
-        opacity: 0.7;
-      }
-      
+
       .comment-card-time-${this.uniqueId} {
-        font-size: 0.75rem;
-        color: ${secondaryColor};
+        font-size: 0.78rem;
+        color: #565959;
         text-align: right;
         font-family: ${secondaryFont};
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 0.5rem;
-        opacity: 0.8;
-        transition: opacity 0.3s ease;
+        letter-spacing: normal;
+        margin-top: 0.15rem;
       }
-      
-      .comment-card-${this.uniqueId}:hover .comment-card-time-${this.uniqueId} {
-        opacity: 1;
-      }
-      
+
       .comment-card-time-${this.uniqueId}.just-now {
-        color: ${primaryColor};
+        color: #007600;
         font-weight: 600;
       }
-      
+
       .comment-form-${this.uniqueId} {
         width: 100%;
-        border-top: 1px solid ${borderColor};
-        padding-top: 2rem;
+        border-top: 1px solid #D5D9D9;
+        padding-top: 1.5rem;
         margin-top: 1rem;
         transform-origin: top;
       }
-      
+
       .comment-label-${this.uniqueId} {
         font-family: ${primaryFont};
-        font-size: 1.2rem;
+        font-size: 1rem;
         color: ${primaryColor};
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
         display: block;
-        font-weight: 500;
-        letter-spacing: 0.5px;
+        font-weight: 700;
+        letter-spacing: normal;
         transform-origin: left;
       }
-      
+
       .comment-input-wrapper-${this.uniqueId} {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.6rem;
         width: 100%;
         transform-origin: top;
       }
-      
+
       .comment-input-${this.uniqueId} {
         flex: 1;
-        padding: 0.9rem 1.2rem;
-        border: 1px solid ${borderColor};
+        padding: 0.75rem 1rem;
+        border: 1px solid #D5D9D9;
+        border-radius: 8px;
         background: white;
         font-family: ${secondaryFont};
-        font-size: 0.95rem;
+        font-size: 0.92rem;
         color: ${textColor};
-        transition: all 0.2s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
         outline: none;
       }
-      
+
       .comment-input-${this.uniqueId}:focus {
-        border-color: ${primaryColor};
-        background: ${lightBg};
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-color: #007185;
+        box-shadow: 0 0 0 3px rgba(0,113,133,0.15);
       }
-      
+
       .comment-input-${this.uniqueId}::placeholder {
-        color: ${borderColor};
-        font-style: italic;
+        color: #8A9192;
+        font-style: normal;
         font-size: 0.9rem;
       }
-      
+
       .comment-button-${this.uniqueId} {
-        padding: 0.9rem 2rem;
-        background: ${buttonBg};
-        color: ${buttonText};
-        border: none;
+        padding: 0.75rem 1.5rem;
+        background: #FFD814;
+        color: #0F1111;
+        border: 1px solid #FCD200;
+        border-radius: 8px;
         font-family: ${secondaryFont};
         font-size: 0.9rem;
-        font-weight: 500;
-        letter-spacing: 0.5px;
+        font-weight: 700;
+        letter-spacing: normal;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: background-color 0.15s ease;
         white-space: nowrap;
-        border: 1px solid ${buttonBg};
-        position: relative;
-        overflow: hidden;
       }
-      
-      .comment-button-${this.uniqueId}::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-      }
-      
-      .comment-button-${this.uniqueId}:hover::after {
-        width: 300px;
-        height: 300px;
-      }
-      
+
       .comment-button-${this.uniqueId}:hover {
-        background: transparent;
-        color: ${buttonBg};
+        background: #F7CA00;
       }
-      
+
       .comment-button-${this.uniqueId}:active {
-        transform: scale(0.95);
+        background: #F0C14B;
       }
       
       .new-message-indicator-${this.uniqueId} {
@@ -551,7 +524,7 @@ class CommentaireComponent {
         </div>
         
         <div class="comment-form-${this.uniqueId}">
-          <label class="comment-label-${this.uniqueId}">Laissez un message vous aussi</label>
+          <label class="comment-label-${this.uniqueId}">Partagez votre avis</label>
           <div class="comment-input-wrapper-${this.uniqueId}">
             <input type="text" 
                    class="comment-input-${this.uniqueId}" 
@@ -587,6 +560,10 @@ class CommentaireComponent {
       return `
         <div class="comment-card-${this.uniqueId}" data-id="${comment.id}" data-type="${comment.type}">
           <div class="comment-card-content-${this.uniqueId}">
+            <div class="comment-card-head-${this.uniqueId}">
+              <i class="fas fa-quote-left" aria-hidden="true"></i>
+              <span>Avis client</span>
+            </div>
             <div class="comment-card-text-${this.uniqueId}">${comment.text}</div>
             <div class="comment-card-time-${this.uniqueId} ${timeClass}">${comment.time}</div>
           </div>

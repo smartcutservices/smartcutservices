@@ -1,12 +1,12 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>Smart Cut Services · Dashboard Produits Vendeur</title>
   
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS compilé localement -->
+  <link rel="stylesheet" href="./tailwind-site.css?v=20260816-1">
   
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -28,51 +28,116 @@
   <style>
     /* ========== VARIABLES ========== */
     :root {
-      --primary: #0A0A0A;
-      --primary-light: #1A1A1A;
-      --secondary: #C6A75E;
-      --secondary-light: #D4B67C;
-      --background: #F8F9FA;
+      --primary: #131921;
+      --primary-light: #232F3E;
+      --secondary: #FFA41C;
+      --secondary-light: #FFD814;
+      --background: #EAEDED;
       --surface: #FFFFFF;
-      --text-primary: #1E293B;
-      --text-secondary: #64748B;
-      --text-tertiary: #94A3B8;
-      --border: #E2E8F0;
-      --success: #10B981;
-      --warning: #F59E0B;
-      --danger: #EF4444;
-      --info: #3B82F6;
+      --text-primary: #0F1111;
+      --text-secondary: #565959;
+      --text-tertiary: #8A9192;
+      --border: #D5D9D9;
+      --success: #007600;
+      --warning: #FFA41C;
+      --danger: #B12704;
+      --info: #007185;
+      --radius-sm: 6px;
+      --radius: 10px;
+      --radius-lg: 14px;
+      --shadow-card: 0 1px 2px rgba(15,17,17,.05);
+      --shadow-pop: 0 1px 3px rgba(15,17,17,.08), 0 16px 32px -20px rgba(15,17,17,.28);
     }
-    
+
     /* ========== BASE ========== */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       background: var(--background);
       font-family: 'Inter', sans-serif;
       color: var(--text-primary);
       line-height: 1.5;
     }
-    
+
     /* ========== LAYOUT ========== */
     .app-container {
       display: flex;
       min-height: 100vh;
     }
-    
+
     .sidebar {
-      width: 280px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
+      width: 272px;
+      background: var(--primary);
+      border-right: none;
       position: fixed;
       height: 100vh;
       overflow-y: auto;
       transition: transform 0.3s ease;
       z-index: 50;
+      color: #fff;
+    }
+
+    .sidebar h1 {
+      color: #fff;
+    }
+
+    .sidebar p.text-xs {
+      color: rgba(255,255,255,0.5);
+    }
+
+    .sidebar .w-10.h-10.bg-secondary {
+      background: var(--secondary);
+      border-radius: var(--radius-sm);
+    }
+
+    .sidebar-nav {
+      color: rgba(255,255,255,0.72);
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-left: 3px solid transparent;
+      border-radius: 0 8px 8px 0 !important;
+    }
+
+    .sidebar-nav i {
+      color: rgba(255,255,255,0.5);
+      transition: color 0.15s ease;
+    }
+
+    .sidebar-nav:hover {
+      background: rgba(255,255,255,0.06) !important;
+      color: #fff;
+    }
+
+    .sidebar-nav:hover i {
+      color: rgba(255,255,255,0.8);
+    }
+
+    .sidebar-nav.active {
+      background: rgba(255,164,28,0.12) !important;
+      border-left-color: var(--secondary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .sidebar-nav.active i {
+      color: var(--secondary);
+    }
+
+    .sidebar-nav #products-count {
+      background: rgba(255,255,255,0.14) !important;
+      color: #fff;
+    }
+
+    .sidebar > div:last-child.border-t {
+      border-color: rgba(255,255,255,0.12) !important;
+    }
+
+    .sidebar > div:last-child .text-text-secondary {
+      color: rgba(255,255,255,0.55);
     }
     
     @media (max-width: 1024px) {
@@ -95,10 +160,10 @@
     
     .main-content {
       flex: 1;
-      margin-left: 280px;
+      margin-left: 272px;
       min-height: 100vh;
     }
-    
+
     .header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
@@ -124,15 +189,14 @@
     }
 
     .vendor-header-logo {
-      width: 3rem;
-      height: 3rem;
-      border-radius: 1rem;
-      background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-light) 100%);
-      color: white;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: var(--secondary);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 14px 28px rgba(198, 167, 94, 0.24);
       flex-shrink: 0;
     }
 
@@ -173,33 +237,39 @@
     .vendor-chip {
       display: inline-flex;
       align-items: center;
-      gap: 0.45rem;
-      padding: 0.5rem 0.85rem;
-      border-radius: 999px;
-      border: 1px solid rgba(198, 167, 94, 0.18);
-      background: rgba(198, 167, 94, 0.08);
-      color: #8a6e2f;
-      font-size: 0.82rem;
-      font-weight: 700;
+      gap: 0.4rem;
+      padding: 0.4rem 0.7rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--background);
+      color: var(--text-primary);
+      font-size: 0.78rem;
+      font-weight: 600;
     }
 
     .vendor-chip i {
-      font-size: 0.82rem;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
     }
-    
+
     /* ========== CARDS ========== */
     .stat-card {
       background: var(--surface);
-      border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      transition: all 0.2s;
+      border-radius: var(--radius);
+      padding: 1.25rem 1.4rem;
+      box-shadow: none;
+      transition: border-color 0.15s ease;
       border: 1px solid var(--border);
+      border-left: 3px solid var(--stat-accent, var(--secondary));
     }
-    
+
+    .stat-card:hover {
+      border-color: var(--text-tertiary);
+    }
+
     .content-card {
       background: var(--surface);
-      border-radius: 1rem;
+      border-radius: var(--radius);
       border: 1px solid var(--border);
       overflow: hidden;
       margin-bottom: 1.5rem;
@@ -232,9 +302,9 @@
     }
 
     .chart-panel {
-      background: linear-gradient(180deg, rgba(198, 167, 94, 0.08) 0%, rgba(255,255,255,0.96) 100%);
-      border: 1px solid rgba(198, 167, 94, 0.18);
-      border-radius: 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 1.25rem;
     }
 
@@ -263,8 +333,8 @@
     .chart-bar-track {
       width: 100%;
       min-height: 150px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.06);
+      border-radius: var(--radius-sm);
+      background: var(--background);
       display: flex;
       align-items: end;
       padding: 0.28rem;
@@ -272,9 +342,9 @@
 
     .chart-bar-fill {
       width: 100%;
-      border-radius: 999px;
-      background: linear-gradient(180deg, var(--secondary-light) 0%, var(--secondary) 100%);
-      box-shadow: 0 12px 24px rgba(198, 167, 94, 0.22);
+      border-radius: 4px;
+      background: var(--secondary);
+      box-shadow: none;
       min-height: 8px;
       transition: height 0.25s ease;
     }
@@ -365,9 +435,9 @@
       justify-content: space-between;
       gap: 1rem;
       padding: 0.85rem 1rem;
-      border-radius: 0.9rem;
-      background: rgba(255,255,255,0.88);
-      border: 1px solid rgba(198, 167, 94, 0.14);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      border: 1px solid var(--border);
     }
 
     .top-product-item strong {
@@ -383,27 +453,27 @@
 
     .analytics-empty {
       padding: 1.25rem;
-      border-radius: 0.95rem;
-      background: rgba(255,255,255,0.88);
-      border: 1px dashed rgba(198, 167, 94, 0.2);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      border: 1px dashed var(--border);
       color: var(--text-secondary);
       text-align: center;
       font-size: 0.92rem;
     }
-    
+
     /* ========== PRODUCT CARD ========== */
     .product-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 0.75rem;
+      border-radius: var(--radius-sm);
       overflow: hidden;
       transition: all 0.2s;
       cursor: pointer;
     }
     
     .product-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      transform: none;
+      box-shadow: var(--shadow-card);
       border-color: var(--secondary);
     }
     
@@ -424,7 +494,7 @@
     .variation-card {
       background: var(--background);
       border: 1px solid var(--border);
-      border-radius: 0.75rem;
+      border-radius: var(--radius-sm);
       padding: 1rem;
       margin-bottom: 1rem;
       position: relative;
@@ -441,7 +511,7 @@
       display: inline-flex;
       align-items: center;
       padding: 0.25rem 0.75rem;
-      background: rgba(198, 167, 94, 0.1);
+      background: rgba(255,164,28, 0.1);
       border-radius: 2rem;
       font-size: 0.8rem;
       color: var(--secondary);
@@ -468,7 +538,7 @@
     /* ========== CATEGORY SELECTOR ========== */
     .category-tree {
       background: var(--background);
-      border-radius: 0.75rem;
+      border-radius: var(--radius-sm);
       padding: 1rem;
     }
     
@@ -496,11 +566,11 @@
     }
     
     .line-checkbox:hover {
-      background: rgba(198, 167, 94, 0.05);
+      background: rgba(255,164,28, 0.05);
     }
     
     .line-checkbox.selected {
-      background: rgba(198, 167, 94, 0.1);
+      background: rgba(255,164,28, 0.1);
       border-left: 3px solid var(--secondary);
     }
     
@@ -590,7 +660,7 @@
     .form-input:focus {
       outline: none;
       border-color: var(--secondary);
-      box-shadow: 0 0 0 3px rgba(198, 167, 94, 0.1);
+      box-shadow: 0 0 0 3px rgba(255,164,28, 0.1);
     }
     
     .form-select {
@@ -712,12 +782,12 @@
     
     .modal-container {
       background: var(--surface);
-      border-radius: 1rem;
+      border-radius: var(--radius-lg);
       max-width: 600px;
       width: 100%;
       max-height: 90vh;
       overflow-y: auto;
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+      box-shadow: var(--shadow-pop);
       animation: modalSlideIn 0.3s ease;
     }
     
@@ -806,38 +876,63 @@
     
     .section-tab.active {
       border-bottom-color: var(--secondary);
-      color: var(--secondary);
+      color: var(--text-primary);
+      font-weight: 700;
     }
-    
+
     /* ========== STATUS BADGE ========== */
     .status-badge {
       display: inline-flex;
       align-items: center;
-      padding: 0.25rem 0.75rem;
-      border-radius: 2rem;
-      font-size: 0.75rem;
-      font-weight: 500;
+      padding: 0.22rem 0.6rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.72rem;
+      font-weight: 700;
     }
-    
+
     .status-active {
-      background: rgba(16, 185, 129, 0.1);
+      background: rgba(0, 118, 0, 0.1);
       color: var(--success);
     }
-    
+
     .status-draft {
-      background: rgba(100, 116, 139, 0.1);
+      background: var(--background);
       color: var(--text-secondary);
     }
 
     .status-pending {
-      background: rgba(245, 158, 11, 0.12);
-      color: var(--warning);
+      background: rgba(255,164,28, 0.14);
+      color: #8a5a00;
     }
 
     .status-rejected {
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba(177, 39, 4, 0.1);
       color: var(--danger);
     }
+
+    /* ========== MISSING TAILWIND UTILITIES (never compiled into tailwind-site.css) ========== */
+    /* This file's markup relies on semantic color classes (text-text-secondary, bg-background,
+       border-border, text-success, text-danger, etc.) that were never part of the shared
+       Tailwind build. Mapped here directly to the :root tokens so they actually render. */
+    .text-text-primary { color: var(--text-primary) !important; }
+    .text-text-secondary { color: var(--text-secondary) !important; }
+    .text-text-tertiary { color: var(--text-tertiary) !important; }
+    .bg-background { background-color: var(--background) !important; }
+    .bg-surface { background-color: var(--surface) !important; }
+    .border-border { border-color: var(--border) !important; }
+    .text-success { color: var(--success) !important; }
+    .bg-success { background-color: var(--success) !important; }
+    .border-success { border-color: var(--success) !important; }
+    .text-danger { color: var(--danger) !important; }
+    .bg-danger { background-color: var(--danger) !important; }
+    .border-danger { border-color: var(--danger) !important; }
+    .text-warning { color: var(--warning) !important; }
+    .bg-warning { background-color: var(--warning) !important; }
+    .border-warning { border-color: var(--warning) !important; }
+    .text-info { color: var(--info) !important; }
+    .bg-info { background-color: var(--info) !important; }
+    .border-info { border-color: var(--info) !important; }
+    .hover\:text-danger:hover { color: var(--danger) !important; }
   </style>
 </head>
 <body>
@@ -926,7 +1021,7 @@
       <div class="p-4 md:p-6">
         <div class="content-card mb-6">
           <div class="card-body" style="display:flex;align-items:flex-start;gap:1rem;">
-            <div style="width:44px;height:44px;border-radius:14px;background:rgba(198,167,94,0.12);color:#C6A75E;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+            <div style="width:44px;height:44px;border-radius:14px;background:rgba(255,164,28,0.14);color:#FFA41C;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
               <i class="fas fa-shield-check"></i>
             </div>
             <div>
@@ -1003,15 +1098,15 @@
         <div id="dashboard-view" class="view active">
           <!-- Stats -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div class="stat-card">
+              <div class="stat-card" style="--stat-accent:var(--info);">
                 <p class="text-sm text-text-secondary mb-1">Mes produits</p>
                 <p class="text-2xl font-semibold" id="stats-total-products">0</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="--stat-accent:var(--success);">
               <p class="text-sm text-text-secondary mb-1">En stock</p>
               <p class="text-2xl font-semibold" id="stats-in-stock">0</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="--stat-accent:var(--danger);">
               <p class="text-sm text-text-secondary mb-1">En rupture</p>
               <p class="text-2xl font-semibold" id="stats-out-stock">0</p>
             </div>
@@ -1022,7 +1117,7 @@
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-              <div class="stat-card">
+              <div class="stat-card" style="--stat-accent:var(--info);">
                 <p class="text-sm text-text-secondary mb-1">Ventes confirmees</p>
                 <p class="text-2xl font-semibold" id="sales-total-orders">0</p>
               </div>
@@ -1030,11 +1125,11 @@
                 <p class="text-sm text-text-secondary mb-1">Articles vendus</p>
                 <p class="text-2xl font-semibold" id="sales-items-sold">0</p>
               </div>
-              <div class="stat-card">
+              <div class="stat-card" style="--stat-accent:var(--success);">
                 <p class="text-sm text-text-secondary mb-1">Ventes brutes</p>
                 <p class="text-2xl font-semibold" id="sales-gross">0 HTG</p>
               </div>
-              <div class="stat-card">
+              <div class="stat-card" style="--stat-accent:var(--secondary-light);">
                 <p class="text-sm text-text-secondary mb-1">Net a recevoir</p>
                 <p class="text-2xl font-semibold" id="sales-net">0 HTG</p>
               </div>
@@ -1220,13 +1315,13 @@
                     </div>
                   </div>
 
-                  <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-[rgba(198,167,94,0.06)] p-4 space-y-4">
+                  <div class="rounded-2xl p-4 space-y-4" style="border:1px solid rgba(255,164,28,0.18);background:rgba(255,164,28,0.06);">
                     <div class="flex items-start justify-between gap-3 flex-wrap">
                       <div>
                         <h4 class="font-semibold text-text-primary">Discount produit</h4>
                         <p class="text-sm text-text-secondary mt-1">Applique une remise simple sur ce produit seulement. Le prix normal reviendra automatiquement apres la date de fin.</p>
                       </div>
-                      <span class="inline-flex items-center rounded-full bg-white border border-[rgba(198,167,94,0.2)] px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase text-[#8a6e2f]">
+                      <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase" style="border:1px solid rgba(255,164,28,0.2);color:#8a5a00;">
                         Pourcentage uniquement
                       </span>
                     </div>
@@ -1257,12 +1352,12 @@
               <div class="content-card">
                 <div class="card-header">
                   <span>Livraison du produit</span>
-                  <span class="inline-flex items-center rounded-full bg-white border border-[rgba(198,167,94,0.2)] px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase text-[#8a6e2f]">
+                  <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase" style="border:1px solid rgba(255,164,28,0.2);color:#8a5a00;">
                     Haiti uniquement
                   </span>
                 </div>
                 <div class="card-body space-y-4">
-                  <div class="rounded-2xl border border-[rgba(198,167,94,0.18)] bg-[rgba(31,30,28,0.03)] p-4 space-y-4">
+                  <div class="rounded-2xl p-4 space-y-4" style="border:1px solid rgba(255,164,28,0.18);background:#EAEDED;">
                     <div class="flex items-start justify-between gap-3 flex-wrap">
                       <div>
                         <h4 class="font-semibold text-text-primary">Zones de livraison et prix</h4>
@@ -1304,19 +1399,19 @@
               <div class="content-card">
                 <div class="card-header">
                   <span>Produit digital</span>
-                  <span class="inline-flex items-center rounded-full bg-white border border-[rgba(16,185,129,0.25)] px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase text-success">
+                  <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase" style="border:1px solid rgba(0,118,0,0.25);color:#007600;">
                     Livraison gratuite et instantanee
                   </span>
                 </div>
                 <div class="card-body space-y-4">
-                  <div class="rounded-2xl border border-[rgba(16,185,129,0.18)] bg-[rgba(16,185,129,0.06)] p-4 space-y-4">
+                  <div class="rounded-2xl p-4 space-y-4" style="border:1px solid rgba(0,118,0,0.18);background:rgba(0,118,0,0.05);">
                     <div class="flex items-start justify-between gap-3 flex-wrap">
                       <div>
                         <h4 class="font-semibold text-text-primary">Activer le mode digital</h4>
                         <p class="text-sm text-text-secondary mt-1">Un produit digital ne demande ni stock ni zone de livraison: disponible partout, frais 0 G, poids 0 g, delai instantane.</p>
                       </div>
-                      <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-text-primary border border-[rgba(16,185,129,0.2)]">
-                        <input type="checkbox" id="isDigitalProduct" class="accent-[#10B981]">
+                      <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-text-primary" style="border:1px solid rgba(0,118,0,0.2);">
+                        <input type="checkbox" id="isDigitalProduct" style="accent-color:#007600;">
                         Article digital
                       </label>
                     </div>
@@ -1332,7 +1427,7 @@
                         <p class="text-xs text-text-secondary mt-1">Collez ici le lien externe que le client recevra apres paiement. Aucun fichier digital n est stocke sur Smart Cut.</p>
                       </div>
                     </div>
-                    <div class="rounded-xl bg-white border border-[rgba(16,185,129,0.16)] p-4 text-sm text-text-secondary">
+                    <div class="rounded-xl bg-white p-4 text-sm text-text-secondary" style="border:1px solid rgba(0,118,0,0.16);">
                       <p class="font-semibold text-text-primary mb-1">Photos du produit digital</p>
                       <p>Ajoutez les photos dans l'onglet Galerie. Maximum 3 photos, 1 Mo par photo.</p>
                     </div>
@@ -1817,38 +1912,36 @@
 
       renderVendorLock() {
         document.body.innerHTML = `
-          <main style="min-height:100vh;display:grid;place-items:center;padding:2rem;background:#F8F9FA;font-family:Inter,Manrope,sans-serif;">
-            <section style="max-width:560px;width:100%;background:#fff;border:1px solid #E2E8F0;border-radius:24px;padding:2rem;box-shadow:0 20px 45px rgba(15,23,42,0.08);text-align:center;">
-              <div style="display:inline-flex;align-items:center;gap:.55rem;padding:.6rem 1rem;border-radius:999px;background:rgba(198,167,94,0.12);color:#C6A75E;font-weight:800;letter-spacing:.12em;text-transform:uppercase;font-size:.76rem;">
-                <i class="fas fa-store"></i>
+          <main style="min-height:100vh;display:grid;place-items:center;padding:2rem;background:#EAEDED;font-family:'Amazon Ember',Arial,Helvetica,sans-serif;">
+            <section style="max-width:400px;width:100%;background:#fff;border:1px solid #D5D9D9;border-radius:8px;padding:2rem 1.75rem;box-shadow:0 2px 5px rgba(15,17,17,.15);">
+              <div style="display:inline-flex;align-items:center;gap:.5rem;color:#0F1111;font-weight:700;font-size:.95rem;margin-bottom:1.1rem;">
+                <i class="fas fa-store" style="color:#FFA41C;"></i>
                 Dashboard vendeur
               </div>
-              <h1 style="margin:1rem 0 0;font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.6rem);line-height:.95;color:#1E293B;">Acces vendeur requis</h1>
-              <p style="margin:1rem 0 0;color:#64748B;line-height:1.8;">Connectez-vous avec un compte vendeur approuve pour gerer vos produits et vos variations.</p>
-              <form id="vendor-gate-form" style="display:grid;gap:.8rem;margin:1.5rem 0 0;text-align:left;">
+              <h1 style="margin:0;font-size:1.5rem;font-weight:700;color:#0F1111;line-height:1.25;">Acces vendeur requis</h1>
+              <p style="margin:.6rem 0 0;color:#565959;line-height:1.55;font-size:.88rem;">Connectez-vous avec un compte vendeur approuve pour gerer vos produits et vos variations.</p>
+              <form id="vendor-gate-form" style="display:grid;gap:.85rem;margin:1.35rem 0 0;text-align:left;">
                 <div>
-                  <label for="vendor-gate-email" style="display:block;margin-bottom:.35rem;color:#64748B;font-size:.92rem;">Email vendeur</label>
-                  <input id="vendor-gate-email" type="email" autocomplete="username" style="width:100%;padding:.95rem 1rem;border-radius:16px;border:1px solid #E2E8F0;background:#fff;color:#1E293B;font:inherit;" />
+                  <label for="vendor-gate-email" style="display:block;margin-bottom:.3rem;color:#0F1111;font-size:.82rem;font-weight:700;">Email vendeur</label>
+                  <input id="vendor-gate-email" type="email" autocomplete="username" style="width:100%;padding:.7rem .85rem;border-radius:8px;border:1px solid #D5D9D9;background:#fff;color:#0F1111;font:inherit;font-size:.92rem;box-sizing:border-box;" />
                 </div>
                 <div>
-                  <label for="vendor-gate-password" style="display:block;margin-bottom:.35rem;color:#64748B;font-size:.92rem;">Mot de passe</label>
-                  <input id="vendor-gate-password" type="password" autocomplete="current-password" style="width:100%;padding:.95rem 1rem;border-radius:16px;border:1px solid #E2E8F0;background:#fff;color:#1E293B;font:inherit;" />
+                  <label for="vendor-gate-password" style="display:block;margin-bottom:.3rem;color:#0F1111;font-size:.82rem;font-weight:700;">Mot de passe</label>
+                  <input id="vendor-gate-password" type="password" autocomplete="current-password" style="width:100%;padding:.7rem .85rem;border-radius:8px;border:1px solid #D5D9D9;background:#fff;color:#0F1111;font:inherit;font-size:.92rem;box-sizing:border-box;" />
                 </div>
-                <div id="vendor-gate-error" style="display:none;padding:.85rem 1rem;border-radius:14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.18);color:#991B1B;font-size:.92rem;line-height:1.6;"></div>
-                <div style="display:flex;justify-content:center;gap:.8rem;flex-wrap:wrap;margin-top:.1rem;">
-                  <button id="vendor-gate-login" type="submit" style="display:inline-flex;align-items:center;justify-content:center;gap:.6rem;border:none;background:#0A0A0A;color:#fff;border-radius:.6rem;padding:.9rem 1.15rem;font-weight:700;cursor:pointer;">
-                    <i class="fas fa-store"></i>
-                    Se connecter
-                  </button>
-                  <button id="vendor-gate-google" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:.6rem;border:1px solid #E2E8F0;background:#fff;color:#1E293B;border-radius:.6rem;padding:.9rem 1.15rem;font-weight:700;cursor:pointer;">
-                    <i class="fab fa-google"></i>
-                    Continuer avec Google
-                  </button>
-                  <a href="./vendor-application.html" style="display:inline-flex;align-items:center;gap:.6rem;text-decoration:none;border:1px solid #E2E8F0;background:#fff;color:#1E293B;border-radius:.6rem;padding:.85rem 1.1rem;font-weight:700;">
-                    <i class="fas fa-arrow-left"></i>
-                    Retour candidature vendeur
-                  </a>
-                </div>
+                <div id="vendor-gate-error" style="display:none;padding:.7rem .85rem;border-radius:8px;background:#FCECEC;border:1px solid #F0B3B3;color:#B12704;font-size:.85rem;line-height:1.5;"></div>
+                <button id="vendor-gate-login" type="submit" style="display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border:1px solid #FCD200;background:#FFD814;color:#0F1111;border-radius:8px;padding:.75rem 1rem;font-weight:700;font-size:.92rem;cursor:pointer;">
+                  <i class="fas fa-store"></i>
+                  Se connecter
+                </button>
+                <button id="vendor-gate-google" type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border:1px solid #D5D9D9;background:#fff;color:#0F1111;border-radius:8px;padding:.75rem 1rem;font-weight:700;font-size:.92rem;cursor:pointer;">
+                  <i class="fab fa-google"></i>
+                  Continuer avec Google
+                </button>
+                <a href="./vendor-application.html" style="display:inline-flex;align-items:center;justify-content:center;gap:.5rem;text-decoration:none;color:#007185;font-weight:600;font-size:.85rem;padding:.4rem 0;">
+                  <i class="fas fa-arrow-left"></i>
+                  Retour candidature vendeur
+                </a>
               </form>
             </section>
           </main>
@@ -3477,7 +3570,7 @@
 
       renderProductDeliveryZoneRow(zone = {}, index = 0) {
         return `
-          <div data-product-delivery-zone="${index}" class="grid grid-cols-1 md:grid-cols-[110px_1fr_1fr_110px_150px_auto] gap-3 items-end rounded-xl border border-[rgba(198,167,94,0.18)] bg-white p-3">
+          <div data-product-delivery-zone="${index}" class="grid grid-cols-1 md:grid-cols-[110px_1fr_1fr_110px_150px_auto] gap-3 items-end rounded-xl bg-white p-3" style="border:1px solid rgba(255,164,28,0.18);">
             <div>
               <label class="block text-sm text-text-secondary mb-1">Pays</label>
               <select data-product-zone-field="country" class="form-input">
@@ -3877,7 +3970,7 @@
               && fulfillmentStatus !== 'delivered'
               && ['paid', 'approved', 'confirmed', 'completed'].includes(paymentStatus);
             const itemsHtml = items.map((item) => `
-              <div style="display:flex;justify-content:space-between;gap:1rem;padding:.65rem .8rem;border-radius:.85rem;background:rgba(255,255,255,.82);border:1px solid rgba(198,167,94,.12);">
+              <div style="display:flex;justify-content:space-between;gap:1rem;padding:.65rem .8rem;border-radius:.85rem;background:rgba(255,255,255,.82);border:1px solid rgba(255,164,28,.12);">
                 <div style="min-width:0;">
                   <strong style="display:block;color:var(--text-primary);">${this.escape(item?.name || 'Produit')}</strong>
                   ${item?.isDigitalProduct ? '<span style="display:block;color:var(--success);font-size:.8rem;">Article digital - livraison instantanee</span>' : ''}
@@ -3989,7 +4082,7 @@
 
             const doc = new jsPDF();
             let y = 22;
-            doc.setFillColor(198, 167, 94);
+            doc.setFillColor(255, 164, 28);
             doc.rect(0, 0, 210, 28, 'F');
             doc.setTextColor(255, 255, 255);
             doc.setFont('helvetica', 'bold');
@@ -4070,7 +4163,7 @@
 
           const doc = new jsPDF();
           let y = 22;
-          doc.setFillColor(198, 167, 94);
+          doc.setFillColor(255, 164, 28);
           doc.rect(0, 0, 210, 28, 'F');
           doc.setTextColor(255, 255, 255);
           doc.setFont('helvetica', 'bold');

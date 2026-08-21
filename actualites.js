@@ -112,21 +112,21 @@ class ActualitesCarousel {
     
     return {
       // Couleurs de texte
-      titleColor: colors?.text?.title || '#1F1E1C',
-      subtitleColor: colors?.text?.subtitle || '#C6A75E',
+      titleColor: colors?.text?.title || '#0F1111',
+      subtitleColor: colors?.text?.subtitle || '#FFA41C',
       bodyColor: colors?.text?.body || '#4A4A4A',
       buttonTextColor: colors?.text?.button || '#FFFFFF',
       
       // Couleurs de fond
-      buttonBgColor: colors?.background?.button || '#C6A75E',
+      buttonBgColor: colors?.background?.button || '#FFA41C',
       
       // Couleurs d'icônes
-      iconStandard: colors?.icon?.standard || '#1F1E1C',
-      iconHover: colors?.icon?.hover || '#C6A75E',
+      iconStandard: colors?.icon?.standard || '#0F1111',
+      iconHover: colors?.icon?.hover || '#FFA41C',
       
       // Polices
-      primaryFont: typography?.family || fonts?.primary || "'Cormorant Garamond', serif",
-      secondaryFont: fonts?.secondary || "'Manrope', sans-serif"
+      primaryFont: typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif",
+      secondaryFont: fonts?.secondary || "'Amazon Ember', sans-serif"
     };
   }
   

@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Cut Proforma Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">SC</div>
+        <div>
+          <strong>Smart Cut</strong>
+          <span>Proforma Studio</span>
+        </div>
+      </div>
+
+      <nav class="nav-tabs" aria-label="Modules">
+        <button class="nav-btn active" data-tab="builder" title="Proforma">
+          <span>Proforma</span>
+        </button>
+        <button class="nav-btn" data-tab="company" title="Antet konpayi">
+          <span>Konpayi</span>
+        </button>
+        <button class="nav-btn" data-tab="catalog" title="Pwodwi ak sevis">
+          <span>Pwodwi</span>
+        </button>
+        <button class="nav-btn" data-tab="taxes" title="Taks">
+          <span>Taks</span>
+        </button>
+        <button class="nav-btn" data-tab="records" title="Achiv proforma">
+          <span>Achiv</span>
+        </button>
+        <button class="nav-btn" data-tab="reports" title="Rapo">
+          <span>Rapo</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="themeToggle" class="icon-action" type="button" title="Dark mode">DM</button>
+        <button id="backupBtn" class="icon-action" type="button" title="Telechaje backup">BK</button>
+        <label class="icon-action file-action" title="Restore backup">
+          RS
+          <input id="restoreInput" type="file" accept="application/json">
+        </label>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Software Proforma Generator</p>
+          <h1 id="pageTitle">Nouvo proforma</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="newProformaBtn" class="ghost-btn" type="button">Nouvo</button>
+          <button id="saveProformaBtn" class="primary-btn" type="button">Sove</button>
+          <button id="printBtn" class="dark-btn" type="button">PDF</button>
+        </div>
+      </header>
+
+      <section id="builder" class="tab-panel active">
+        <div class="work-grid">
+          <section class="panel editor-panel">
+            <div class="panel-heading">
+              <h2>Kreye proforma</h2>
+              <span id="statusPill" class="status-pill">Draft</span>
+            </div>
+
+            <div class="form-grid">
+              <label>Nom kliyan / antrepriz
+                <input id="clientName" type="text" placeholder="Ex: Jean Services SA">
+              </label>
+              <label>Email kliyan
+                <input id="clientEmail" type="email" placeholder="client@email.com">
+              </label>
+              <label>Adres kliyan
+                <textarea id="clientAddress" rows="2" placeholder="Adres konple"></textarea>
+              </label>
+              <label>Dat proforma
+                <input id="proformaDate" type="date">
+              </label>
+              <label>Validite
+                <select id="validityDays">
+                  <option value="7">7 jou</option>
+                  <option value="15">15 jou</option>
+                  <option value="30" selected>30 jou</option>
+                  <option value="60">60 jou</option>
+                </select>
+              </label>
+              <label>Lajan
+                <select id="currency">
+                  <option value="USD">USD</option>
+                  <option value="HTG">HTG</option>
+                  <option value="CAD">CAD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </label>
+              <label>Exchange rate pou HTG
+                <input id="exchangeRate" type="number" min="1" step="0.01" value="132">
+              </label>
+              <label class="check-row">
+                <input id="showDualCurrency" type="checkbox" checked>
+                <span>Montre ekivalan USD + HTG</span>
+              </label>
+            </div>
+
+            <div class="toolbar">
+              <select id="productPicker">
+                <option value="">Ajoute pwodwi rapid</option>
+              </select>
+              <button id="addProductBtn" class="ghost-btn" type="button">Ajoute</button>
+              <button id="addCustomLineBtn" class="ghost-btn" type="button">Liy manyel</button>
+            </div>
+
+            <div class="line-table-wrap">
+              <table class="line-table">
+                <thead>
+                  <tr>
+                    <th>Deskripsyon</th>
+                    <th>Ref</th>
+                    <th>Qty</th>
+                    <th>Pri</th>
+                    <th>Taks</th>
+                    <th>Total</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="lineItems"></tbody>
+              </table>
+            </div>
+
+            <div class="form-grid compact">
+              <label>Shipping
+                <input id="shipping" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>Rabè global
+                <input id="globalDiscount" type="number" min="0" step="0.01" value="0">
+              </label>
+              <label>Kondisyon peman
+                <input id="paymentTerms" type="text" placeholder="Ex: 50% avan, 50% sou livrezon">
+              </label>
+              <label>Incoterms
+                <input id="incoterms" type="text" placeholder="Ex: EXW, FOB, CIF">
+              </label>
+              <label>HS Code
+                <input id="hsCode" type="text" placeholder="Opsyonel">
+              </label>
+              <label>Nimewo proforma
+                <input id="proformaNumber" type="text" readonly>
+              </label>
+            </div>
+
+            <label>Notes / Terms
+              <textarea id="notes" rows="4"></textarea>
+            </label>
+          </section>
+
+          <section class="preview-panel">
+            <div id="invoicePreview" class="invoice-preview"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="company" class="tab-panel">
+        <section class="panel narrow">
+          <div class="panel-heading">
+            <h2>Antet konpayi</h2>
+            <button id="saveCompanyBtn" class="primary-btn" type="button">Sove template</button>
+          </div>
+          <div class="form-grid">
+            <label>Logo
+              <input id="companyLogo" type="file" accept="image/png,image/jpeg">
+            </label>
+            <label>Non konpayi
+              <input id="companyName" type="text">
+            </label>
+            <label>Slogan
+              <input id="companySlogan" type="text">
+            </label>
+            <label>Adres
+              <textarea id="companyAddress" rows="3"></textarea>
+            </label>
+            <label>NIF / Matricule fiscal
+              <input id="companyTaxId" type="text">
+            </label>
+            <label>Email
+              <input id="companyEmail" type="email">
+            </label>
+            <label>Telefon
+              <input id="companyPhone" type="tel">
+            </label>
+            <label>Site web
+              <input id="companyWebsite" type="url">
+            </label>
+            <label class="full">Tem & kondisyon default
+              <textarea id="companyTerms" rows="4"></textarea>
+            </label>
+          </div>
+        </section>
+      </section>
+
+      <section id="catalog" class="tab-panel">
+        <div class="split-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Catalogue pwodwi</h2>
+              <label class="ghost-btn file-pill">
+                Import CSV
+                <input id="csvInput" type="file" accept=".csv,text/csv">
+              </label>
+            </div>
+            <div class="form-grid compact">
+              <input id="productSearch" type="search" placeholder="Cheche pwodwi...">
+              <button id="addProductFormBtn" class="primary-btn" type="button">Ajoute pwodwi</button>
+            </div>
+            <div id="productList" class="item-list"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Fich pwodwi</h2>
+            <div class="form-grid">
+              <input id="productId" type="hidden">
+              <label>Non pwodwi
+                <input id="productName" type="text">
+              </label>
+              <label>SKU / Code
+                <input id="productSku" type="text">
+              </label>
+              <label>Deskripsyon
+                <textarea id="productDescription" rows="2"></textarea>
+              </label>
+              <label>Pri USD
+                <input id="productUsd" type="number" min="0" step="0.01">
+              </label>
+              <label>Pri HTG
+                <input id="productHtg" type="number" min="0" step="0.01">
+              </label>
+              <label>Inite
+                <input id="productUnit" type="text" placeholder="pcs, box, m2, kg">
+              </label>
+              <label>Taks aplikab
+                <select id="productTax"></select>
+              </label>
+              <label>Rabè
+                <input id="productDiscount" type="number" min="0" step="0.01" value="0">
+              </label>
+            </div>
+            <div class="button-row">
+              <button id="saveProductBtn" class="primary-btn" type="button">Sove pwodwi</button>
+              <button id="clearProductBtn" class="ghost-btn" type="button">Netwaye</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="taxes" class="tab-panel">
+        <section class="panel narrow">
+          <div class="panel-heading">
+            <h2>Jesyon taks</h2>
+            <button id="addTaxBtn" class="primary-btn" type="button">Ajoute taks</button>
+          </div>
+          <div id="taxList" class="tax-list"></div>
+        </section>
+      </section>
+
+      <section id="records" class="tab-panel">
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Proforma sove</h2>
+            <input id="recordSearch" type="search" placeholder="Filtre pa kliyan, dat, lajan, montan...">
+          </div>
+          <div id="recordsList" class="records-list"></div>
+        </section>
+      </section>
+
+      <section id="reports" class="tab-panel">
+        <div id="reportsGrid" class="report-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <template id="lineItemTemplate">
+    <tr>
+      <td>
+        <input class="line-name" type="text" placeholder="Produit / service">
+        <textarea class="line-description" rows="2" placeholder="Description"></textarea>
+      </td>
+      <td><input class="line-reference" type="text" placeholder="Ref"></td>
+      <td><input class="line-qty" type="number" min="0" step="0.01" value="1"></td>
+      <td><input class="line-price" type="number" min="0" step="0.01" value="0"></td>
+      <td><select class="line-tax"></select></td>
+      <td class="line-total">0.00</td>
+      <td><button class="remove-line" type="button" title="Retire">x</button></td>
+    </tr>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-﻿import { auth, db } from './firebase-init.js?v=20260523-6';
+import { auth, db } from './firebase-init.js?v=20260523-6';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js?v=20260523-6';
@@ -358,7 +358,7 @@ class ProfilePanel {
     const otherAddressesCount = secondaryAddresses.length;
     return `
       <form class="profile-personal-form" style="display:grid;gap:0.85rem;">
-        <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;">
+        <div style="border-radius:8px;border:1px solid #D5D9D9;background:${colors.background.card};padding:1rem;">
           <h3 style="margin:0;font-family:${fonts.primary};font-size:1.35rem;color:${colors.text.title};">Modifier mes informations</h3>
           <p style="margin:0.4rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">Vos modifications seront sauvegardées sur votre compte.</p>
         </div>
@@ -385,7 +385,7 @@ class ProfilePanel {
           </label>
         </div>
 
-        <div style="border-radius:1.15rem;border:1px solid ${colors.background.button}22;background:${colors.background.card};padding:1rem;display:grid;gap:0.85rem;">
+        <div style="border-radius:8px;border:1px solid #D5D9D9;background:${colors.background.card};padding:1rem;display:grid;gap:0.85rem;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
             <div>
               <h4 style="margin:0;color:${colors.text.title};font-size:1rem;">Adresses supplementaires</h4>
@@ -393,7 +393,7 @@ class ProfilePanel {
                 ${otherAddressesCount > 0 ? `${otherAddressesCount} autre(s) adresse(s) déjà sauvegardée(s).` : 'Ajoutez une autre adresse sans remplacer votre adresse principale.'}
               </p>
             </div>
-            <button type="button" class="profile-add-address-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.75rem 0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.45rem;">
+            <button type="button" class="profile-add-address-btn" style="border:1px solid #D5D9D9;border-radius:8px;background:${colors.background.card};color:${colors.text.title};padding:0.75rem 0.9rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:0.45rem;">
               <i class="fas fa-plus"></i>
               Ajouter une adresse
             </button>
@@ -405,10 +405,10 @@ class ProfilePanel {
         </div>
 
         <div style="display:flex;gap:0.65rem;flex-wrap:wrap;">
-          <button type="submit" style="border:none;border-radius:999px;background:${colors.background.button};color:${colors.text.button};padding:0.9rem 1rem;font-weight:800;cursor:pointer;">
+          <button type="submit" style="border:1px solid #FCD200;border-radius:8px;background:#FFD814;color:#0F1111;padding:0.9rem 1rem;font-weight:700;cursor:pointer;">
             Enregistrer
           </button>
-          <button type="button" class="profile-cancel-edit-btn" style="border:1px solid ${colors.background.button}44;border-radius:999px;background:${colors.background.card};color:${colors.text.title};padding:0.9rem 1rem;font-weight:800;cursor:pointer;">
+          <button type="button" class="profile-cancel-edit-btn" style="border:1px solid #D5D9D9;border-radius:8px;background:${colors.background.card};color:${colors.text.title};padding:0.9rem 1rem;font-weight:800;cursor:pointer;">
             Annuler
           </button>
         </div>
@@ -418,7 +418,7 @@ class ProfilePanel {
 
   renderSavedAddressForm(address, index, colors) {
     return `
-      <div data-saved-address-index="${index}" data-saved-address-id="${this.escape(address.id || '')}" style="border:1px solid ${colors.background.button}26;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.card};">
+      <div data-saved-address-index="${index}" data-saved-address-id="${this.escape(address.id || '')}" style="border:1px solid #D5D9D9;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.card};">
         <strong style="color:${colors.text.title};font-size:0.92rem;">Adresse sauvegardée ${index + 1}</strong>
         ${this.renderProfileInput('Adresse', `profileSavedAddress_${index}`, address.address || '', colors)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
@@ -441,7 +441,7 @@ class ProfilePanel {
 
   renderExtraAddressForm(index, colors) {
     return `
-      <div data-extra-address-index="${index}" style="border:1px dashed ${colors.background.button}44;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:${colors.background.button}08;">
+      <div data-extra-address-index="${index}" style="border:1px dashed #D5D9D9;border-radius:1rem;padding:0.9rem;display:grid;gap:0.75rem;background:#FAFAFA;">
         <strong style="color:${colors.text.title};font-size:0.92rem;">Nouvelle adresse ${index + 1}</strong>
         ${this.renderProfileInput('Adresse', `profileExtraAddress_${index}`, '', colors)}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;">
@@ -472,7 +472,7 @@ class ProfilePanel {
   }
 
   profileFieldStyle(colors) {
-    return `width:100%;border:1px solid ${colors.background.button}33;border-radius:0.9rem;background:${colors.background.card};color:${colors.text.title};padding:0.85rem 0.95rem;font:inherit;`;
+    return `width:100%;border:1px solid #D5D9D9;border-radius:8px;background:${colors.background.card};color:${colors.text.title};padding:0.85rem 0.95rem;font:inherit;`;
   }
 
   renderPersonalInfoView(colors, fonts, user) {
@@ -483,8 +483,8 @@ class ProfilePanel {
     return `
       <section style="display:grid;gap:1rem;">
         <div style="
-          border-radius:1.15rem;
-          border:1px solid ${colors.background.button}22;
+          border-radius:8px;
+          border:1px solid #D5D9D9;
           background:${colors.background.card};
           padding:1rem;
         ">
@@ -492,8 +492,8 @@ class ProfilePanel {
             width:3rem;
             height:3rem;
             border-radius:999px;
-            background:${colors.background.button}18;
-            color:${colors.icon.hover};
+            background:#131921;
+            color:#FFFFFF;
             display:flex;
             align-items:center;
             justify-content:center;
@@ -501,7 +501,7 @@ class ProfilePanel {
           ">
             <i class="fas fa-id-card"></i>
           </div>
-          <h3 style="margin:0;font-family:${fonts.primary};font-size:1.45rem;color:${colors.text.title};">Informations personnelles</h3>
+          <h3 style="margin:0;font-family:${fonts.primary};font-size:1.25rem;font-weight:700;color:${colors.text.title};">Informations personnelles</h3>
           <p style="margin:0.45rem 0 0;color:${colors.text.body};line-height:1.6;font-size:0.9rem;">
             Retrouvez ici les informations associées à votre compte Smart Cut Services.
           </p>
@@ -512,24 +512,24 @@ class ProfilePanel {
             <div style="
               display:grid;
               gap:0.25rem;
-              border-radius:0.95rem;
-              border:1px solid ${colors.background.button}18;
+              border-radius:8px;
+              border:1px solid #D5D9D9;
               background:${colors.background.card};
               padding:0.9rem 1rem;
             ">
-              <span style="color:${colors.text.body};font-size:0.78rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">${this.escape(row.label)}</span>
-              <strong style="color:${colors.text.title};font-size:0.98rem;line-height:1.45;word-break:break-word;">${this.escape(row.value)}</strong>
+              <span style="color:#565959;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">${this.escape(row.label)}</span>
+              <strong style="color:${colors.text.title};font-size:0.94rem;font-weight:600;line-height:1.45;word-break:break-word;">${this.escape(row.value)}</strong>
             </div>
           `).join('')}
         </div>
 
         <button class="profile-change-password-btn" style="
-          border:none;
-          border-radius:999px;
-          background:${colors.background.button};
-          color:${colors.text.button};
+          border:1px solid #FCD200;
+          border-radius:8px;
+          background:#FFD814;
+          color:#0F1111;
           padding:0.95rem 1rem;
-          font-weight:800;
+          font-weight:700;
           cursor:pointer;
           display:flex;
           align-items:center;
@@ -541,12 +541,12 @@ class ProfilePanel {
         </button>
 
         <button class="profile-edit-info-btn" style="
-          border:1px solid ${colors.background.button}33;
-          border-radius:999px;
+          border:1px solid #D5D9D9;
+          border-radius:8px;
           background:${colors.background.card};
           color:${colors.text.title};
           padding:0.95rem 1rem;
-          font-weight:800;
+          font-weight:700;
           cursor:pointer;
           display:flex;
           align-items:center;
@@ -736,12 +736,12 @@ class ProfilePanel {
       <div style="
         width:100%;
         max-width:420px;
-        border-radius:1.35rem;
+        border-radius:8px;
         background:${colors.background.general};
         color:${colors.text.title};
         box-shadow:0 24px 60px rgba(0,0,0,0.24);
         padding:1.25rem;
-        border:1px solid ${colors.background.button}33;
+        border:1px solid #D5D9D9;
         text-align:center;
       ">
         <div style="
@@ -752,7 +752,7 @@ class ProfilePanel {
           display:flex;
           align-items:center;
           justify-content:center;
-          background:${colors.background.button}18;
+          background:#F5F5F5;
           color:${colors.icon.hover};
           font-size:1.5rem;
         ">
@@ -766,8 +766,8 @@ class ProfilePanel {
         <div style="
           margin-top:0.85rem;
           border-radius:1rem;
-          background:${colors.background.button}12;
-          border:1px solid ${colors.background.button}22;
+          background:#F5F5F5;
+          border:1px solid #D5D9D9;
           padding:0.85rem;
           color:${colors.text.body};
           line-height:1.55;
@@ -778,12 +778,12 @@ class ProfilePanel {
         <button type="button" class="password-reset-sent-close" style="
           margin-top:1rem;
           width:100%;
-          border:none;
-          border-radius:999px;
-          background:${colors.background.button};
-          color:${colors.text.button};
+          border:1px solid #FCD200;
+          border-radius:8px;
+          background:#FFD814;
+          color:#0F1111;
           padding:0.95rem 1rem;
-          font-weight:800;
+          font-weight:700;
           cursor:pointer;
         ">
           Compris
@@ -831,24 +831,9 @@ class ProfilePanel {
     const paidOrders = orders.filter((order) => ['approved', 'paid'].includes(order.status));
 
     const cards = [
-      {
-        label: 'Favoris',
-        value: likes.length,
-        icon: 'fa-heart',
-        accent: '#DC2626'
-      },
-      {
-        label: 'Commandes',
-        value: orders.length,
-        icon: 'fa-receipt',
-        accent: colors.icon.hover
-      },
-      {
-        label: 'Confirmées',
-        value: paidOrders.length,
-        icon: 'fa-circle-check',
-        accent: '#10B981'
-      }
+      { label: 'Favoris', value: likes.length, icon: 'fa-heart' },
+      { label: 'Commandes', value: orders.length, icon: 'fa-receipt' },
+      { label: 'Confirmées', value: paidOrders.length, icon: 'fa-circle-check' }
     ];
 
     return `
@@ -861,8 +846,8 @@ class ProfilePanel {
         ${cards.map((card) => `
           <div style="
             background:${colors.background.card};
-            border:1px solid ${colors.background.button}22;
-            border-radius:1rem;
+            border:1px solid #D5D9D9;
+            border-radius:8px;
             padding:0.85rem;
             min-width:0;
           ">
@@ -873,14 +858,15 @@ class ProfilePanel {
               display:flex;
               align-items:center;
               justify-content:center;
-              background:${card.accent}18;
-              color:${card.accent};
+              background:#131921;
+              color:#FFFFFF;
               margin-bottom:0.5rem;
+              font-size:0.82rem;
             ">
               <i class="fas ${card.icon}"></i>
             </div>
             <div style="font-size:1.05rem;font-weight:800;color:${colors.text.title};">${card.value}</div>
-            <div style="font-size:0.74rem;color:${colors.text.body};">${card.label}</div>
+            <div style="font-size:0.74rem;color:#565959;">${card.label}</div>
           </div>
         `).join('')}
       </div>
@@ -930,9 +916,9 @@ class ProfilePanel {
     return `
       <div style="
         padding:1.1rem;
-        border-radius:1rem;
+        border-radius:8px;
         background:${colors.background.card};
-        border:1px solid ${colors.background.button}22;
+        border:1px solid #D5D9D9;
         margin-bottom:1rem;
       ">
         <div style="
@@ -942,8 +928,8 @@ class ProfilePanel {
           display:flex;
           align-items:center;
           justify-content:center;
-          background:${colors.background.button}18;
-          color:${colors.icon.hover};
+          background:#131921;
+          color:#FFFFFF;
           margin-bottom:0.85rem;
         ">
           <i class="fas fa-user" style="font-size:1.35rem;"></i>
@@ -954,10 +940,10 @@ class ProfilePanel {
         </p>
         <div style="display:flex;flex-wrap:wrap;gap:0.65rem;">
           <button class="profile-login-btn" style="
-            border:none;
-            border-radius:999px;
-            background:${colors.background.button};
-            color:${colors.text.button};
+            border:1px solid #FCD200;
+            border-radius:8px;
+            background:#FFD814;
+            color:#0F1111;
             padding:0.85rem 1rem;
             font-weight:700;
             cursor:pointer;
@@ -970,8 +956,8 @@ class ProfilePanel {
         gap:0.8rem;
       ">
         <div style="
-          border-radius:0.95rem;
-          border:1px solid ${colors.background.button}22;
+          border-radius:8px;
+          border:1px solid #D5D9D9;
           background:${colors.background.card};
           padding:0.9rem;
           color:${colors.text.body};
@@ -982,8 +968,8 @@ class ProfilePanel {
         </div>
         ${guestOrders.length > 0 ? `
           <div style="
-            border-radius:0.95rem;
-            border:1px solid ${colors.background.button}22;
+            border-radius:8px;
+            border:1px solid #D5D9D9;
             background:${colors.background.card};
             padding:0.9rem;
             color:${colors.text.body};
@@ -1042,8 +1028,7 @@ class ProfilePanel {
       ">
         <div style="
           padding:1.35rem 1.5rem 1.15rem;
-          border-bottom:1px solid ${colors.background.button}22;
-          background:${colors.background.general};
+          background:#131921;
           flex-shrink:0;
         ">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
@@ -1052,13 +1037,14 @@ class ProfilePanel {
                 <button class="profile-back-account-btn" style="
                   border:none;
                   background:transparent;
-                  color:${colors.text.body};
+                  color:rgba(255,255,255,0.75);
                   padding:0 0 0.7rem;
                   display:inline-flex;
                   align-items:center;
                   gap:0.45rem;
                   cursor:pointer;
-                  font-weight:800;
+                  font-weight:700;
+                  font-size:0.85rem;
                 ">
                   <i class="fas fa-arrow-left"></i>
                   Retour
@@ -1068,8 +1054,8 @@ class ProfilePanel {
                 display:inline-flex;
                 align-items:center;
                 gap:0.45rem;
-                color:${colors.icon.hover};
-                font-size:0.76rem;
+                color:#FFA41C;
+                font-size:0.72rem;
                 font-weight:800;
                 letter-spacing:0.08em;
                 text-transform:uppercase;
@@ -1081,23 +1067,25 @@ class ProfilePanel {
               <h2 style="
                 margin:0;
                 font-family:${fonts.primary};
-                font-size:1.7rem;
-                color:${colors.text.title};
-                line-height:1;
+                font-size:1.4rem;
+                font-weight:700;
+                color:#FFFFFF;
+                line-height:1.25;
+                word-break:break-word;
               ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')}</h2>
-              <p style="margin:0.45rem 0 0;color:${colors.text.body};font-size:0.86rem;line-height:1.45;">
+              <p style="margin:0.4rem 0 0;color:rgba(255,255,255,0.65);font-size:0.82rem;line-height:1.45;">
                 ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
-            <div style="display:flex;align-items:center;gap:0.55rem;flex-shrink:0;">
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
               ${isAuthenticated ? `
                 <button class="profile-logout-btn" style="
-                  border:1px solid ${colors.background.button};
+                  border:1px solid rgba(255,255,255,0.4);
                   background:transparent;
-                  color:${colors.text.body};
-                  padding:0.45rem 0.8rem;
-                  border-radius:999px;
+                  color:#FFFFFF;
+                  padding:0.5rem 0.85rem;
+                  border-radius:8px;
                   cursor:pointer;
                   font-size:0.78rem;
                   font-weight:700;
@@ -1105,15 +1093,16 @@ class ProfilePanel {
               ` : ''}
               <button class="close-profile-btn" style="
                 border:none;
-                background:${colors.background.card};
-                color:${colors.text.body};
-                width:40px;
-                height:40px;
+                background:rgba(255,255,255,0.12);
+                color:#FFFFFF;
+                width:36px;
+                height:36px;
                 border-radius:999px;
                 cursor:pointer;
                 display:flex;
                 align-items:center;
                 justify-content:center;
+                flex-shrink:0;
               ">
                 <i class="fas fa-times"></i>
               </button>
@@ -1124,7 +1113,7 @@ class ProfilePanel {
         <div style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
           ${isAuthResolving ? `
             <div style="
-              border:1px solid ${colors.background.button}22;
+              border:1px solid #D5D9D9;
               border-radius:1rem;
               background:${colors.background.card};
               padding:1rem;
@@ -1140,7 +1129,7 @@ class ProfilePanel {
               <div style="
                 margin-bottom:1rem;
                 border-radius:1rem;
-                border:1px solid ${colors.background.button}22;
+                border:1px solid #D5D9D9;
                 background:${colors.background.card};
                 padding:0.9rem 1rem;
                 color:${colors.text.body};
@@ -1151,7 +1140,7 @@ class ProfilePanel {
             ${this.renderSummaryCards(colors)}
             <button class="profile-personal-info-btn" style="
               width:100%;
-              border:1px solid ${colors.background.button}22;
+              border:1px solid #D5D9D9;
               border-radius:1rem;
               background:${colors.background.card};
               color:${colors.text.title};

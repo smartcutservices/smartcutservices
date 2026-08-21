@@ -1,4 +1,4 @@
-﻿// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
+// ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
 import { auth, authReadyPromise, db } from './firebase-init.js?v=20260523-6';
 import { getAuthManager } from './auth.js?v=20260523-6';
 import { getLikeManager } from './like.js';
@@ -82,7 +82,7 @@ class CartManager {
     const colors = this.theme.getColors();
     return {
       text: {
-        title: colors?.text?.title || '#1F1E1C',
+        title: colors?.text?.title || '#0F1111',
         subtitle: colors?.text?.subtitle || '#7A746B',
         body: colors?.text?.body || '#4A4A4A',
         button: colors?.text?.button || '#FFFFFF'
@@ -90,11 +90,11 @@ class CartManager {
       background: {
         general: colors?.background?.general || '#FFFFFF',
         card: colors?.background?.card || '#F5F5F5',
-        button: colors?.background?.button || '#C6A75E'
+        button: colors?.background?.button || '#FFA41C'
       },
       icon: {
-        standard: colors?.icon?.standard || '#1F1E1C',
-        hover: colors?.icon?.hover || '#C6A75E'
+        standard: colors?.icon?.standard || '#0F1111',
+        hover: colors?.icon?.hover || '#FFA41C'
       }
     };
   }
@@ -104,8 +104,8 @@ class CartManager {
     const fonts = this.theme.getFonts();
     const typography = this.theme.getTypography();
     return {
-      primary: typography?.family || fonts?.primary || "'Cormorant Garamond', serif",
-      secondary: fonts?.secondary || "'Manrope', sans-serif"
+      primary: typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif",
+      secondary: fonts?.secondary || "'Amazon Ember', sans-serif"
     };
   }
 
@@ -209,7 +209,7 @@ class CartManager {
     overlay.innerHTML = `
       <div style="
         width:min(100%, 480px);
-        background:#F5F1E8;
+        background:#EAEDED;
         border-radius:1.5rem;
         border:1px solid rgba(198,167,94,0.2);
         box-shadow:0 25px 50px rgba(0,0,0,0.18);
@@ -219,17 +219,17 @@ class CartManager {
       ">
         <div style="display:flex;justify-content:space-between;gap:1rem;align-items:start;">
           <div>
-            <div style="color:#C6A75E;font-size:.76rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">Commande</div>
-            <h3 style="font-family:'Cormorant Garamond',serif;font-size:2rem;line-height:.95;color:#1F1E1C;margin-top:.35rem;">Comment voulez-vous continuer ?</h3>
+            <div style="color:#FFA41C;font-size:.76rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">Commande</div>
+            <h3 style="font-family:'Amazon Ember',Arial,sans-serif;font-size:2rem;line-height:.95;color:#0F1111;margin-top:.35rem;">Comment voulez-vous continuer ?</h3>
           </div>
-          <button class="close-choice" style="background:none;border:none;font-size:1.2rem;color:#8B7E6B;cursor:pointer;">
+          <button class="close-choice" type="button" aria-label="Fermer" style="background:none;border:none;font-size:1.2rem;color:#565959;cursor:pointer;">
             <i class="fas fa-times"></i>
           </button>
         </div>
         <p style="color:#6E6557;line-height:1.8;">Vous pouvez vous connecter pour retrouver vos commandes plus tard, ou continuer comme invité pour commander immédiatement.</p>
         <div style="display:grid;gap:.75rem;">
-          <button class="choice-login" style="border:none;border-radius:999px;background:#1F1E1C;color:#F5F1E8;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Se connecter / S'inscrire</button>
-          <button class="choice-guest" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Continuer comme invité</button>
+          <button class="choice-login" style="border:none;border-radius:999px;background:#0F1111;color:#EAEDED;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Se connecter / S'inscrire</button>
+          <button class="choice-guest" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#0F1111;padding:1rem 1.2rem;font-weight:800;cursor:pointer;">Continuer comme invité</button>
         </div>
       </div>
     `;
@@ -266,7 +266,7 @@ class CartManager {
           companyPhone: '',
           companyEmail: '',
           thankYouMessage: 'Merci pour votre confiance !',
-          primaryColor: '#C6A75E',
+          primaryColor: '#FFA41C',
           showQrCode: true
         };
       }
@@ -821,7 +821,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260525-1');
+      const module = await import('./checkout.js?v=20260816-1');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -976,7 +976,7 @@ class CartManager {
           companyName: this.pdfConfig?.companyName || 'Smart Cut Services',
           companyAddress: this.pdfConfig?.companyAddress || 'smartcutservices.com',
           thankYouMessage: this.pdfConfig?.thankYouMessage || 'Merci pour votre confiance !',
-          primaryColor: this.hexToRgb(this.getThemeColors().background.button || '#C6A75E')
+          primaryColor: this.hexToRgb(this.getThemeColors().background.button || '#FFA41C')
         }
       );
       this.showNotification('PDF telecharge avec succes !', 'success');
@@ -1003,7 +1003,7 @@ class CartManager {
       };
       
       const colors = this.getThemeColors();
-      const primaryColor = colors.background.button || '#C6A75E';
+      const primaryColor = colors.background.button || '#FFA41C';
       const rgb = this.hexToRgb(primaryColor);
       
       doc.setFillColor(rgb.r, rgb.g, rgb.b);
@@ -1554,7 +1554,7 @@ class CartManager {
 
   getFulfillmentStatusColor(status) {
     const colors = {
-      ordered: '#C6A75E',
+      ordered: '#FFA41C',
       shipped: '#3B82F6',
       in_delivery: '#F59E0B',
       delivered: '#10B981'
@@ -1681,7 +1681,7 @@ class CartManager {
       .slice(0, 110);
 
     const palette = {
-      success: { accent: '#C6A75E', border: 'rgba(198, 167, 94, 0.32)' },
+      success: { accent: '#FFA41C', border: 'rgba(198, 167, 94, 0.32)' },
       warning: { accent: '#C88A2B', border: 'rgba(200, 138, 43, 0.28)' },
       error: { accent: '#B14B4B', border: 'rgba(177, 75, 75, 0.28)' },
       info: { accent: '#6F675C', border: 'rgba(111, 103, 92, 0.24)' }
@@ -1696,7 +1696,7 @@ class CartManager {
       bottom: 1rem;
       width: min(320px, calc(100vw - 2rem));
       background: rgba(245, 241, 232, 0.98);
-      color: #1F1E1C;
+      color: #0F1111;
       border: 1px solid ${theme.border};
       border-left: 4px solid ${theme.accent};
       border-radius: 18px;
@@ -1726,7 +1726,7 @@ class CartManager {
       </div>
       <div style="min-width: 0; flex: 1;">
         <div style="font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: ${theme.accent}; font-weight: 800; margin-bottom: 0.22rem;">Panier</div>
-        <div style="font-size: 0.92rem; line-height: 1.45; color: #1F1E1C; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+        <div style="font-size: 0.92rem; line-height: 1.45; color: #0F1111; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
           ${normalizedMessage}
         </div>
       </div>
@@ -1887,7 +1887,7 @@ class CartManager {
             <span>Panier</span>
           </h2>
           
-          <button class="close-cart-btn" style="
+          <button class="close-cart-btn" type="button" aria-label="Fermer le panier" style="
             background: none;
             border: none;
             font-size: 1.5rem;
@@ -1926,6 +1926,11 @@ class CartManager {
             ">
               <span>Sous-total</span>
               <span style="font-weight: bold;">${this.formatPrice(totalPrice)}</span>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin:-.2rem 0 .85rem;color:#6b655d;font-size:.78rem;text-align:center;">
+              <i class="fas fa-shield-halved" aria-hidden="true" style="color:#9a782b;"></i>
+              <span>Paiement sécurisé · Total final confirmé avant la transaction</span>
             </div>
             
             <button class="checkout-btn" style="
@@ -2669,7 +2674,9 @@ class CartManager {
                   ">SKU: ${item.sku}</span>
                 ` : ''}
               </div>
-              <button class="remove-item" style="
+              <button class="remove-item" type="button" aria-label="Retirer ${this.escapeHtml(item.name || 'ce produit')} du panier" style="
+                width: 44px;
+                height: 44px;
                 background: none;
                 border: none;
                 color: #7F1D1D;
@@ -2729,9 +2736,9 @@ class CartManager {
                 padding: 0.1rem;
                 border: 1px solid rgba(198, 167, 94, 0.3);
               ">
-                <button class="decrease-qty" style="
-                  width: 26px;
-                  height: 26px;
+                <button class="decrease-qty" type="button" aria-label="Diminuer la quantité de ${this.escapeHtml(item.name || 'ce produit')}" style="
+                  width: 44px;
+                  height: 44px;
                   border: none;
                   background: transparent;
                   border-radius: 50%;
@@ -2746,11 +2753,11 @@ class CartManager {
                   <i class="fas fa-minus"></i>
                 </button>
                 
-                <span style="min-width: 25px; text-align: center; font-weight: 500; font-size: 0.85rem; color: ${colors.text.title};">${item.quantity}</span>
+                <span aria-live="polite" style="min-width: 25px; text-align: center; font-weight: 500; font-size: 0.85rem; color: ${colors.text.title};">${item.quantity}</span>
                 
-                <button class="increase-qty" style="
-                  width: 26px;
-                  height: 26px;
+                <button class="increase-qty" type="button" aria-label="Augmenter la quantité de ${this.escapeHtml(item.name || 'ce produit')}" style="
+                  width: 44px;
+                  height: 44px;
                   border: none;
                   background: transparent;
                   border-radius: 50%;

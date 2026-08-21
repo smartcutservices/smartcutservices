@@ -5,15 +5,15 @@ const rootStyles = getComputedStyle(document.documentElement);
 
 const colors = {
     primary: rootStyles.getPropertyValue('--primary').trim() || '#2C2A29',
-    secondary: rootStyles.getPropertyValue('--secondary').trim() || '#C6A75E',
+    secondary: rootStyles.getPropertyValue('--secondary').trim() || '#FFA41C',
     accent: rootStyles.getPropertyValue('--accent').trim() || '#7A746B',
-    luxury: rootStyles.getPropertyValue('--luxury').trim() || '#1F1E1C',
-    ivory: rootStyles.getPropertyValue('--ivory').trim() || '#F5F1E8'
+    luxury: rootStyles.getPropertyValue('--luxury').trim() || '#0F1111',
+    ivory: rootStyles.getPropertyValue('--ivory').trim() || '#EAEDED'
 };
 
 const fonts = {
-    primary: "'Cormorant Garamond', serif",
-    secondary: "'Manrope', sans-serif"
+    primary: "'Amazon Ember', Arial, sans-serif",
+    secondary: "'Amazon Ember', sans-serif"
 };
 
 // Import Firebase

@@ -102,6 +102,19 @@ async function pollPaymentStatus(reference, pending) {
     const status = String(payload?.status || payload?.paymentStatus || '').toLowerCase();
 
     if (status === 'paid') {
+      const isJwetproTicket = payload?.paymentType === 'jwetpro_ticket' || pending?.paymentType === 'jwetpro_ticket';
+      if (isJwetproTicket && payload?.externalReturnUrl) {
+        setState({
+          title: 'Ticket confirmé',
+          copy: 'Votre paiement est confirmé. Retour vers JwetPro en cours.',
+          detail: 'Votre inscription au championnat est en cours de finalisation sécurisée.',
+          tone: 'paid',
+          meta: buildMeta(payload, pending)
+        });
+        clearPendingPayment();
+        window.setTimeout(() => window.location.replace(payload.externalReturnUrl), 900);
+        return;
+      }
       if (payload?.paymentType !== 'vendor_service_fee' && pending?.paymentType !== 'vendor_service_fee') {
         clearCartStorage();
       }

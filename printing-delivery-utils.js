@@ -348,8 +348,8 @@ export class PrintingDeliveryController {
         <style>
           .printing-delivery-card{border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:#fffdf9;padding:1rem;display:grid;gap:.9rem}
           .printing-delivery-methods{display:flex;gap:.7rem;flex-wrap:wrap}
-          .printing-delivery-method{border:1px solid rgba(31,30,28,.1);border-radius:999px;background:#fff;padding:.75rem 1rem;font-weight:800;color:#1F1E1C;cursor:pointer}
-          .printing-delivery-method.is-active{background:#1F1E1C;color:#F8F5EF}
+          .printing-delivery-method{border:1px solid rgba(31,30,28,.1);border-radius:999px;background:#fff;padding:.75rem 1rem;font-weight:800;color:#0F1111;cursor:pointer}
+          .printing-delivery-method.is-active{background:#0F1111;color:#F8F5EF}
           .printing-delivery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
           .printing-delivery-field{display:grid;gap:.35rem;color:#6E6557;font-size:.9rem}
           .printing-delivery-input{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:.9rem;background:#fff;padding:.78rem .85rem;font:inherit}
@@ -358,7 +358,7 @@ export class PrintingDeliveryController {
           @media(max-width:780px){.printing-delivery-grid{grid-template-columns:1fr}}
         </style>
         <div>
-          <strong style="display:block;color:#1F1E1C;font-size:1.05rem;">Réception de votre impression</strong>
+          <strong style="display:block;color:#0F1111;font-size:1.05rem;">Réception de votre impression</strong>
           <p style="margin:.25rem 0 0;color:#6E6557;line-height:1.65;">Choisissez comment vous voulez recevoir votre travail d'impression.</p>
         </div>
         <div class="printing-delivery-methods">

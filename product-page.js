@@ -1,4 +1,4 @@
-import ProductModal from './product-modal.js?v=20260714-1';
+import ProductModal from './product-modal.js?v=20260816-1';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {
@@ -37,6 +37,10 @@ class ProductPage extends ProductModal {
     if (!target) return;
 
     const images = this.getProductImages(this.product);
+    const mobileActionLabel = Array.isArray(this.product?.variations) && this.product.variations.length
+      ? 'Choisir et ajouter'
+      : 'Ajouter au panier';
+    const mobilePrice = this.getProductDisplayPrice(this.product).text;
 
     target.innerHTML = `
       <section class="product-page-shell-${this.uniqueId}" style="
@@ -45,7 +49,7 @@ class ProductPage extends ProductModal {
         background:
           radial-gradient(circle at top left, rgba(198, 167, 94, 0.12), transparent 26%),
           linear-gradient(180deg, #FBF7EF 0%, #F2EBDE 100%);
-        color: #1F1E1C;
+        color: #0F1111;
       ">
         <div style="max-width: 1440px; margin: 0 auto; padding: 1.2rem 1rem 3rem;">
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
@@ -55,7 +59,7 @@ class ProductPage extends ProductModal {
               gap: 0.55rem;
               border: 1px solid rgba(31, 30, 28, 0.12);
               background: rgba(255, 255, 255, 0.84);
-              color: #1F1E1C;
+              color: #0F1111;
               border-radius: 999px;
               padding: 0.8rem 1.05rem;
               cursor: pointer;
@@ -124,6 +128,17 @@ class ProductPage extends ProductModal {
           </div>
         </div>
 
+        <div class="product-page-mobile-buybar" aria-label="Achat rapide">
+          <div>
+            <span>Votre article</span>
+            <strong>${mobilePrice}</strong>
+          </div>
+          <button type="button" class="product-page-buybar-action">
+            <i class="fas fa-shopping-bag" aria-hidden="true"></i>
+            ${mobileActionLabel}
+          </button>
+        </div>
+
         <div class="fullscreen-viewer-${this.uniqueId}" style="
           position: fixed;
           inset: 0;
@@ -138,7 +153,7 @@ class ProductPage extends ProductModal {
           margin: 0;
           padding: 0;
         ">
-          <button class="close-fullscreen-btn" style="
+          <button class="close-fullscreen-btn" type="button" aria-label="Fermer l'image agrandie" style="
             position: absolute;
             top: 1rem;
             right: 1rem;
@@ -158,7 +173,7 @@ class ProductPage extends ProductModal {
           </button>
           <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
             <img src="" alt="" class="fullscreen-img" style="max-width: 95%; max-height: 95%; object-fit: contain;">
-            <button class="fullscreen-prev" style="
+            <button class="fullscreen-prev" type="button" aria-label="Image précédente" style="
               position: absolute;
               left: 1rem;
               color: white;
@@ -171,7 +186,7 @@ class ProductPage extends ProductModal {
             " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">
               <i class="fas fa-chevron-left"></i>
             </button>
-            <button class="fullscreen-next" style="
+            <button class="fullscreen-next" type="button" aria-label="Image suivante" style="
               position: absolute;
               right: 1rem;
               color: white;
@@ -209,7 +224,7 @@ class ProductPage extends ProductModal {
           }
 
           .product-page-shell-${this.uniqueId} ::-webkit-scrollbar-thumb {
-            background: #C6A75E;
+            background: #FFA41C;
             border-radius: 999px;
           }
 
@@ -277,8 +292,8 @@ class ProductPage extends ProductModal {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             background: rgba(255,255,255,0.9);
             border-radius: 50%;
             display: flex;
@@ -344,8 +359,57 @@ class ProductPage extends ProductModal {
             50% { transform: scale(1.05); }
           }
 
-          .add-to-cart-btn {
-            animation: pulse 2s infinite;
+          .add-to-cart-btn { animation: none; }
+
+          .product-page-mobile-buybar { display: none; }
+
+          @media (max-width: 767px) {
+            .product-page-shell-${this.uniqueId} { padding-bottom: 84px; }
+            .product-page-mobile-buybar {
+              position: fixed;
+              z-index: 900;
+              left: .65rem;
+              right: .65rem;
+              bottom: max(.65rem, env(safe-area-inset-bottom));
+              display: grid;
+              grid-template-columns: auto 1fr;
+              align-items: center;
+              gap: .8rem;
+              padding: .65rem;
+              border: 1px solid rgba(198, 167, 94, .32);
+              border-radius: 16px;
+              background: rgba(255, 255, 255, .94);
+              box-shadow: 0 18px 45px rgba(31, 30, 28, .2);
+              backdrop-filter: blur(16px);
+            }
+            .product-page-mobile-buybar > div { padding-left: .25rem; }
+            .product-page-mobile-buybar span {
+              display: block;
+              color: #7a746b;
+              font-size: .68rem;
+              font-weight: 700;
+              text-transform: uppercase;
+            }
+            .product-page-mobile-buybar strong {
+              display: block;
+              color: #0f1111;
+              font-size: 1rem;
+              white-space: nowrap;
+            }
+            .product-page-buybar-action {
+              min-height: 50px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: .5rem;
+              border: 0;
+              border-radius: 11px;
+              padding: .7rem .9rem;
+              background: #0f1111;
+              color: #fff;
+              font-size: .84rem;
+              font-weight: 800;
+            }
           }
         </style>
       </section>
@@ -353,6 +417,20 @@ class ProductPage extends ProductModal {
 
     this.modalElement = target.querySelector(`.product-page-shell-${this.uniqueId}`);
     this.fullscreenViewer = target.querySelector(`.fullscreen-viewer-${this.uniqueId}`);
+  }
+
+  attachEvents() {
+    super.attachEvents();
+    const quickBuy = this.modalElement?.querySelector('.product-page-buybar-action');
+    quickBuy?.addEventListener('click', () => {
+      const addButton = this.modalElement?.querySelector('.add-to-cart-btn');
+      if (!addButton) return;
+      if (addButton.disabled) {
+        this.modalElement?.querySelector('.option-group')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      addButton.click();
+    });
   }
 
   renderError() {
@@ -372,15 +450,15 @@ class ProductPage extends ProductModal {
           box-shadow: 0 18px 48px rgba(31,30,28,0.08);
         ">
           <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #7F1D1D; margin-bottom: 1rem;"></i>
-          <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 2rem; margin-bottom: 0.65rem;">Produit non trouvé</h2>
+          <h2 style="font-family: 'Amazon Ember', Arial, sans-serif; font-size: 2rem; margin-bottom: 0.65rem;">Produit non trouvé</h2>
           <p style="color: #7A746B; margin-bottom: 1.4rem;">Le produit que vous recherchez n'est pas disponible ou a été supprimé.</p>
           <a href="./catalogue.html" style="
             display: inline-flex;
             align-items: center;
             gap: 0.55rem;
             text-decoration: none;
-            background: #1F1E1C;
-            color: #F5F1E8;
+            background: #0F1111;
+            color: #EAEDED;
             border-radius: 999px;
             padding: 0.85rem 1.2rem;
             font-weight: 700;

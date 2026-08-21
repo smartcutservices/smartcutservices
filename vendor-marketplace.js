@@ -71,7 +71,7 @@ class VendorMarketplacePage {
     const isPro = this.isProVendor(product);
     const image = Array.isArray(product.images) && product.images[0]
       ? `<img src="${product.images[0]}" alt="${this.escape(product.name || 'Produit vendeur')}" style="width:100%;height:100%;object-fit:cover;">`
-      : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#c6a75e;font-weight:800;">VENDEUR</div>';
+      : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#ffa41c;font-weight:800;">VENDEUR</div>';
     return `
       <article style="border:1px solid rgba(31,30,28,0.08);border-radius:1.7rem;background:rgba(255,255,255,0.94);box-shadow:0 18px 40px rgba(31,30,28,0.08);overflow:hidden;display:grid;">
         <div style="position:relative;height:250px;background:linear-gradient(180deg, rgba(198,167,94,0.08), rgba(255,255,255,0.4));">
@@ -81,7 +81,7 @@ class VendorMarketplacePage {
             Vendeur
           </span>
           ${isPro ? `
-            <span style="position:absolute;top:1rem;right:1rem;display:inline-flex;align-items:center;gap:.4rem;background:#C6A75E;color:#1F1E1C;border-radius:999px;padding:.45rem .75rem;font-size:.74rem;font-weight:900;box-shadow:0 10px 24px rgba(198,167,94,.28);">
+            <span style="position:absolute;top:1rem;right:1rem;display:inline-flex;align-items:center;gap:.4rem;background:#FFA41C;color:#0F1111;border-radius:999px;padding:.45rem .75rem;font-size:.74rem;font-weight:900;box-shadow:0 10px 24px rgba(198,167,94,.28);">
               <i class="fas fa-shield-alt"></i>
               Store verifie
             </span>
@@ -90,12 +90,12 @@ class VendorMarketplacePage {
         <div style="padding:1.2rem;display:grid;gap:.8rem;">
           <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;">
             <div>
-              <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;line-height:1;">${this.escape(product.name || 'Produit vendeur')}</h3>
+              <h3 style="font-family:'Amazon Ember',Arial,sans-serif;font-size:1.8rem;line-height:1;">${this.escape(product.name || 'Produit vendeur')}</h3>
               <p style="margin-top:.45rem;color:#6E6557;">${this.escape(vendor?.vendorName || product.vendorName || 'Boutique partenaire')}</p>
             </div>
             <div style="display:grid;justify-items:end;gap:0.2rem;">
-              <strong style="font-size:1.05rem;color:#1F1E1C;">${this.formatPrice(pricing.currentPrice)}</strong>
-              ${pricing.comparePrice ? `<span style="font-size:0.78rem;color:#8B7E6B;text-decoration:line-through;">${this.formatPrice(pricing.comparePrice)}</span>` : ''}
+              <strong style="font-size:1.05rem;color:#0F1111;">${this.formatPrice(pricing.currentPrice)}</strong>
+              ${pricing.comparePrice ? `<span style="font-size:0.78rem;color:#565959;text-decoration:line-through;">${this.formatPrice(pricing.comparePrice)}</span>` : ''}
             </div>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:.55rem;">
@@ -106,7 +106,7 @@ class VendorMarketplacePage {
           </div>
           <p style="color:#6E6557;line-height:1.75;">${this.escape(product.shortDescription || product.longDescription || 'Produit vendeur valide et publie dans la section marketplace Smart Cut Services.')}</p>
           <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
-            <button type="button" data-add-vendor-product="${product.id}" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:.85rem 1rem;font-weight:800;cursor:pointer;">Ajouter au panier</button>
+            <button type="button" data-add-vendor-product="${product.id}" style="border:none;border-radius:999px;background:#0F1111;color:#F8F5EF;padding:.85rem 1rem;font-weight:800;cursor:pointer;">Ajouter au panier</button>
             <span style="display:inline-flex;align-items:center;color:#6E6557;font-size:.84rem;">Stock: ${Number.isFinite(product.stock) ? product.stock : '-'}</span>
           </div>
         </div>
@@ -126,12 +126,12 @@ class VendorMarketplacePage {
     this.container.innerHTML = `
       <section style="max-width:1280px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1.25rem;">
         <article style="border:1px solid rgba(31,30,28,0.08);border-radius:2rem;background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,242,230,0.94));box-shadow:0 24px 60px rgba(31,30,28,0.08);padding:clamp(1.5rem,4vw,2.6rem);">
-          <small style="display:inline-block;color:#C6A75E;text-transform:uppercase;letter-spacing:.16em;font-size:.76rem;font-weight:700;margin-bottom:.8rem;">Marketplace vendeurs</small>
-          <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.7rem,7vw,4.9rem);line-height:.92;margin:0;">${pageTitle}</h1>
+          <small style="display:inline-block;color:#FFA41C;text-transform:uppercase;letter-spacing:.16em;font-size:.76rem;font-weight:700;margin-bottom:.8rem;">Marketplace vendeurs</small>
+          <h1 style="font-family:'Amazon Ember',Arial,sans-serif;font-size:clamp(2.7rem,7vw,4.9rem);line-height:.92;margin:0;">${pageTitle}</h1>
           <p style="margin:1rem 0 0;color:#6E6557;line-height:1.85;max-width:72ch;">${pageDescription}</p>
           <div style="margin-top:1.25rem;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:1rem;">
             <input id="vendorMarketplaceSearch" type="text" value="${this.escape(this.searchTerm)}" placeholder="Rechercher un produit, une categorie ou une boutique" style="width:100%;border:1px solid rgba(31,30,28,0.12);border-radius:999px;padding:.95rem 1.1rem;background:#fff;font:inherit;">
-            <button id="vendorMarketplaceOpenCart" type="button" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:.95rem 1.1rem;font-weight:700;cursor:pointer;">Ouvrir le panier</button>
+            <button id="vendorMarketplaceOpenCart" type="button" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#0F1111;padding:.95rem 1.1rem;font-weight:700;cursor:pointer;">Ouvrir le panier</button>
           </div>
         </article>
 
@@ -139,7 +139,7 @@ class VendorMarketplacePage {
 
         ${this.filteredProducts.length === 0 ? `
           <article style="border:1px dashed rgba(198,167,94,0.28);border-radius:1.7rem;background:rgba(255,255,255,0.72);padding:2rem;text-align:center;color:#6E6557;">
-            <i class="fas fa-store-slash" style="font-size:1.6rem;color:#C6A75E;margin-bottom:.8rem;"></i>
+            <i class="fas fa-store-slash" style="font-size:1.6rem;color:#FFA41C;margin-bottom:.8rem;"></i>
             <p>Aucun produit vendeur public pour le moment.</p>
           </article>
         ` : `

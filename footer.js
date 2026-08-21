@@ -108,11 +108,11 @@ class FooterComponent {
     const style = document.createElement('style');
     style.textContent = `
       .footer-${this.uniqueId} {
-        --footer-bg: #1F1E1C;
+        --footer-bg: #0F1111;
         --footer-bg-soft: #2C2A29;
-        --footer-text: #F5F1E8;
+        --footer-text: #EAEDED;
         --footer-text-muted: #B8B0A4;
-        --footer-accent: #C6A75E;
+        --footer-accent: #FFA41C;
         --footer-border: rgba(198, 167, 94, 0.2);
       }
 
@@ -120,7 +120,7 @@ class FooterComponent {
         background: linear-gradient(180deg, var(--footer-bg) 0%, var(--footer-bg-soft) 100%);
         color: var(--footer-text);
         padding: 3rem 1.5rem 1.5rem;
-        font-family: 'Manrope', sans-serif;
+        font-family: 'Amazon Ember', sans-serif;
         width: 100%;
         border-top: 1px solid var(--footer-border);
       }
@@ -150,7 +150,7 @@ class FooterComponent {
       }
       
       .footer-logo-${this.uniqueId} {
-        font-family: 'Cormorant Garamond', serif;
+        font-family: 'Amazon Ember', Arial, sans-serif;
         font-size: 1.5rem;
         font-weight: 600;
         color: var(--footer-accent);
@@ -180,35 +180,34 @@ class FooterComponent {
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
+        background: #ffffff;
         border: 1px solid var(--footer-border);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--footer-text);
-        transition: all 0.3s;
-        text-decoration: none;
-      }
-      
-      .footer-social-link-${this.uniqueId}:hover {
-        background: var(--footer-accent);
         color: var(--footer-bg);
+        transition: transform 0.2s, box-shadow 0.2s;
+        text-decoration: none;
+        overflow: hidden;
+      }
+
+      .footer-social-link-${this.uniqueId}:hover {
         transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
       }
-      
+
       .footer-social-link-${this.uniqueId} img {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
         object-fit: contain;
-        filter: brightness(0) invert(1);
       }
-      
-      .footer-social-link-${this.uniqueId}:hover img {
-        filter: none;
+
+      .footer-social-link-${this.uniqueId} i {
+        font-size: 15px;
       }
       
       .footer-heading-${this.uniqueId} {
-        font-family: 'Cormorant Garamond', serif;
+        font-family: 'Amazon Ember', Arial, sans-serif;
         font-size: 1.2rem;
         font-weight: 600;
         color: var(--footer-accent);
@@ -320,7 +319,7 @@ class FooterComponent {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Cormorant Garamond', serif;
+        font-family: 'Amazon Ember', Arial, sans-serif;
         font-size: 1.8rem;
         font-weight: 700;
         color: var(--footer-bg);
@@ -437,12 +436,31 @@ class FooterComponent {
     `;
   }
   
+  getSocialIconClass(social) {
+    if (social.icon) return social.icon;
+    const key = String(social.network || '').toLowerCase().trim();
+    const map = {
+      facebook: 'fab fa-facebook-f',
+      instagram: 'fab fa-instagram',
+      twitter: 'fab fa-x-twitter',
+      x: 'fab fa-x-twitter',
+      tiktok: 'fab fa-tiktok',
+      youtube: 'fab fa-youtube',
+      linkedin: 'fab fa-linkedin-in',
+      whatsapp: 'fab fa-whatsapp',
+      pinterest: 'fab fa-pinterest-p',
+      snapchat: 'fab fa-snapchat-ghost',
+      telegram: 'fab fa-telegram-plane'
+    };
+    return map[key] || 'fab fa-' + key;
+  }
+
   renderSocialNetworks() {
     return this.socialNetworks.map(social => {
-      const icon = social.image ? 
-        `<img src="${this.getMediaPath(social.image)}" alt="${social.networkName || social.network}">` : 
-        `<i class="${social.icon || 'fab fa-' + social.network}"></i>`;
-      
+      const icon = social.image ?
+        `<img src="${this.getMediaPath(social.image)}" alt="${social.networkName || social.network}" onerror="this.onerror=null; this.outerHTML='<i class=&quot;${this.getSocialIconClass(social)}&quot;></i>';">` :
+        `<i class="${this.getSocialIconClass(social)}"></i>`;
+
       return `
         <a href="${social.link}" 
            class="footer-social-link-${this.uniqueId}" 

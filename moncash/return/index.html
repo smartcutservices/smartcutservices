@@ -6,19 +6,19 @@
   <title>Smart Cut Services | Confirmation MonCash</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #f5f1e8;
-      --card: rgba(255, 255, 255, 0.94);
-      --ink: #1f1e1c;
-      --muted: #746b60;
-      --accent: #c6a75e;
-      --accent-strong: #a88a43;
-      --border: rgba(198, 167, 94, 0.24);
-      --success: #1f7a45;
-      --danger: #9b1c1c;
-      --pending: #8a6b1f;
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --ink: #1d1d1f;
+      --muted: #6e6e73;
+      --accent: #0071e3;
+      --accent-strong: #0058b0;
+      --border: #d2d2d7;
+      --success: #1d7a3d;
+      --danger: #d70015;
+      --pending: #b25000;
     }
 
     * { box-sizing: border-box; }
@@ -29,22 +29,18 @@
       display: grid;
       place-items: center;
       padding: 1.5rem;
-      background:
-        radial-gradient(circle at top left, rgba(198, 167, 94, 0.22), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(31, 30, 28, 0.1), transparent 34%),
-        var(--bg);
+      background: var(--bg);
       color: var(--ink);
-      font-family: 'Manrope', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     .card {
       width: min(100%, 760px);
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 30px;
+      border-radius: 20px;
       padding: 2rem;
-      box-shadow: 0 32px 90px rgba(0, 0, 0, 0.08);
-      backdrop-filter: blur(12px);
+      box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px -12px rgba(0,0,0,.1);
     }
 
     .eyebrow {
@@ -63,9 +59,11 @@
 
     h1 {
       margin: 1rem 0 0.75rem;
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(2.2rem, 5vw, 3.5rem);
-      line-height: 0.95;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      font-size: clamp(1.9rem, 5vw, 2.75rem);
+      line-height: 1.1;
     }
 
     p {
@@ -102,7 +100,7 @@
       padding: 0.75rem 0.9rem;
       border-radius: 16px;
       border: 1px solid var(--border);
-      background: rgba(245, 241, 232, 0.72);
+      background: var(--bg);
       color: var(--ink);
       font-size: 0.94rem;
     }

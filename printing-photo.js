@@ -44,9 +44,9 @@ const DEFAULT_CONFIG = {
 const PRODUCT_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
   <rect width="240" height="240" rx="36" fill="#F2E9DA"/>
-  <rect x="42" y="52" width="156" height="136" rx="18" fill="#FFFFFF" stroke="#C6A75E" stroke-width="8"/>
+  <rect x="42" y="52" width="156" height="136" rx="18" fill="#FFFFFF" stroke="#FFA41C" stroke-width="8"/>
   <circle cx="92" cy="102" r="18" fill="#F6EFE2"/>
-  <path d="M66 166l34-30 24 20 26-24 24 34" fill="none" stroke="#1F1E1C" stroke-opacity=".78" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M66 166l34-30 24 20 26-24 24 34" fill="none" stroke="#0F1111" stroke-opacity=".78" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 `)}`;
 
@@ -336,7 +336,7 @@ class PrintingPhotoPage {
         .printing-quiz-shell{width:100%;max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1rem}
         .printing-quiz-heading{display:grid;gap:.5rem;padding:.4rem 0 0}
         .printing-quiz-heading small{color:#9b7c38;text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:800}
-        .printing-quiz-heading h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.8rem);line-height:.92;color:#1F1E1C}
+        .printing-quiz-heading h1{font-family:'Amazon Ember',Arial,sans-serif;font-size:clamp(2.2rem,5vw,3.8rem);line-height:.92;color:#0F1111}
         .printing-quiz-heading p{color:#6E6557;line-height:1.8;max-width:60ch}
         .printing-quiz-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}
         .printing-quiz-step{border:1px solid rgba(31,30,28,.08);border-radius:1.4rem;background:rgba(255,255,255,.92);box-shadow:0 18px 36px rgba(31,30,28,.06);padding:.95rem 1rem;display:flex;gap:.8rem;align-items:center;text-align:left;cursor:pointer}
@@ -345,11 +345,11 @@ class PrintingPhotoPage {
         .printing-quiz-step-index{width:36px;height:36px;min-width:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(198,167,94,.14);color:#9b7c38;font-weight:800}
         .printing-quiz-step-copy{display:grid;gap:.16rem}
         .printing-quiz-step-copy strong{font-size:.86rem;color:#6E6557}
-        .printing-quiz-step-copy small{font-size:1rem;color:#1F1E1C;font-weight:800}
+        .printing-quiz-step-copy small{font-size:1rem;color:#0F1111;font-weight:800}
         .printing-quiz-panel{border:1px solid rgba(31,30,28,.08);border-radius:1.9rem;background:rgba(255,255,255,.94);box-shadow:0 24px 60px rgba(31,30,28,.08);padding:clamp(1.2rem,3vw,1.8rem);display:grid;gap:1.1rem}
         .printing-quiz-panel-head{display:grid;gap:.45rem}
         .printing-quiz-panel-head small{color:#9b7c38;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:800}
-        .printing-quiz-panel-head h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,2.9rem);line-height:.94;color:#1F1E1C}
+        .printing-quiz-panel-head h2{font-family:'Amazon Ember',Arial,sans-serif;font-size:clamp(2rem,4vw,2.9rem);line-height:.94;color:#0F1111}
         .printing-quiz-panel-head p{color:#6E6557;line-height:1.8;max-width:58ch}
         .printing-quiz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
         .printing-quiz-field{display:grid;gap:.5rem}
@@ -358,19 +358,19 @@ class PrintingPhotoPage {
         .photo-list,.photo-options-list,.photo-summary-list{display:grid;gap:.75rem}
         .photo-card,.photo-option-card{border:1px solid rgba(31,30,28,.08);border-radius:1.15rem;background:rgba(255,255,255,.82);padding:.95rem;display:grid;gap:.85rem}
         .photo-card{grid-template-columns:1fr auto;align-items:center}
-        .photo-card strong,.photo-option-title strong{color:#1F1E1C}
+        .photo-card strong,.photo-option-title strong{color:#0F1111}
         .photo-card small,.photo-option-title small{display:block;color:#6E6557;margin-top:.2rem}
         .photo-option-card{grid-template-columns:1.25fr 1fr 1fr .75fr;align-items:end}
         .photo-summary-line{display:flex;justify-content:space-between;gap:1rem;padding:.75rem .8rem;border-radius:1rem;background:rgba(255,255,255,.74);color:#6E6557}
         .printing-quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}
         .printing-quiz-summary-row,.printing-quiz-summary-total{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}
-        .printing-quiz-summary-total{margin-top:.25rem;padding-top:.9rem;border-top:1px solid rgba(31,30,28,.08);color:#1F1E1C;font-size:1.2rem;font-weight:800}
+        .printing-quiz-summary-total{margin-top:.25rem;padding-top:.9rem;border-top:1px solid rgba(31,30,28,.08);color:#0F1111;font-size:1.2rem;font-weight:800}
         .printing-quiz-note{border-radius:1.2rem;background:rgba(198,167,94,.08);border:1px solid rgba(198,167,94,.16);color:#8A7450;padding:1rem 1.1rem;line-height:1.8}
         .printing-quiz-note.is-error{background:rgba(185,28,28,.08);border-color:rgba(185,28,28,.12);color:#991b1b}
         .printing-quiz-actions{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}
         .printing-quiz-btn{border:none;border-radius:999px;padding:.96rem 1.25rem;font:inherit;font-weight:800;cursor:pointer}
-        .printing-quiz-btn.primary{background:#1F1E1C;color:#F8F5EF;box-shadow:0 14px 28px rgba(31,30,28,.18)}
-        .printing-quiz-btn.secondary{background:#fff;color:#1F1E1C;border:1px solid rgba(31,30,28,.12)}
+        .printing-quiz-btn.primary{background:#0F1111;color:#F8F5EF;box-shadow:0 14px 28px rgba(31,30,28,.18)}
+        .printing-quiz-btn.secondary{background:#fff;color:#0F1111;border:1px solid rgba(31,30,28,.12)}
         .printing-quiz-btn.ghost{background:transparent;color:#6E6557;border:1px solid rgba(31,30,28,.1)}
         .printing-quiz-btn.small{padding:.65rem .8rem;font-size:.85rem}
         .printing-quiz-btn:disabled,.printing-quiz-step:disabled{opacity:.5;cursor:not-allowed}

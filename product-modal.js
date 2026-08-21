@@ -1,4 +1,4 @@
-﻿// ============= PRODUCT MODAL COMPONENT =============
+// ============= PRODUCT MODAL COMPONENT =============
 import { db } from './firebase-init.js';
 import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260711-1';
 import { getLikeManager } from './like.js';
@@ -374,7 +374,7 @@ class ProductModal {
   box-sizing: border-box;
 ">
         <div class="product-modal-container-${this.uniqueId}" style="
-          background: #F5F1E8;
+          background: #EAEDED;
           
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
           width: 100%;
@@ -388,11 +388,11 @@ class ProductModal {
           
           <!-- Header mobile -->
           <div class="md:hidden flex justify-between items-center gap-3 p-4 border-b border-secondary/20" style="flex-shrink: 0;">
-            <button class="back-modal-btn" type="button" style="display: inline-flex; align-items: center; gap: 0.4rem; border: none; background: transparent; color: #1F1E1C; cursor: pointer; font-weight: 600;">
+            <button class="back-modal-btn" type="button" style="display: inline-flex; align-items: center; gap: 0.4rem; border: none; background: transparent; color: #0F1111; cursor: pointer; font-weight: 600;">
               <i class="fas fa-arrow-left"></i>
               <span>Retour</span>
             </button>
-            <h2 class="font-primary text-lg truncate" style="font-family: 'Cormorant Garamond', serif; flex: 1; text-align: center;">${this.product.name || 'Produit'}</h2>
+            <h2 class="font-primary text-lg truncate" style="font-family: 'Amazon Ember', Arial, sans-serif; flex: 1; text-align: center;">${this.product.name || 'Produit'}</h2>
             <button class="close-modal-btn" type="button" style="width: 40px; height: 40px; border-radius: 50%; background: rgba(31, 30, 28, 0.1); display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; flex-shrink: 0;">
               <i class="fas fa-times" style="font-size: 1.25rem;"></i>
             </button>
@@ -572,7 +572,7 @@ class ProductModal {
         }
         
         .option-item.selected {
-          border-color: #C6A75E !important;
+          border-color: #FFA41C !important;
           background: rgba(198, 167, 94, 0.1) !important;
         }
         
@@ -586,7 +586,7 @@ class ProductModal {
         }
         
         .product-modal-container-${this.uniqueId} ::-webkit-scrollbar-thumb {
-          background: #C6A75E;
+          background: #FFA41C;
           border-radius: 3px;
         }
         
@@ -776,14 +776,14 @@ class ProductModal {
   renderDesktopImages() {
     const images = this.getCurrentDisplayImages();
     if (images.length === 0) {
-      return '<div style="text-align: center; padding: 2rem; color: #8B7E6B;">Aucune image</div>';
+      return '<div style="text-align: center; padding: 2rem; color: #565959;">Aucune image</div>';
     }
     
     return `
       <div class="desktop-image-grid">
         ${images.map((img, index) => `
           <div class="desktop-image-item" data-index="${index}">
-            <img src="${this.getImagePath(img)}" alt="" loading="lazy" onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;&quot;>Image indisponible</div>';">
+            <img src="${this.getImagePath(img)}" alt="" loading="lazy" onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
           </div>
         `).join('')}
       </div>
@@ -793,7 +793,7 @@ class ProductModal {
   renderMobileImages() {
     const images = this.getCurrentDisplayImages();
     if (images.length === 0) {
-      return '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;">Aucune image</div>';
+      return '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#565959;">Aucune image</div>';
     }
     
     return `
@@ -801,7 +801,7 @@ class ProductModal {
         <div class="mobile-image-container">
           ${images.map((img, index) => `
             <div class="mobile-image-slide" data-index="${index}">
-              <img src="${this.getImagePath(img)}" alt="" loading="lazy" onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;&quot;>Image indisponible</div>';">
+              <img src="${this.getImagePath(img)}" alt="" loading="lazy" onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
             </div>
           `).join('')}
         </div>
@@ -855,18 +855,30 @@ class ProductModal {
 
   refreshAddToCartButtons() {
     const remainingBase = this.getAvailableBaseQuantity();
+    const hasVariations = Array.isArray(this.product?.variations) && this.product.variations.length > 0;
+    const selectedVariationQuantity = Array.from(this.variationQuantities.values())
+      .reduce((total, quantity) => total + Math.max(0, Number(quantity) || 0), 0);
     const hasStockInVariations = Array.isArray(this.product?.variations) && this.product.variations.some((_, index) => {
       const available = this.getAvailableVariationQuantity(index);
       return !Number.isFinite(available) || available > 0;
     });
-    const shouldDisable = Array.isArray(this.product?.variations) && this.product.variations.length > 0
-      ? !hasStockInVariations
+    const shouldDisable = hasVariations
+      ? !hasStockInVariations || selectedVariationQuantity <= 0
       : Number.isFinite(remainingBase) && remainingBase <= 0;
 
     this.modalElement?.querySelectorAll('.add-to-cart-btn').forEach((btn) => {
       btn.disabled = shouldDisable;
       btn.style.opacity = shouldDisable ? '0.6' : '1';
       btn.style.cursor = shouldDisable ? 'not-allowed' : 'pointer';
+      btn.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+      const label = btn.querySelector('span');
+      if (label && hasVariations) {
+        label.textContent = !hasStockInVariations
+          ? 'Rupture de stock'
+          : (selectedVariationQuantity > 0 ? 'Ajouter au panier' : 'Choisissez une variante');
+      } else if (label && !hasVariations && shouldDisable) {
+        label.textContent = 'Rupture de stock';
+      }
     });
   }
 
@@ -888,14 +900,14 @@ class ProductModal {
       ? `${variation?.stock ?? 0} en stock`
       : 'Stock disponible';
     const availabilityLabel = Number.isFinite(maxAllowed)
-      ? (maxAllowed > 0 ? ` - ${maxAllowed} restant(s) avant blocage` : ' - Stock atteint')
+      ? (maxAllowed > 0 ? ` - ${maxAllowed} ${maxAllowed > 1 ? 'unités disponibles' : 'unité disponible'}` : ' - Stock atteint')
       : '';
 
     this.modalElement.querySelectorAll(`.variation-qty[data-variation-index="${variationIndex}"]`).forEach((el) => {
       el.textContent = String(safeQty);
     });
     this.modalElement.querySelectorAll(`.variation-item[data-variation-index="${variationIndex}"]`).forEach((el) => {
-      el.style.borderColor = safeQty > 0 ? '#C6A75E' : 'transparent';
+      el.style.borderColor = safeQty > 0 ? '#FFA41C' : 'transparent';
       el.style.opacity = Number.isFinite(maxAllowed) && maxAllowed <= 0 && safeQty <= 0 ? '0.72' : '1';
     });
     this.modalElement.querySelectorAll(`.variation-stock-meta[data-variation-index="${variationIndex}"]`).forEach((el) => {
@@ -949,7 +961,7 @@ class ProductModal {
         return;
       }
       el.textContent = available > 0
-        ? `${available} unit\u00e9(s) encore disponible(s) avant blocage`
+        ? `${available} ${available > 1 ? 'unités encore disponibles' : 'unité encore disponible'}`
         : 'Stock déjà atteint dans le panier';
     });
   }
@@ -1015,12 +1027,12 @@ class ProductModal {
     return `
       <div style="display: flex; flex-direction: column; gap: 1.5rem;">
         <!-- Nom -->
-        <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 2rem; color: #1F1E1C; margin: 0;">
+        <h1 style="font-family: 'Amazon Ember', Arial, sans-serif; font-size: 2rem; color: #0F1111; margin: 0;">
           ${product.name || 'Produit sans nom'}
         </h1>
 
-        <a href="${storeMeta.url}" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:0.45rem;color:#8B7E6B;text-decoration:none;font-size:0.78rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;max-width:100%;">
-          <i class="fas fa-store" style="color:#C6A75E;"></i>
+        <a href="${storeMeta.url}" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:0.45rem;color:#565959;text-decoration:none;font-size:0.78rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;max-width:100%;">
+          <i class="fas fa-store" style="color:#FFA41C;"></i>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeMeta.storeName}</span>
         </a>
 
@@ -1032,7 +1044,7 @@ class ProductModal {
         ` : ''}
         
         <!-- Description courte -->
-        <p style="color: #8B7E6B; margin: 0;">
+        <p style="color: #565959; margin: 0;">
           ${product.shortDescription || ''}
         </p>
         
@@ -1043,18 +1055,18 @@ class ProductModal {
               -${discountPercent}%
             </span>
           ` : ''}
-          <span class="product-current-price" style="font-size: 2rem; font-weight: bold; color: #1F1E1C;">
+          <span class="product-current-price" style="font-size: 2rem; font-weight: bold; color: #0F1111;">
             ${displayPrice.text}
           </span>
           ${displayPrice.comparePrice && variationsCount <= 1 ? `
-            <span class="product-compare-price" style="font-size: 1.25rem; color: #8B7E6B; text-decoration: line-through;">
+            <span class="product-compare-price" style="font-size: 1.25rem; color: #565959; text-decoration: line-through;">
               ${this.formatPrice(displayPrice.comparePrice)}
             </span>
           ` : ''}
         </div>
         
         ${variationsCount > 0 ? `
-          <div style="font-size: 0.9rem; color: #8B7E6B;">
+          <div style="font-size: 0.9rem; color: #565959;">
             ${variationsCount} variation(s) disponible(s)
           </div>
         ` : ''}
@@ -1074,13 +1086,13 @@ class ProductModal {
             border-radius: 0.75rem;
             background: white;
           ">
-            <span style="font-weight: 500; color: #1F1E1C;">Quantité</span>
+            <span style="font-weight: 500; color: #0F1111;">Quantité</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <button type="button" class="qty-decrease-btn" style="
-                width: 32px;
-                height: 32px;
+              <button type="button" class="qty-decrease-btn" aria-label="Diminuer la quantité" style="
+                width: 44px;
+                height: 44px;
                 border: 1px solid rgba(198, 167, 94, 0.4);
-                background: #F5F1E8;
+                background: #EAEDED;
                 border-radius: 50%;
                 cursor: pointer;
               "><i class="fas fa-minus"></i></button>
@@ -1091,23 +1103,23 @@ class ProductModal {
                 border-radius: 0.5rem;
                 padding: 0.35rem;
               ">
-              <button type="button" class="qty-increase-btn" style="
-                width: 32px;
-                height: 32px;
+              <button type="button" class="qty-increase-btn" aria-label="Augmenter la quantité" style="
+                width: 44px;
+                height: 44px;
                 border: 1px solid rgba(198, 167, 94, 0.4);
-                background: #F5F1E8;
+                background: #EAEDED;
                 border-radius: 50%;
                 cursor: pointer;
               "><i class="fas fa-plus"></i></button>
             </div>
           </div>
-          <div class="qty-stock-note" style="font-size: 0.8rem; color: #8B7E6B; margin-top: -0.65rem;"></div>
+          <div class="qty-stock-note" style="font-size: 0.8rem; color: #565959; margin-top: -0.65rem;"></div>
         `}
 
         <button class="toggle-like-btn" style="
           width: 100%;
           background: white;
-          color: #1F1E1C;
+          color: #0F1111;
           padding: 0.85rem 1rem;
           border: 1px solid rgba(198, 167, 94, 0.35);
           border-radius: 0.5rem;
@@ -1120,14 +1132,14 @@ class ProductModal {
           font-weight: 500;
           transition: all 0.2s;
         ">
-          <i class="${this.likeManager?.isLiked(this.product?.id) ? 'fas' : 'far'} fa-heart" style="color:${this.likeManager?.isLiked(this.product?.id) ? '#DC2626' : '#8B7E6B'};"></i>
+          <i class="${this.likeManager?.isLiked(this.product?.id) ? 'fas' : 'far'} fa-heart" style="color:${this.likeManager?.isLiked(this.product?.id) ? '#DC2626' : '#565959'};"></i>
           <span>${this.likeManager?.isLiked(this.product?.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}</span>
         </button>
 
         <button class="share-product-btn" style="
           width: 100%;
           background: #F8F5EF;
-          color: #1F1E1C;
+          color: #0F1111;
           padding: 0.85rem 1rem;
           border: 1px solid rgba(198, 167, 94, 0.35);
           border-radius: 0.5rem;
@@ -1140,18 +1152,18 @@ class ProductModal {
           font-weight: 600;
           transition: all 0.2s;
         ">
-          <i class="fas fa-share-alt" style="color: #C6A75E;"></i>
+          <i class="fas fa-share-alt" style="color: #FFA41C;"></i>
           <span>Partager ce produit</span>
         </button>
-        <div class="share-product-feedback" style="display:none; margin-top:-0.9rem; font-size:0.82rem; color:#8B7E6B; text-align:center;"></div>
+        <div class="share-product-feedback" style="display:none; margin-top:-0.9rem; font-size:0.82rem; color:#565959; text-align:center;"></div>
         
         <!-- Bouton Ajouter au panier -->
         <button class="add-to-cart-btn" style="
           width: 100%;
-          background: #1F1E1C;
-          color: #F5F1E8;
+          background: #0F1111;
+          color: #EAEDED;
           padding: 1rem;
-          border: 1px solid #C6A75E;
+          border: 1px solid #FFA41C;
           border-radius: 0.5rem;
           cursor: pointer;
           display: flex;
@@ -1166,11 +1178,17 @@ class ProductModal {
           <i class="fas fa-shopping-cart"></i>
           <span>Ajouter au panier</span>
         </button>
+
+        <div class="product-trust-strip" aria-label="Informations avant achat">
+          <div class="product-trust-item"><i class="fas fa-shield-halved" aria-hidden="true"></i><span>Paiement sécurisé avec MonCash</span></div>
+          <div class="product-trust-item"><i class="fas fa-truck" aria-hidden="true"></i><span>${product.isDigitalProduct ? 'Accès numérique après confirmation' : (product.deliveryDelay ? `Livraison: ${product.deliveryDelay}` : 'Livraison confirmée au checkout')}</span></div>
+          <div class="product-trust-item"><i class="fas fa-headset" aria-hidden="true"></i><span>Assistance Smart Cut Services</span></div>
+        </div>
         
         <!-- Description longue -->
         <div style="padding-top: 1rem; border-top: 1px solid rgba(198, 167, 94, 0.2);">
           <h3 style="font-weight: 500; margin-bottom: 0.5rem;">Description</h3>
-          <div style="color: #8B7E6B; white-space: pre-line;">
+          <div style="color: #565959; white-space: pre-line;">
             ${product.longDescription || 'Aucune description disponible.'}
           </div>
         </div>
@@ -1200,20 +1218,20 @@ class ProductModal {
                      data-sku="${variation?.sku || ''}"
                      data-price="${price}"
                      data-image="${image}"
-                     style="border: 2px solid ${qty > 0 ? '#C6A75E' : 'transparent'}; border-radius: 0.5rem; padding: 0.5rem; display: flex; flex-direction: column; align-items: stretch; gap: 0.4rem; cursor: pointer; background: white; min-width: 170px;">
+                     style="border: 2px solid ${qty > 0 ? '#FFA41C' : 'transparent'}; border-radius: 0.5rem; padding: 0.5rem; display: flex; flex-direction: column; align-items: stretch; gap: 0.4rem; cursor: pointer; background: white; min-width: 170px;">
                   ${image ? `
-                    <div style="width: 100%; aspect-ratio: 1 / 1; border-radius: 0.4rem; overflow: hidden; border: 1px solid rgba(198, 167, 94, 0.25); background: #F5F1E8; display: flex; align-items: center; justify-content: center; padding: 0.3rem;">
-                      <img src="${this.getImagePath(image)}" alt="${label}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;\\'><i class=\\'fas fa-image\\'></i></div>';">
+                    <div style="width: 100%; aspect-ratio: 1 / 1; border-radius: 0.4rem; overflow: hidden; border: 1px solid rgba(198, 167, 94, 0.25); background: #EAEDED; display: flex; align-items: center; justify-content: center; padding: 0.3rem;">
+                      <img src="${this.getImagePath(image)}" alt="${label}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;\\'><i class=\\'fas fa-image\\'></i></div>';">
                     </div>
                   ` : ''}
-                  <span style="font-size: 0.8rem; font-weight: 600; color: #1F1E1C;">${label}</span>
-                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #8B7E6B;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` - Stock: ${variation.stock}` : ''}</span>
+                  <span style="font-size: 0.8rem; font-weight: 600; color: #0F1111;">${label}</span>
+                  <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #565959;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` - Stock: ${variation.stock}` : ''}</span>
                   <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.25rem;">
-                    <button type="button" class="variation-qty-dec" data-variation-index="${index}" style="width:26px; height:26px; border:1px solid rgba(198,167,94,0.4); background:#F5F1E8; border-radius:50%; cursor:pointer;">
+                    <button type="button" class="variation-qty-dec" data-variation-index="${index}" aria-label="Diminuer la quantité de cette variante" style="width:44px; height:44px; border:1px solid rgba(198,167,94,0.4); background:#EAEDED; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-minus" style="font-size:0.7rem;"></i>
                     </button>
                     <span class="variation-qty" data-variation-index="${index}" style="min-width:22px; text-align:center; font-size:0.85rem; font-weight:600;">${qty}</span>
-                    <button type="button" class="variation-qty-inc" data-variation-index="${index}" style="width:26px; height:26px; border:1px solid rgba(198,167,94,0.4); background:#F5F1E8; border-radius:50%; cursor:pointer;">
+                    <button type="button" class="variation-qty-inc" data-variation-index="${index}" aria-label="Augmenter la quantité de cette variante" style="width:44px; height:44px; border:1px solid rgba(198,167,94,0.4); background:#EAEDED; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-plus" style="font-size:0.7rem;"></i>
                     </button>
                   </div>
@@ -1268,7 +1286,7 @@ class ProductModal {
                    data-image="${size.image || ''}"
                    style="border: 2px solid transparent; border-radius: 0.5rem; padding: 0.5rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; cursor: pointer; background: white;">
                 <span style="font-weight: 500;">${size.size}</span>
-                <span style="font-size: 0.75rem; color: #8B7E6B;">${size.quantity || 0} dispo</span>
+                <span style="font-size: 0.75rem; color: #565959;">${size.quantity || 0} dispo</span>
               </div>
             `).join('')}
           </div>
@@ -1341,7 +1359,7 @@ class ProductModal {
     
     return `
       <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(198, 167, 94, 0.2);">
-        <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; margin-bottom: 1rem;">Vous aimerez aussi</h3>
+        <h3 style="font-family: 'Amazon Ember', Arial, sans-serif; font-size: 1.5rem; margin-bottom: 1rem;">Vous aimerez aussi</h3>
         <div class="related-products-carousel">
           ${this.relatedProducts.map(product => `
             <div class="product-card" data-product-id="${product.id}" style="cursor: pointer; transition: transform 0.2s;">
@@ -1350,17 +1368,17 @@ class ProductModal {
                      alt="" 
                      class="related-product-image"
                      loading="lazy"
-                     onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;&quot;><i class=&quot;fas fa-image&quot;></i></div>';">
+                     onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;><i class=&quot;fas fa-image&quot;></i></div>';">
               </div>
               <h4 style="font-weight: 500; font-size: 0.875rem; margin: 0 0 0.25rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${product.name || ''}</h4>
-              <a href="${getProductStoreMeta(product).url}" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:0.35rem;max-width:100%;margin:0 0 0.3rem 0;color:#8B7E6B;text-decoration:none;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
-                <i class="fas fa-store" style="color:#C6A75E;"></i>
+              <a href="${getProductStoreMeta(product).url}" onclick="event.stopPropagation();" style="display:inline-flex;align-items:center;gap:0.35rem;max-width:100%;margin:0 0 0.3rem 0;color:#565959;text-decoration:none;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">
+                <i class="fas fa-store" style="color:#FFA41C;"></i>
                 <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${getProductStoreMeta(product).storeName}</span>
               </a>
               <div style="display: flex; align-items: baseline; gap: 0.5rem;">
                 <span style="font-weight: bold;">${this.getProductDisplayPrice(product).text}</span>
                 ${this.getProductDisplayPrice(product).comparePrice ? `
-                  <span style="font-size: 0.75rem; color: #8B7E6B; text-decoration: line-through;">${this.formatPrice(this.getProductDisplayPrice(product).comparePrice)}</span>
+                  <span style="font-size: 0.75rem; color: #565959; text-decoration: line-through;">${this.formatPrice(this.getProductDisplayPrice(product).comparePrice)}</span>
                 ` : ''}
               </div>
             </div>
@@ -1389,24 +1407,24 @@ class ProductModal {
         padding: 1rem;
       ">
         <div style="
-          background: #F5F1E8;
+          background: #EAEDED;
           border-radius: 1.5rem;
           padding: 2rem;
           max-width: 400px;
           text-align: center;
         ">
           <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #7F1D1D; margin-bottom: 1rem;"></i>
-          <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; margin-bottom: 0.5rem;">Produit non trouvé</h3>
-          <p style="color: #8B7E6B; margin-bottom: 1.5rem;">Le produit que vous recherchez n'existe pas ou a été supprimé.</p>
+          <h3 style="font-family: 'Amazon Ember', Arial, sans-serif; font-size: 1.5rem; margin-bottom: 0.5rem;">Produit non trouvé</h3>
+          <p style="color: #565959; margin-bottom: 1.5rem;">Le produit que vous recherchez n'existe pas ou a été supprimé.</p>
           <button class="close-modal-btn" style="
-            background: #1F1E1C;
-            color: #F5F1E8;
+            background: #0F1111;
+            color: #EAEDED;
             padding: 0.75rem 2rem;
             border: none;
             border-radius: 0.5rem;
             cursor: pointer;
             font-size: 1rem;
-          " onmouseover="this.style.background='#C6A75E'; this.style.color='#1F1E1C'" onmouseout="this.style.background='#1F1E1C'; this.style.color='#F5F1E8'">
+          " onmouseover="this.style.background='#FFA41C'; this.style.color='#0F1111'" onmouseout="this.style.background='#0F1111'; this.style.color='#EAEDED'">
             Fermer
           </button>
         </div>
@@ -1482,7 +1500,7 @@ class ProductModal {
         
         // Sélectionner l'option cliquée
         item.classList.add('selected');
-        item.style.borderColor = '#C6A75E';
+        item.style.borderColor = '#FFA41C';
         
         // Sauvegarder la sélection
         const value = {
@@ -1674,7 +1692,7 @@ class ProductModal {
     this.modalElement?.querySelectorAll('.share-product-feedback').forEach((el) => {
       el.textContent = message;
       el.style.display = message ? 'block' : 'none';
-      el.style.color = isError ? '#B42318' : '#8B7E6B';
+      el.style.color = isError ? '#B42318' : '#565959';
     });
   }
 
@@ -1798,7 +1816,21 @@ class ProductModal {
     if (!this.product?.id) return;
     const key = `veltrixa_modal_selection_${this.product.id}`;
     const saved = JSON.parse(localStorage.getItem(key) || 'null');
-    if (!saved) return;
+    if (!saved) {
+      const variations = Array.isArray(this.product?.variations) ? this.product.variations : [];
+      if (variations.length === 1) {
+        const available = this.getAvailableVariationQuantity(0);
+        if (!Number.isFinite(available) || available > 0) {
+          this.currentVariationIndex = 0;
+          this.variationQuantities.set(0, 1);
+        }
+      }
+      setTimeout(() => {
+        this.normalizeSelectedQuantities();
+        this.saveToLocalStorage();
+      }, 100);
+      return;
+    }
 
     (Array.isArray(saved.selectedOptions) ? saved.selectedOptions : []).forEach(([k, v]) => {
       this.selectedOptions.set(k, v);
@@ -1816,7 +1848,7 @@ class ProductModal {
         const option = this.modalElement.querySelector(selector);
         if (option) {
           option.classList.add('selected');
-          option.style.borderColor = '#C6A75E';
+          option.style.borderColor = '#FFA41C';
         }
       });
 
@@ -1866,7 +1898,7 @@ class ProductModal {
 
  addToCart() {
   // Récupérer l'instance du panier
-  import('./cart.js?v=20260714-1').then(({ getCartManager }) => {
+  import('./cart.js?v=20260816-1').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     
@@ -1891,16 +1923,7 @@ class ProductModal {
 
     if (Array.isArray(this.product?.variations) && this.product.variations.length > 0) {
       if (entries.length === 0) {
-        const fallbackIdx = Number.isInteger(this.currentVariationIndex) ? this.currentVariationIndex : 0;
-        const available = this.getAvailableVariationQuantity(fallbackIdx);
-        const fallbackQty = Number.isFinite(available)
-          ? Math.min(available, Math.max(1, Number(this.selectedQuantity) || 1))
-          : Math.max(1, Number(this.selectedQuantity) || 1);
-        if (fallbackQty > 0) {
-          entries = [[fallbackIdx, fallbackQty]];
-        }
-      }
-      if (entries.length === 0) {
+        this.refreshAddToCartButtons();
         return;
       }
       entries.forEach(([variationIndex, quantity]) => {
@@ -1997,8 +2020,8 @@ class ProductModal {
       btn.style.color = 'white';
       setTimeout(() => {
         btn.innerHTML = originalText;
-        btn.style.background = '#1F1E1C';
-        btn.style.color = '#F5F1E8';
+        btn.style.background = '#0F1111';
+        btn.style.color = '#EAEDED';
       }, 2000);
     });
   });
@@ -2017,7 +2040,7 @@ class ProductModal {
       const label = btn.querySelector('span');
       if (icon) {
         icon.className = `${liked ? 'fas' : 'far'} fa-heart`;
-        icon.style.color = liked ? '#DC2626' : '#8B7E6B';
+        icon.style.color = liked ? '#DC2626' : '#565959';
       }
       if (label) {
         label.textContent = liked ? 'Retirer des favoris' : 'Ajouter aux favoris';

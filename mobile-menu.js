@@ -71,55 +71,55 @@ class MobileMenu {
     style.id = 'mobile-menu-theme-styles';
     style.textContent = `
       .mobile-menu-header {
-        border-bottom-color: ${colors?.icon?.standard || '#C6A75E'}20 !important;
+        border-bottom-color: ${colors?.icon?.standard || '#FFA41C'}20 !important;
       }
       .mobile-menu-title {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
       }
       .mobile-menu-close {
-        color: ${colors?.icon?.standard || '#1F1E1C'} !important;
+        color: ${colors?.icon?.standard || '#0F1111'} !important;
       }
       .mobile-menu-close:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'}20 !important;
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        background: ${colors?.icon?.hover || '#FFA41C'}20 !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-category-name {
         color: ${colors?.text?.body || '#333333'} !important;
       }
       .mobile-category-card:hover .mobile-category-name {
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-category-image {
-        border-color: ${colors?.icon?.standard || '#C6A75E'} !important;
+        border-color: ${colors?.icon?.standard || '#FFA41C'} !important;
       }
       .mobile-category-card:hover .mobile-category-image {
-        border-color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        border-color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-column-title {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
-        border-bottom-color: ${colors?.icon?.standard || '#C6A75E'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
+        border-bottom-color: ${colors?.icon?.standard || '#FFA41C'} !important;
       }
       .mobile-line-item {
         color: ${colors?.text?.body || '#333333'} !important;
         background: ${colors?.background?.card || '#F5F5F5'} !important;
       }
       .mobile-line-item:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'}20 !important;
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        background: ${colors?.icon?.hover || '#FFA41C'}20 !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-featured-title {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
       }
       .mobile-featured-card {
         background: ${colors?.background?.card || '#F5F5F5'} !important;
-        border-color: ${colors?.icon?.standard || '#C6A75E'}20 !important;
+        border-color: ${colors?.icon?.standard || '#FFA41C'}20 !important;
       }
       .mobile-featured-card:hover {
-        border-color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        border-color: ${colors?.icon?.hover || '#FFA41C'} !important;
         transform: translateY(-2px);
       }
       .mobile-featured-card h4 {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
       }
       .mobile-featured-card p {
         color: ${colors?.text?.body || '#666666'} !important;
@@ -128,11 +128,11 @@ class MobileMenu {
         color: ${colors?.text?.button || '#FFFFFF'} !important;
       }
       .mobile-back-arrow {
-        color: ${colors?.icon?.standard || '#1F1E1C'} !important;
+        color: ${colors?.icon?.standard || '#0F1111'} !important;
       }
       .mobile-back-arrow:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'}20 !important;
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        background: ${colors?.icon?.hover || '#FFA41C'}20 !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
     `;
     
@@ -446,7 +446,7 @@ class MobileMenu {
                  onerror="this.onerror=null; this.src='./logo.png';">
             <div style="flex: 1;">
               <h4 style="font-family: var(--primary-font); font-weight: 600; margin-bottom: 0.2rem;">${product.name || 'Produit'}</h4>
-              <div style="font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#8B7E6B;margin-bottom:0.22rem;">${storeMeta.storeName}</div>
+              <div style="font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#565959;margin-bottom:0.22rem;">${storeMeta.storeName}</div>
               <p style="font-size: 0.75rem; margin-bottom: 0.3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                 ${product.shortDescription || product.description || ''}
               </p>

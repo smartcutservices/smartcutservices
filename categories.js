@@ -100,9 +100,9 @@ class CategoriesDisplay {
         }
 
         .categories-wrapper-carousel .categories-head h2 {
-          font-family: 'Cormorant Garamond', serif;
+          font-family: 'Amazon Ember', Arial, sans-serif;
           font-size: clamp(1.6rem, 3vw, 2.2rem);
-          color: #1F1E1C;
+          color: #0F1111;
           margin: 0;
         }
 
