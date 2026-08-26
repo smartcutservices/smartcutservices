@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="./tailwind-site.css?v=20260816-1">
   <link rel="stylesheet" href="./site-foundation.css?v=20260816-3">
+  <link rel="stylesheet" href="./health-teaser.css?v=20260825-1">
   
   <!-- Import Map Firebase -->
   <script type="importmap">
@@ -206,6 +207,9 @@
 
   <!-- 5. Découverte: sponsored, recommandations, top vendeurs -->
   <div id="sierra-home-discovery-root" class="my-10"></div>
+
+  <!-- Smart Cut Health -->
+  <div id="sierra-health-teaser-root"></div>
   
   <!-- 7. Commentaire Section - NOUVEAU POINT D'INJECTION -->
   <div id="sierra-commentaire-root" class="my-12 max-w-2xl mx-auto px-4"></div>
@@ -311,6 +315,8 @@
       imageBasePath: './',
       maxProducts: 6
     }, '550px');
+
+    mountOnVisible('health-teaser', 'sierra-health-teaser-root', () => import(`./health-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
 
     mountOnVisible('commentaire', 'sierra-commentaire-root', () => import(`./coment.js?v=${ASSET_VERSION}`), {
       title: 'Commentaires en direct',

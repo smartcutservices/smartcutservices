@@ -2,6 +2,7 @@ import { getMoncashPaymentStatus } from '../../moncash-client.js';
 import { downloadOrderPdfReceipt } from '../../order-pdf.js';
 
 const PENDING_PAYMENT_KEY = 'smartcut_pending_moncash_payment';
+const HEALTH_PAYMENT_KEY = 'smartcut_health_payment';
 const CART_STORAGE_KEY = 'veltrixa_cart';
 const titleEl = document.getElementById('page-title');
 const copyEl = document.getElementById('page-copy');
@@ -207,6 +208,25 @@ async function runStatusCheck() {
   await pollPaymentStatus(reference, pending);
 }
 
+function redirectHealthReturnIfNeeded() {
+  try {
+    const raw = localStorage.getItem(HEALTH_PAYMENT_KEY);
+    if (!raw) return false;
+    const health = JSON.parse(raw);
+    if (!health?.sessionId && !health?.orderId) return false;
+    const target = new URL('../../health/payment-return.html', window.location.href);
+    const incoming = new URLSearchParams(window.location.search);
+    target.searchParams.set('sessionId', health.sessionId || '');
+    target.searchParams.set('orderId', health.orderId || '');
+    const transactionId = incoming.get('transactionId') || incoming.get('transaction_id');
+    if (transactionId) target.searchParams.set('transactionId', transactionId);
+    window.location.replace(target.toString());
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 if (downloadPdfBtn) {
   downloadPdfBtn.addEventListener('click', async () => {
     if (!latestOrder) return;
@@ -241,7 +261,7 @@ if (refreshBtn) {
   });
 }
 
-runStatusCheck().catch((error) => {
+if (!redirectHealthReturnIfNeeded()) runStatusCheck().catch((error) => {
   setState({
     title: 'Verification impossible',
     copy: 'Nous n avons pas pu verifier votre paiement MonCash pour le moment.',

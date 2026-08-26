@@ -783,6 +783,7 @@ class SierraHeaderNebula {
           </button>
           <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
           <a class="desktop-nav-action" href="./printing-hub.html">Imprimerie</a>
+          <a class="desktop-nav-action" href="./health.html">Santé &amp; Pharmacie</a>
         </div>
       </div>
 
@@ -820,6 +821,7 @@ class SierraHeaderNebula {
             <div class="mobile-nav-items">
               <a class="mobile-nav-item" href="./vendor-application.html">Vendre</a>
               <a class="mobile-nav-item" href="./printing-hub.html">Imprimerie</a>
+              <a class="mobile-nav-item" href="./health.html">Santé &amp; Pharmacie</a>
             </div>
           </div>
         </div>
