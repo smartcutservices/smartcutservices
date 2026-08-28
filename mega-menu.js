@@ -48,29 +48,29 @@ class MegaMenu {
       
       .mega-close-btn {
         background: ${colors?.background?.card || 'white'};
-        border-color: ${colors?.icon?.standard || '#C6A75E'};
-        color: ${colors?.icon?.standard || '#C6A75E'};
+        border-color: ${colors?.icon?.standard || '#FFA41C'};
+        color: ${colors?.icon?.standard || '#FFA41C'};
       }
       
       .mega-close-btn:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'};
+        background: ${colors?.icon?.hover || '#FFA41C'};
         color: ${colors?.text?.button || '#FFFFFF'};
       }
       
       .mega-column-title {
-        font-family: ${typography?.family || fonts?.primary || "'Cormorant Garamond', serif"};
-        color: ${colors?.text?.title || '#1F1E1C'};
-        border-bottom-color: ${colors?.icon?.standard || '#C6A75E'};
+        font-family: ${typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif"};
+        color: ${colors?.text?.title || '#0F1111'};
+        border-bottom-color: ${colors?.icon?.standard || '#FFA41C'};
       }
       
       .mega-line {
         color: ${colors?.text?.body || '#4A4A4A'};
-        font-family: ${fonts?.secondary || "'Manrope', sans-serif"};
+        font-family: ${fonts?.secondary || "'Amazon Ember', sans-serif"};
       }
       
       .mega-line:hover {
         background: ${colors?.icon?.hover ? colors.icon.hover + '20' : 'rgba(198,167,94,0.1)'};
-        color: ${colors?.text?.title || '#1F1E1C'};
+        color: ${colors?.text?.title || '#0F1111'};
       }
       
       .mega-featured-products {
@@ -78,8 +78,8 @@ class MegaMenu {
       }
       
       .mega-featured-products h3 {
-        font-family: ${typography?.family || fonts?.primary || "'Cormorant Garamond', serif"};
-        color: ${colors?.text?.title || '#1F1E1C'};
+        font-family: ${typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif"};
+        color: ${colors?.text?.title || '#0F1111'};
       }
       
       .featured-card {
@@ -137,7 +137,7 @@ class MegaMenu {
       .featured-price {
         font-size: 0.98rem;
         font-weight: 700;
-        color: ${colors?.text?.title || '#1F1E1C'};
+        color: ${colors?.text?.title || '#0F1111'};
       }
 
       .featured-old-price {
@@ -155,7 +155,7 @@ class MegaMenu {
         letter-spacing: 0.03em;
         padding: 0.22rem 0.42rem;
         border-radius: 999px;
-        background: ${colors?.icon?.hover || '#C6A75E'};
+        background: ${colors?.icon?.hover || '#FFA41C'};
         color: ${colors?.text?.button || '#fff'};
       }
 
@@ -174,8 +174,8 @@ class MegaMenu {
       }
       
       .featured-card h4 {
-        font-family: ${typography?.family || fonts?.primary || "'Cormorant Garamond', serif"};
-        color: ${colors?.text?.title || '#1F1E1C'};
+        font-family: ${typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif"};
+        color: ${colors?.text?.title || '#0F1111'};
       }
       
       .featured-card p {
@@ -183,7 +183,7 @@ class MegaMenu {
       }
       
       .featured-card span:first-of-type {
-        color: ${colors?.text?.title || '#1F1E1C'};
+        color: ${colors?.text?.title || '#0F1111'};
       }
       
       .featured-card span:last-of-type {
@@ -421,15 +421,15 @@ class MegaMenu {
                class="featured-media"
                onerror="this.onerror=null; this.src='./logo.png';">
           <div class="featured-content">
-            <h4 style="font-family: ${theme.getTypography().family || theme.getFonts().primary || 'Cormorant Garamond, serif'}; 
+            <h4 style="font-family: ${theme.getTypography().family || theme.getFonts().primary || 'Amazon Ember, Arial, sans-serif'}; 
                        font-weight: 600; 
                        margin: 0;
                        line-height: 1.2;
                        font-size: 1rem;
-                       color: ${colors?.text?.title || '#1F1E1C'};">
+                       color: ${colors?.text?.title || '#0F1111'};">
               ${product.name || 'Produit sans nom'}
             </h4>
-            <p style="margin:0.35rem 0 0;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:${colors?.text?.subtitle || '#8B7E6B'};">
+            <p style="margin:0.35rem 0 0;font-size:0.66rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:${colors?.text?.subtitle || '#565959'};">
               ${storeMeta.storeName}
             </p>
             <p class="featured-desc">
@@ -484,10 +484,10 @@ class MegaMenu {
     const colors = theme.getColors();
     
     this.featuredContainer.innerHTML = `
-      <div style="text-align: center; padding: 2rem 1rem; color: ${colors?.text?.body || '#8B7E6B'};">
-        <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5; color: ${colors?.icon?.standard || '#8B7E6B'};"></i>
-        <p style="margin-bottom: 0.5rem; color: ${colors?.text?.body || '#8B7E6B'};">Aucun produit disponible</p>
-        <p style="font-size: 0.8rem; color: ${colors?.text?.body || '#8B7E6B'};">Dans cette catégorie pour le moment</p>
+      <div style="text-align: center; padding: 2rem 1rem; color: ${colors?.text?.body || '#565959'};">
+        <i class="fas fa-box-open" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5; color: ${colors?.icon?.standard || '#565959'};"></i>
+        <p style="margin-bottom: 0.5rem; color: ${colors?.text?.body || '#565959'};">Aucun produit disponible</p>
+        <p style="font-size: 0.8rem; color: ${colors?.text?.body || '#565959'};">Dans cette catégorie pour le moment</p>
       </div>
     `;
   }

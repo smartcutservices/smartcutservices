@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   moduleRules: {
     documents: [],
     cad: [],
-    photo: []
+    photo: [],
+    personalization: []
   }
 };
 
@@ -33,7 +34,14 @@ const HAITI_DEPARTMENTS = {
   'Sud-Est': ['Anse-a-Pitres', 'Bainet', 'Belle-Anse', 'Cayes-Jacmel', 'Cote-de-Fer', 'Grand-Gosier', 'Jacmel', 'La Vallee-de-Jacmel', 'Marigot', 'Thiotte']
 };
 
-const MODULE_IDS = ['documents', 'cad', 'photo'];
+const MODULE_RULE_CONFIG = {
+  documents: { usesRange: true },
+  cad: { usesRange: false },
+  photo: { usesRange: false },
+  personalization: { usesRange: true }
+};
+
+const MODULE_IDS = Object.keys(MODULE_RULE_CONFIG);
 
 function normalizeText(value = '') {
   return String(value || '').trim();
@@ -61,7 +69,8 @@ function normalizeZone(zone = {}, index = 0) {
   };
 }
 
-function normalizeModuleRule(rule = {}, index = 0) {
+function normalizeModuleRule(rule = {}, index = 0, moduleId = '') {
+  const usesRange = MODULE_RULE_CONFIG[moduleId]?.usesRange !== false;
   const min = Number(rule.min ?? rule.rangeMin ?? 0);
   const max = Number(rule.max ?? rule.rangeMax ?? 0);
   return {
@@ -69,10 +78,10 @@ function normalizeModuleRule(rule = {}, index = 0) {
     country: normalizeText(rule.country) || 'Haiti',
     department: normalizeText(rule.department),
     commune: normalizeText(rule.commune),
-    rangeId: normalizeText(rule.rangeId),
-    label: normalizeText(rule.label || rule.rangeLabel),
-    min: Number.isFinite(min) ? min : 0,
-    max: Number.isFinite(max) ? max : 0,
+    rangeId: usesRange ? normalizeText(rule.rangeId) : '',
+    label: usesRange ? normalizeText(rule.label || rule.rangeLabel) : '',
+    min: usesRange && Number.isFinite(min) ? min : 1,
+    max: usesRange && Number.isFinite(max) ? max : 999999,
     fee: Number(rule.fee || 0),
     delay: normalizeText(rule.delay || rule.deliveryDelay),
     isActive: rule.isActive !== false
@@ -82,9 +91,16 @@ function normalizeModuleRule(rule = {}, index = 0) {
 function normalizeModuleRules(moduleRules = {}) {
   const source = moduleRules && typeof moduleRules === 'object' ? moduleRules : {};
   return MODULE_IDS.reduce((acc, moduleId) => {
+    const usesRange = MODULE_RULE_CONFIG[moduleId]?.usesRange !== false;
     acc[moduleId] = (Array.isArray(source[moduleId]) ? source[moduleId] : [])
-      .map(normalizeModuleRule)
-      .filter((rule) => rule.country && rule.department && rule.commune && rule.min >= 1 && rule.max >= rule.min && rule.isActive);
+      .map((rule, index) => normalizeModuleRule(rule, index, moduleId))
+      .filter((rule) => (
+        rule.country
+        && rule.department
+        && rule.commune
+        && rule.isActive
+        && (!usesRange || (rule.min >= 1 && rule.max >= rule.min))
+      ));
     return acc;
   }, {});
 }
@@ -244,13 +260,13 @@ export class PrintingDeliveryController {
     const commune = normalizeText(this.state.commune);
     const metric = this.getMetricQuantity();
     if (!this.moduleId || !department || !commune || metric < 1) return null;
+    const usesRange = MODULE_RULE_CONFIG[this.moduleId]?.usesRange !== false;
 
     return this.getModuleRules().find((rule) => (
       normalizeText(rule.country || 'Haiti') === country
       && normalizeText(rule.department) === department
       && normalizeText(rule.commune) === commune
-      && metric >= Number(rule.min || 0)
-      && metric <= Number(rule.max || 0)
+      && (!usesRange || (metric >= Number(rule.min || 0) && metric <= Number(rule.max || 0)))
     )) || null;
   }
 
@@ -263,8 +279,8 @@ export class PrintingDeliveryController {
 
   isValid() {
     if (this.state.method === 'pickup') return Boolean(this.getSelectedPickupPoint());
-    const hasZone = Boolean(this.state.address && this.state.department && this.state.commune && this.findHomeZone());
-    if (!hasZone) return false;
+    const hasAddressZone = Boolean(this.state.address && this.state.department && this.state.commune);
+    if (!hasAddressZone) return false;
     return this.hasModuleRules() ? Boolean(this.findModuleRule()) : true;
   }
 
@@ -285,14 +301,17 @@ export class PrintingDeliveryController {
     }
     const zone = this.findHomeZone();
     const moduleRule = this.findModuleRule();
-    return [
+    const lines = [
       { label: 'Réception', value: 'Livraison à domicile' },
       { label: 'Adresse', value: this.state.address || '-' },
       { label: 'Zone', value: `${this.state.department || '-'} / ${this.state.commune || '-'}` },
-      { label: 'Intervalle', value: moduleRule?.label || (moduleRule ? `${moduleRule.min}-${moduleRule.max}` : '-') },
       { label: 'Délai livraison', value: moduleRule?.delay || zone?.delay || '-' },
       { label: 'Frais de réception', value: this.formatPrice(this.getFee()) }
     ];
+    if (moduleRule?.label) {
+      lines.splice(3, 0, { label: 'Intervalle', value: moduleRule.label });
+    }
+    return lines;
   }
 
   getCartPayload() {
@@ -319,29 +338,30 @@ export class PrintingDeliveryController {
   renderSection() {
     const pickupPoints = this.getPickupPoints();
     const savedAddresses = this.getSavedAddresses();
-    const homeZone = this.findHomeZone();
-    const homeAvailable = Boolean(homeZone);
+    const homeZone = this.findHomeZone() || {};
+    const addressZoneSelected = Boolean(this.state.department && this.state.commune);
     const moduleRule = this.findModuleRule();
     const moduleRulesRequired = this.hasModuleRules();
-    const moduleRuleAvailable = !moduleRulesRequired || Boolean(moduleRule);
+    const moduleRuleAvailable = moduleRulesRequired ? Boolean(moduleRule) : Boolean(homeZone.department || homeZone.commune);
     const fee = this.getFee();
+    const hasSavedAddresses = savedAddresses.length > 0;
     return `
       <section class="printing-delivery-card">
         <style>
-          .printing-delivery-card{border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:#fffdf9;padding:1rem;display:grid;gap:.9rem}
-          .printing-delivery-methods{display:flex;gap:.7rem;flex-wrap:wrap}
-          .printing-delivery-method{border:1px solid rgba(31,30,28,.1);border-radius:999px;background:#fff;padding:.75rem 1rem;font-weight:800;color:#1F1E1C;cursor:pointer}
-          .printing-delivery-method.is-active{background:#1F1E1C;color:#F8F5EF}
-          .printing-delivery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.8rem}
-          .printing-delivery-field{display:grid;gap:.35rem;color:#6E6557;font-size:.9rem}
-          .printing-delivery-input{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:.9rem;background:#fff;padding:.78rem .85rem;font:inherit}
-          .printing-delivery-hint{border-radius:1rem;padding:.8rem .9rem;background:rgba(198,167,94,.1);color:#7A5D24;line-height:1.55}
-          .printing-delivery-hint.error{background:rgba(185,28,28,.08);color:#991b1b}
+          .printing-delivery-card{border:1px solid var(--sc-line);border-radius:var(--sc-radius);background:var(--sc-surface);padding:1.1rem;display:grid;gap:.85rem}
+          .printing-delivery-methods{display:flex;gap:.6rem;flex-wrap:wrap}
+          .printing-delivery-method{border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);background:#fff;padding:.6rem .9rem;font-weight:700;font-size:.86rem;color:var(--sc-ink);cursor:pointer}
+          .printing-delivery-method.is-active{background:var(--sc-navy);color:#fff;border-color:var(--sc-navy)}
+          .printing-delivery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}
+          .printing-delivery-field{display:grid;gap:.3rem;color:var(--sc-muted);font-size:.84rem}
+          .printing-delivery-input{width:100%;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);background:#fff;padding:.68rem .8rem;font:inherit;font-size:.9rem;color:var(--sc-ink)}
+          .printing-delivery-hint{border-radius:var(--sc-radius-sm);padding:.7rem .85rem;background:var(--sc-canvas);color:var(--sc-muted);line-height:1.55;font-size:.85rem}
+          .printing-delivery-hint.error{background:#fdecea;color:#991b1b}
           @media(max-width:780px){.printing-delivery-grid{grid-template-columns:1fr}}
         </style>
         <div>
-          <strong style="display:block;color:#1F1E1C;font-size:1.05rem;">Réception de votre impression</strong>
-          <p style="margin:.25rem 0 0;color:#6E6557;line-height:1.65;">Choisissez comment vous voulez recevoir votre travail d'impression.</p>
+          <strong style="display:block;color:var(--sc-ink);font-size:.98rem;">Réception de votre impression</strong>
+          <p style="margin:.2rem 0 0;color:var(--sc-muted);font-size:.86rem;line-height:1.55;">Choisissez comment vous voulez recevoir votre travail d'impression.</p>
         </div>
         <div class="printing-delivery-methods">
           <button type="button" class="printing-delivery-method ${this.state.method === 'pickup' ? 'is-active' : ''}" data-printing-delivery-method="pickup">Point de retrait gratuit</button>
@@ -356,7 +376,7 @@ export class PrintingDeliveryController {
           </label>
           <div class="printing-delivery-hint">Point de retrait gratuit. Vous passerez récupérer votre impression après confirmation.</div>
         ` : `
-          ${savedAddresses.length ? `
+          ${hasSavedAddresses ? `
             <label class="printing-delivery-field">
               <span>Adresse enregistrée</span>
               <select class="printing-delivery-input" data-printing-delivery-field="savedAddressId">
@@ -366,25 +386,27 @@ export class PrintingDeliveryController {
             </label>
           ` : `<div class="printing-delivery-hint">Aucune adresse sauvegardée trouvée. Vous pouvez saisir l'adresse de livraison ici.</div>`}
           <div class="printing-delivery-grid">
-            <label class="printing-delivery-field"><span>Adresse</span><input class="printing-delivery-input" data-printing-delivery-field="address" value="${this.escape(this.state.address)}" placeholder="Adresse complète"></label>
+            ${hasSavedAddresses ? '' : `<label class="printing-delivery-field"><span>Adresse</span><input class="printing-delivery-input" data-printing-delivery-field="address" value="${this.escape(this.state.address)}" placeholder="Adresse complète"></label>`}
             <label class="printing-delivery-field"><span>Téléphone</span><input class="printing-delivery-input" data-printing-delivery-field="phone" value="${this.escape(this.state.phone)}" placeholder="+509..."></label>
-            <label class="printing-delivery-field">
-              <span>Département</span>
-              <select class="printing-delivery-input" data-printing-delivery-field="department">
-                ${this.getDepartmentOptions(this.state.department)}
-              </select>
-            </label>
-            <label class="printing-delivery-field">
-              <span>Commune</span>
-              <select class="printing-delivery-input" data-printing-delivery-field="commune" ${this.state.department ? '' : 'disabled'}>
-                ${this.getCommuneOptions(this.state.department, this.state.commune)}
-              </select>
-            </label>
+            ${hasSavedAddresses ? '' : `
+              <label class="printing-delivery-field">
+                <span>Département</span>
+                <select class="printing-delivery-input" data-printing-delivery-field="department">
+                  ${this.getDepartmentOptions(this.state.department)}
+                </select>
+              </label>
+              <label class="printing-delivery-field">
+                <span>Commune</span>
+                <select class="printing-delivery-input" data-printing-delivery-field="commune" ${this.state.department ? '' : 'disabled'}>
+                  ${this.getCommuneOptions(this.state.department, this.state.commune)}
+                </select>
+              </label>
+            `}
           </div>
-          <div class="printing-delivery-hint ${homeAvailable && moduleRuleAvailable ? '' : 'error'}">
-            ${homeAvailable && moduleRuleAvailable
+          <div class="printing-delivery-hint ${addressZoneSelected && moduleRuleAvailable ? '' : 'error'}">
+            ${addressZoneSelected && moduleRuleAvailable
               ? `Livraison disponible: ${this.formatPrice(fee)}${moduleRule?.label ? ` - Intervalle: ${this.escape(moduleRule.label)}` : ''}${(moduleRule?.delay || homeZone.delay) ? ` - Délai: ${this.escape(moduleRule?.delay || homeZone.delay)}` : ''}`
-              : homeAvailable
+              : addressZoneSelected
                 ? `Livraison à domicile disponible dans cette zone, mais aucun prix n'est configuré pour ${this.escape(this.metricLabel)} ${this.getMetricQuantity()}.`
                 : 'Livraison à domicile indisponible pour cette zone. Choisissez un point de retrait ou contactez Smart Cut.'}
           </div>

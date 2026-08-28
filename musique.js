@@ -428,8 +428,8 @@ class MusiqueComponent {
 
       .vitch-music-consent__card {
         width: min(100%, 560px);
-        background: #1F1E1C;
-        color: #F5F1E8;
+        background: #0F1111;
+        color: #EAEDED;
         border: 1px solid rgba(198, 167, 94, 0.45);
         border-radius: 14px;
         box-shadow: 0 14px 35px rgba(0, 0, 0, 0.35);
@@ -444,7 +444,7 @@ class MusiqueComponent {
         height: 38px;
         border-radius: 999px;
         background: rgba(198, 167, 94, 0.2);
-        color: #C6A75E;
+        color: #FFA41C;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -474,7 +474,7 @@ class MusiqueComponent {
       .vitch-music-consent__check input {
         width: 16px;
         height: 16px;
-        accent-color: #C6A75E;
+        accent-color: #FFA41C;
       }
 
       .vitch-music-consent__actions {
@@ -487,7 +487,7 @@ class MusiqueComponent {
       .vitch-music-consent__actions button {
         border: 1px solid rgba(198, 167, 94, 0.55);
         background: transparent;
-        color: #F5F1E8;
+        color: #EAEDED;
         padding: 0.5rem 0.95rem;
         border-radius: 999px;
         font-size: 0.84rem;
@@ -496,8 +496,8 @@ class MusiqueComponent {
       }
 
       .vitch-music-consent__actions .btn-yes {
-        background: #C6A75E;
-        color: #1F1E1C;
+        background: #FFA41C;
+        color: #0F1111;
       }
 
       .vitch-music-consent__actions .btn-yes:hover {
@@ -515,8 +515,8 @@ class MusiqueComponent {
         height: 58px;
         border-radius: 999px;
         border: 1px solid rgba(198, 167, 94, 0.5);
-        background: linear-gradient(145deg, #1F1E1C 0%, #2f2b23 100%);
-        color: #F5F1E8;
+        background: linear-gradient(145deg, #0F1111 0%, #2f2b23 100%);
+        color: #EAEDED;
         display: inline-flex;
         align-items: center;
         justify-content: center;

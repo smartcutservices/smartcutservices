@@ -116,7 +116,7 @@ class SierraGallery {
         left: 0;
         width: 100%;
         height: 100%;
-        background: ${colors?.background?.general || '#1F1E1C'};
+        background: ${colors?.background?.general || '#0F1111'};
         transform: translateX(-100%);
         animation: reveal-${this.uniqueId} 1.2s cubic-bezier(0.77, 0, 0.175, 1) forwards;
       }
@@ -136,10 +136,10 @@ class SierraGallery {
       }
 
       .quote-char-${this.uniqueId}.quote-char-bold {
-        background: linear-gradient(135deg, ${colors?.text?.title || '#1F1E1C'}, ${colors?.text?.subtitle || '#C6A75E'});
+        background: linear-gradient(135deg, ${colors?.text?.title || '#0F1111'}, ${colors?.text?.subtitle || '#FFA41C'});
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        color: ${colors?.text?.subtitle || '#C6A75E'};
+        color: ${colors?.text?.subtitle || '#FFA41C'};
       }
       
       @keyframes charReveal-${this.uniqueId} {
@@ -152,7 +152,7 @@ class SierraGallery {
         position: absolute;
         width: 4px;
         height: 4px;
-        background: ${colors?.text?.subtitle || '#C6A75E'};
+        background: ${colors?.text?.subtitle || '#FFA41C'};
         border-radius: 50%;
         pointer-events: none;
         opacity: 0;
@@ -435,21 +435,21 @@ class SierraGallery {
     
     return {
       // Couleurs de texte
-      titleColor: colors?.text?.title || '#1F1E1C',
-      subtitleColor: colors?.text?.subtitle || '#C6A75E',
+      titleColor: colors?.text?.title || '#0F1111',
+      subtitleColor: colors?.text?.subtitle || '#FFA41C',
       bodyColor: colors?.text?.body || '#4A4A4A',
       buttonTextColor: colors?.text?.button || '#FFFFFF',
       
       // Couleurs de fond
-      buttonBgColor: colors?.background?.button || '#C6A75E',
+      buttonBgColor: colors?.background?.button || '#FFA41C',
       
       // Couleurs d'icônes
-      iconStandard: colors?.icon?.standard || '#1F1E1C',
-      iconHover: colors?.icon?.hover || '#C6A75E',
+      iconStandard: colors?.icon?.standard || '#0F1111',
+      iconHover: colors?.icon?.hover || '#FFA41C',
       
       // Polices
-      primaryFont: typography?.family || fonts?.primary || "'Cormorant Garamond', serif",
-      secondaryFont: fonts?.secondary || "'Manrope', sans-serif"
+      primaryFont: typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif",
+      secondaryFont: fonts?.secondary || "'Amazon Ember', sans-serif"
     };
   }
   

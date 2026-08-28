@@ -122,9 +122,9 @@ class SierraHero {
     const fonts = theme.getFonts?.() || {};
     const typography = theme.getTypography?.() || {};
 
-    const accent = colors?.background?.button || '#C6A75E';
-    const headingFont = typography?.family || fonts?.primary || "'Cormorant Garamond', serif";
-    const bodyFont = fonts?.secondary || "'Manrope', sans-serif";
+    const accent = colors?.background?.button || '#FFA41C';
+    const headingFont = typography?.family || fonts?.primary || "'Amazon Ember', Arial, Helvetica, sans-serif";
+    const bodyFont = fonts?.secondary || "'Amazon Ember', Arial, Helvetica, sans-serif";
 
     const style = document.createElement('style');
     style.id = 'smartcutPosterHeroStyles';
@@ -133,11 +133,13 @@ class SierraHero {
         --poster-hero-accent: ${accent};
         --poster-hero-heading: ${headingFont};
         --poster-hero-body: ${bodyFont};
-        --poster-hero-bg: #e9e4db;
-        --poster-hero-surface: rgba(255,255,255,0.08);
-        --poster-hero-text: #f8f5ef;
-        --poster-hero-muted: rgba(248,245,239,0.7);
-        --poster-hero-border: rgba(255,255,255,0.14);
+        --poster-hero-bg: #EAEDED;
+        --poster-hero-surface: #FFFFFF;
+        --poster-hero-text: #FFFFFF;
+        --poster-hero-muted: rgba(255,255,255,0.8);
+        --poster-hero-border: rgba(255,255,255,0.22);
+        --poster-hero-empty-text: #0F1111;
+        --poster-hero-empty-muted: #565959;
       }
 
       .posterHeroRoot913 {
@@ -185,11 +187,11 @@ class SierraHero {
         align-items: center;
         justify-content: center;
         width: 100%;
-        border-radius: 1.2rem;
+        border-radius: .5rem;
         overflow: hidden;
-        border: 1px solid rgba(184, 155, 123, 0.14);
-        box-shadow: 0 18px 44px rgba(31, 30, 28, 0.08);
-        background: #d8d2c8;
+        border: 1px solid #D5D9D9;
+        box-shadow: 0 2px 5px rgba(15, 17, 17, .15);
+        background: #FFFFFF;
       }
 
       .posterHeroPosterImage913 {
@@ -221,7 +223,7 @@ class SierraHero {
         gap: .45rem;
         padding: .65rem .75rem;
         border-radius: 999px;
-        background: rgba(8,8,8,0.34);
+        background: rgba(19,25,33,0.55);
         border: 1px solid var(--poster-hero-border);
         backdrop-filter: blur(12px);
         pointer-events: auto;
@@ -233,7 +235,7 @@ class SierraHero {
         border-radius: 999px;
         border: none;
         padding: 0;
-        background: rgba(255,255,255,0.24);
+        background: rgba(255,255,255,0.28);
         cursor: pointer;
         transition: transform .25s ease, background-color .25s ease;
       }
@@ -255,7 +257,7 @@ class SierraHero {
         height: 3rem;
         border-radius: 999px;
         border: 1px solid var(--poster-hero-border);
-        background: rgba(8,8,8,0.42);
+        background: rgba(19,25,33,0.6);
         backdrop-filter: blur(14px);
         color: var(--poster-hero-text);
         font-size: 1rem;
@@ -265,8 +267,8 @@ class SierraHero {
 
       .posterHeroArrow913:hover {
         transform: translateY(-2px);
-        border-color: rgba(198,167,94,0.55);
-        background: rgba(18,18,18,0.55);
+        border-color: rgba(255,164,28,0.6);
+        background: rgba(19,25,33,0.78);
       }
 
       .posterHeroEmpty913 {
@@ -275,26 +277,22 @@ class SierraHero {
         place-items: center;
         padding: 2rem;
         text-align: center;
-        color: var(--poster-hero-muted);
+        color: var(--poster-hero-empty-muted);
         font-family: var(--poster-hero-body);
       }
 
       .posterHeroEmpty913 strong {
         display: block;
-        color: var(--poster-hero-text);
+        color: var(--poster-hero-empty-text);
         font-size: 1rem;
         margin-bottom: .4rem;
         text-transform: uppercase;
-        letter-spacing: .18em;
+        letter-spacing: .1em;
       }
 
       @media (min-width: 768px) {
         .posterHeroRoot913 {
           margin-top: 2.4rem;
-        }
-
-        .posterHeroPoster913 {
-          border-radius: 1.6rem;
         }
 
         .posterHeroFooter913 {
@@ -304,9 +302,35 @@ class SierraHero {
         }
       }
 
+      @media (max-width: 767px) {
+        .posterHeroRoot913 {
+          margin-top: 0;
+        }
+
+        .posterHeroSlide913 {
+          padding: .35rem .35rem 0;
+        }
+
+        .posterHeroFooter913 {
+          left: .75rem;
+          right: .75rem;
+          bottom: .75rem;
+        }
+      }
+
       @media (min-width: 1024px) {
         .posterHeroRoot913 {
           margin-top: 0;
+        }
+
+        .posterHeroPoster913 {
+          height: clamp(340px, 44vh, 460px);
+        }
+
+        .posterHeroPosterImage913 {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
         }
 
         .posterHeroArrows913 {

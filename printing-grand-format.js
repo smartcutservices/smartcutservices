@@ -71,7 +71,7 @@ class PrintingGrandFormatPage {
   renderStep(step, title) {
     const active = this.currentStep === step;
     const done = this.currentStep > step || (step < 3 && this.getStepValidity(step));
-    return `<button type="button" class="quiz-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-go-step="${step}"><span class="quiz-step-index">${done ? '<i class="fas fa-check"></i>' : step}</span><span class="quiz-step-copy"><strong>Etape ${step}</strong><small>${title}</small></span></button>`;
+    return `<button type="button" class="pgf-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-go-step="${step}"><span class="pgf-step-dot">${done ? '<i class="fas fa-check"></i>' : step}</span><span class="pgf-step-label">${title}</span></button>${step < 3 ? '<span class="pgf-step-line"></span>' : ''}`;
   }
 
   render() {
@@ -80,50 +80,94 @@ class PrintingGrandFormatPage {
 
     this.container.innerHTML = `
       <style>
-        .quiz-shell{width:100%;max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1rem}
-        .quiz-heading{display:grid;gap:.5rem}.quiz-heading small{color:#9b7c38;text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:800}.quiz-heading h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.8rem);line-height:.92;color:#1F1E1C}.quiz-heading p{color:#6E6557;line-height:1.8;max-width:60ch}
-        .quiz-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}.quiz-step{border:1px solid rgba(31,30,28,.08);border-radius:1.4rem;background:rgba(255,255,255,.92);box-shadow:0 18px 36px rgba(31,30,28,.06);padding:.95rem 1rem;display:flex;gap:.8rem;align-items:center;text-align:left;cursor:pointer}.quiz-step.is-active{border-color:rgba(198,167,94,.35);background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(248,242,230,.94))}.quiz-step.is-done .quiz-step-index{background:#0f9f6e;color:#fff}.quiz-step-index{width:36px;height:36px;min-width:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(198,167,94,.14);color:#9b7c38;font-weight:800}.quiz-step-copy{display:grid;gap:.16rem}.quiz-step-copy strong{font-size:.86rem;color:#6E6557}.quiz-step-copy small{font-size:1rem;color:#1F1E1C;font-weight:800}
-        .quiz-panel{border:1px solid rgba(31,30,28,.08);border-radius:1.9rem;background:rgba(255,255,255,.94);box-shadow:0 24px 60px rgba(31,30,28,.08);padding:clamp(1.2rem,3vw,1.8rem);display:grid;gap:1rem}.quiz-head{display:grid;gap:.45rem}.quiz-head small{color:#9b7c38;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:800}.quiz-head h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,2.9rem);line-height:.94;color:#1F1E1C}.quiz-head p{color:#6E6557;line-height:1.8}
-        .quiz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.quiz-field{display:grid;gap:.5rem}.quiz-field span{font-size:.9rem;color:#6E6557;font-weight:700}.quiz-input,.quiz-textarea{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:1rem;padding:.95rem 1rem;background:#fff;font:inherit}.quiz-textarea{resize:vertical}
-        .quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}.quiz-summary-row{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}
-        .quiz-note{border-radius:1.2rem;background:rgba(198,167,94,.08);border:1px solid rgba(198,167,94,.16);color:#8A7450;padding:1rem 1.1rem;line-height:1.8}.quiz-note.is-error{background:rgba(185,28,28,.08);border-color:rgba(185,28,28,.12);color:#991b1b}
-        .quiz-actions{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}.quiz-btn{border:none;border-radius:999px;padding:.96rem 1.25rem;font:inherit;font-weight:800;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.65rem}.quiz-btn.primary{background:#1F1E1C;color:#F8F5EF}.quiz-btn.ghost{background:transparent;color:#6E6557;border:1px solid rgba(31,30,28,.1)}.quiz-btn.whatsapp{background:#25D366;color:#fff}.quiz-btn.is-disabled{opacity:.5;pointer-events:none}
-        @media (max-width:860px){.quiz-steps,.quiz-grid{grid-template-columns:1fr}}
+        .pgf-shell{width:100%;max-width:820px;margin:0 auto;padding:0 1rem 3rem;display:grid;gap:1.35rem}
+        .pgf-hero{background:var(--sc-navy);color:#fff;border-radius:var(--sc-radius);padding:2rem 1.9rem;display:flex;align-items:center;gap:1.15rem}
+        .pgf-hero-icon{width:54px;height:54px;min-width:54px;border-radius:14px;background:rgba(37,211,102,.2);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#25D366}
+        .pgf-hero h1{font-size:clamp(1.5rem,3vw,2.05rem);font-weight:800;margin-bottom:.35rem;letter-spacing:-.01em}
+        .pgf-hero p{color:rgba(255,255,255,.72);font-size:.9rem;line-height:1.55;max-width:56ch}
+        .pgf-error-banner{border-radius:var(--sc-radius-sm);background:#fdecea;border:1px solid #f3c6c2;color:#991b1b;padding:.85rem 1rem;font-size:.88rem}
+
+        .pgf-stepper{display:flex;align-items:center;padding:0 .2rem}
+        .pgf-step{display:flex;align-items:center;gap:.55rem;background:none;border:none;cursor:pointer;padding:.35rem 0}
+        .pgf-step-dot{width:26px;height:26px;min-width:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:800;background:var(--sc-canvas);color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pgf-step.is-active .pgf-step-dot{background:#25D366;color:#fff;border-color:#25D366}
+        .pgf-step.is-done .pgf-step-dot{background:#0f9f6e;color:#fff;border-color:#0f9f6e}
+        .pgf-step-label{font-size:.8rem;font-weight:700;color:var(--sc-muted)}
+        .pgf-step.is-active .pgf-step-label{color:var(--sc-ink)}
+        .pgf-step-line{flex:1;height:1px;background:var(--sc-line);margin:0 .6rem}
+
+        .pgf-panel{background:var(--sc-surface);border:1px solid var(--sc-line);border-radius:var(--sc-radius);padding:1.6rem;display:grid;gap:1.1rem}
+        .pgf-panel h2{font-size:1.3rem;font-weight:800;color:var(--sc-ink)}
+        .pgf-hint{color:var(--sc-muted);font-size:.87rem;margin-top:-.65rem;line-height:1.55}
+
+        .pgf-field{display:grid;gap:.4rem}
+        .pgf-field span{font-size:.8rem;font-weight:700;color:var(--sc-muted)}
+        .pgf-input,.pgf-textarea{width:100%;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);padding:.75rem .85rem;font:inherit;font-size:.94rem;background:#fff;color:var(--sc-ink)}
+        .pgf-input:focus,.pgf-textarea:focus{outline:none;border-color:#25D366;box-shadow:0 0 0 3px rgba(37,211,102,.14)}
+        .pgf-textarea{resize:vertical}
+        .pgf-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+        .pgf-summary{display:grid;gap:0;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);overflow:hidden}
+        .pgf-summary-row{display:flex;justify-content:space-between;gap:1rem;color:var(--sc-muted);font-size:.87rem;padding:.55rem .85rem;border-bottom:1px solid var(--sc-line);background:#fff}
+        .pgf-summary-row:last-child{border-bottom:none}
+        .pgf-summary-row strong{color:var(--sc-ink)}
+        .pgf-note{border-radius:var(--sc-radius-sm);background:#eefaf1;border:1px solid #bfe8c9;color:#0f6b2c;padding:.85rem .95rem;font-size:.86rem;line-height:1.6}
+
+        .pgf-actions{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center}
+        .pgf-btn{border:none;border-radius:var(--sc-radius-sm);padding:.78rem 1.1rem;font:inherit;font-weight:700;font-size:.9rem;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.6rem}
+        .pgf-btn.primary{background:var(--sc-orange);color:#0f1111;border:1px solid var(--sc-orange-border)}
+        .pgf-btn.ghost{background:transparent;color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pgf-btn.whatsapp{background:#25D366;color:#fff}
+        .pgf-btn.whatsapp:hover{background:#1fb958}
+        .pgf-btn.is-disabled{opacity:.5;pointer-events:none}
+        .pgf-status{font-size:.84rem}
+        @media (max-width: 640px) {
+          .pgf-hero{flex-direction:column;text-align:center}
+          .pgf-grid2{grid-template-columns:1fr}
+          .pgf-step-label{display:none}
+        }
       </style>
-      <section class="quiz-shell">
-        <header class="quiz-heading">
-          <small>Grand format</small>
-          <h1>Decrivez votre projet en quelques etapes et contactez notre equipe.</h1>
-          <p>Pour les stickers, bannieres et grands formats, nous vous guidons puis nous preparons votre message WhatsApp avec les informations utiles.</p>
+      <section class="pgf-shell">
+        <header class="pgf-hero">
+          <div class="pgf-hero-icon"><i class="fas fa-expand"></i></div>
+          <div>
+            <h1>Stickers & grand format</h1>
+            <p>Décrivez votre projet en trois étapes et envoyez-le directement à notre équipe sur WhatsApp pour un devis.</p>
+          </div>
         </header>
-        ${this.config.enabled === false ? `<div class="quiz-note is-error">Le module grand format est temporairement indisponible.</div>` : ''}
-        <div class="quiz-steps">${this.renderStep(1, 'Votre projet')}${this.renderStep(2, 'Dimensions')}${this.renderStep(3, 'WhatsApp')}</div>
+        ${this.config.enabled === false ? `<div class="pgf-error-banner">Le module grand format est temporairement indisponible.</div>` : ''}
+        <nav class="pgf-stepper">${this.renderStep(1, 'Votre projet')}${this.renderStep(2, 'Dimensions')}${this.renderStep(3, 'WhatsApp')}</nav>
         ${this.currentStep === 1 ? `
-          <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 1</small><h2>De quel type de projet s agit-il ?</h2><p>Choisissez le type de demande pour que notre equipe comprenne rapidement votre besoin.</p></div>
-            <label class="quiz-field"><span>Type de demande</span><select id="grandFormatType" class="quiz-input"><option value="Stickers" ${this.formState.type === 'Stickers' ? 'selected' : ''}>Stickers</option><option value="Banners" ${this.formState.type === 'Banners' ? 'selected' : ''}>Banners</option><option value="Impression Grand Format" ${this.formState.type === 'Impression Grand Format' ? 'selected' : ''}>Impression Grand Format</option><option value="Autre" ${this.formState.type === 'Autre' ? 'selected' : ''}>Autre</option></select></label>
-            <div class="quiz-actions"><button type="button" class="quiz-btn primary" data-next-step="2" ${this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
+          <section class="pgf-panel">
+            <h2>De quel type de projet s'agit-il ?</h2>
+            <label class="pgf-field"><span>Type de demande</span><select id="grandFormatType" class="pgf-input"><option value="Stickers" ${this.formState.type === 'Stickers' ? 'selected' : ''}>Stickers</option><option value="Banners" ${this.formState.type === 'Banners' ? 'selected' : ''}>Banners</option><option value="Impression Grand Format" ${this.formState.type === 'Impression Grand Format' ? 'selected' : ''}>Impression Grand Format</option><option value="Autre" ${this.formState.type === 'Autre' ? 'selected' : ''}>Autre</option></select></label>
+            <div class="pgf-actions"><button type="button" class="pgf-btn primary" data-next-step="2" ${this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
           </section>` : ''}
         ${this.currentStep === 2 ? `
-          <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 2</small><h2>Donnez les dimensions de votre projet</h2><p>Indiquez la largeur et la hauteur estimees pour que votre demande soit plus precise.</p></div>
-            <div class="quiz-grid">
-              <label class="quiz-field"><span>Largeur estimee</span><input id="grandFormatWidth" class="quiz-input" type="text" placeholder="Ex: 80 pouces" value="${this.escape(this.formState.width)}"></label>
-              <label class="quiz-field"><span>Hauteur estimee</span><input id="grandFormatHeight" class="quiz-input" type="text" placeholder="Ex: 33 pouces" value="${this.escape(this.formState.height)}"></label>
+          <section class="pgf-panel">
+            <h2>Dimensions estimées</h2>
+            <p class="pgf-hint">Une estimation suffit — l'équipe confirmera avec vous.</p>
+            <div class="pgf-grid2">
+              <label class="pgf-field"><span>Largeur</span><input id="grandFormatWidth" class="pgf-input" type="text" placeholder="Ex: 80 pouces" value="${this.escape(this.formState.width)}"></label>
+              <label class="pgf-field"><span>Hauteur</span><input id="grandFormatHeight" class="pgf-input" type="text" placeholder="Ex: 33 pouces" value="${this.escape(this.formState.height)}"></label>
             </div>
-            <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
+            <div class="pgf-actions"><button type="button" class="pgf-btn ghost" data-prev-step="1">Retour</button><button type="button" class="pgf-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
           </section>` : ''}
         ${this.currentStep === 3 ? `
-          <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 3</small><h2>Ajoutez vos details et contactez-nous</h2><p>Expliquez votre besoin puis envoyez votre demande a notre equipe via WhatsApp pour recevoir un devis.</p></div>
-            <label class="quiz-field"><span>Details</span><textarea id="grandFormatNotes" class="quiz-textarea" rows="5" placeholder="Expliquez le support, la finition, la quantite et toute autre precision utile.">${this.escape(this.formState.notes)}</textarea></label>
-            <div class="quiz-summary">
-              <div class="quiz-summary-row"><span>Type</span><strong>${this.escape(this.formState.type)}</strong></div>
-              <div class="quiz-summary-row"><span>Largeur</span><strong>${this.escape(this.formState.width)}</strong></div>
-              <div class="quiz-summary-row"><span>Hauteur</span><strong>${this.escape(this.formState.height)}</strong></div>
+          <section class="pgf-panel">
+            <h2>Détails et envoi</h2>
+            <label class="pgf-field"><span>Détails (support, finition, quantité...)</span><textarea id="grandFormatNotes" class="pgf-textarea" rows="4" placeholder="Toute précision utile pour le devis.">${this.escape(this.formState.notes)}</textarea></label>
+            <div class="pgf-summary">
+              <div class="pgf-summary-row"><span>Type</span><strong>${this.escape(this.formState.type)}</strong></div>
+              <div class="pgf-summary-row"><span>Largeur</span><strong>${this.escape(this.formState.width) || '-'}</strong></div>
+              <div class="pgf-summary-row"><span>Hauteur</span><strong>${this.escape(this.formState.height) || '-'}</strong></div>
             </div>
-            <div class="quiz-note">${this.escape(this.config.notes || DEFAULT_CONFIG.notes)}</div>
-            <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="2">Retour</button><a id="grandFormatWhatsappBtn" href="${link || '#'}" target="_blank" rel="noopener noreferrer" class="quiz-btn whatsapp ${!link ? 'is-disabled' : ''}"><i class="fab fa-whatsapp"></i>Demander un devis sur WhatsApp</a><span id="grandFormatStatus" style="color:${link ? '#0f9f6e' : '#b91c1c'};">${link ? 'Le message WhatsApp est pret.' : 'Ajoutez un numero WhatsApp dans le dashboard Impression.'}</span></div>
+            <div class="pgf-note">${this.escape(this.config.notes || DEFAULT_CONFIG.notes)}</div>
+            <div class="pgf-actions">
+              <button type="button" class="pgf-btn ghost" data-prev-step="2">Retour</button>
+              <a id="grandFormatWhatsappBtn" href="${link || '#'}" target="_blank" rel="noopener noreferrer" class="pgf-btn whatsapp ${!link ? 'is-disabled' : ''}"><i class="fab fa-whatsapp"></i>Demander un devis sur WhatsApp</a>
+              <span id="grandFormatStatus" class="pgf-status" style="color:${link ? '#0f9f6e' : '#b91c1c'};">${link ? 'Le message WhatsApp est pret.' : 'Ajoutez un numero WhatsApp dans le dashboard Impression.'}</span>
+            </div>
           </section>` : ''}
       </section>
     `;

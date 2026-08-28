@@ -12,6 +12,8 @@ class MobileMenu {
     this.categories = [];
     this.currentCategoryId = null;
     this.currentCategoryName = '';
+    this.categoryPreviewProductsPromise = null;
+    this.previouslyFocusedElement = null;
     this.unsubscribeTheme = null;
     
     this.init();
@@ -61,65 +63,60 @@ class MobileMenu {
     
     if (!this.menuElement) return;
     
-    // Appliquer les couleurs de fond
-    if (colors?.background?.general) {
-      this.menuElement.style.backgroundColor = colors.background.general;
-    }
-    
     // Appliquer les couleurs de texte via des variables CSS
     const style = document.createElement('style');
     style.id = 'mobile-menu-theme-styles';
     style.textContent = `
       .mobile-menu-header {
-        border-bottom-color: ${colors?.icon?.standard || '#C6A75E'}20 !important;
+        border-bottom-color: ${colors?.icon?.standard || '#FFA41C'}20 !important;
       }
       .mobile-menu-title {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
       }
       .mobile-menu-close {
-        color: ${colors?.icon?.standard || '#1F1E1C'} !important;
+        color: ${colors?.icon?.standard || '#0F1111'} !important;
       }
       .mobile-menu-close:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'}20 !important;
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        background: ${colors?.icon?.hover || '#FFA41C'}20 !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-category-name {
         color: ${colors?.text?.body || '#333333'} !important;
       }
       .mobile-category-card:hover .mobile-category-name {
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-category-image {
-        border-color: ${colors?.icon?.standard || '#C6A75E'} !important;
+        border-color: ${colors?.icon?.standard || '#FFA41C'} !important;
       }
       .mobile-category-card:hover .mobile-category-image {
-        border-color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        border-color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-column-title {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
-        border-bottom-color: ${colors?.icon?.standard || '#C6A75E'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
+        border-bottom-color: ${colors?.icon?.standard || '#FFA41C'} !important;
       }
       .mobile-line-item {
         color: ${colors?.text?.body || '#333333'} !important;
         background: ${colors?.background?.card || '#F5F5F5'} !important;
       }
       .mobile-line-item:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'}20 !important;
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        background: ${colors?.icon?.hover || '#FFA41C'}20 !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
       .mobile-featured-title {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
       }
       .mobile-featured-card {
         background: ${colors?.background?.card || '#F5F5F5'} !important;
-        border-color: ${colors?.icon?.standard || '#C6A75E'}20 !important;
+        border-color: ${colors?.icon?.standard || '#FFA41C'}20 !important;
       }
       .mobile-featured-card:hover {
-        border-color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        border-color: ${colors?.icon?.hover || '#FFA41C'} !important;
         transform: translateY(-2px);
       }
       .mobile-featured-card h4 {
-        color: ${colors?.text?.title || '#1F1E1C'} !important;
+        color: ${colors?.text?.title || '#0F1111'} !important;
       }
       .mobile-featured-card p {
         color: ${colors?.text?.body || '#666666'} !important;
@@ -128,11 +125,11 @@ class MobileMenu {
         color: ${colors?.text?.button || '#FFFFFF'} !important;
       }
       .mobile-back-arrow {
-        color: ${colors?.icon?.standard || '#1F1E1C'} !important;
+        color: ${colors?.icon?.standard || '#0F1111'} !important;
       }
       .mobile-back-arrow:hover {
-        background: ${colors?.icon?.hover || '#C6A75E'}20 !important;
-        color: ${colors?.icon?.hover || '#C6A75E'} !important;
+        background: ${colors?.icon?.hover || '#FFA41C'}20 !important;
+        color: ${colors?.icon?.hover || '#FFA41C'} !important;
       }
     `;
     
@@ -145,12 +142,17 @@ class MobileMenu {
   
   setupEvents() {
     const hamburger = document.getElementById('mobileHamburgerBtn');
+    const desktopAllBtn = document.getElementById('desktopAllNavBtn');
     const navAllBtn = document.getElementById('mobileNavAllBtn');
     const closeBtn = document.getElementById('closeMobileMenuBtn');
     const footerCloseBtn = document.getElementById('mobileMenuFooterCloseBtn');
     
     if (hamburger) {
       hamburger.addEventListener('click', () => this.open());
+    }
+
+    if (desktopAllBtn) {
+      desktopAllBtn.addEventListener('click', () => this.open());
     }
 
     if (navAllBtn) {
@@ -206,38 +208,134 @@ class MobileMenu {
     
     container.innerHTML = '';
     
-    this.categories.slice(0, 8).forEach(cat => {
-      const card = document.createElement('div');
+    this.categories.forEach(cat => {
+      const card = document.createElement('button');
+      card.type = 'button';
       card.className = 'mobile-category-card';
       card.setAttribute('data-category-id', cat.id);
       
-      // Utiliser l'image de la catégorie si disponible
-      const imageUrl = cat.image || './logo.png';
+      const configuredImage = cat.image || cat.imageUrl || cat.coverImage || cat.thumbnail;
+      const imageUrl = this.resolveImageUrl(configuredImage) || './logo.png';
+      const categoryIcon = this.getCategoryIcon(cat.name);
       
       card.innerHTML = `
-        <img src="${imageUrl}" class="mobile-category-image" alt="${cat.name}" onerror="this.onerror=null; this.src='./logo.png';">
-        <span class="mobile-category-name">${cat.name}</span>
+        <span class="mobile-category-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+        <span class="mobile-category-image-wrap">
+          <img src="${this.escapeHtml(imageUrl)}" class="mobile-category-image" alt="${this.escapeHtml(cat.name)}" onerror="this.onerror=null; this.parentElement.classList.add('is-fallback');">
+          <i class="${categoryIcon} mobile-category-fallback-icon" aria-hidden="true"></i>
+        </span>
+        <span class="mobile-category-name">${this.escapeHtml(cat.name)}</span>
       `;
       
       card.addEventListener('click', () => this.showColumnsLevel(cat.id, cat.name));
       container.appendChild(card);
+
+      if (!configuredImage) {
+        this.loadCategoryPreviewImage(cat, card.querySelector('.mobile-category-image'));
+      }
     });
+  }
+
+  async loadCategoryPreviewImage(category, imageElement) {
+    if (!category?.id || !imageElement) return;
+
+    try {
+      const productsRef = collection(db, 'products');
+      const snapshot = await getDocs(query(
+        productsRef,
+        where('categoryId', '==', category.id),
+        limit(10)
+      ));
+      let product = snapshot.docs
+        .map((document) => document.data())
+        .find((item) => (Array.isArray(item.images) && item.images.length) || item.image || item.imageUrl || item.mainImage);
+
+      if (!product) {
+        this.categoryPreviewProductsPromise ||= getDocs(query(productsRef, limit(80)))
+          .then((allProducts) => allProducts.docs.map((document) => document.data()));
+        const allProducts = await this.categoryPreviewProductsPromise;
+        const expectedValues = [category.id, category.name].map((value) => this.normalizeCategoryValue(value));
+        product = allProducts.find((item) => {
+          const itemValues = [item.categoryId, item.category, item.categoryName, item.productCategory]
+            .map((value) => this.normalizeCategoryValue(value));
+          const belongsToCategory = itemValues.some((value) => value && expectedValues.includes(value));
+          const hasImage = (Array.isArray(item.images) && item.images.length) || item.image || item.imageUrl || item.mainImage;
+          return belongsToCategory && hasImage;
+        });
+      }
+
+      const source = product && (
+        (Array.isArray(product.images) && product.images[0]) ||
+        product.image ||
+        product.imageUrl ||
+        product.mainImage
+      );
+      const resolved = this.resolveImageUrl(source);
+
+      if (resolved && imageElement.isConnected) {
+        imageElement.src = resolved;
+      }
+    } catch (error) {
+      console.warn('Aperçu de catégorie indisponible:', category.id, error);
+    }
+  }
+
+  normalizeCategoryValue(value) {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  getCategoryIcon(categoryName = '') {
+    const name = this.normalizeCategoryValue(categoryName);
+    if (name.includes('telecharg') || name.includes('numerique')) return 'fas fa-download';
+    if (name.includes('cosmet') || name.includes('beaute')) return 'fas fa-pump-soap';
+    if (name.includes('personnal') || name.includes('decor')) return 'fas fa-palette';
+    if (name.includes('electron') || name.includes('electri')) return 'fas fa-bolt';
+    if (name.includes('maison')) return 'fas fa-house';
+    if (name.includes('medical') || name.includes('sante')) return 'fas fa-kit-medical';
+    if (name.includes('vetement')) return 'fas fa-shirt';
+    if (name.includes('bijou') || name.includes('accessoire')) return 'far fa-gem';
+    return 'fas fa-box-open';
+  }
+
+  resolveImageUrl(value) {
+    const source = typeof value === 'string' ? value.trim() : '';
+    if (!source) return '';
+    if (/^(https?:|data:|blob:)/i.test(source) || source.startsWith('./') || source.startsWith('/')) {
+      return source;
+    }
+    return `./${source}`;
+  }
+
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
   
   open() {
     if (!this.menuElement) return;
+    this.previouslyFocusedElement = document.activeElement;
     
     document.getElementById('mobileCategoriesLevel').style.display = 'block';
     document.getElementById('mobileColumnsLevel').style.display = 'none';
     document.getElementById('mobileLinesLevel').style.display = 'none';
     
     this.menuElement.style.display = 'block';
+    this.menuElement.setAttribute('aria-hidden', 'false');
     this.menuElement.classList.add('is-open');
     this.menuElement.scrollTop = 0;
     const content = document.getElementById('mobileMenuContent');
     if (content) content.scrollTop = 0;
     setTimeout(() => {
       this.menuElement.style.opacity = '1';
+      document.getElementById('closeMobileMenuBtn')?.focus();
     }, 50);
     
     // Bloquer le scroll du body
@@ -248,10 +346,12 @@ class MobileMenu {
     if (!this.menuElement) return;
     
     this.menuElement.style.opacity = '0';
+    this.menuElement.setAttribute('aria-hidden', 'true');
     this.menuElement.classList.remove('is-open');
     setTimeout(() => {
       this.menuElement.style.display = 'none';
       document.body.style.overflow = '';
+      this.previouslyFocusedElement?.focus?.();
     }, 400);
   }
   
@@ -441,7 +541,7 @@ class MobileMenu {
                  onerror="this.onerror=null; this.src='./logo.png';">
             <div style="flex: 1;">
               <h4 style="font-family: var(--primary-font); font-weight: 600; margin-bottom: 0.2rem;">${product.name || 'Produit'}</h4>
-              <div style="font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#8B7E6B;margin-bottom:0.22rem;">${storeMeta.storeName}</div>
+              <div style="font-size:0.62rem;letter-spacing:0.08em;text-transform:uppercase;font-weight:700;color:#565959;margin-bottom:0.22rem;">${storeMeta.storeName}</div>
               <p style="font-size: 0.75rem; margin-bottom: 0.3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                 ${product.shortDescription || product.description || ''}
               </p>

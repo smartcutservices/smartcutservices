@@ -70,7 +70,7 @@ export function renderPublicServiceNav(activeId = '') {
 
       .public-service-nav__eyebrow {
         display: inline-block;
-        color: #c6a75e;
+        color: #ffa41c;
         text-transform: uppercase;
         letter-spacing: 0.14em;
         font-size: 0.72rem;
@@ -79,9 +79,9 @@ export function renderPublicServiceNav(activeId = '') {
 
       .public-service-nav__title {
         margin-top: 0.25rem;
-        font-family: 'Cormorant Garamond', serif;
+        font-family: 'Amazon Ember', Arial, sans-serif;
         font-size: 2rem;
-        color: #1f1e1c;
+        color: #0f1111;
       }
 
       .public-service-nav__hint {

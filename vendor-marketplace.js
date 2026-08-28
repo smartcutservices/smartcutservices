@@ -1,6 +1,5 @@
 import { db } from './firebase-init.js';
 import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { renderPublicServiceNav } from './public-service-nav.js';
 import { getProductPricing } from './product-display-utils.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
@@ -10,7 +9,6 @@ class VendorMarketplacePage {
     this.products = [];
     this.filteredProducts = [];
     this.vendors = new Map();
-    this.searchTerm = '';
     this.selectedVendorId = new URLSearchParams(window.location.search).get('vendor') || '';
     if (!this.container) return;
     this.init();
@@ -66,48 +64,31 @@ class VendorMarketplacePage {
   }
 
   getProductCard(product) {
-    const vendor = this.vendors.get(product.vendorId);
     const pricing = getProductPricing(product, product.price || 0);
     const isPro = this.isProVendor(product);
     const image = Array.isArray(product.images) && product.images[0]
       ? `<img src="${product.images[0]}" alt="${this.escape(product.name || 'Produit vendeur')}" style="width:100%;height:100%;object-fit:cover;">`
-      : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#c6a75e;font-weight:800;">VENDEUR</div>';
+      : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#ffa41c;font-weight:800;">VENDEUR</div>';
     return `
-      <article style="border:1px solid rgba(31,30,28,0.08);border-radius:1.7rem;background:rgba(255,255,255,0.94);box-shadow:0 18px 40px rgba(31,30,28,0.08);overflow:hidden;display:grid;">
-        <div style="position:relative;height:250px;background:linear-gradient(180deg, rgba(198,167,94,0.08), rgba(255,255,255,0.4));">
+      <article class="vendor-store-product">
+        <div class="vendor-store-product__media">
           ${image}
-          <span style="position:absolute;top:1rem;left:1rem;display:inline-flex;align-items:center;gap:.45rem;background:rgba(31,30,28,0.9);color:#F8F5EF;border-radius:999px;padding:.45rem .8rem;font-size:.78rem;font-weight:700;">
-            <i class="fas fa-store"></i>
-            Vendeur
-          </span>
           ${isPro ? `
-            <span style="position:absolute;top:1rem;right:1rem;display:inline-flex;align-items:center;gap:.4rem;background:#C6A75E;color:#1F1E1C;border-radius:999px;padding:.45rem .75rem;font-size:.74rem;font-weight:900;box-shadow:0 10px 24px rgba(198,167,94,.28);">
-              <i class="fas fa-shield-alt"></i>
-              Store verifie
+            <span class="vendor-store-product__verified" aria-label="Boutique vérifiée" title="Boutique vérifiée">
+              <i class="fas fa-check" aria-hidden="true"></i>
             </span>
           ` : ''}
         </div>
-        <div style="padding:1.2rem;display:grid;gap:.8rem;">
-          <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;">
-            <div>
-              <h3 style="font-family:'Cormorant Garamond',serif;font-size:1.8rem;line-height:1;">${this.escape(product.name || 'Produit vendeur')}</h3>
-              <p style="margin-top:.45rem;color:#6E6557;">${this.escape(vendor?.vendorName || product.vendorName || 'Boutique partenaire')}</p>
+        <div class="vendor-store-product__body">
+          <h3>${this.escape(product.name || 'Produit vendeur')}</h3>
+          <div class="vendor-store-product__purchase">
+            <div class="vendor-store-product__price">
+              <strong>${this.formatPrice(pricing.currentPrice)}</strong>
+              ${pricing.comparePrice ? `<span>${this.formatPrice(pricing.comparePrice)}</span>` : ''}
             </div>
-            <div style="display:grid;justify-items:end;gap:0.2rem;">
-              <strong style="font-size:1.05rem;color:#1F1E1C;">${this.formatPrice(pricing.currentPrice)}</strong>
-              ${pricing.comparePrice ? `<span style="font-size:0.78rem;color:#8B7E6B;text-decoration:line-through;">${this.formatPrice(pricing.comparePrice)}</span>` : ''}
-            </div>
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:.55rem;">
-            ${product.category ? `<span style="display:inline-flex;border-radius:999px;background:rgba(198,167,94,0.14);color:#8A6D2D;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">${this.escape(product.category)}</span>` : ''}
-            ${product.deliveryMode ? `<span style="display:inline-flex;border-radius:999px;background:rgba(31,30,28,0.06);color:#5E564C;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">${this.escape(product.deliveryMode)}</span>` : ''}
-            ${product.isDigitalProduct ? `<span style="display:inline-flex;border-radius:999px;background:rgba(16,185,129,0.12);color:#047857;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">Digital instantane</span>` : ''}
-            ${product.deliveryDelay ? `<span style="display:inline-flex;border-radius:999px;background:rgba(31,30,28,0.06);color:#5E564C;padding:.45rem .75rem;font-size:.78rem;font-weight:700;">Delai: ${this.escape(product.deliveryDelay)}</span>` : ''}
-          </div>
-          <p style="color:#6E6557;line-height:1.75;">${this.escape(product.shortDescription || product.longDescription || 'Produit vendeur valide et publie dans la section marketplace Smart Cut Services.')}</p>
-          <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
-            <button type="button" data-add-vendor-product="${product.id}" style="border:none;border-radius:999px;background:#1F1E1C;color:#F8F5EF;padding:.85rem 1rem;font-weight:800;cursor:pointer;">Ajouter au panier</button>
-            <span style="display:inline-flex;align-items:center;color:#6E6557;font-size:.84rem;">Stock: ${Number.isFinite(product.stock) ? product.stock : '-'}</span>
+            <button type="button" data-add-vendor-product="${product.id}" aria-label="Ajouter ${this.escape(product.name || 'ce produit')} au panier">
+              <i class="fas fa-bag-shopping" aria-hidden="true"></i> Ajouter
+            </button>
           </div>
         </div>
       </article>
@@ -116,34 +97,66 @@ class VendorMarketplacePage {
 
   render() {
     const selectedVendor = this.selectedVendorId ? this.vendors.get(this.selectedVendorId) : null;
+    const hasVendorFilter = Boolean(this.selectedVendorId);
     const pageTitle = selectedVendor
-      ? `Boutique ${this.escape(selectedVendor.shopName || selectedVendor.vendorName || 'vendeur')}`
-      : 'Selection vendeurs approuves';
-    const pageDescription = selectedVendor
-      ? `Retrouvez ici tous les produits actuellement disponibles chez ${this.escape(selectedVendor.shopName || selectedVendor.vendorName || 'ce vendeur partenaire')}.`
-      : 'Cette section publique reste separee du catalogue principal. Elle affiche uniquement les produits vendeur approuves et publies par l administration Smart Cut Services.';
+      ? this.escape(selectedVendor.shopName || selectedVendor.vendorName || 'Boutique vendeur')
+      : (hasVendorFilter ? 'Boutique indisponible' : 'Produits des vendeurs');
+    const productCount = this.filteredProducts.length;
+    const productCountLabel = `${productCount} produit${productCount > 1 ? 's' : ''}`;
 
     this.container.innerHTML = `
-      <section style="max-width:1280px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1.25rem;">
-        <article style="border:1px solid rgba(31,30,28,0.08);border-radius:2rem;background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,242,230,0.94));box-shadow:0 24px 60px rgba(31,30,28,0.08);padding:clamp(1.5rem,4vw,2.6rem);">
-          <small style="display:inline-block;color:#C6A75E;text-transform:uppercase;letter-spacing:.16em;font-size:.76rem;font-weight:700;margin-bottom:.8rem;">Marketplace vendeurs</small>
-          <h1 style="font-family:'Cormorant Garamond',serif;font-size:clamp(2.7rem,7vw,4.9rem);line-height:.92;margin:0;">${pageTitle}</h1>
-          <p style="margin:1rem 0 0;color:#6E6557;line-height:1.85;max-width:72ch;">${pageDescription}</p>
-          <div style="margin-top:1.25rem;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:1rem;">
-            <input id="vendorMarketplaceSearch" type="text" value="${this.escape(this.searchTerm)}" placeholder="Rechercher un produit, une categorie ou une boutique" style="width:100%;border:1px solid rgba(31,30,28,0.12);border-radius:999px;padding:.95rem 1.1rem;background:#fff;font:inherit;">
-            <button id="vendorMarketplaceOpenCart" type="button" style="border:1px solid rgba(31,30,28,0.12);border-radius:999px;background:#fff;color:#1F1E1C;padding:.95rem 1.1rem;font-weight:700;cursor:pointer;">Ouvrir le panier</button>
+      <style>
+        .vendor-store { max-width:1280px; margin:0 auto; padding:.45rem 1rem 3rem; }
+        .vendor-store__head { display:flex; align-items:end; justify-content:space-between; gap:1rem; padding:1.2rem 0; border-bottom:1px solid rgba(31,30,28,.12); }
+        .vendor-store__identity { display:flex; align-items:center; gap:.9rem; }
+        .vendor-store__mark { display:grid; place-items:center; width:48px; height:48px; flex:0 0 48px; border-radius:12px; background:#131921; color:#ffa41c; font-size:1.1rem; }
+        .vendor-store__head h1 { margin:0; color:#131921; font-size:clamp(1.55rem,3vw,2.25rem); line-height:1.1; letter-spacing:-.025em; }
+        .vendor-store__count { flex:0 0 auto; color:#6e6557; font-size:.85rem; font-weight:700; }
+        .vendor-store__grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:1rem; padding-top:1.25rem; }
+        .vendor-store-product { overflow:hidden; display:grid; align-content:start; border:1px solid rgba(31,30,28,.1); border-radius:14px; background:#fff; box-shadow:0 5px 18px rgba(31,30,28,.06); transition:transform .2s ease,box-shadow .2s ease; }
+        .vendor-store-product:hover { transform:translateY(-2px); box-shadow:0 10px 26px rgba(31,30,28,.1); }
+        .vendor-store-product__media { position:relative; aspect-ratio:1/1; overflow:hidden; background:#f4f1eb; }
+        .vendor-store-product__verified { position:absolute; top:.7rem; right:.7rem; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:#131921; color:#ffa41c; font-size:.7rem; box-shadow:0 4px 12px rgba(0,0,0,.16); }
+        .vendor-store-product__body { display:grid; gap:.85rem; padding:1rem; }
+        .vendor-store-product__body h3 { margin:0; min-height:2.5em; color:#1f1e1c; font-size:.98rem; line-height:1.25; }
+        .vendor-store-product__purchase { display:flex; align-items:center; justify-content:space-between; gap:.75rem; }
+        .vendor-store-product__price { display:grid; gap:.1rem; }
+        .vendor-store-product__price strong { color:#0f1111; font-size:.98rem; }
+        .vendor-store-product__price span { color:#777; font-size:.72rem; text-decoration:line-through; }
+        .vendor-store-product__purchase button { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; min-height:38px; border:0; border-radius:8px; padding:0 .8rem; background:#131921; color:#fff; font:inherit; font-size:.8rem; font-weight:800; cursor:pointer; }
+        .vendor-store__empty { margin-top:1.25rem; padding:2rem 1rem; border:1px dashed rgba(31,30,28,.16); border-radius:12px; background:rgba(255,255,255,.72); color:#6e6557; text-align:center; }
+        .vendor-store__empty i { display:block; margin-bottom:.65rem; color:#ffa41c; font-size:1.35rem; }
+        @media (max-width:600px) {
+          .vendor-store { padding-inline:.75rem; }
+          .vendor-store__head { align-items:flex-start; padding-top:.65rem; }
+          .vendor-store__mark { width:42px; height:42px; flex-basis:42px; }
+          .vendor-store__count { padding-top:.25rem; }
+          .vendor-store__grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+          .vendor-store-product { border-radius:10px; }
+          .vendor-store-product__body { gap:.65rem; padding:.75rem; }
+          .vendor-store-product__body h3 { font-size:.86rem; }
+          .vendor-store-product__purchase { align-items:stretch; flex-direction:column; }
+          .vendor-store-product__purchase button { width:100%; }
+        }
+      </style>
+      <section class="vendor-store">
+        <header class="vendor-store__head">
+          <div class="vendor-store__identity">
+            <span class="vendor-store__mark" aria-hidden="true"><i class="fas fa-store"></i></span>
+            <div>
+              <h1>${pageTitle}</h1>
+            </div>
           </div>
-        </article>
-
-        ${renderPublicServiceNav('marketplace')}
+          ${!hasVendorFilter || selectedVendor ? `<span class="vendor-store__count">${productCountLabel}</span>` : ''}
+        </header>
 
         ${this.filteredProducts.length === 0 ? `
-          <article style="border:1px dashed rgba(198,167,94,0.28);border-radius:1.7rem;background:rgba(255,255,255,0.72);padding:2rem;text-align:center;color:#6E6557;">
-            <i class="fas fa-store-slash" style="font-size:1.6rem;color:#C6A75E;margin-bottom:.8rem;"></i>
-            <p>Aucun produit vendeur public pour le moment.</p>
+          <article class="vendor-store__empty">
+            <i class="fas fa-store-slash" aria-hidden="true"></i>
+            <p>${hasVendorFilter ? 'Aucun produit disponible dans cette boutique.' : 'Aucun produit vendeur disponible pour le moment.'}</p>
           </article>
         ` : `
-          <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.15rem;">
+          <section class="vendor-store__grid" aria-label="Produits de la boutique">
             ${this.filteredProducts.map((product) => this.getProductCard(product)).join('')}
           </section>
         `}
@@ -152,30 +165,6 @@ class VendorMarketplacePage {
   }
 
   attachEvents() {
-    this.container.querySelector('#vendorMarketplaceSearch')?.addEventListener('input', (event) => {
-      const search = String(event.target.value || '').trim().toLowerCase();
-      this.searchTerm = event.target.value || '';
-      this.filteredProducts = this.products.filter((item) => {
-        const vendor = this.vendors.get(item.vendorId);
-        const haystack = [
-          item.name,
-          item.category,
-          item.shortDescription,
-          item.longDescription,
-          item.vendorName,
-          vendor?.vendorName,
-          vendor?.shopName
-        ].join(' ').toLowerCase();
-        return !search || haystack.includes(search);
-      });
-      this.render();
-      this.attachEvents();
-    });
-
-    this.container.querySelector('#vendorMarketplaceOpenCart')?.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('openCart'));
-    });
-
     this.container.querySelectorAll('[data-add-vendor-product]').forEach((button) => {
       button.addEventListener('click', () => {
         const product = this.products.find((item) => item.id === button.dataset.addVendorProduct);

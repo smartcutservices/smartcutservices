@@ -4,7 +4,7 @@ import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasej
 import theme from './theme-root.js';
 import MegaMenu from './mega-menu.js';
 import MobileMenu from './mobile-menu.js?v=20260607-1';
-import { getSearchManager } from './search.js';
+import { getSearchManager } from './search.js?v=20260816-4';
 
 class Navbar {
   constructor(options = {}) {
@@ -254,7 +254,7 @@ class Navbar {
     container.innerHTML = '';
     
     const colors = this.theme.getColors();
-    const iconHoverColor = colors?.icon?.hover || '#C6A75E';
+    const iconHoverColor = colors?.icon?.hover || '#FFA41C';
     
     this.desktopCategories.forEach(cat => {
       const catEl = document.createElement('span');

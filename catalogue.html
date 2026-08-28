@@ -1,37 +1,18 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1F1E1C">
+  <meta name="theme-color" content="#131921">
   <title>Catalogue | Smart Cut Services</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#2C2A29',
-            secondary: '#C6A75E',
-            accent: '#7A746B',
-            luxury: '#1F1E1C',
-            ivory: '#F5F1E8'
-          },
-          fontFamily: {
-            serif: ['Cormorant Garamond', 'serif'],
-            sans: ['Manrope', 'sans-serif']
-          }
-        }
-      }
-    };
-  </script>
+  <link rel="stylesheet" href="./tailwind-site.css?v=20260816-1">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260821-1">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; min-width: 0; }
     html, body { width: 100%; max-width: 100%; overflow-x: clip; }
     body {
-      font-family: 'Manrope', sans-serif;
+      font-family: 'Amazon Ember', Arial, Helvetica, sans-serif;
       color: #1f1e1c;
       background:
         radial-gradient(circle at top left, rgba(198, 167, 94, 0.14), transparent 24%),
@@ -40,15 +21,15 @@
     }
     #catalogue-page-root {
       width: 100%;
-      padding-top: calc(var(--announce-height, 44px) + var(--header-height, 90px));
+      padding-top: 0;
     }
     .catalogue-shell {
       width: 100%;
       padding: 0 0 3rem;
     }
-    @media (max-width: 1024px) {
+    @media (max-width: 1023px) {
       #catalogue-page-root {
-        padding-top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px));
+        padding-top: var(--header-height-mobile, 92px);
       }
     }
   </style>
@@ -63,7 +44,7 @@
   <div id="sierra-footer-root"></div>
 
   <script type="module">
-    const ASSET_VERSION = '20260714-1';
+    const ASSET_VERSION = '20260821-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     await import(`./firebase-init.js?v=${ASSET_VERSION}`);
 

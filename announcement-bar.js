@@ -254,7 +254,7 @@ class AnnouncementBar {
     // TEXT - Utilise text.body pour le texte des annonces
     const textColor = colors?.text?.title || '#FFFFFF';
     // TYPOGRAPHY - Utilise typography.family pour la police
-    const fontFamily = this.theme.getTypography().family || this.theme.getFonts().secondary || 'Manrope, sans-serif';
+    const fontFamily = this.theme.getTypography().family || this.theme.getFonts().secondary || 'Amazon Ember, sans-serif';
     
     this.textContainer.innerHTML = '';
     const textEl = document.createElement('span');
@@ -326,7 +326,7 @@ class AnnouncementBar {
     
     const colors = this.theme.getColors();
     const textColor = colors?.text?.title || '#FFFFFF';
-    const fontFamily = this.theme.getTypography().family || this.theme.getFonts().secondary || 'Manrope, sans-serif';
+    const fontFamily = this.theme.getTypography().family || this.theme.getFonts().secondary || 'Amazon Ember, sans-serif';
     
     this.textContainer.innerHTML = '';
     const textEl = document.createElement('span');

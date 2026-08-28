@@ -1,5 +1,6 @@
 // ============= COMPOSANT COMMENTAIRES - AVEC ANIMATIONS CRÉATIVES =============
 import theme from './theme-root.js';
+const COMMENTS_API_BASE = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
 const anime = typeof window !== 'undefined' && typeof window.anime === 'function'
   ? window.anime
   : Object.assign(() => null, {
@@ -120,6 +121,7 @@ class CommentaireComponent {
     this.comments = [];
     this.uniqueId = 'comment_' + Math.random().toString(36).substr(2, 9);
     this.scrollInterval = null;
+    this.commentsRefreshInterval = null;
     
     // S'abonner aux changements de thème
     this.unsubscribeTheme = this.theme.subscribe(() => {
@@ -132,6 +134,7 @@ class CommentaireComponent {
   init() {
     this.initializeComments();
     this.render();
+    this.subscribeToSavedComments();
     this.setupScrollAnimation();
     this.startScrolling();
     this.attachEvents();
@@ -204,7 +207,7 @@ class CommentaireComponent {
     if (this.animationPlayed) return;
     
     const container = this.container.querySelector(`.comment-oldmoney-${this.uniqueId}`);
-    const title = container.querySelector(`.comment-label-${this.uniqueId}`);
+    const title = container.querySelector(`.comment-header-${this.uniqueId}`);
     const inputWrapper = container.querySelector(`.comment-input-wrapper-${this.uniqueId}`);
     const cards = container.querySelectorAll(`.comment-card-${this.uniqueId}`);
     
@@ -286,216 +289,318 @@ class CommentaireComponent {
     const typography = this.theme.getTypography();
     
     // Couleurs selon la structure du thème
-    const primaryColor = colors?.text?.title || '#1F1E1C';
-    const secondaryColor = colors?.text?.subtitle || '#C6A75E';
+    const primaryColor = colors?.text?.title || '#0F1111';
+    const secondaryColor = colors?.text?.subtitle || '#FFA41C';
     const textColor = colors?.text?.body || '#2C3E50';
-    const lightBg = colors?.background?.card || '#F5F1E8';
+    const lightBg = colors?.background?.card || '#EAEDED';
     const borderColor = colors?.background?.card ? `${colors.background.card}80` : '#d4c8bc';
-    const buttonBg = colors?.background?.button || '#1F1E1C';
+    const buttonBg = colors?.background?.button || '#0F1111';
     const buttonText = colors?.text?.button || '#FFFFFF';
     
     // Polices
-    const primaryFont = typography?.family || fonts?.primary || "'Cormorant Garamond', serif";
-    const secondaryFont = fonts?.secondary || "'Manrope', sans-serif";
+    const primaryFont = typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif";
+    const secondaryFont = fonts?.secondary || "'Amazon Ember', Arial, sans-serif";
     
     // Style CSS avec les animations
     const style = document.createElement('style');
     style.textContent = `
       .comment-oldmoney-${this.uniqueId} {
-        font-family: ${primaryFont}, 'Times New Roman', serif;
-        width: 100%;
-        max-width: 800px;
+        width: calc(100% - clamp(1.5rem, 6vw, 5rem));
+        max-width: 1180px;
         margin: 0 auto;
-        background: transparent;
-        transform-origin: center;
         overflow: hidden;
-      }
-      
-      .comment-list-${this.uniqueId} {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        width: 100%;
-        max-height: 500px;
-        overflow-y: auto;
-        overflow-x: hidden;
-        padding-right: 0;
-        scroll-behavior: smooth;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-      }
-      
-      .comment-list-${this.uniqueId}::-webkit-scrollbar {
-        display: none;
-      }
-      
-      .comment-card-${this.uniqueId} {
-        background: white;
-        border: 1px solid ${borderColor};
-        padding: 1.25rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-        display: flex;
-        flex-direction: column;
+        color: #0b1f3a;
+        font-family: ${primaryFont}, Arial, sans-serif;
         transform-origin: center;
-        will-change: transform, opacity, box-shadow;
       }
-      
-      .comment-card-${this.uniqueId}:hover {
-        box-shadow: 0 6px 16px rgba(0,0,0,0.06);
-        border-color: ${secondaryColor};
-      }
-      
-      .comment-card-content-${this.uniqueId} {
+
+      .comment-header-${this.uniqueId} {
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        height: 100%;
-      }
-      
-      .comment-card-text-${this.uniqueId} {
-        font-size: 1rem;
-        line-height: 1.5;
-        color: ${textColor};
-        font-style: italic;
-        quotes: "«" "»";
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-height: 4.5rem;
-        position: relative;
-      }
-      
-      .comment-card-text-${this.uniqueId}::before {
-        content: "« ";
-        color: ${secondaryColor};
-        font-size: 1.2rem;
-        opacity: 0.7;
-      }
-      
-      .comment-card-text-${this.uniqueId}::after {
-        content: " »";
-        color: ${secondaryColor};
-        font-size: 1.2rem;
-        opacity: 0.7;
-      }
-      
-      .comment-card-time-${this.uniqueId} {
-        font-size: 0.75rem;
-        color: ${secondaryColor};
-        text-align: right;
-        font-family: ${secondaryFont};
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 0.5rem;
-        opacity: 0.8;
-        transition: opacity 0.3s ease;
-      }
-      
-      .comment-card-${this.uniqueId}:hover .comment-card-time-${this.uniqueId} {
-        opacity: 1;
-      }
-      
-      .comment-card-time-${this.uniqueId}.just-now {
-        color: ${primaryColor};
-        font-weight: 600;
-      }
-      
-      .comment-form-${this.uniqueId} {
-        width: 100%;
-        border-top: 1px solid ${borderColor};
-        padding-top: 2rem;
-        margin-top: 1rem;
-        transform-origin: top;
-      }
-      
-      .comment-label-${this.uniqueId} {
-        font-family: ${primaryFont};
-        font-size: 1.2rem;
-        color: ${primaryColor};
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1.25rem;
         margin-bottom: 1rem;
-        display: block;
-        font-weight: 500;
-        letter-spacing: 0.5px;
-        transform-origin: left;
+        padding: 0 .25rem;
       }
-      
-      .comment-input-wrapper-${this.uniqueId} {
-        display: flex;
-        gap: 0.5rem;
-        width: 100%;
-        transform-origin: top;
-      }
-      
-      .comment-input-${this.uniqueId} {
-        flex: 1;
-        padding: 0.9rem 1.2rem;
-        border: 1px solid ${borderColor};
-        background: white;
-        font-family: ${secondaryFont};
-        font-size: 0.95rem;
-        color: ${textColor};
-        transition: all 0.2s ease;
-        outline: none;
-      }
-      
-      .comment-input-${this.uniqueId}:focus {
-        border-color: ${primaryColor};
-        background: ${lightBg};
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      }
-      
-      .comment-input-${this.uniqueId}::placeholder {
-        color: ${borderColor};
-        font-style: italic;
-        font-size: 0.9rem;
-      }
-      
-      .comment-button-${this.uniqueId} {
-        padding: 0.9rem 2rem;
-        background: ${buttonBg};
-        color: ${buttonText};
-        border: none;
-        font-family: ${secondaryFont};
-        font-size: 0.9rem;
-        font-weight: 500;
-        letter-spacing: 0.5px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-        border: 1px solid ${buttonBg};
+
+      .comment-title-${this.uniqueId} {
         position: relative;
-        overflow: hidden;
+        margin: 0 0 .2rem;
+        color: #0b1f3a;
+        font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+        font-weight: 750;
+        letter-spacing: -.025em;
+        line-height: 1.15;
       }
-      
-      .comment-button-${this.uniqueId}::after {
+
+      .comment-title-${this.uniqueId}::after {
         content: '';
         position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
+        bottom: -.3rem;
+        left: 0;
+        width: 1.4rem;
+        height: 2px;
+        border-radius: 999px;
+        background: #f2b01e;
+      }
+
+      .comment-list-${this.uniqueId} {
+        display: grid;
+        gap: .65rem;
+        width: 100%;
+        margin-bottom: 1rem;
+        overflow: visible;
+      }
+
+      .comment-card-${this.uniqueId} {
+        position: relative;
+        display: grid;
+        grid-template-columns: 2.9rem minmax(0, 1fr) auto;
+        align-items: center;
+        gap: .9rem;
+        min-height: 6.25rem;
+        padding: .85rem 1.1rem;
+        overflow: hidden;
+        border: 1px solid #e6eaf0;
+        border-left: 3px solid #0b4f93;
+        border-radius: .75rem;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(14, 37, 67, .055);
+        transition: transform .2s ease, box-shadow .2s ease;
+        transform-origin: center;
+        will-change: transform, opacity;
+      }
+
+      .comment-card-${this.uniqueId}:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 7px 18px rgba(14, 37, 67, .09);
+      }
+
+      .comment-avatar-${this.uniqueId} {
+        display: grid;
+        place-items: center;
+        width: 2.9rem;
+        height: 2.9rem;
         border-radius: 50%;
-        background: rgba(255,255,255,0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
+        background: linear-gradient(145deg, #092b58, #06162e);
+        color: #fff;
+        font-size: .76rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
       }
-      
-      .comment-button-${this.uniqueId}:hover::after {
-        width: 300px;
-        height: 300px;
+
+      .comment-card-content-${this.uniqueId} {
+        display: grid;
+        gap: .28rem;
+        min-width: 0;
       }
-      
+
+      .comment-card-head-${this.uniqueId} {
+        display: grid;
+        justify-items: start;
+        gap: .14rem;
+      }
+
+      .comment-reviewer-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+      }
+
+      .comment-reviewer-${this.uniqueId} strong {
+        color: #102746;
+        font-size: .68rem;
+        font-weight: 850;
+      }
+
+      .comment-reviewer-${this.uniqueId} span {
+        color: #3f4d61;
+        font-size: .64rem;
+        font-weight: 800;
+        letter-spacing: .045em;
+        text-transform: uppercase;
+      }
+
+      .comment-card-stars-${this.uniqueId} {
+        display: inline-flex;
+        gap: .1rem;
+        color: #f4aa18;
+        font-size: .7rem;
+      }
+
+      .comment-card-text-${this.uniqueId} {
+        display: -webkit-box;
+        overflow: hidden;
+        color: ${textColor};
+        font-size: .84rem;
+        font-style: normal;
+        line-height: 1.42;
+        text-overflow: ellipsis;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+
+      .comment-card-side-${this.uniqueId} {
+        display: grid;
+        align-self: stretch;
+        justify-items: end;
+        min-width: 5.5rem;
+      }
+
+      .comment-quote-${this.uniqueId} {
+        display: none;
+      }
+
+      .comment-card-time-${this.uniqueId} {
+        align-self: end;
+        color: #6a7585;
+        font-family: ${secondaryFont};
+        font-size: .68rem;
+        text-align: right;
+      }
+
+      .comment-card-time-${this.uniqueId}.just-now {
+        color: #08783e;
+        font-weight: 700;
+      }
+
+      .comment-form-${this.uniqueId} {
+        display: grid;
+        grid-template-columns: minmax(13rem, .58fr) minmax(0, 1.75fr);
+        align-items: center;
+        gap: 1.25rem;
+        width: 100%;
+        margin-top: 1rem;
+        padding: 1rem 1.15rem;
+        border: 1px solid #e1e7f4;
+        border-radius: .75rem;
+        background: #f8f9fb;
+        box-shadow: 0 4px 12px rgba(14, 37, 67, .045);
+        transform-origin: top;
+      }
+
+      .comment-form-intro-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding-right: 1rem;
+        border-right: 1px solid #dce3f2;
+      }
+
+      .comment-form-icon-${this.uniqueId} {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        flex: 0 0 2.75rem;
+        border: 1px solid #fff;
+        border-radius: 50%;
+        background: #edf1ff;
+        color: #0b2f62;
+        font-size: .85rem;
+        box-shadow: none;
+      }
+
+      .comment-form-icon-${this.uniqueId} .comment-pen-${this.uniqueId} {
+        position: absolute;
+        right: .2rem;
+        bottom: .2rem;
+        padding: .12rem;
+        border-radius: 50%;
+        background: #edf1ff;
+        color: #f2b01e;
+        font-size: .48rem;
+      }
+
+      .comment-label-${this.uniqueId} {
+        display: block;
+        margin-bottom: .25rem;
+        color: ${primaryColor};
+        font-family: ${primaryFont};
+        font-size: .86rem;
+        font-weight: 750;
+        letter-spacing: -.015em;
+        transform-origin: left;
+      }
+
+      .comment-form-help-${this.uniqueId} {
+        margin: 0;
+        color: #657185;
+        font-size: .72rem;
+        line-height: 1.35;
+      }
+
+      .comment-input-wrapper-${this.uniqueId} {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: .75rem;
+        width: 100%;
+        transform-origin: top;
+      }
+
+      .comment-input-${this.uniqueId} {
+        width: 100%;
+        min-height: 4.5rem;
+        padding: .75rem .85rem;
+        resize: none;
+        border: 1px solid #ccd4df;
+        border-radius: .75rem;
+        outline: none;
+        background: #fff;
+        color: ${textColor};
+        font-family: ${secondaryFont};
+        font-size: .82rem;
+        line-height: 1.4;
+        transition: border-color .2s ease, box-shadow .2s ease;
+      }
+
+      .comment-input-${this.uniqueId}:focus {
+        border-color: #0b5fa8;
+        box-shadow: 0 0 0 3px rgba(11,95,168,.13);
+      }
+
+      .comment-input-${this.uniqueId}::placeholder {
+        color: #8a94a4;
+      }
+
+      .comment-action-${this.uniqueId} {
+        display: grid;
+        justify-items: stretch;
+        gap: .4rem;
+        min-width: 10.5rem;
+      }
+
+      .comment-button-${this.uniqueId} {
+        min-height: 2.8rem;
+        padding: .6rem 1rem;
+        border: 1px solid #e5a20c;
+        border-radius: .7rem;
+        background: linear-gradient(135deg, #e6a516, #ffbd2e);
+        color: #081c38;
+        cursor: pointer;
+        font-family: ${secondaryFont};
+        font-size: .8rem;
+        font-weight: 800;
+        white-space: nowrap;
+        box-shadow: 0 4px 10px rgba(214,147,8,.18);
+        transition: transform .15s ease, filter .15s ease;
+      }
+
       .comment-button-${this.uniqueId}:hover {
-        background: transparent;
-        color: ${buttonBg};
+        filter: brightness(.97);
+        transform: translateY(-1px);
       }
-      
-      .comment-button-${this.uniqueId}:active {
-        transform: scale(0.95);
+
+      .comment-anonymous-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        color: #697589;
+        font-size: .68rem;
       }
       
       .new-message-indicator-${this.uniqueId} {
@@ -513,26 +618,25 @@ class CommentaireComponent {
         100% { opacity: 0.6; }
       }
       
+      @media (max-width: 900px) {
+        .comment-form-${this.uniqueId} { grid-template-columns: 1fr; gap: .85rem; }
+        .comment-form-intro-${this.uniqueId} { padding: 0 0 .75rem; border-right: 0; border-bottom: 1px solid #dce3f2; }
+      }
+
       @media (max-width: 640px) {
-        .comment-list-${this.uniqueId} {
-          max-height: 400px;
-        }
-        
-        .comment-card-${this.uniqueId} {
-          padding: 1rem;
-        }
-        
-        .comment-card-text-${this.uniqueId} {
-          font-size: 0.9rem;
-        }
-        
-        .comment-input-wrapper-${this.uniqueId} {
-          flex-direction: column;
-        }
-        
-        .comment-button-${this.uniqueId} {
-          width: 100%;
-        }
+        .comment-oldmoney-${this.uniqueId} { width: calc(100% - 1rem); }
+        .comment-header-${this.uniqueId} { align-items: flex-start; flex-direction: column; gap: .8rem; padding: 0 .15rem; }
+        .comment-card-${this.uniqueId} { grid-template-columns: 2.55rem minmax(0, 1fr); gap: .65rem; min-height: 0; padding: .8rem; }
+        .comment-avatar-${this.uniqueId} { width: 2.55rem; height: 2.55rem; }
+        .comment-card-side-${this.uniqueId} { grid-column: 2; grid-row: 2; display: flex; justify-content: flex-end; min-width: 0; }
+        .comment-quote-${this.uniqueId} { display: none; }
+        .comment-card-time-${this.uniqueId} { align-self: auto; }
+        .comment-card-text-${this.uniqueId} { font-size: .8rem; -webkit-line-clamp: 3; }
+        .comment-form-${this.uniqueId} { margin-top: .85rem; padding: .85rem; }
+        .comment-form-icon-${this.uniqueId} { display: none; }
+        .comment-input-wrapper-${this.uniqueId} { grid-template-columns: 1fr; }
+        .comment-action-${this.uniqueId} { min-width: 0; }
+        .comment-button-${this.uniqueId} { width: 100%; }
       }
     `;
     
@@ -546,20 +650,40 @@ class CommentaireComponent {
     // HTML
     this.container.innerHTML = `
       <div class="comment-oldmoney-${this.uniqueId}">
+        <div class="comment-header-${this.uniqueId}">
+          <div>
+            <h2 class="comment-title-${this.uniqueId}">${this.escapeHtml(this.options.title || 'Avis clients')}</h2>
+          </div>
+        </div>
+
         <div class="comment-list-${this.uniqueId}" id="commentList-${this.uniqueId}">
           ${this.renderCommentList()}
         </div>
         
         <div class="comment-form-${this.uniqueId}">
-          <label class="comment-label-${this.uniqueId}">Laissez un message vous aussi</label>
+          <div class="comment-form-intro-${this.uniqueId}">
+            <div class="comment-form-icon-${this.uniqueId}" aria-hidden="true">
+              <i class="fas fa-comment-dots"></i>
+              <i class="fas fa-pen comment-pen-${this.uniqueId}"></i>
+            </div>
+            <div>
+              <label class="comment-label-${this.uniqueId}" for="commentInput-${this.uniqueId}">Partagez votre avis</label>
+              <p class="comment-form-help-${this.uniqueId}">Votre retour aide notre communauté à mieux choisir.</p>
+            </div>
+          </div>
           <div class="comment-input-wrapper-${this.uniqueId}">
-            <input type="text" 
-                   class="comment-input-${this.uniqueId}" 
-                   placeholder="Votre message..."
-                   id="commentInput-${this.uniqueId}">
-            <button class="comment-button-${this.uniqueId}" id="sendButton-${this.uniqueId}">
-              Envoyer
-            </button>
+            <textarea class="comment-input-${this.uniqueId}"
+                      placeholder="${this.escapeHtml(this.options.placeholder || 'Écrivez votre message...')}"
+                      id="commentInput-${this.uniqueId}"
+                      maxlength="500"
+                      rows="3"></textarea>
+            <div class="comment-action-${this.uniqueId}">
+              <button type="button" class="comment-button-${this.uniqueId}" id="sendButton-${this.uniqueId}">
+                <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                ${this.escapeHtml(this.options.buttonText || 'Envoyer')}
+              </button>
+              <span class="comment-anonymous-${this.uniqueId}"><i class="fas fa-shield-halved" aria-hidden="true"></i> Message anonyme</span>
+            </div>
           </div>
         </div>
         
@@ -580,19 +704,108 @@ class CommentaireComponent {
   
   renderCommentList() {
     const displayComments = this.comments.slice(-3).reverse();
+    const reviewerProfiles = [
+      { name: 'Mélissa', initials: 'M' },
+      { name: 'Pierre', initials: 'P' },
+      { name: 'Jean', initials: 'J' }
+    ];
     
-    return displayComments.map(comment => {
+    return displayComments.map((comment, index) => {
       const timeClass = comment.time === "à l'instant" ? 'just-now' : '';
+      const reviewer = ['user', 'database'].includes(comment.type)
+        ? { name: comment.type === 'user' ? 'Vous' : 'Client Smart Cut', initials: comment.type === 'user' ? 'VO' : 'SC' }
+        : reviewerProfiles[index % reviewerProfiles.length];
       
       return `
         <div class="comment-card-${this.uniqueId}" data-id="${comment.id}" data-type="${comment.type}">
+          <div class="comment-avatar-${this.uniqueId}" aria-hidden="true">${reviewer.initials}</div>
           <div class="comment-card-content-${this.uniqueId}">
-            <div class="comment-card-text-${this.uniqueId}">${comment.text}</div>
-            <div class="comment-card-time-${this.uniqueId} ${timeClass}">${comment.time}</div>
+            <div class="comment-card-head-${this.uniqueId}">
+              <div class="comment-reviewer-${this.uniqueId}">
+                <strong>${reviewer.name}</strong>
+                <span>Avis client</span>
+              </div>
+              <div class="comment-card-stars-${this.uniqueId}" aria-label="5 étoiles sur 5">${this.renderStars()}</div>
+            </div>
+            <div class="comment-card-text-${this.uniqueId}">${this.escapeHtml(comment.text)}</div>
+          </div>
+          <div class="comment-card-side-${this.uniqueId}">
+            <i class="fas fa-quote-right comment-quote-${this.uniqueId}" aria-hidden="true"></i>
+            <div class="comment-card-time-${this.uniqueId} ${timeClass}">${this.escapeHtml(comment.time)}</div>
           </div>
         </div>
       `;
     }).join('');
+  }
+
+  renderStars() {
+    return '<i class="fas fa-star"></i>'.repeat(5);
+  }
+
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  formatSavedCommentTime(value) {
+    const date = value?.toDate?.() || (value ? new Date(value) : null);
+    if (!date || Number.isNaN(date.getTime())) return 'à l’instant';
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+    if (elapsedSeconds < 60) return 'à l’instant';
+    if (elapsedSeconds < 3600) return `il y a ${Math.floor(elapsedSeconds / 60)} min`;
+    if (elapsedSeconds < 86400) return `il y a ${Math.floor(elapsedSeconds / 3600)} h`;
+    const days = Math.floor(elapsedSeconds / 86400);
+    return days === 1 ? 'hier' : `il y a ${days} j`;
+  }
+
+  mergeSavedAndSimulatedComments(savedComments, simulatedComments) {
+    const saved = savedComments.slice(-23);
+    const simulated = simulatedComments.slice(-7);
+    if (!saved.length) return simulated;
+    if (saved.length === 1) return [...simulated, ...saved].slice(-30);
+
+    // Le dernier trio visible contient deux vrais avis et un message de simulation.
+    return [
+      ...simulated.slice(0, -1),
+      ...saved.slice(0, -2),
+      simulated.at(-1),
+      ...saved.slice(-2)
+    ].filter(Boolean).slice(-30);
+  }
+
+  subscribeToSavedComments() {
+    const loadComments = async () => {
+      try {
+        const response = await fetch(`${COMMENTS_API_BASE}/listSiteComments?limit=30`, {
+          headers: { Accept: 'application/json' },
+          cache: 'no-store'
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.ok !== true) throw new Error(payload.error || 'comments-load-failed');
+        const savedComments = (Array.isArray(payload.comments) ? payload.comments : [])
+          .filter((comment) => String(comment.text || '').trim())
+          .map((comment) => ({
+            id: comment.id,
+            text: String(comment.text || '').trim(),
+            time: this.formatSavedCommentTime(comment.createdAt),
+            type: 'database'
+          }))
+          .reverse();
+        const simulatedComments = this.comments.filter((comment) => comment.type === 'preset').slice(-7);
+        this.comments = this.mergeSavedAndSimulatedComments(savedComments, simulatedComments);
+        this.updateCommentList(false);
+      } catch (error) {
+        console.warn('[COMMENTS] Chargement des avis enregistrés indisponible:', error?.message || error);
+      }
+    };
+
+    loadComments();
+    if (this.commentsRefreshInterval) clearInterval(this.commentsRefreshInterval);
+    this.commentsRefreshInterval = setInterval(loadComments, 30000);
   }
   
   startScrolling() {
@@ -608,22 +821,18 @@ class CommentaireComponent {
         type: 'preset'
       };
       
-      this.comments.push(newComment);
-      
-      if (this.comments.length > 10) {
-        this.comments.shift();
-      }
+      const savedComments = this.comments
+        .filter((comment) => comment.type === 'database')
+        .slice(-23);
+      const simulatedComments = [
+        ...this.comments.filter((comment) => comment.type === 'preset'),
+        newComment
+      ].slice(-7);
+
+      // Les avis enregistres restent prioritaires; le flux simule ne les evince jamais.
+      this.comments = this.mergeSavedAndSimulatedComments(savedComments, simulatedComments);
       
       this.updateCommentList(true); // true pour animation spéciale
-      
-      const indicator = document.getElementById(`indicator-${this.uniqueId}`);
-      if (indicator) {
-        indicator.style.display = 'block';
-        indicator.innerHTML = '<i class="fas fa-sync"></i> Nouveau message';
-        setTimeout(() => {
-          indicator.style.display = 'none';
-        }, 2000);
-      }
       
     }, 6000);
   }
@@ -633,7 +842,6 @@ class CommentaireComponent {
     if (!list) return;
     
     list.innerHTML = this.renderCommentList();
-    
     const cards = list.querySelectorAll(`.comment-card-${this.uniqueId}`);
     if (cards.length > 0) {
       const newestCard = cards[0];
@@ -648,47 +856,50 @@ class CommentaireComponent {
     this.animateScroll(list);
   }
   
-  addUserComment(text) {
+  async addUserComment(text) {
     if (!text.trim()) return;
-    
-    const newComment = {
-      id: Date.now(),
-      text: text.trim(),
-      time: "à l'instant",
-      type: 'user'
-    };
-    
-    this.comments.push(newComment);
-    
-    if (this.comments.length > 10) {
-      this.comments.shift();
-    }
-    
-    this.updateCommentList(false);
-    
+    const cleanText = text.trim().slice(0, 500);
     const input = document.getElementById(`commentInput-${this.uniqueId}`);
-    if (input) input.value = '';
-    
     const button = document.getElementById(`sendButton-${this.uniqueId}`);
     if (button) {
-      this.animateButton(button);
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Envoi...';
     }
-    
+
+    try {
+      const response = await fetch(`${COMMENTS_API_BASE}/submitSiteComment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ text: cleanText })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.ok !== true) {
+        throw new Error(payload.message || payload.error || 'comment-save-failed');
+      }
+      if (input) input.value = '';
+      this.showSubmissionIndicator(true, 'Votre message a été enregistré');
+      this.subscribeToSavedComments();
+    } catch (error) {
+      console.error('[COMMENTS] Enregistrement impossible:', error);
+      this.showSubmissionIndicator(false, 'Impossible d’enregistrer le message. Réessayez.');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = `<i class="fas fa-paper-plane" aria-hidden="true"></i> ${this.escapeHtml(this.options.buttonText || 'Envoyer')}`;
+        this.animateButton(button);
+      }
+    }
+  }
+
+  showSubmissionIndicator(success, message) {
     const indicator = document.getElementById(`indicator-${this.uniqueId}`);
     if (indicator) {
       indicator.style.display = 'block';
-      indicator.innerHTML = '<i class="fas fa-check-circle" style="color: #4CAF50;"></i> Votre message a été ajouté';
-      indicator.style.color = '#4CAF50';
+      indicator.innerHTML = `<i class="fas ${success ? 'fa-check-circle' : 'fa-circle-exclamation'}"></i> ${this.escapeHtml(message)}`;
+      indicator.style.color = success ? '#15803d' : '#b91c1c';
       setTimeout(() => {
         indicator.style.display = 'none';
       }, 3000);
-    }
-    
-    const list = document.getElementById(`commentList-${this.uniqueId}`);
-    if (list) {
-      setTimeout(() => {
-        this.animateScroll(list);
-      }, 100);
     }
   }
   
@@ -697,12 +908,12 @@ class CommentaireComponent {
     const input = document.getElementById(`commentInput-${this.uniqueId}`);
     
     if (sendButton) {
-      sendButton.addEventListener('click', () => this.addUserComment(input.value));
+      sendButton.addEventListener('click', () => this.addUserComment(input?.value || ''));
     }
     
     if (input) {
-      input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
           e.preventDefault();
           this.addUserComment(input.value);
         }
@@ -713,6 +924,7 @@ class CommentaireComponent {
   destroy() {
     if (this.scrollInterval) clearInterval(this.scrollInterval);
     if (this.unsubscribeTheme) this.unsubscribeTheme();
+    if (this.commentsRefreshInterval) clearInterval(this.commentsRefreshInterval);
     if (this.observer) this.observer.disconnect();
     this.container.innerHTML = '';
   }

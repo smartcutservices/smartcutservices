@@ -20,14 +20,54 @@ service firebase.storage {
       return hasContentType('application/pdf');
     }
 
+    function isVideo() {
+      return hasContentType('video/.*');
+    }
+
     function maxSize(megabytes) {
       return request.resource != null
         && request.resource.size <= megabytes * 1024 * 1024;
     }
 
+    function courseExists(courseId) {
+      return firestore.exists(/databases/(default)/documents/courses/$(courseId));
+    }
+
+    function courseData(courseId) {
+      return firestore.get(/databases/(default)/documents/courses/$(courseId)).data;
+    }
+
+    function isCourseOrganizationMember(courseId) {
+      return isSignedIn() && courseExists(courseId) &&
+        firestore.exists(/databases/(default)/documents/organizationMembers/$(courseData(courseId).organizationId + '_' + request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/organizationMembers/$(courseData(courseId).organizationId + '_' + request.auth.uid)).data.status == 'active' &&
+        firestore.get(/databases/(default)/documents/organizationMembers/$(courseData(courseId).organizationId + '_' + request.auth.uid)).data.role in ['creator_owner', 'creator_manager', 'creator_staff'];
+    }
+
     match /products/{productId}/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() && maxSize(20);
+    }
+
+    // Photos des offres Auto & Parts. L'identite du vendeur est portee par le
+    // premier segment du chemin; seules les images du vendeur connecte sont modifiables.
+    match /auto-parts/vendors/{vendorUid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == vendorUid && isImage() && maxSize(10);
+    }
+    match /auto-parts/requests/{customerUid}/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == customerUid && (isImage() || isVideo()) && maxSize(25);
+      allow update, delete: if false;
+    }
+    match /auto-parts/claims/{compositeId}/{fileName} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == compositeId.split('__')[0] ||
+        (firestore.exists(/databases/(default)/documents/autoClaims/$(compositeId.split('__')[1])) && firestore.get(/databases/(default)/documents/autoClaims/$(compositeId.split('__')[1])).data.vendorId == request.auth.uid) ||
+        (firestore.exists(/databases/(default)/documents/clients/$(request.auth.uid)) && firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.role == 'admin')
+      );
+      allow create: if isSignedIn() && request.auth.uid == compositeId.split('__')[0] && (isImage() || isVideo()) && maxSize(25);
+      allow update, delete: if false;
     }
 
     match /printing-documents/{fileName} {
@@ -42,7 +82,242 @@ service firebase.storage {
       allow create: if isImage() && maxSize(20);
     }
 
-    match /{allPaths=**} {
+    // Studio de personnalisation. Les originaux, fichiers atelier et apercus
+    // ont des plafonds distincts. Creation uniquement: aucun client ne peut
+    // ecraser ou supprimer un fichier deja associe a une commande.
+    match /personalization/originals/{fileName} {
+      allow read: if true;
+      allow create: if isImage() && maxSize(15);
+      allow update, delete: if false;
+    }
+    match /personalization/print-files/{fileName} {
+      allow read: if true;
+      allow create: if isImage() && maxSize(25);
+      allow update, delete: if false;
+    }
+    match /personalization/previews/{fileName} {
+      allow read: if true;
+      allow create: if isImage() && maxSize(5);
+      allow update, delete: if false;
+    }
+
+    // SmartSolutionTek form builder (Application 1 — inscriptions). Additive only.
+    // Branding assets (logo/cover) are uploaded by the signed-in creator from the dashboard.
+    match /sst-forms/{formSchemaId}/branding/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && maxSize(8);
+    }
+
+    // Public submitter uploads (file-type form fields). No auth required — a form's
+    // visitor is anonymous — so the gate is that the referenced form actually exists
+    // and is published, checked cross-service against Firestore. create-only (not
+    // write) so a submitter can never overwrite or delete another submitter's file;
+    // upload filenames are always unique anyway (see firebase-storage.js). `resource
+    // == null` is required in addition to `allow update, delete: if false` below —
+    // re-uploading content to an already-occupied path is itself evaluated as
+    // `create` (a new object generation), not `update`, so without this guard a
+    // second create at the same path would still be allowed.
+    // SmartSolutionTek Boutique (Application 2). Catalog branding + product photos, always
+    // uploaded by the signed-in creator from the dashboard (no public/anonymous writer here,
+    // unlike sst-form-uploads below which is a visitor-submitted path).
+    match /sst-shops/{catalogId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && maxSize(8);
+    }
+
+    // SmartSolutionTek Nourriture (Application 5). Menu branding + dish photos, creator-only.
+    match /sst-food/{menuId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && maxSize(8);
+    }
+
+    // SmartSolutionTek Cours (Application 3). Branding may be public only once the
+    // corresponding course is published. Premium lesson objects are never public;
+    // learners will receive short-lived delivery URLs from the selected media strategy.
+    match /sst-courses/{courseId}/branding/{allPaths=**} {
+      allow read: if courseExists(courseId) && (courseData(courseId).status == 'published' || isCourseOrganizationMember(courseId));
+      allow write: if isCourseOrganizationMember(courseId) && isImage() && maxSize(8);
+    }
+    match /sst-courses/{courseId}/lessons/{allPaths=**} {
+      allow read: if isCourseOrganizationMember(courseId);
+      allow write: if isCourseOrganizationMember(courseId) &&
+        (isImage() || isPdf() || hasContentType('video/.*') || hasContentType('audio/.*') ||
+          hasContentType('text/plain') || hasContentType('application/zip') ||
+          hasContentType('application/msword') || hasContentType('application/vnd.openxmlformats-officedocument.*')) &&
+        maxSize(50);
+    }
+
+    // Smart Cut Education. Covers are public; lesson media stays private to
+    // its authenticated professional. Cloud Functions validate ownership
+    // again before any asset is attached to a program.
+    match /education-public/{uid}/{programId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == uid && isImage() && maxSize(8);
+    }
+
+    match /education-tutors/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == uid && isImage() && maxSize(5);
+    }
+
+    match /education-content/{uid}/{programId}/{allPaths=**} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isSignedIn() && request.auth.uid == uid &&
+        (isImage() || isPdf() || isVideo() || hasContentType('audio/.*') ||
+          hasContentType('text/plain') || hasContentType('application/zip') ||
+          hasContentType('application/msword') || hasContentType('application/vnd.openxmlformats-officedocument.*')) &&
+        maxSize(50);
+    }
+
+    // SmartSolutionTek Services (Application 4). Service photo, creator-only.
+    match /sst-services/{serviceId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && isImage() && maxSize(8);
+    }
+
+    match /sst-form-uploads/{formSchemaId}/{allPaths=**} {
+      allow read: if true;
+      allow create: if
+        resource == null &&
+        firestore.exists(/databases/(default)/documents/formSchemas/$(formSchemaId)) &&
+        firestore.get(/databases/(default)/documents/formSchemas/$(formSchemaId)).data.status == 'published' &&
+        (isImage() || isPdf()) &&
+        maxSize(10);
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // Smart Cut Health — Phase 1 (Pharmacy). Additive only.
+    // ============================================================
+
+    function isHealthAdminRequester() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/clients/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Prescription uploads carry real health data — the FIRST genuinely private
+    // (non-`allow read: if true`) path in this file. The path segment is
+    // `{patientUid}__{prescriptionId}` (a single templated variable split in the rule
+    // below) rather than two separate `{patientUid}/{prescriptionId}` segments: the
+    // local Storage emulator (firebase-tools 15.12.0 / firebase 12.18.0, verified by
+    // isolated repro — see the Health report's Security section) does not correctly
+    // enforce a condition comparing request.auth.uid against a path variable once a
+    // THIRD templated segment sits between it and the file name — a 2-variable path
+    // (compositeId, fileName) evaluates correctly in the same emulator, so that's the
+    // shape used here. The client generates prescriptionId (a Firestore auto-id) before
+    // upload, then passes it to healthSubmitPrescription, which verifies the storage
+    // path matches before creating the Firestore record — so this rule can check, per
+    // file, whether the requester is a pharmacy that prescription was actually routed
+    // to (healthPrescriptionRoutes/{prescriptionId}_{pharmacyId}, written server-side
+    // only by healthSubmitPrescription/healthSubmitPrescriptionOffer). create-only —
+    // never update/delete — so a patient can't swap the file after a pharmacy has
+    // reviewed it.
+    match /health-prescriptions/{compositeId}/{fileName} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == compositeId.split('__')[0] ||
+        isHealthAdminRequester() ||
+        firestore.exists(/databases/(default)/documents/healthPrescriptionRoutes/$(compositeId.split('__')[1] + '_' + request.auth.uid))
+      );
+      allow create: if isSignedIn() && request.auth.uid == compositeId.split('__')[0] &&
+        (isImage() || isPdf()) && maxSize(15);
+      allow update, delete: if false;
+    }
+
+    // Pharmacy verification documents (business registration, pharmacist license...).
+    // Never public — only the pharmacy itself and admins may read.
+    match /health-pharmacy-docs/{uid}/{allPaths=**} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isHealthAdminRequester());
+      allow create: if isSignedIn() && request.auth.uid == uid && (isImage() || isPdf()) && maxSize(10);
+      allow update, delete: if false;
+    }
+
+    match /health-doctor-docs/{uid}/{allPaths=**} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isHealthAdminRequester());
+      allow create: if isSignedIn() && request.auth.uid == uid && (isImage() || isPdf()) && maxSize(10);
+      allow update, delete: if false;
+    }
+
+    match /health-lab-docs/{uid}/{allPaths=**} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isHealthAdminRequester());
+      allow create: if isSignedIn() && request.auth.uid == uid && (isImage() || isPdf()) && maxSize(10);
+      allow update, delete: if false;
+    }
+
+    // The laboratory writes a result only for an appointment assigned to it. The
+    // patient and that laboratory can read it; clients normally use the audited,
+    // five-minute signed URL returned by healthGetPrivateDocument.
+    match /health-lab-results/{compositeId}/{fileName} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == compositeId.split('__')[0] ||
+        isHealthAdminRequester() ||
+        (firestore.exists(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])) &&
+          firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.providerUid == request.auth.uid)
+      );
+      allow create: if isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])) &&
+        firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.providerUid == request.auth.uid &&
+        firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.patientUid == compositeId.split('__')[0] &&
+        isPdf() && maxSize(15);
+      allow update, delete: if false;
+    }
+
+    // Medicine photos: non-sensitive catalog imagery, public read like every other
+    // creator-uploaded asset in this file — write restricted to the owning pharmacy.
+    match /health-pharmacy-products/{pharmacyId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isSignedIn() && request.auth.uid == pharmacyId && isImage() && maxSize(8);
+    }
+
+    // Public marketplace artwork. The owner may upload images only; moderation
+    // and publication still happen through Cloud Functions and Firestore status.
+    match /marketplace-public/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow create: if isSignedIn() && request.auth.uid == uid && isImage() && maxSize(8);
+      allow update, delete: if isSignedIn() && request.auth.uid == uid && isImage() && maxSize(8);
+    }
+
+    function requestParticipant(requestId) {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/serviceRequests/$(requestId)) &&
+        (firestore.get(/databases/(default)/documents/serviceRequests/$(requestId)).data.buyerUid == request.auth.uid ||
+         firestore.get(/databases/(default)/documents/serviceRequests/$(requestId)).data.providerUid == request.auth.uid);
+    }
+
+    function orderParticipant(orderId) {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/serviceOrders/$(orderId)) &&
+        (firestore.get(/databases/(default)/documents/serviceOrders/$(orderId)).data.buyerUid == request.auth.uid ||
+         firestore.get(/databases/(default)/documents/serviceOrders/$(orderId)).data.providerUid == request.auth.uid);
+    }
+
+    match /marketplace-private/requests/{requestId}/{uid}/{fileName} {
+      allow read: if requestParticipant(requestId);
+      allow create: if requestParticipant(requestId) && request.auth.uid == uid &&
+        (isImage() || isPdf() || hasContentType('application/zip')) && maxSize(20);
+      allow update, delete: if false;
+    }
+
+    match /marketplace-private/orders/{orderId}/{uid}/{fileName} {
+      allow read: if orderParticipant(orderId);
+      allow create: if orderParticipant(orderId) && request.auth.uid == uid &&
+        (isImage() || isPdf() || hasContentType('application/zip')) && maxSize(20);
+      allow update, delete: if false;
+    }
+
+    // Public fallback for legacy marketplace/media roots. Recursive matches are ORed
+    // by Firebase Rules, so the Health roots MUST be excluded here; otherwise this
+    // broad read rule would silently override every private Health match above.
+    match /{topLevel}/{allPaths=**} {
+      allow read: if !(topLevel in [
+        'health-prescriptions', 'health-pharmacy-docs', 'health-doctor-docs',
+        'health-lab-docs', 'health-lab-results', 'sst-courses', 'education-content',
+        'marketplace-public', 'marketplace-private', 'auto-parts'
+      ]);
+      allow write: if false;
+    }
+
+    match /{rootFile} {
       allow read: if true;
       allow write: if false;
     }

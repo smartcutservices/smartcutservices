@@ -165,7 +165,7 @@ class PaymentModal {
     
     this.modal.innerHTML = `
       <div class="payment-container-${this.uniqueId}" style="
-        background: #F5F1E8;
+        background: #EAEDED;
         border-radius: 1.5rem;
         width: 100%;
         max-width: 600px;
@@ -180,7 +180,7 @@ class PaymentModal {
         <div style="
           position: sticky;
           top: 0;
-          background: #F5F1E8;
+          background: #EAEDED;
           border-bottom: 1px solid rgba(198, 167, 94, 0.2);
           padding: 1.5rem;
           z-index: 10;
@@ -194,7 +194,7 @@ class PaymentModal {
                   border: none;
                   font-size: 1.2rem;
                   cursor: pointer;
-                  color: #8B7E6B;
+                  color: #565959;
                   padding: 0.5rem;
                   width: 40px;
                   height: 40px;
@@ -203,14 +203,14 @@ class PaymentModal {
                   justify-content: center;
                   border-radius: 50%;
                   transition: all 0.2s;
-                " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#C6A75E'" onmouseout="this.style.background='transparent'; this.style.color='#8B7E6B'">
+                " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#FFA41C'" onmouseout="this.style.background='transparent'; this.style.color='#565959'">
                   <i class="fas fa-arrow-left"></i>
                 </button>
               ` : ''}
               <h2 style="
-                font-family: 'Cormorant Garamond', serif;
+                font-family: 'Amazon Ember', Arial, sans-serif;
                 font-size: 1.5rem;
-                color: #1F1E1C;
+                color: #0F1111;
                 margin: 0;
               ">
                 Paiement sécurisé
@@ -221,7 +221,7 @@ class PaymentModal {
               border: none;
               font-size: 1.5rem;
               cursor: pointer;
-              color: #8B7E6B;
+              color: #565959;
               transition: all 0.2s;
               padding: 0.5rem;
               width: 40px;
@@ -230,7 +230,7 @@ class PaymentModal {
               align-items: center;
               justify-content: center;
               border-radius: 50%;
-            " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#C6A75E'" onmouseout="this.style.background='transparent'; this.style.color='#8B7E6B'">
+            " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#FFA41C'" onmouseout="this.style.background='transparent'; this.style.color='#565959'">
               <i class="fas fa-times"></i>
             </button>
           </div>
@@ -269,7 +269,7 @@ class PaymentModal {
         }
         
         .payment-container-${this.uniqueId}::-webkit-scrollbar-thumb {
-          background: #C6A75E;
+          background: #FFA41C;
           border-radius: 3px;
         }
         
@@ -284,7 +284,7 @@ class PaymentModal {
         }
         
         .method-card.selected {
-          border-color: #C6A75E !important;
+          border-color: #FFA41C !important;
           background: rgba(198, 167, 94, 0.05);
         }
         
@@ -292,7 +292,7 @@ class PaymentModal {
           font-family: monospace;
           font-size: 1.5rem;
           font-weight: bold;
-          color: #C6A75E;
+          color: #FFA41C;
         }
         
         .form-group {
@@ -303,7 +303,7 @@ class PaymentModal {
           display: block;
           margin-bottom: 0.25rem;
           font-size: 0.9rem;
-          color: #8B7E6B;
+          color: #565959;
         }
         
         .form-group input,
@@ -321,14 +321,14 @@ class PaymentModal {
         .form-group textarea:focus,
         .form-group select:focus {
           outline: none;
-          border-color: #C6A75E;
+          border-color: #FFA41C;
         }
         
         .next-step-btn {
           width: 100%;
-          background: #1F1E1C;
-          color: #F5F1E8;
-          border: 1px solid #C6A75E;
+          background: #0F1111;
+          color: #EAEDED;
+          border: 1px solid #FFA41C;
           padding: 1rem;
           border-radius: 0.5rem;
           font-size: 1rem;
@@ -339,8 +339,8 @@ class PaymentModal {
         }
         
         .next-step-btn:hover {
-          background: #C6A75E;
-          color: #1F1E1C;
+          background: #FFA41C;
+          color: #0F1111;
         }
         
         .next-step-btn:disabled {
@@ -390,14 +390,14 @@ class PaymentModal {
         
         .ocr-progress .progress-bar-fill {
           height: 100%;
-          background: #C6A75E;
+          background: #FFA41C;
           transition: width 0.3s ease;
         }
         
         .extracted-text {
           margin-top: 1rem;
           padding: 1rem;
-          background: #F5F1E8;
+          background: #EAEDED;
           border: 1px solid rgba(198, 167, 94, 0.3);
           border-radius: 0.5rem;
           font-family: monospace;
@@ -416,8 +416,8 @@ class PaymentModal {
       return `
         <div style="margin-top: 0.5rem;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-            <span style="font-size: 0.85rem; color: #8B7E6B;">Étape 1/1</span>
-            <span style="font-size: 0.85rem; color: #8B7E6B;">100%</span>
+            <span style="font-size: 0.85rem; color: #565959;">Étape 1/1</span>
+            <span style="font-size: 0.85rem; color: #565959;">100%</span>
           </div>
           <div style="
             width: 100%;
@@ -429,7 +429,7 @@ class PaymentModal {
             <div style="
               width: 100%;
               height: 100%;
-              background: #C6A75E;
+              background: #FFA41C;
             "></div>
           </div>
         </div>
@@ -443,8 +443,8 @@ class PaymentModal {
     return `
       <div style="margin-top: 0.5rem;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-          <span style="font-size: 0.85rem; color: #8B7E6B;">Étape ${currentStepDisplay}/${totalSteps}</span>
-          <span style="font-size: 0.85rem; color: #8B7E6B;">${Math.round(progress)}%</span>
+          <span style="font-size: 0.85rem; color: #565959;">Étape ${currentStepDisplay}/${totalSteps}</span>
+          <span style="font-size: 0.85rem; color: #565959;">${Math.round(progress)}%</span>
         </div>
         <div style="
           width: 100%;
@@ -456,7 +456,7 @@ class PaymentModal {
           <div style="
             width: ${progress}%;
             height: 100%;
-            background: #C6A75E;
+            background: #FFA41C;
             transition: width 0.3s ease;
           "></div>
         </div>
@@ -480,7 +480,7 @@ class PaymentModal {
         <div style="text-align: center; padding: 2rem;">
           <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #B76E2E; margin-bottom: 1rem;"></i>
           <h3 style="font-size: 1.2rem; margin-bottom: 1rem;">Aucune méthode disponible</h3>
-          <p style="color: #8B7E6B;">Veuillez réessayer plus tard.</p>
+          <p style="color: #565959;">Veuillez réessayer plus tard.</p>
         </div>
       `;
     }
@@ -488,7 +488,7 @@ class PaymentModal {
     return `
       <div>
         <h3 style="font-size: 1.3rem; margin-bottom: 1rem;">Choisissez votre méthode de paiement</h3>
-        <p style="color: #8B7E6B; margin-bottom: 1.5rem;">Sélectionnez parmi nos options disponibles</p>
+        <p style="color: #565959; margin-bottom: 1.5rem;">Sélectionnez parmi nos options disponibles</p>
         
         <div id="methodsList" style="display: flex; flex-direction: column; gap: 1rem;">
           ${this.methods.map(method => this.renderMethodCard(method)).join('')}
@@ -509,13 +509,13 @@ class PaymentModal {
           align-items: center;
           justify-content: center;
           background: rgba(198, 167, 94, 0.12);
-          color: #C6A75E;
+          color: #FFA41C;
           font-size: 2rem;
         ">
           <i class="fas fa-wallet"></i>
         </div>
         <h3 style="font-size: 1.25rem; margin-bottom: 0.75rem;">Paiement MonCash indisponible</h3>
-        <p style="color: #8B7E6B; max-width: 420px; margin: 0 auto 1.5rem;">
+        <p style="color: #565959; max-width: 420px; margin: 0 auto 1.5rem;">
           Les paiements se font maintenant uniquement via MonCash. Aucune méthode MonCash active n'a été trouvée pour cette boutique.
         </p>
         <button class="next-step-btn" id="closeUnavailablePayment">
@@ -534,7 +534,7 @@ class PaymentModal {
         align-items: center;
         gap: 1rem;
         padding: 1rem;
-        border: 2px solid ${isSelected ? '#C6A75E' : 'rgba(198,167,94,0.2)'};
+        border: 2px solid ${isSelected ? '#FFA41C' : 'rgba(198,167,94,0.2)'};
         border-radius: 0.75rem;
         background: white;
         cursor: pointer;
@@ -553,16 +553,16 @@ class PaymentModal {
           overflow: hidden;
         ">
           ${method.image ? 
-            `<img src="${this.getImagePath(method.image)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-money-bill-wave\' style=\'font-size: 1.5rem; color: #C6A75E;\'></i>';">` : 
-            `<i class="fas fa-money-bill-wave" style="font-size: 1.5rem; color: #C6A75E;"></i>`
+            `<img src="${this.getImagePath(method.image)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-money-bill-wave\' style=\'font-size: 1.5rem; color: #FFA41C;\'></i>';">` : 
+            `<i class="fas fa-money-bill-wave" style="font-size: 1.5rem; color: #FFA41C;"></i>`
           }
         </div>
         <div style="flex: 1;">
           <h4 style="font-weight: 600; margin-bottom: 0.25rem;">${method.name}</h4>
-          <p style="font-size: 0.85rem; color: #8B7E6B;">${method.instructions || ''}</p>
+          <p style="font-size: 0.85rem; color: #565959;">${method.instructions || ''}</p>
         </div>
-        <div style="width: 24px; height: 24px; min-width: 24px; min-height: 24px; flex-shrink: 0; border-radius: 50%; border: 2px solid #C6A75E; display: flex; align-items: center; justify-content: center;">
-          ${isSelected ? '<div style="width: 12px; height: 12px; border-radius: 50%; background: #C6A75E;"></div>' : ''}
+        <div style="width: 24px; height: 24px; min-width: 24px; min-height: 24px; flex-shrink: 0; border-radius: 50%; border: 2px solid #FFA41C; display: flex; align-items: center; justify-content: center;">
+          ${isSelected ? '<div style="width: 12px; height: 12px; border-radius: 50%; background: #FFA41C;"></div>' : ''}
         </div>
       </div>
     `;
@@ -608,7 +608,7 @@ class PaymentModal {
     return `
       <div>
         <h3 style="font-size: 1.3rem; margin-bottom: 0.65rem;">Payer avec MonCash</h3>
-        <p style="color: #8B7E6B; margin-bottom: 1.5rem;">
+        <p style="color: #565959; margin-bottom: 1.5rem;">
           Vous allez être redirigé vers MonCash pour finaliser votre paiement en toute sécurité.
         </p>
 
@@ -621,11 +621,11 @@ class PaymentModal {
         ">
           <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
             <div>
-              <div style="font-size:0.85rem;color:#8B7E6B;">Méthode</div>
+              <div style="font-size:0.85rem;color:#565959;">Méthode</div>
               <div style="font-weight:700;">${this.selectedMethod?.name || 'MonCash'}</div>
             </div>
             <div>
-              <div style="font-size:0.85rem;color:#8B7E6B;">Montant à payer</div>
+              <div style="font-size:0.85rem;color:#565959;">Montant à payer</div>
               <div style="font-weight:700;font-size:1.2rem;">${this.formatPrice(this.options.amount || 0)}</div>
             </div>
           </div>
@@ -657,7 +657,7 @@ class PaymentModal {
     return `
       <div>
         <h3 style="font-size: 1.3rem; margin-bottom: 0.5rem;">${step.title || 'Vos informations'}</h3>
-        <p style="color: #8B7E6B; margin-bottom: 1.5rem;">${step.description || ''}</p>
+        <p style="color: #565959; margin-bottom: 1.5rem;">${step.description || ''}</p>
         
         <form id="clientForm" class="space-y-4">
           ${step.fields?.map(field => this.renderFormField(field)).join('') || ''}
@@ -720,7 +720,7 @@ class PaymentModal {
       <div>
         <h3 style="font-size: 1.3rem; margin-bottom: 1rem;">${step.title || 'Effectuez le paiement'}</h3>
         
-        <p style="color: #8B7E6B; margin-bottom: 1.5rem;">${step.instruction || 'Payez aux coordonnées suivantes :'}</p>
+        <p style="color: #565959; margin-bottom: 1.5rem;">${step.instruction || 'Payez aux coordonnées suivantes :'}</p>
         
         <div style="
           background: white;
@@ -740,13 +740,13 @@ class PaymentModal {
               overflow: hidden;
             ">
               ${this.selectedMethod.image ? 
-                `<img src="${this.getImagePath(this.selectedMethod.image)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-university\' style=\'font-size: 1.5rem; color: #C6A75E;\'></i>';">` : 
-                `<i class="fas fa-university" style="font-size: 1.5rem; color: #C6A75E;"></i>`
+                `<img src="${this.getImagePath(this.selectedMethod.image)}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-university\' style=\'font-size: 1.5rem; color: #FFA41C;\'></i>';">` : 
+                `<i class="fas fa-university" style="font-size: 1.5rem; color: #FFA41C;"></i>`
               }
             </div>
             <div>
               <h4 style="font-weight: 600;">${this.selectedMethod.name}</h4>
-              <p style="font-size: 0.85rem; color: #8B7E6B;">${this.selectedMethod.accountName}</p>
+              <p style="font-size: 0.85rem; color: #565959;">${this.selectedMethod.accountName}</p>
             </div>
           </div>
           
@@ -758,7 +758,7 @@ class PaymentModal {
             border-top: 1px solid rgba(198,167,94,0.2);
             border-bottom: 1px solid rgba(198,167,94,0.2);
           ">
-            <span style="color: #8B7E6B;">Téléphone</span>
+            <span style="color: #565959;">Téléphone</span>
             <span style="font-weight: 500;">${this.selectedMethod.phoneNumber}</span>
           </div>
           
@@ -768,7 +768,7 @@ class PaymentModal {
             align-items: center;
             padding: 1rem 0;
           ">
-            <span style="color: #8B7E6B;">Montant</span>
+            <span style="color: #565959;">Montant</span>
             <span style="font-weight: bold; font-size: 1.2rem;">${this.formatPrice(this.options.amount || 0)}</span>
           </div>
           
@@ -778,10 +778,10 @@ class PaymentModal {
               flex-direction: column;
               align-items: center;
               padding: 1rem;
-              background: #F5F1E8;
+              background: #EAEDED;
               border-radius: 0.5rem;
             ">
-              <p style="font-size: 0.85rem; color: #8B7E6B; margin-bottom: 0.5rem;">Scannez le QR code</p>
+              <p style="font-size: 0.85rem; color: #565959; margin-bottom: 0.5rem;">Scannez le QR code</p>
               <img src="${this.getImagePath(this.selectedMethod.qrCode)}" style="width: 150px; height: 150px; object-fit: contain;" onerror="this.style.display='none'">
             </div>
           ` : ''}
@@ -805,11 +805,11 @@ class PaymentModal {
           <div class="warning-message">
             <i class="fas fa-exclamation-triangle" style="color: #B76E2E; margin-right: 0.5rem;"></i>
             <strong>Important :</strong> Le nom que vous saisissez doit correspondre exactement à celui de l'étape précédente : 
-            <strong style="color: #1F1E1C;">${expectedName}</strong>
+            <strong style="color: #0F1111;">${expectedName}</strong>
           </div>
         ` : ''}
         
-        <p style="color: #8B7E6B; margin-bottom: 1.5rem;">${step.message || 'Téléchargez une capture d\'écran de votre transaction'}</p>
+        <p style="color: #565959; margin-bottom: 1.5rem;">${step.message || 'Téléchargez une capture d\'écran de votre transaction'}</p>
         
         <form id="proofForm" class="space-y-4">
           <div class="form-group">
@@ -820,7 +820,7 @@ class PaymentModal {
           <div class="form-group">
             <label>Capture d'écran de la transaction *</label>
             <input type="file" id="proofImage" accept="image/*" required>
-            <p style="font-size: 0.8rem; color: #8B7E6B; margin-top: 0.25rem;">Format accepté : JPG, PNG (max 5 Mo)</p>
+            <p style="font-size: 0.8rem; color: #565959; margin-top: 0.25rem;">Format accepté : JPG, PNG (max 5 Mo)</p>
           </div>
           
           <div id="imagePreview" style="display: none; margin-top: 1rem; text-align: center;">
@@ -867,7 +867,7 @@ class PaymentModal {
         
         <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">Demande soumise avec succès !</h3>
         
-        <p style="color: #8B7E6B; margin-bottom: 2rem;">
+        <p style="color: #565959; margin-bottom: 2rem;">
           ${step.message || 'Votre demande est en cours de vérification. Elle sera traitée sous 12 heures.'}
         </p>
         
@@ -877,11 +877,11 @@ class PaymentModal {
           padding: 1.5rem;
           margin-bottom: 1.5rem;
         ">
-          <p style="font-size: 0.9rem; color: #8B7E6B; margin-bottom: 0.5rem;">Temps restant avant vérification</p>
+          <p style="font-size: 0.9rem; color: #565959; margin-bottom: 0.5rem;">Temps restant avant vérification</p>
           <div class="countdown-timer" id="countdownTimer">12:00:00</div>
         </div>
         
-        <p style="font-size: 0.9rem; color: #8B7E6B;">
+        <p style="font-size: 0.9rem; color: #565959;">
           <i class="fas fa-clock" style="margin-right: 0.3rem;"></i>
           Vous pourrez suivre le statut de votre demande dans votre panier
         </p>
@@ -918,7 +918,7 @@ class PaymentModal {
       <div style="text-align: center; padding: 2rem;">
         <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #B76E2E; margin-bottom: 1rem;"></i>
         <h3 style="font-size: 1.2rem; margin-bottom: 1rem;">Configuration incomplète</h3>
-        <p style="color: #8B7E6B;">Cette méthode de paiement n'est pas correctement configurée.</p>
+        <p style="color: #565959;">Cette méthode de paiement n'est pas correctement configurée.</p>
       </div>
     `;
   }
@@ -1345,6 +1345,9 @@ class PaymentModal {
   
   async saveOrder(proofName) {
     try {
+      if ((this.options.cart || []).some((item) => item?.autoProgramType === 'auto_parts')) {
+        throw new Error('Pour sécuriser le prix, le stock et le rendez-vous, les achats Auto & Parts doivent être payés avec MonCash.');
+      }
       if (!this.options.client || !this.options.client.id) {
         console.error('❌ Client non disponible');
         return false;
@@ -1373,7 +1376,9 @@ class PaymentModal {
               sourceCollection: item?.sourceCollection || '',
               isDigitalProduct: Boolean(item?.isDigitalProduct),
               digitalDownloadLink: item?.digitalDownloadLink || '',
-              deliveryDelay: item?.deliveryDelay || ''
+              deliveryDelay: item?.deliveryDelay || '',
+              autoBookingId: item?.autoBookingId || '',
+              autoProgramType: item?.autoProgramType || ''
             };
           })
         : [];
@@ -1451,7 +1456,7 @@ class PaymentModal {
                 border: none;
                 font-size: 1.2rem;
                 cursor: pointer;
-                color: #8B7E6B;
+                color: #565959;
                 padding: 0.5rem;
                 width: 40px;
                 height: 40px;
@@ -1460,14 +1465,14 @@ class PaymentModal {
                 justify-content: center;
                 border-radius: 50%;
                 transition: all 0.2s;
-              " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#C6A75E'" onmouseout="this.style.background='transparent'; this.style.color='#8B7E6B'">
+              " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#FFA41C'" onmouseout="this.style.background='transparent'; this.style.color='#565959'">
                 <i class="fas fa-arrow-left"></i>
               </button>
             ` : ''}
             <h2 style="
-              font-family: 'Cormorant Garamond', serif;
+              font-family: 'Amazon Ember', Arial, sans-serif;
               font-size: 1.5rem;
-              color: #1F1E1C;
+              color: #0F1111;
               margin: 0;
             ">
               Paiement sécurisé
@@ -1478,7 +1483,7 @@ class PaymentModal {
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: #8B7E6B;
+            color: #565959;
             transition: all 0.2s;
             padding: 0.5rem;
             width: 40px;
@@ -1487,7 +1492,7 @@ class PaymentModal {
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-          " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#C6A75E'" onmouseout="this.style.background='transparent'; this.style.color='#8B7E6B'">
+          " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#FFA41C'" onmouseout="this.style.background='transparent'; this.style.color='#565959'">
             <i class="fas fa-times"></i>
           </button>
         `;

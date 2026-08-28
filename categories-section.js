@@ -82,6 +82,15 @@ class CategoriesSection {
     formatPrice(price) {
         return formatPriceDual(price);
     }
+
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
     
     toNumber(value, fallback = 0) {
         const num = Number(value);
@@ -325,17 +334,17 @@ class CategoriesSection {
         
         styleEl.textContent = `
             .catalogue-wrapper-${this.uniqueId} {
-                --text-title: ${colors?.text?.title || '#1F1E1C'};
+                --text-title: ${colors?.text?.title || '#0F1111'};
                 --text-subtitle: ${colors?.text?.subtitle || '#7A746B'};
                 --text-body: ${colors?.text?.body || '#4A4A4A'};
                 --text-button: ${colors?.text?.button || '#FFFFFF'};
                 --bg-general: ${colors?.background?.general || '#FFFFFF'};
                 --bg-card: ${colors?.background?.card || '#F5F5F5'};
-                --bg-button: ${colors?.background?.button || '#C6A75E'};
-                --icon-standard: ${colors?.icon?.standard || '#1F1E1C'};
-                --icon-hover: ${colors?.icon?.hover || '#C6A75E'};
-                --font-primary: ${typography?.family || fonts?.primary || "'Cormorant Garamond', serif"};
-                --font-secondary: ${fonts?.secondary || "'Manrope', sans-serif"};
+                --bg-button: ${colors?.background?.button || '#FFA41C'};
+                --icon-standard: ${colors?.icon?.standard || '#0F1111'};
+                --icon-hover: ${colors?.icon?.hover || '#FFA41C'};
+                --font-primary: ${typography?.family || fonts?.primary || "'Amazon Ember', Arial, sans-serif"};
+                --font-secondary: ${fonts?.secondary || "'Amazon Ember', sans-serif"};
             }
         `;
     }
@@ -367,8 +376,8 @@ class CategoriesSection {
         wrapper.className = `catalogue-wrapper-${this.uniqueId}`;
         wrapper.style.cssText = `
             width: 100%;
-            font-family: var(--font-secondary, 'Manrope, sans-serif');
-            background: var(--bg-general, #F5F1E8);
+            font-family: var(--font-secondary, 'Amazon Ember, sans-serif');
+            background: var(--bg-general, #EAEDED);
             min-height: 100vh;
             position: relative;
         `;
@@ -377,7 +386,7 @@ class CategoriesSection {
         const headerHtml = this.options.isInModal ? `
             <div class="catalogue-header" style="
                 background: var(--bg-card, white);
-                border-bottom: 1px solid ${colors?.background?.button || '#C6A75E'}20;
+                border-bottom: 1px solid ${colors?.background?.button || '#FFA41C'}20;
                 padding: 0.75rem 1rem;
                 position: sticky;
                 top: 0;
@@ -407,7 +416,7 @@ class CategoriesSection {
                         left: 1rem;
                         top: 50%;
                         transform: translateY(-50%);
-                        color: var(--icon-standard, #1F1E1C);
+                        color: var(--icon-standard, #0F1111);
                         font-size: 1rem;
                     "></i>
                 </div>
@@ -415,7 +424,7 @@ class CategoriesSection {
         ` : `
             <div class="catalogue-header" style="
                 background: var(--bg-card, white);
-                border-bottom: 1px solid ${colors?.background?.button || '#C6A75E'}20;
+                border-bottom: 1px solid ${colors?.background?.button || '#FFA41C'}20;
                 padding: 1rem 1rem;
                 position: sticky;
                 top: 0;
@@ -431,9 +440,9 @@ class CategoriesSection {
                 ">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h1 style="
-                            font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                            font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                             font-size: 1.5rem;
-                            color: var(--text-title, #1F1E1C);
+                            color: var(--text-title, #0F1111);
                             margin: 0;
                         ">Notre Collection</h1>
                         
@@ -441,19 +450,19 @@ class CategoriesSection {
                         <button class="mobile-filter-header-${this.uniqueId}" style="
                             display: none;
                             background: var(--bg-card, #F5F5F5);
-                            border: 1px solid var(--bg-button, #C6A75E)40;
+                            border: 1px solid var(--bg-button, #FFA41C)40;
                             border-radius: 30px;
                             padding: 0.5rem 1rem;
                             font-size: 0.9rem;
                             cursor: pointer;
                             align-items: center;
                             gap: 0.5rem;
-                            color: var(--text-title, #1F1E1C);
+                            color: var(--text-title, #0F1111);
                         ">
-                            <i class="fas fa-sliders-h" style="color: var(--bg-button, #C6A75E);"></i>
+                            <i class="fas fa-sliders-h" style="color: var(--bg-button, #FFA41C);"></i>
                             <span>Filtres</span>
                             <span class="filter-count-header-${this.uniqueId}" style="
-                                background: var(--bg-button, #C6A75E);
+                                background: var(--bg-button, #FFA41C);
                                 color: var(--text-button, #FFFFFF);
                                 border-radius: 50%;
                                 width: 20px;
@@ -492,7 +501,7 @@ class CategoriesSection {
                             left: 1rem;
                             top: 50%;
                             transform: translateY(-50%);
-                            color: var(--icon-standard, #1F1E1C);
+                            color: var(--icon-standard, #0F1111);
                             font-size: 1rem;
                         "></i>
                     </div>
@@ -523,7 +532,7 @@ class CategoriesSection {
                 <!-- En-tête du drawer -->
                 <div style="
                     padding: 1.5rem 1rem;
-                    border-bottom: 1px solid var(--bg-button, #C6A75E)20;
+                    border-bottom: 1px solid var(--bg-button, #FFA41C)20;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
@@ -533,12 +542,12 @@ class CategoriesSection {
                     z-index: 10;
                 ">
                     <h3 style="
-                        font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                        font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                         font-size: 1.2rem;
-                        color: var(--text-title, #1F1E1C);
+                        color: var(--text-title, #0F1111);
                         margin: 0;
                     ">Filtres</h3>
-                    <button class="close-drawer-${this.uniqueId}" style="
+                    <button class="close-drawer-${this.uniqueId}" type="button" aria-label="Fermer les filtres" style="
                         background: none;
                         border: none;
                         font-size: 1.5rem;
@@ -560,15 +569,15 @@ class CategoriesSection {
                     <!-- Filtre par catégorie -->
                     <div class="filter-section" style="margin-bottom: 2rem;">
                         <h4 style="
-                            font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                            font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                             font-size: 1rem;
-                            color: var(--text-title, #1F1E1C);
+                            color: var(--text-title, #0F1111);
                             margin: 0 0 1rem 0;
                             display: flex;
                             align-items: center;
                             gap: 0.5rem;
                         ">
-                            <i class="fas fa-tag" style="color: var(--bg-button, #C6A75E);"></i>
+                            <i class="fas fa-tag" style="color: var(--bg-button, #FFA41C);"></i>
                             Catégories
                         </h4>
                         <div class="categories-list-${this.uniqueId}" style="
@@ -584,15 +593,15 @@ class CategoriesSection {
                     <!-- Filtre par prix -->
                     <div class="filter-section" style="margin-bottom: 2rem;">
                         <h4 style="
-                            font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                            font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                             font-size: 1rem;
-                            color: var(--text-title, #1F1E1C);
+                            color: var(--text-title, #0F1111);
                             margin: 0 0 1rem 0;
                             display: flex;
                             align-items: center;
                             gap: 0.5rem;
                         ">
-                            <i class="fas fa-euro-sign" style="color: var(--bg-button, #C6A75E);"></i>
+                            <i class="fas fa-euro-sign" style="color: var(--bg-button, #FFA41C);"></i>
                             Prix
                         </h4>
                         <div class="price-range">
@@ -623,7 +632,7 @@ class CategoriesSection {
                             <button class="apply-price-${this.uniqueId}" style="
                                 width: 100%;
                                 padding: 0.75rem;
-                                background: var(--bg-button, #C6A75E);
+                                background: var(--bg-button, #FFA41C);
                                 color: var(--text-button, #FFFFFF);
                                 border: none;
                                 border-radius: 8px;
@@ -637,15 +646,15 @@ class CategoriesSection {
                     <!-- Filtre par couleur -->
                     <div class="filter-section" style="margin-bottom: 2rem;">
                         <h4 style="
-                            font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                            font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                             font-size: 1rem;
-                            color: var(--text-title, #1F1E1C);
+                            color: var(--text-title, #0F1111);
                             margin: 0 0 1rem 0;
                             display: flex;
                             align-items: center;
                             gap: 0.5rem;
                         ">
-                            <i class="fas fa-palette" style="color: var(--bg-button, #C6A75E);"></i>
+                            <i class="fas fa-palette" style="color: var(--bg-button, #FFA41C);"></i>
                             Couleurs
                         </h4>
                         <div class="colors-list-${this.uniqueId}" style="
@@ -658,15 +667,15 @@ class CategoriesSection {
                     <!-- Filtre de structure -->
                     <div class="filter-section" style="margin-bottom: 2rem;">
                         <h4 style="
-                            font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                            font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                             font-size: 1rem;
-                            color: var(--text-title, #1F1E1C);
+                            color: var(--text-title, #0F1111);
                             margin: 0 0 1rem 0;
                             display: flex;
                             align-items: center;
                             gap: 0.5rem;
                         ">
-                            <i class="fas fa-layer-group" style="color: var(--bg-button, #C6A75E);"></i>
+                            <i class="fas fa-layer-group" style="color: var(--bg-button, #FFA41C);"></i>
                             Sélections
                         </h4>
                         <div class="variants-list-${this.uniqueId}" style="
@@ -680,15 +689,15 @@ class CategoriesSection {
                 <!-- Pied du drawer avec bouton effacer -->
                 <div style="
                     padding: 1rem;
-                    border-top: 1px solid var(--bg-button, #C6A75E)20;
+                    border-top: 1px solid var(--bg-button, #FFA41C)20;
                     background: var(--bg-card, white);
                 ">
                     <button class="clear-filters-${this.uniqueId}" style="
                         width: 100%;
                         padding: 0.75rem;
                         background: var(--bg-card, #F5F5F5);
-                        color: var(--text-title, #1F1E1C);
-                        border: 1px solid var(--bg-button, #C6A75E)40;
+                        color: var(--text-title, #0F1111);
+                        border: 1px solid var(--bg-button, #FFA41C)40;
                         border-radius: 8px;
                         cursor: pointer;
                         font-size: 0.9rem;
@@ -719,7 +728,7 @@ class CategoriesSection {
                 bottom: 1.5rem;
                 right: 1.5rem;
                 z-index: 99;
-                background: var(--bg-button, #C6A75E);
+                background: var(--bg-button, #FFA41C);
                 color: var(--text-button, #FFFFFF);
                 border: none;
                 border-radius: 50px;
@@ -734,7 +743,7 @@ class CategoriesSection {
                 <span>Filtres</span>
                 <span class="filter-count-${this.uniqueId}" style="
                     background: white;
-                    color: var(--bg-button, #C6A75E);
+                    color: var(--bg-button, #FFA41C);
                     border-radius: 50%;
                     width: 22px;
                     height: 22px;
@@ -762,7 +771,7 @@ class CategoriesSection {
                         background: var(--bg-card, white);
                         border-radius: 16px;
                         padding: 1.5rem;
-                        border: 1px solid var(--bg-button, #C6A75E)20;
+                        border: 1px solid var(--bg-button, #FFA41C)20;
                         box-shadow: 0 4px 15px rgba(0,0,0,0.03);
                         position: sticky;
                         top: 2rem;
@@ -774,12 +783,12 @@ class CategoriesSection {
                             align-items: center;
                             margin-bottom: 1.5rem;
                             padding-bottom: 1rem;
-                            border-bottom: 1px solid var(--bg-button, #C6A75E)20;
+                            border-bottom: 1px solid var(--bg-button, #FFA41C)20;
                         ">
                             <h3 style="
-                                font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                                font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                                 font-size: 1.3rem;
-                                color: var(--text-title, #1F1E1C);
+                                color: var(--text-title, #0F1111);
                                 margin: 0;
                             ">Filtres</h3>
                             <button class="clear-filters-desktop-${this.uniqueId}" style="
@@ -796,15 +805,15 @@ class CategoriesSection {
                         <!-- Filtre par catégorie -->
                         <div class="filter-section" style="margin-bottom: 2rem;">
                             <h4 style="
-                                font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                                font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                                 font-size: 1.1rem;
-                                color: var(--text-title, #1F1E1C);
+                                color: var(--text-title, #0F1111);
                                 margin: 0 0 1rem 0;
                                 display: flex;
                                 align-items: center;
                                 gap: 0.5rem;
                             ">
-                                <i class="fas fa-tag" style="color: var(--bg-button, #C6A75E);"></i>
+                                <i class="fas fa-tag" style="color: var(--bg-button, #FFA41C);"></i>
                                 Catégories
                             </h4>
                             <div class="categories-list-desktop-${this.uniqueId}" style="
@@ -820,15 +829,15 @@ class CategoriesSection {
                         <!-- Filtre par prix -->
                         <div class="filter-section" style="margin-bottom: 2rem;">
                             <h4 style="
-                                font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                                font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                                 font-size: 1.1rem;
-                                color: var(--text-title, #1F1E1C);
+                                color: var(--text-title, #0F1111);
                                 margin: 0 0 1rem 0;
                                 display: flex;
                                 align-items: center;
                                 gap: 0.5rem;
                             ">
-                                <i class="fas fa-euro-sign" style="color: var(--bg-button, #C6A75E);"></i>
+                                <i class="fas fa-euro-sign" style="color: var(--bg-button, #FFA41C);"></i>
                                 Prix
                             </h4>
                             <div class="price-range">
@@ -859,7 +868,7 @@ class CategoriesSection {
                                 <button class="apply-price-desktop-${this.uniqueId}" style="
                                     width: 100%;
                                     padding: 0.75rem;
-                                    background: var(--bg-button, #C6A75E);
+                                    background: var(--bg-button, #FFA41C);
                                     color: var(--text-button, #FFFFFF);
                                     border: none;
                                     border-radius: 8px;
@@ -873,15 +882,15 @@ class CategoriesSection {
                         <!-- Filtre par couleur -->
                         <div class="filter-section" style="margin-bottom: 2rem;">
                             <h4 style="
-                                font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                                font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                                 font-size: 1.1rem;
-                                color: var(--text-title, #1F1E1C);
+                                color: var(--text-title, #0F1111);
                                 margin: 0 0 1rem 0;
                                 display: flex;
                                 align-items: center;
                                 gap: 0.5rem;
                             ">
-                                <i class="fas fa-palette" style="color: var(--bg-button, #C6A75E);"></i>
+                                <i class="fas fa-palette" style="color: var(--bg-button, #FFA41C);"></i>
                                 Couleurs
                             </h4>
                             <div class="colors-list-desktop-${this.uniqueId}" style="
@@ -894,15 +903,15 @@ class CategoriesSection {
                         <!-- Filtre de structure -->
                         <div class="filter-section" style="margin-bottom: 2rem;">
                             <h4 style="
-                                font-family: var(--font-primary, 'Cormorant Garamond, serif');
+                                font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
                                 font-size: 1.1rem;
-                                color: var(--text-title, #1F1E1C);
+                                color: var(--text-title, #0F1111);
                                 margin: 0 0 1rem 0;
                                 display: flex;
                                 align-items: center;
                                 gap: 0.5rem;
                             ">
-                                <i class="fas fa-layer-group" style="color: var(--bg-button, #C6A75E);"></i>
+                                <i class="fas fa-layer-group" style="color: var(--bg-button, #FFA41C);"></i>
                                 Sélections
                             </h4>
                             <div class="variants-list-desktop-${this.uniqueId}" style="
@@ -915,15 +924,15 @@ class CategoriesSection {
                         <!-- Pied avec bouton effacer -->
                         <div style="
                             padding-top: 1rem;
-                            border-top: 1px solid var(--bg-button, #C6A75E)20;
+                            border-top: 1px solid var(--bg-button, #FFA41C)20;
                             margin-top: 1rem;
                         ">
                             <button class="clear-filters-desktop-${this.uniqueId}" style="
                                 width: 100%;
                                 padding: 0.75rem;
                                 background: var(--bg-card, #F5F5F5);
-                                color: var(--text-title, #1F1E1C);
-                                border: 1px solid var(--bg-button, #C6A75E)40;
+                                color: var(--text-title, #0F1111);
+                                border: 1px solid var(--bg-button, #FFA41C)40;
                                 border-radius: 8px;
                                 cursor: pointer;
                                 font-size: 0.9rem;
@@ -988,7 +997,7 @@ class CategoriesSection {
                         color: var(--text-subtitle, #7A746B);
                         display: block;
                     ">
-                        <i class="fas fa-spinner fa-spin fa-2x" style="color: var(--bg-button, #C6A75E);"></i>
+                        <i class="fas fa-spinner fa-spin fa-2x" style="color: var(--bg-button, #FFA41C);"></i>
                         <p style="margin-top: 0.75rem; font-size: 0.9rem;">Chargement...</p>
                     </div>
 
@@ -999,12 +1008,12 @@ class CategoriesSection {
                         padding: 3rem 1rem;
                         background: var(--bg-card, white);
                         border-radius: 16px;
-                        border: 1px solid var(--bg-button, #C6A75E)20;
+                        border: 1px solid var(--bg-button, #FFA41C)20;
                     ">
                         <i class="fas fa-box-open" style="font-size: 2.5rem; color: var(--text-subtitle, #7A746B); margin-bottom: 1rem;"></i>
                         <h3 style="
-                            font-family: var(--font-primary, 'Cormorant Garamond, serif');
-                            color: var(--text-title, #1F1E1C);
+                            font-family: var(--font-primary, 'Amazon Ember, Arial, sans-serif');
+                            color: var(--text-title, #0F1111);
                             margin-bottom: 0.5rem;
                             font-size: 1.2rem;
                         ">Aucun produit trouvé</h3>
@@ -1012,7 +1021,7 @@ class CategoriesSection {
                         <button class="reset-filters-btn-${this.uniqueId}" style="
                             margin-top: 1rem;
                             padding: 0.75rem 1.5rem;
-                            background: var(--bg-button, #C6A75E);
+                            background: var(--bg-button, #FFA41C);
                             color: var(--text-button, #FFFFFF);
                             border: none;
                             border-radius: 30px;
@@ -1095,8 +1104,20 @@ class CategoriesSection {
                     display: none !important;
                 }
                 .products-grid-${this.uniqueId} {
-                    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important;
-                    gap: 1.5rem !important;
+                    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                    gap: 1rem !important;
+                }
+            }
+
+            @media (min-width: 1024px) {
+                .products-grid-${this.uniqueId} {
+                    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+                }
+            }
+
+            @media (min-width: 1400px) {
+                .products-grid-${this.uniqueId} {
+                    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
                 }
             }
 
@@ -1116,13 +1137,13 @@ class CategoriesSection {
                     gap: 0.68rem !important;
                 }
                 .product-card-${this.uniqueId} {
-                    border-radius: 0.82rem !important;
-                    border: 1px solid rgba(198, 167, 94, 0.18) !important;
-                    box-shadow: 0 5px 14px rgba(31, 30, 28, 0.07) !important;
+                    border-radius: 0.5rem !important;
+                    border: 1px solid #D5D9D9 !important;
+                    box-shadow: none !important;
                 }
                 .product-card-${this.uniqueId}:hover {
                     transform: none !important;
-                    box-shadow: 0 5px 14px rgba(31, 30, 28, 0.07) !important;
+                    box-shadow: none !important;
                 }
                 .product-info-${this.uniqueId} {
                     padding: 0.58rem 0.58rem 0.64rem !important;
@@ -1160,7 +1181,8 @@ class CategoriesSection {
                     padding: 0.12rem 0.36rem !important;
                 }
                 .product-image-container-${this.uniqueId} {
-                    aspect-ratio: 0.95 !important;
+                    aspect-ratio: 1 / 1 !important;
+                    padding: 10% !important;
                 }
                 .product-price-container-${this.uniqueId} {
                     gap: 0.24rem !important;
@@ -1188,10 +1210,11 @@ class CategoriesSection {
             /* Design des cartes produit */
             .product-card-${this.uniqueId} {
                 background: var(--bg-card, white);
+                border: 1px solid #D5D9D9;
                 border-radius: 0.5rem;
                 overflow: hidden;
-                transition: all 0.3s ease;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                transition: box-shadow 0.2s ease, border-color 0.2s ease;
+                box-shadow: none;
                 cursor: pointer;
                 animation: slideIn 0.5s ease forwards;
                 opacity: 0;
@@ -1199,19 +1222,21 @@ class CategoriesSection {
                 display: flex;
                 flex-direction: column;
             }
-            
+
             .product-card-${this.uniqueId}:hover {
-                transform: translateY(-4px);
-                box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                border-color: #C7CDCD;
+                box-shadow: 0 4px 12px rgba(15,17,17,0.08);
             }
             
             .product-image-container-${this.uniqueId} {
                 position: relative;
                 overflow: hidden;
-                aspect-ratio: 1;
-                background: var(--bg-general, #F5F1E8);
+                aspect-ratio: 1 / 1;
+                background: #FFFFFF;
+                padding: 12%;
+                box-sizing: border-box;
             }
-            
+
             .product-image-container-${this.uniqueId}:hover .nav-arrow {
                 opacity: 1;
             }
@@ -1219,7 +1244,7 @@ class CategoriesSection {
             .product-main-image-${this.uniqueId} {
                 width: 100%;
                 height: 100%;
-                object-fit: cover;
+                object-fit: contain;
                 transition: transform 0.5s ease;
             }
             
@@ -1232,14 +1257,13 @@ class CategoriesSection {
                 top: 0.5rem;
                 left: 0.5rem;
                 z-index: 5;
-                background: linear-gradient(135deg, var(--bg-button, #C6A75E), #b89b7b);
-                color: var(--text-button, #FFFFFF);
+                background: #B12704;
+                color: #FFFFFF;
                 padding: 0.2rem 0.5rem;
-                border-radius: 999px;
+                border-radius: 3px;
                 font-size: 0.64rem;
                 font-weight: 700;
                 letter-spacing: 0.02em;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.22);
             }
             
             .nav-arrow {
@@ -1262,7 +1286,7 @@ class CategoriesSection {
             }
             
             .nav-arrow:hover {
-                background: var(--bg-button, #C6A75E);
+                background: var(--bg-button, #FFA41C);
             }
             
             .nav-arrow.left {
@@ -1294,7 +1318,7 @@ class CategoriesSection {
             
             .product-name-${this.uniqueId} {
                 font-weight: 500;
-                color: var(--text-title, #1F1E1C);
+                color: var(--text-title, #0F1111);
                 font-size: 0.9rem;
                 margin-bottom: 0.25rem;
                 line-height: 1.3;
@@ -1326,7 +1350,7 @@ class CategoriesSection {
             }
 
             .product-store-link-${this.uniqueId}:hover {
-                color: var(--icon-hover, #C6A75E);
+                color: var(--icon-hover, #FFA41C);
             }
             
             .product-description-${this.uniqueId} {
@@ -1351,7 +1375,7 @@ class CategoriesSection {
             .current-price-${this.uniqueId} {
                 font-size: 1rem;
                 font-weight: 700;
-                color: var(--text-title, #1F1E1C);
+                color: var(--text-title, #0F1111);
             }
             
             .compare-price-${this.uniqueId} {
@@ -1396,21 +1420,21 @@ class CategoriesSection {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                border: 1px solid var(--bg-button, #C6A75E)40;
+                border: 1px solid var(--bg-button, #FFA41C)40;
                 background: var(--bg-card, white);
-                color: var(--text-title, #1F1E1C);
+                color: var(--text-title, #0F1111);
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.3s;
                 font-size: 0.9rem;
             }
             .page-btn-${this.uniqueId}:hover:not(:disabled) {
-                background: var(--bg-button, #C6A75E)20;
+                background: var(--bg-button, #FFA41C)20;
             }
             .page-btn-${this.uniqueId}.active {
-                background: var(--bg-button, #C6A75E);
+                background: var(--bg-button, #FFA41C);
                 color: var(--text-button, #FFFFFF);
-                border-color: var(--bg-button, #C6A75E);
+                border-color: var(--bg-button, #FFA41C);
             }
             .page-btn-${this.uniqueId}:disabled {
                 opacity: 0.5;
@@ -1429,7 +1453,7 @@ class CategoriesSection {
                 transition: all 0.2s;
             }
             .color-checkbox-${this.uniqueId}.selected {
-                border-color: var(--text-title, #1F1E1C);
+                border-color: var(--text-title, #0F1111);
                 transform: scale(1.1);
             }
             .color-checkbox-${this.uniqueId}:hover {
@@ -1445,10 +1469,10 @@ class CategoriesSection {
                 width: 4px;
             }
             .categories-list-${this.uniqueId}::-webkit-scrollbar-track {
-                background: var(--bg-general, #F5F1E8);
+                background: var(--bg-general, #EAEDED);
             }
             .categories-list-${this.uniqueId}::-webkit-scrollbar-thumb {
-                background: var(--bg-button, #C6A75E)60;
+                background: var(--bg-button, #FFA41C)60;
                 border-radius: 4px;
             }
         `;
@@ -1625,7 +1649,7 @@ class CategoriesSection {
         const selectedKey = this.state.selectedVariants[0] || '';
         const renderTreeHtml = () => structure.map((column) => `
             <div style="width:100%; margin-bottom:0.8rem;">
-                <div style="font-size:0.85rem; font-weight:600; color:var(--text-title, #1F1E1C); margin-bottom:0.35rem;">
+                <div style="font-size:0.85rem; font-weight:600; color:var(--text-title, #0F1111); margin-bottom:0.35rem;">
                     ${column.name}
                 </div>
                 <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
@@ -1638,8 +1662,8 @@ class CategoriesSection {
                                 class="variant-chip-${this.uniqueId} ${isSelected ? 'selected' : ''}"
                                 data-line-key="${lineKey}"
                                 style="
-                                    border: 1px solid ${isSelected ? 'var(--bg-button, #C6A75E)' : 'var(--text-subtitle, #7A746B)40'};
-                                    background: ${isSelected ? 'var(--bg-button, #C6A75E)' : 'var(--bg-card, #F5F5F5)'};
+                                    border: 1px solid ${isSelected ? 'var(--bg-button, #FFA41C)' : 'var(--text-subtitle, #7A746B)40'};
+                                    background: ${isSelected ? 'var(--bg-button, #FFA41C)' : 'var(--bg-card, #F5F5F5)'};
                                     color: ${isSelected ? 'var(--text-button, #FFFFFF)' : 'var(--text-body, #4A4A4A)'};
                                     border-radius: 999px;
                                     padding: 0.35rem 0.65rem;
@@ -1693,7 +1717,7 @@ class CategoriesSection {
                 padding: 0.25rem 0;
             ">
                 <input type="radio" name="category-${this.uniqueId}" value="all" ${this.state.selectedCategory === 'all' ? 'checked' : ''} style="
-                    accent-color: var(--bg-button, #C6A75E);
+                    accent-color: var(--bg-button, #FFA41C);
                     width: 16px;
                     height: 16px;
                     cursor: pointer;
@@ -1702,7 +1726,7 @@ class CategoriesSection {
                 <span class="count" style="
                     color: var(--text-subtitle, #7A746B);
                     font-size: 0.8rem;
-                    background: var(--bg-general, #F5F1E8);
+                    background: var(--bg-general, #EAEDED);
                     padding: 0.2rem 0.5rem;
                     border-radius: 12px;
                 ">${allCount}</span>
@@ -1720,7 +1744,7 @@ class CategoriesSection {
                     padding: 0.25rem 0;
                 ">
                     <input type="radio" name="category-${this.uniqueId}" value="${category}" ${this.state.selectedCategory === category ? 'checked' : ''} style="
-                        accent-color: var(--bg-button, #C6A75E);
+                        accent-color: var(--bg-button, #FFA41C);
                         width: 16px;
                         height: 16px;
                         cursor: pointer;
@@ -1729,7 +1753,7 @@ class CategoriesSection {
                     <span class="count" style="
                         color: var(--text-subtitle, #7A746B);
                         font-size: 0.8rem;
-                        background: var(--bg-general, #F5F1E8);
+                        background: var(--bg-general, #EAEDED);
                         padding: 0.2rem 0.5rem;
                         border-radius: 12px;
                     ">${count}</span>
@@ -1810,7 +1834,7 @@ class CategoriesSection {
             html += `
                 <div class="color-checkbox-${this.uniqueId} ${isSelected ? 'selected' : ''}" 
                      data-color="${colorName}"
-                     style="border-color: ${isSelected ? 'var(--text-title, #1F1E1C)' : 'transparent'};">
+                     style="border-color: ${isSelected ? 'var(--text-title, #0F1111)' : 'transparent'};">
                     <span style="background: ${bgColor}; border: 1px solid var(--text-subtitle, #7A746B)40;"></span>
                 </div>
             `;
@@ -1981,6 +2005,9 @@ class CategoriesSection {
         card.className = `product-card-${this.uniqueId}`;
         card.style.setProperty('--index', index);
         card.dataset.productId = product.id;
+        card.tabIndex = 0;
+        card.setAttribute('role', 'link');
+        card.setAttribute('aria-label', `Voir ${product.name || 'ce produit'}`);
         
         const images = product.productImages || [];
         const currentIndex = this.state.currentImageIndex.get(product.id) || 0;
@@ -2023,12 +2050,12 @@ class CategoriesSection {
                 `}
                 
                 ${hasMultipleImages ? `
-                    <div class="nav-arrow left prev-image-${this.uniqueId}" data-product-id="${product.id}">
+                    <button type="button" class="nav-arrow left prev-image-${this.uniqueId}" data-product-id="${product.id}" aria-label="Image précédente de ${this.escapeHtml(product.name || 'ce produit')}">
                         <i class="fas fa-chevron-left"></i>
-                    </div>
-                    <div class="nav-arrow right next-image-${this.uniqueId}" data-product-id="${product.id}">
+                    </button>
+                    <button type="button" class="nav-arrow right next-image-${this.uniqueId}" data-product-id="${product.id}" aria-label="Image suivante de ${this.escapeHtml(product.name || 'ce produit')}">
                         <i class="fas fa-chevron-right"></i>
-                    </div>
+                    </button>
                     <div class="image-counter">
                         ${currentIndex + 1}/${images.length}
                     </div>
@@ -2088,6 +2115,13 @@ class CategoriesSection {
                 return;
             }
             this.openProductModal(product.id);
+        });
+
+        card.addEventListener('keydown', (e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !e.target.closest('button, a, input, select')) {
+                e.preventDefault();
+                this.openProductModal(product.id);
+            }
         });
 
         return card;
@@ -2179,7 +2213,7 @@ class CategoriesSection {
         let html = '';
         
         html += `
-            <button class="page-btn-${this.uniqueId} prev" ${this.state.currentPage === 1 ? 'disabled' : ''}>
+            <button class="page-btn-${this.uniqueId} prev" aria-label="Page précédente" ${this.state.currentPage === 1 ? 'disabled' : ''}>
                 <i class="fas fa-chevron-left"></i>
             </button>
         `;
@@ -2201,7 +2235,7 @@ class CategoriesSection {
         }
         
         html += `
-            <button class="page-btn-${this.uniqueId} next" ${this.state.currentPage === this.state.totalPages ? 'disabled' : ''}>
+            <button class="page-btn-${this.uniqueId} next" aria-label="Page suivante" ${this.state.currentPage === this.state.totalPages ? 'disabled' : ''}>
                 <i class="fas fa-chevron-right"></i>
             </button>
         `;

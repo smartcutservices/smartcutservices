@@ -1,0 +1,276 @@
+:root {
+  --ticket-navy: #0d1b2c;
+  --ticket-navy-soft: #152a43;
+  --ticket-gold: #c99a3f;
+  --ticket-ink: #101b2b;
+  --ticket-muted: #667184;
+}
+
+#sierra-home-tickets-root { margin: clamp(1.25rem, 3vw, 2.5rem) 0; }
+
+.home-tickets {
+  width: 100%;
+  padding: clamp(1.5rem, 3vw, 2.5rem) max(1rem, calc((100vw - 1180px) / 2));
+  overflow: hidden;
+  color: var(--ticket-ink);
+  background: linear-gradient(125deg, rgba(201, 154, 63, .07), transparent 31%), linear-gradient(135deg, #fbf9f4, #f4f6f7);
+  border-block: 1px solid rgba(16, 27, 43, .08);
+}
+
+.home-tickets-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: clamp(1rem, 2.5vw, 1.6rem);
+}
+
+.home-tickets-heading p {
+  position: relative;
+  margin: 0 0 .7rem;
+  color: #8a651e;
+  font-size: clamp(.62rem, 1vw, .72rem);
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.home-tickets-heading p::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -.4rem;
+  width: 2rem;
+  height: 2px;
+  background: var(--ticket-gold);
+}
+
+.home-tickets-heading h2 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.6rem, 3.4vw, 2.65rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.home-tickets-all {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: clamp(2.8rem, 5vw, 3.6rem);
+  height: clamp(2.8rem, 5vw, 3.6rem);
+  border: 1px solid var(--ticket-gold);
+  border-radius: 50%;
+  background: var(--ticket-navy);
+  color: #f3d79d;
+  text-decoration: none;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  box-shadow: 0 5px 12px rgba(13, 27, 44, .13);
+  transition: transform .18s ease, background .18s ease;
+}
+
+.home-tickets-all::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -.75rem;
+  height: 1px;
+  background: rgba(201, 154, 63, .6);
+}
+
+.home-tickets-all:hover { transform: translateX(2px); background: var(--ticket-navy-soft); }
+.home-tickets-rail { display: grid; gap: 1rem; }
+
+.home-ticket-card {
+  min-height: clamp(18rem, 30vw, 21rem);
+  display: grid;
+  grid-template-columns: minmax(0, 2.45fr) minmax(13rem, .85fr);
+  overflow: hidden;
+  border: 1px solid rgba(201, 154, 63, .45);
+  border-radius: .7rem;
+  background: rgba(255, 255, 255, .76);
+  box-shadow: 0 9px 24px rgba(29, 35, 43, .075);
+}
+
+.home-ticket-content {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.15rem, 2.5vw, 1.75rem);
+  background: linear-gradient(135deg, rgba(201, 154, 63, .04), transparent 44%), rgba(255, 255, 255, .84);
+}
+
+.home-ticket-live {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: .48rem;
+  min-height: 2.1rem;
+  margin-bottom: clamp(1rem, 2vw, 1.35rem);
+  padding: .42rem .75rem;
+  border-radius: 999px;
+  background: var(--ticket-navy);
+  color: #fff;
+  font-size: clamp(.65rem, 1vw, .76rem);
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(13, 27, 44, .13);
+}
+
+.home-ticket-live i {
+  width: .48rem;
+  height: .48rem;
+  border-radius: 50%;
+  background: #38d979;
+  box-shadow: 0 0 0 3px rgba(56, 217, 121, .18);
+}
+
+.home-ticket-source {
+  margin: 0 0 .65rem;
+  color: #987229;
+  font-size: clamp(.59rem, .9vw, .68rem);
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.home-ticket-content h3 {
+  margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.45rem, 2.7vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -.02em;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-ticket-facts {
+  display: grid;
+  gap: .55rem;
+  margin-top: clamp(.8rem, 1.7vw, 1.15rem);
+  color: var(--ticket-muted);
+  font-size: clamp(.72rem, 1.15vw, .86rem);
+}
+
+.home-ticket-facts span { display: flex; align-items: center; gap: .55rem; }
+.home-ticket-facts i { width: 1rem; color: var(--ticket-gold); font-size: 1.05em; text-align: center; }
+
+.home-ticket-footer {
+  display: grid;
+  gap: .65rem;
+  margin-top: auto;
+  padding-top: .85rem;
+  border-top: 1px solid rgba(16, 27, 43, .1);
+}
+
+.home-ticket-footer strong { font-size: clamp(1.1rem, 2vw, 1.35rem); font-weight: 800; }
+
+.home-ticket-footer a {
+  width: min(100%, 23rem);
+  min-height: 2.85rem;
+  padding: .58rem .9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--ticket-gold);
+  border-radius: .45rem;
+  background: linear-gradient(135deg, var(--ticket-navy-soft), var(--ticket-navy));
+  color: #fff;
+  text-decoration: none;
+  font-size: clamp(.78rem, 1.2vw, .9rem);
+  font-weight: 750;
+  box-shadow: 0 4px 10px rgba(13, 27, 44, .13);
+  transition: transform .16s ease, background .16s ease;
+}
+
+.home-ticket-footer a span { color: #f0cb79; font-size: 1.15rem; }
+.home-ticket-footer a:hover { transform: translateY(-1px); background: var(--ticket-navy-soft); }
+
+.home-ticket-emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-left: 1px solid var(--ticket-gold);
+  background: repeating-linear-gradient(135deg, transparent 0 22px, rgba(255,255,255,.018) 22px 23px), radial-gradient(circle at 50% 45%, rgba(201,154,63,.08), transparent 36%), linear-gradient(145deg, #16283e, #071321 72%);
+}
+
+.home-ticket-emblem::before {
+  content: '';
+  position: absolute;
+  left: -1.75rem;
+  top: -4%;
+  width: 3.5rem;
+  height: 108%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .84);
+  box-shadow: 1px 0 0 var(--ticket-gold);
+}
+
+.home-ticket-trophy {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(5.5rem, 10vw, 7.5rem);
+  height: clamp(5.5rem, 10vw, 7.5rem);
+  border: 1px solid rgba(201, 154, 63, .3);
+  border-radius: 50%;
+  color: rgba(223, 188, 117, .72);
+  font-size: clamp(2.7rem, 5vw, 3.8rem);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, .3), 0 0 0 7px rgba(255,255,255,.018);
+}
+
+.home-ticket-trophy span { position: absolute; color: #f2c76e; font-size: .22em; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+
+/* Mobile : conserver impérativement la carte horizontale. */
+@media (max-width: 800px) {
+  .home-tickets { padding-inline: .75rem; }
+  .home-tickets-heading { align-items: flex-end; }
+  .home-tickets-rail {
+    display: flex;
+    margin-inline: -.75rem;
+    padding: 0 .75rem .45rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ticket-gold) transparent;
+  }
+  .home-ticket-card {
+    flex: 0 0 min(94vw, 38rem);
+    min-height: 17.5rem;
+    grid-template-columns: minmax(0, 1fr) clamp(5.5rem, 25vw, 8.5rem);
+    scroll-snap-align: start;
+  }
+  .home-ticket-content { padding: 1rem; }
+  .home-ticket-emblem { min-height: 0; border-top: 0; border-left: 1px solid var(--ticket-gold); }
+  .home-ticket-emblem::before { left: -1rem; width: 2rem; }
+  .home-ticket-trophy { width: 4.2rem; height: 4.2rem; font-size: 2.1rem; }
+  .home-ticket-footer a { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .home-tickets-heading h2 { font-size: 1.65rem; }
+  .home-tickets-all { width: 2.65rem; height: 2.65rem; font-size: 1.15rem; }
+  .home-ticket-card { min-height: 16.5rem; grid-template-columns: minmax(0, 1fr) 5.6rem; }
+  .home-ticket-content { padding: .85rem; }
+  .home-ticket-live { min-height: 1.8rem; margin-bottom: .75rem; padding: .32rem .55rem; font-size: .58rem; }
+  .home-ticket-source { margin-bottom: .4rem; font-size: .52rem; }
+  .home-ticket-content h3 { font-size: 1.18rem; }
+  .home-ticket-facts { gap: .35rem; margin-top: .55rem; font-size: .66rem; }
+  .home-ticket-footer { gap: .4rem; padding-top: .55rem; }
+  .home-ticket-footer strong { font-size: 1rem; }
+  .home-ticket-footer a { min-height: 2.4rem; padding: .42rem .65rem; font-size: .72rem; }
+  .home-ticket-trophy { width: 3.5rem; height: 3.5rem; font-size: 1.7rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-tickets-all,
+  .home-ticket-footer a { transition: none; }
+}

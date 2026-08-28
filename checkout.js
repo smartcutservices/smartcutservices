@@ -99,7 +99,7 @@ class CheckoutModal {
     
     loadCurrencySettings().then(() => {
       if (this.modal) {
-        this.updateSummary();
+        this.refreshPromoUI();
       }
     });
 
@@ -463,7 +463,7 @@ class CheckoutModal {
     
     this.modal.innerHTML = `
       <div class="checkout-container-${this.uniqueId}" style="
-        background: #F5F1E8;
+        background: #EAEDED;
         border-radius: 1.5rem;
         width: 100%;
         max-width: 900px;
@@ -478,7 +478,7 @@ class CheckoutModal {
         <div style="
           position: sticky;
           top: 0;
-          background: #F5F1E8;
+          background: #EAEDED;
           border-bottom: 1px solid rgba(198, 167, 94, 0.2);
           padding: 1.5rem;
           display: flex;
@@ -488,42 +488,42 @@ class CheckoutModal {
           border-radius: 1.5rem 1.5rem 0 0;
         ">
           <h2 style="
-            font-family: 'Cormorant Garamond', serif;
+            font-family: 'Amazon Ember', Arial, sans-serif;
             font-size: 1.8rem;
-            color: #1F1E1C;
+            color: #0F1111;
             margin: 0;
             display: flex;
             align-items: center;
             gap: 0.5rem;
           ">
-            <i class="fas fa-lock" style="color: #C6A75E; font-size: 1.2rem;"></i>
+            <i class="fas fa-lock" style="color: #FFA41C; font-size: 1.2rem;"></i>
             Paiement sécurisé
           </h2>
-          <button class="close-checkout" style="
+          <button class="close-checkout" type="button" aria-label="Fermer le checkout" style="
             background: none;
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: #8B7E6B;
+            color: #565959;
             transition: all 0.2s;
             padding: 0.5rem;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-          " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#C6A75E'" onmouseout="this.style.background='transparent'; this.style.color='#8B7E6B'">
+          " onmouseover="this.style.background='rgba(198,167,94,0.1)'; this.style.color='#FFA41C'" onmouseout="this.style.background='transparent'; this.style.color='#565959'">
             <i class="fas fa-times"></i>
           </button>
         </div>
         
         <!-- Informations client -->
-        <div style="padding: 1rem 1.5rem; background: #C6A75E10; border-bottom: 1px solid rgba(198, 167, 94, 0.2);">
-          <div style="display: flex; align-items: center; gap: 0.5rem; color: #1F1E1C;">
+        <div style="padding: 1rem 1.5rem; background: #FFA41C10; border-bottom: 1px solid rgba(198, 167, 94, 0.2);">
+          <div style="display: flex; align-items: center; gap: 0.5rem; color: #0F1111;">
             <i class="fas fa-user-circle"></i>
             <span style="font-weight: 500;">${this.client?.name || 'Client'}</span>
-            <span style="color: #8B7E6B;">(${this.client?.email || 'Email non renseigné'})</span>
+            <span style="color: #565959;">(${this.client?.email || 'Email non renseigné'})</span>
           </div>
         </div>
         
@@ -560,7 +560,7 @@ class CheckoutModal {
         }
         
         .checkout-container-${this.uniqueId}::-webkit-scrollbar-thumb {
-          background: #C6A75E;
+          background: #FFA41C;
           border-radius: 3px;
         }
         
@@ -574,7 +574,7 @@ class CheckoutModal {
           text-align: left;
           padding: 0.75rem;
           font-weight: 500;
-          color: #8B7E6B;
+          color: #565959;
           font-size: 0.85rem;
           text-transform: uppercase;
           letter-spacing: 0.5px;
@@ -616,7 +616,7 @@ class CheckoutModal {
             display: inline-block;
             width: 100px;
             font-weight: 500;
-            color: #8B7E6B;
+            color: #565959;
             font-size: 0.85rem;
           }
           
@@ -648,27 +648,27 @@ class CheckoutModal {
           justify-content: center;
           margin: 0 auto 1.5rem;
         ">
-          <i class="fas fa-shopping-bag" style="font-size: 3rem; color: #C6A75E; opacity: 0.5;"></i>
+          <i class="fas fa-shopping-bag" style="font-size: 3rem; color: #FFA41C; opacity: 0.5;"></i>
         </div>
         <h3 style="
-          font-family: 'Cormorant Garamond', serif;
+          font-family: 'Amazon Ember', Arial, sans-serif;
           font-size: 1.5rem;
-          color: #1F1E1C;
+          color: #0F1111;
           margin-bottom: 0.5rem;
         ">Votre panier est vide</h3>
-        <p style="color: #8B7E6B; margin-bottom: 2rem;">
+        <p style="color: #565959; margin-bottom: 2rem;">
           Ajoutez des produits pour procéder au paiement
         </p>
         <button class="close-checkout" style="
-          background: #1F1E1C;
-          color: #F5F1E8;
-          border: 1px solid #C6A75E;
+          background: #0F1111;
+          color: #EAEDED;
+          border: 1px solid #FFA41C;
           padding: 0.75rem 2rem;
           border-radius: 0.5rem;
           cursor: pointer;
           font-size: 1rem;
           transition: all 0.3s;
-        " onmouseover="this.style.background='#C6A75E'; this.style.color='#1F1E1C'" onmouseout="this.style.background='#1F1E1C'; this.style.color='#F5F1E8'">
+        " onmouseover="this.style.background='#FFA41C'; this.style.color='#0F1111'" onmouseout="this.style.background='#0F1111'; this.style.color='#EAEDED'">
           Retour aux achats
         </button>
       </div>
@@ -728,20 +728,20 @@ class CheckoutModal {
           ">
           <button class="apply-promo" style="
             background: transparent;
-            color: #1F1E1C;
-            border: 1px solid #C6A75E;
+            color: #0F1111;
+            border: 1px solid #FFA41C;
             padding: 0.75rem 1.5rem;
             border-radius: 0.5rem;
             cursor: pointer;
             transition: all 0.3s;
             font-weight: 500;
-          " onmouseover="this.style.background='#C6A75E'; this.style.color='#1F1E1C'" onmouseout="this.style.background='transparent'; this.style.color='#1F1E1C'">
+          " onmouseover="this.style.background='#FFA41C'; this.style.color='#0F1111'" onmouseout="this.style.background='transparent'; this.style.color='#0F1111'">
             Appliquer
           </button>
         </div>
         <div style="
           margin: -0.8rem 0 1rem;
-          color: #8B7E6B;
+          color: #565959;
           font-size: 0.85rem;
           line-height: 1.55;
         ">
@@ -766,7 +766,7 @@ class CheckoutModal {
             margin-bottom: 0.75rem;
             font-size: 1rem;
           ">
-            <span style="color: #8B7E6B;">Sous-total</span>
+            <span style="color: #565959;">Sous-total</span>
             <span style="font-weight: 500;">${this.formatPrice(this.subtotal)}</span>
           </div>
 
@@ -786,7 +786,7 @@ class CheckoutModal {
             margin-bottom: 0.75rem;
             font-size: 1rem;
           ">
-            <span style="color: #8B7E6B; display: flex; align-items: center; gap: 0.25rem;">
+            <span style="color: #565959; display: flex; align-items: center; gap: 0.25rem;">
               <i class="fas fa-truck"></i>
               Livraison
             </span>
@@ -801,7 +801,7 @@ class CheckoutModal {
             margin-bottom: 0.75rem;
             font-size: 0.95rem;
           ">
-            <span style="color: #8B7E6B;">Supplément poids</span>
+            <span style="color: #565959;">Supplément poids</span>
             <span data-weight-fee style="font-weight: 500;">${weightFee > 0 ? this.formatPrice(weightFee) : this.formatPrice(0)}</span>
           </div>
           
@@ -810,21 +810,21 @@ class CheckoutModal {
             justify-content: space-between;
             margin-top: 1rem;
             padding-top: 1rem;
-            border-top: 2px solid #C6A75E;
+            border-top: 2px solid #FFA41C;
             font-size: 1.25rem;
             font-weight: bold;
           ">
             <span>Total TTC</span>
-            <span data-total-amount style="color: #1F1E1C;">${this.formatPrice(this.total)}</span>
+            <span data-total-amount style="color: #0F1111;">${this.formatPrice(this.total)}</span>
           </div>
         </div>
         
         <!-- Bouton paiement -->
         <button class="pay-now-btn" style="
           width: 100%;
-          background: #1F1E1C;
-          color: #F5F1E8;
-          border: 2px solid #C6A75E;
+          background: #0F1111;
+          color: #EAEDED;
+          border: 2px solid #FFA41C;
           padding: 1.25rem;
           border-radius: 0.75rem;
           font-size: 1.2rem;
@@ -836,7 +836,7 @@ class CheckoutModal {
           align-items: center;
           justify-content: center;
           gap: 1rem;
-        " onmouseover="this.style.background='#C6A75E'; this.style.color='#1F1E1C'" onmouseout="this.style.background='#1F1E1C'; this.style.color='#F5F1E8'">
+        " onmouseover="this.style.background='#FFA41C'; this.style.color='#0F1111'" onmouseout="this.style.background='#0F1111'; this.style.color='#EAEDED'">
           <i class="fas fa-lock"></i>
           Payer ${this.formatPrice(this.total)}
         </button>
@@ -864,10 +864,10 @@ class CheckoutModal {
         border-radius: 1rem;
       ">
         <h3 style="
-          font-family: 'Cormorant Garamond', serif;
+          font-family: 'Amazon Ember', Arial, sans-serif;
           font-size: 1.35rem;
           margin-bottom: 0.75rem;
-          color: #1F1E1C;
+          color: #0F1111;
         ">
           Livraison a domicile
         </h3>
@@ -880,7 +880,7 @@ class CheckoutModal {
             <div style="display:grid;gap:0.75rem;">
               ${savedAddresses.length ? `
                 <div>
-                  <label style="font-size:0.9rem;color:#8B7E6B;">Adresse enregistree</label>
+                  <label style="font-size:0.9rem;color:#565959;">Adresse enregistree</label>
                   <select class="delivery-saved-address" style="
                     width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
                   ">
@@ -892,20 +892,20 @@ class CheckoutModal {
                   Aucune adresse de livraison enregistree sur ce compte. Ajoutez une adresse maintenant; elle sera sauvegardee pour vos prochains achats.
                 </div>
               `}
-              <label style="font-size:0.9rem;color:#8B7E6B;">Adresse</label>
+              <label style="font-size:0.9rem;color:#565959;">Adresse</label>
               <input type="text" class="delivery-home-address" placeholder="Adresse complete" ${lockAddressFields ? 'readonly' : ''} style="
                 padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};
               ">
 
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
-                  <label style="font-size:0.9rem;color:#8B7E6B;">Departement</label>
+                  <label style="font-size:0.9rem;color:#565959;">Departement</label>
                   <select class="delivery-home-department" ${lockAddressFields ? 'disabled' : ''} style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};">
                     ${this.renderDepartmentOptions(this.selectedDelivery.home.department)}
                   </select>
                 </div>
                 <div>
-                  <label style="font-size:0.9rem;color:#8B7E6B;">Commune</label>
+                  <label style="font-size:0.9rem;color:#565959;">Commune</label>
                   <select class="delivery-home-commune" ${lockAddressFields ? 'disabled' : ''} style="width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:${lockAddressFields ? 'rgba(31,30,28,0.04)' : 'white'};">
                     ${this.renderCommuneOptions(this.selectedDelivery.home.department, this.selectedDelivery.home.commune)}
                   </select>
@@ -914,13 +914,13 @@ class CheckoutModal {
               
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
-                  <label style="font-size:0.9rem;color:#8B7E6B;">Téléphone</label>
+                  <label style="font-size:0.9rem;color:#565959;">Téléphone</label>
                   <input type="text" class="delivery-home-phone" placeholder="Ex: 37 00 00 00" style="
                     width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
                   ">
                 </div>
                 <div>
-                  <label style="font-size:0.9rem;color:#8B7E6B;">WhatsApp</label>
+                  <label style="font-size:0.9rem;color:#565959;">WhatsApp</label>
                   <input type="text" class="delivery-home-whatsapp" placeholder="Ex: 37 00 00 00" style="
                     width:100%;padding:0.75rem;border:1px solid rgba(198,167,94,0.3);border-radius:0.5rem;background:white;
                   ">
@@ -973,7 +973,7 @@ class CheckoutModal {
             <div style="
               width: 60px;
               height: 60px;
-              background: #F5F1E8;
+              background: #EAEDED;
               border-radius: 0.5rem;
               overflow: hidden;
               border: 1px solid rgba(198, 167, 94, 0.2);
@@ -982,11 +982,11 @@ class CheckoutModal {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
-              " onerror="this.src=''; this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;\'><i class=\'fas fa-image\'></i></div>'">
+              " onerror="this.src=''; this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;\'><i class=\'fas fa-image\'></i></div>'">
             </div>
             <div>
               <div style="font-weight: 500;">${item.name || 'Produit'}</div>
-              ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
+              ${item.sku ? `<div style="font-size: 0.7rem; color: #565959;">SKU: ${item.sku}</div>` : ''}
               ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryUnavailable ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
               <button type="button" data-remove-unavailable-item="${index}" style="
                 display:${deliveryUnavailable ? 'inline-flex' : 'none'};
@@ -1061,7 +1061,7 @@ class CheckoutModal {
           <div style="
             width: 80px;
             height: 80px;
-            background: #F5F1E8;
+            background: #EAEDED;
             border-radius: 0.5rem;
             overflow: hidden;
             border: 1px solid rgba(198, 167, 94, 0.2);
@@ -1070,14 +1070,14 @@ class CheckoutModal {
               width: 100%;
               height: 100%;
               object-fit: cover;
-            " onerror="this.src=''; this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#8B7E6B;\'><i class=\'fas fa-image\'></i></div>'">
+            " onerror="this.src=''; this.parentElement.innerHTML='<div style=\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;\'><i class=\'fas fa-image\'></i></div>'">
           </div>
           
           <div style="flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: start;">
               <div>
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">${item.name || 'Produit'}</div>
-                ${item.sku ? `<div style="font-size: 0.7rem; color: #8B7E6B;">SKU: ${item.sku}</div>` : ''}
+                ${item.sku ? `<div style="font-size: 0.7rem; color: #565959;">SKU: ${item.sku}</div>` : ''}
                 ${deliveryLabel ? `<div data-item-delivery-label="${index}" style="font-size:0.74rem;color:${deliveryUnavailable ? '#B91C1C' : '#2E5D3A'};margin-top:.25rem;">${deliveryLabel}</div>` : ''}
                 <button type="button" data-remove-unavailable-item="${index}" style="
                   display:${deliveryUnavailable ? 'inline-flex' : 'none'};

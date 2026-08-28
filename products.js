@@ -1,4 +1,4 @@
-﻿// ============= PRODUCTS COMPONENT - CAROUSEL HORIZONTAL =============
+// ============= PRODUCTS COMPONENT - CAROUSEL HORIZONTAL =============
 import { db } from './firebase-init.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
@@ -321,6 +321,11 @@ class SierraProducts {
     const product = this.products.find((item) => item.id === productId);
     if (!product) return;
 
+    if (Array.isArray(product.variations) && product.variations.length > 1) {
+      this.openProductModal(productId);
+      return;
+    }
+
     const item = this.buildQuickAddItem(product);
     if (!item) return;
 
@@ -471,7 +476,7 @@ class SierraProducts {
         }
         
         .nav-arrow:hover {
-          background: #C6A75E;
+          background: #FFA41C;
         }
         
         .nav-arrow.left {
@@ -516,17 +521,17 @@ class SierraProducts {
         }
         
         .variation-dot.active {
-          border: 2px solid #C6A75E;
+          border: 2px solid #FFA41C;
         }
         
         .price-range {
           font-size: 0.9rem;
-          color: #8B7E6B;
+          color: #565959;
         }
         
         .price-barre {
           text-decoration: line-through;
-          color: #8B7E6B;
+          color: #565959;
           font-size: 0.9rem;
           margin-left: 0.5rem;
         }
@@ -556,15 +561,15 @@ class SierraProducts {
           border-radius: 999px;
           border: 1px solid rgba(198, 167, 94, 0.35);
           background: #FFFFFF;
-          color: #1F1E1C;
+          color: #0F1111;
           font-size: 0.85rem;
           font-weight: 600;
         }
 
         .mobile-actions-${this.uniqueId} .mobile-cart-btn {
-          background: #1F1E1C;
-          color: #F5F1E8;
-          border-color: #C6A75E;
+          background: #0F1111;
+          color: #EAEDED;
+          border-color: #FFA41C;
         }
 
         @media (max-width: 768px) {
@@ -592,7 +597,10 @@ class SierraProducts {
     this.container.innerHTML = `
       <div class="products-wrapper-${this.uniqueId} products-grid-layout-${this.uniqueId}">
         <div class="products-grid-header-${this.uniqueId}">
-          <h2 class="font-primary text-2xl md:text-3xl text-luxury">${this.options.sectionTitle}</h2>
+          <h2 class="products-grid-title-${this.uniqueId}">Pour toi</h2>
+          <a class="products-grid-all-${this.uniqueId}" href="./catalogue.html">
+            Voir tout <i class="fas fa-arrow-right" aria-hidden="true"></i>
+          </a>
         </div>
 
         <div class="products-grid-shell-${this.uniqueId}">
@@ -609,9 +617,31 @@ class SierraProducts {
 
         .products-grid-header-${this.uniqueId} {
           display: flex;
-          align-items: center;
+          align-items: baseline;
           justify-content: space-between;
-          margin-bottom: 1.2rem;
+          margin-bottom: 1rem;
+        }
+
+        .products-grid-title-${this.uniqueId} {
+          margin: 0;
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #0F1111;
+        }
+
+        .products-grid-all-${this.uniqueId} {
+          display: inline-flex;
+          align-items: center;
+          gap: .35rem;
+          color: #007185;
+          font-size: .85rem;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .products-grid-all-${this.uniqueId}:hover {
+          color: #C7511F;
+          text-decoration: underline;
         }
 
         .products-grid-shell-${this.uniqueId} {
@@ -624,30 +654,64 @@ class SierraProducts {
           width: auto;
           max-width: none;
           min-width: 0;
-          border-radius: 18px;
+          border-radius: 8px;
           overflow: hidden;
           background: #FFFFFF;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+          border: 1px solid #D5D9D9;
+          box-shadow: none;
         }
 
         .products-grid-shell-${this.uniqueId} .product-card-${this.uniqueId}:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 20px 35px rgba(0, 0, 0, 0.12);
+          transform: translateY(-2px);
+          border-color: #C7CDCD;
+          box-shadow: 0 4px 12px rgba(15, 17, 17, 0.08);
         }
 
         .products-grid-shell-${this.uniqueId} .product-image-container-${this.uniqueId} {
           margin-bottom: 0;
           border-radius: 0;
           aspect-ratio: 1 / 1;
+          background: #FFFFFF;
+          padding: 12%;
+          box-sizing: border-box;
         }
 
         .products-grid-shell-${this.uniqueId} .product-main-image {
-          object-fit: cover !important;
+          object-fit: contain !important;
           padding: 0 !important;
         }
 
         .products-grid-shell-${this.uniqueId} .px-1 {
-          padding: 1rem;
+          padding: .7rem .75rem .85rem;
+        }
+
+        .products-grid-shell-${this.uniqueId} .mobile-actions-${this.uniqueId} {
+          display: none !important;
+        }
+
+        .products-grid-shell-${this.uniqueId} h3.font-medium {
+          font-size: .86rem !important;
+          font-weight: 500 !important;
+          line-height: 1.32 !important;
+          margin-bottom: .25rem !important;
+        }
+
+        .products-grid-shell-${this.uniqueId} .product-store-link {
+          font-size: .64rem !important;
+          margin-bottom: .3rem !important;
+        }
+
+        .products-grid-shell-${this.uniqueId} p.text-accent.text-sm {
+          display: none !important;
+        }
+
+        .products-grid-shell-${this.uniqueId} .text-xl.font-bold {
+          font-size: 1rem !important;
+        }
+
+        .products-grid-shell-${this.uniqueId} .text-xs.text-accent.mt-1 {
+          font-size: .68rem !important;
+          margin-top: .2rem !important;
         }
 
         @media (min-width: 640px) {
@@ -673,6 +737,7 @@ class SierraProducts {
 
   renderProductCard(product, index) {
     const hasVariations = product.variations && product.variations.length > 0;
+    const requiresVariationChoice = hasVariations && product.variations.length > 1;
     const activeVariation = this.getActiveVariation(product);
     
     // Images à afficher (règle stricte: products.images uniquement)
@@ -736,8 +801,8 @@ class SierraProducts {
     }
     
     return `
-      <div class="product-card-${this.uniqueId} scroll-hidden relative" style="--index: ${index}" data-product-id="${product.id}">
-        <div class="product-content cursor-pointer">
+      <article class="product-card-${this.uniqueId} scroll-hidden relative" style="--index: ${index}" data-product-id="${product.id}">
+        <div class="product-content cursor-pointer" role="link" tabindex="0" aria-label="Voir ${product.name || 'le produit'}">
           <!-- Image Container -->
           <div class="product-image-container-${this.uniqueId} mb-3">
             <div class="w-full h-full bg-ivory rounded-lg overflow-hidden relative">
@@ -758,22 +823,23 @@ class SierraProducts {
               ${hasMultipleVariations ? `
                 <div class="variation-indicator">
                   ${product.variations.map((variation, vIndex) => `
-                    <span class="variation-dot ${vIndex === currentVariationIndex ? 'active' : ''}" 
+                    <button type="button" class="variation-dot ${vIndex === currentVariationIndex ? 'active' : ''}"
                           style="background: ${variation.color || '#ccc'};"
                           data-variation-index="${vIndex}"
-                          title="${variation.colorName || ''}"></span>
+                          aria-label="Aperçu ${this.getVariationLabel(variation)}"
+                          title="${this.getVariationLabel(variation)}"></button>
                   `).join('')}
                 </div>
               ` : ''}
               
               <!-- Navigation images -->
               ${hasMultipleImages ? `
-                <div class="nav-arrow left prev-image" data-product-id="${product.id}">
+                <button type="button" class="nav-arrow left prev-image" data-product-id="${product.id}" aria-label="Image précédente de ${product.name || 'ce produit'}">
                   <i class="fas fa-chevron-left text-xs"></i>
-                </div>
-                <div class="nav-arrow right next-image" data-product-id="${product.id}">
+                </button>
+                <button type="button" class="nav-arrow right next-image" data-product-id="${product.id}" aria-label="Image suivante de ${product.name || 'ce produit'}">
                   <i class="fas fa-chevron-right text-xs"></i>
-                </div>
+                </button>
                 <div class="image-counter">
                   ${currentImageIndex + 1}/${images.length}
                 </div>
@@ -813,19 +879,19 @@ class SierraProducts {
             
             ${hasVariations ? `
               <div class="text-xs text-accent mt-1">
-                ${product.variations.length} couleur(s) disponible(s)
+                ${product.variations.length} ${product.variations.length > 1 ? 'variantes disponibles' : 'variante disponible'}
               </div>
             ` : ''}
 
             <div class="mobile-actions-${this.uniqueId}">
-              <button class="mobile-cart-btn" data-product-id="${product.id}">
-                <i class="fas fa-shopping-bag"></i>
-                <span>Ajouter</span>
+              <button type="button" class="mobile-cart-btn" data-product-id="${product.id}" aria-label="${requiresVariationChoice ? 'Choisir une variante pour' : 'Ajouter au panier'} ${product.name || 'ce produit'}">
+                <i class="fas ${requiresVariationChoice ? 'fa-sliders' : 'fa-shopping-bag'}" aria-hidden="true"></i>
+                <span>${requiresVariationChoice ? 'Choisir' : 'Ajouter'}</span>
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </article>
     `;
   }
   
@@ -959,6 +1025,13 @@ class SierraProducts {
         if (productId) {
           this.openProductModal(productId);
         }
+      });
+      wrapper.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (e.target.closest('button, a')) return;
+        e.preventDefault();
+        const productId = wrapper.closest(`.product-card-${this.uniqueId}`)?.dataset.productId;
+        if (productId) this.openProductModal(productId);
       });
     });
   }

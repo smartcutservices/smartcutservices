@@ -5,35 +5,35 @@ class ThemeRoot {
     this.listeners = [];
     this.initialized = false;
 
-    // Palette harmonisee avec les composants principaux du site
+    // Palette harmonisee avec les composants principaux du site (identite Amazon)
     this.colors = {
       text: {
-        title: '#1F1E1C',
-        subtitle: '#7A746B',
-        body: '#4A4A4A',
-        button: '#FFFFFF'
+        title: '#0F1111',
+        subtitle: '#565959',
+        body: '#0F1111',
+        button: '#0F1111'
       },
       background: {
-        general: '#FFFFFF',
-        card: '#F5F5F5',
-        button: '#C6A75E'
+        general: '#EAEDED',
+        card: '#FFFFFF',
+        button: '#FFD814'
       },
       icon: {
-        standard: '#1F1E1C',
-        hover: '#C6A75E'
+        standard: '#0F1111',
+        hover: '#FFA41C'
       }
     };
 
-    // Typo élégante comme demandé
+    // Typo Amazon : pas de webfont, Arial/Amazon Ember systeme
     this.typography = {
-      family: "'Cormorant Garamond', serif",
-      name: 'Cormorant Garamond',
-      category: 'serif'
+      family: "'Amazon Ember', Arial, Helvetica, sans-serif",
+      name: 'Amazon Ember',
+      category: 'sans-serif'
     };
 
     this.fonts = {
-      primary: "'Cormorant Garamond', serif",
-      secondary: "'Manrope', sans-serif"
+      primary: "'Amazon Ember', Arial, Helvetica, sans-serif",
+      secondary: "'Amazon Ember', Arial, Helvetica, sans-serif"
     };
 
     this.init();
@@ -70,7 +70,7 @@ class ThemeRoot {
     root.style.setProperty('--secondary', this.colors.background.button);
     root.style.setProperty('--accent', this.colors.text.subtitle);
     root.style.setProperty('--luxury', this.colors.text.title);
-    root.style.setProperty('--ivory', '#F5F1E8');
+    root.style.setProperty('--ivory', '#EAEDED');
   }
 
   getColors() {

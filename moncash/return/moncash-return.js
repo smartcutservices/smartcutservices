@@ -2,6 +2,8 @@ import { getMoncashPaymentStatus } from '../../moncash-client.js';
 import { downloadOrderPdfReceipt } from '../../order-pdf.js';
 
 const PENDING_PAYMENT_KEY = 'smartcut_pending_moncash_payment';
+const BILLING_PAYMENT_KEY = 'smartcut_billing_payment';
+const HEALTH_PAYMENT_KEY = 'smartcut_health_payment';
 const CART_STORAGE_KEY = 'veltrixa_cart';
 const titleEl = document.getElementById('page-title');
 const copyEl = document.getElementById('page-copy');
@@ -102,6 +104,19 @@ async function pollPaymentStatus(reference, pending) {
     const status = String(payload?.status || payload?.paymentStatus || '').toLowerCase();
 
     if (status === 'paid') {
+      const isJwetproTicket = payload?.paymentType === 'jwetpro_ticket' || pending?.paymentType === 'jwetpro_ticket';
+      if (isJwetproTicket && payload?.externalReturnUrl) {
+        setState({
+          title: 'Ticket confirmé',
+          copy: 'Votre paiement est confirmé. Retour vers JwetPro en cours.',
+          detail: 'Votre inscription au championnat est en cours de finalisation sécurisée.',
+          tone: 'paid',
+          meta: buildMeta(payload, pending)
+        });
+        clearPendingPayment();
+        window.setTimeout(() => window.location.replace(payload.externalReturnUrl), 900);
+        return;
+      }
       if (payload?.paymentType !== 'vendor_service_fee' && pending?.paymentType !== 'vendor_service_fee') {
         clearCartStorage();
       }
@@ -228,7 +243,43 @@ if (refreshBtn) {
   });
 }
 
-runStatusCheck().catch((error) => {
+function redirectBillingReturnIfNeeded() {
+  try {
+    const raw = localStorage.getItem(BILLING_PAYMENT_KEY);
+    if (!raw) return false;
+    const billing = JSON.parse(raw);
+    if (!billing?.token || !billing?.paymentIntentId) return false;
+    const params = new URLSearchParams(window.location.search);
+    const target = new URL('../../facture.html', window.location.href);
+    target.searchParams.set('t', billing.token);
+    target.searchParams.set('paymentIntentId', billing.paymentIntentId);
+    const transactionId = params.get('transactionId') || params.get('transaction_id');
+    if (transactionId) target.searchParams.set('transactionId', transactionId);
+    window.location.replace(target.toString());
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function redirectHealthReturnIfNeeded() {
+  try {
+    const raw = localStorage.getItem(HEALTH_PAYMENT_KEY);
+    if (!raw) return false;
+    const health = JSON.parse(raw);
+    if (!health?.sessionId && !health?.orderId) return false;
+    const target = new URL('../../health/payment-return.html', window.location.href);
+    const incoming = new URLSearchParams(window.location.search);
+    target.searchParams.set('sessionId', health.sessionId || '');
+    target.searchParams.set('orderId', health.orderId || '');
+    const transactionId = incoming.get('transactionId') || incoming.get('transaction_id');
+    if (transactionId) target.searchParams.set('transactionId', transactionId);
+    window.location.replace(target.toString());
+    return true;
+  } catch (_) { return false; }
+}
+
+if (!redirectBillingReturnIfNeeded() && !redirectHealthReturnIfNeeded()) runStatusCheck().catch((error) => {
   setState({
     title: 'Verification impossible',
     copy: 'Nous n avons pas pu verifier votre paiement MonCash pour le moment.',

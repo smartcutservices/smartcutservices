@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Créez des proformas, encaissez avec MonCash et gérez vos revenus avec SmartCut Services.">
+  <title>SmartCut Pro | SmartCut Services</title>
+  <link rel="icon" href="../favicon.ico">
+  <link rel="stylesheet" href="./styles-v2.css?v=20260826-1">
+  <link rel="stylesheet" href="./visibility-fix.css?v=20260827-6">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+</head>
+<body>
+  <div id="authGate" class="auth-gate" hidden>
+    <div class="auth-card"><img class="auth-logo" src="../logo.png" alt="Smart Cut Services" width="82" height="72"><h1>Factures & Paiements</h1><p>Connectez-vous à votre compte SmartCut pour gérer votre activité.</p><a class="button primary auth-login-button" href="../index.html?auth=login">Se connecter sur SmartCut <span aria-hidden="true">→</span></a></div>
+  </div>
+  <div id="app" class="shell" hidden>
+    <aside id="sidebar" class="sidebar">
+      <a class="brand" href="../index.html" aria-label="Retour à l’accueil Smart Cut Services"><img class="brand-logo" src="../logo.png" alt="Smart Cut Services" width="44" height="44"><span><strong>SmartCut Pro</strong><small>Espace prestataire</small></span></a>
+      <nav id="nav" aria-label="Navigation SmartCut Pro">
+        <button class="active" data-view="overview">Vue d'ensemble</button><button data-view="services">Mes services</button><button data-view="requests">Demandes</button><button data-view="orders">Commandes</button><button data-view="clients">Clients</button>
+        <p>Factures & Paiements</p><button data-view="proformas">Proformas</button><button data-view="invoices">Factures</button><button data-view="payments">Paiements</button><button data-view="withdrawals">Retraits</button>
+        <p>Compte</p><button data-view="profile">Profil public</button><button data-view="settings">Paramètres</button>
+      </nav>
+      <a class="back-link" href="../index.html">← Retour au site</a>
+    </aside>
+    <main>
+      <header class="topbar dashboard-topbar"><button id="menuBtn" class="icon-button menu-button dashboard-menu-button" aria-label="Ouvrir la navigation"><span aria-hidden="true">☰</span></button><div class="dashboard-title"><span>SmartCut Pro</span><h1 id="viewTitle">Vue d'ensemble</h1></div><button class="button dashboard-refresh" data-action="refresh"><span aria-hidden="true">↻</span><span>Actualiser</span></button></header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <section id="content" aria-live="polite"><div class="loading">Chargement de votre espace…</div></section>
+    </main>
+  </div>
+  <dialog id="dialog"><div id="dialogBody" class="dialog-body"></div></dialog>
+  <script type="module" src="./app/app.js?v=20260827-10"></script>
+</body>
+</html>

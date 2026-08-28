@@ -76,18 +76,18 @@ class SearchComponent {
     const fonts = this.theme.getFonts();
     
     // Couleurs selon la nouvelle structure
-    const titleColor = colors?.text?.title || '#1F1E1C';
-    const subtitleColor = colors?.text?.subtitle || '#8B7E6B';
+    const titleColor = colors?.text?.title || '#0F1111';
+    const subtitleColor = colors?.text?.subtitle || '#565959';
     const bodyColor = colors?.text?.body || '#4A4A4A';
     const buttonTextColor = colors?.text?.button || '#FFFFFF';
-    const buttonBgColor = colors?.background?.button || '#C6A75E';
-    const bgGeneralColor = colors?.background?.general || '#F5F1E8';
+    const buttonBgColor = colors?.background?.button || '#FFA41C';
+    const bgGeneralColor = colors?.background?.general || '#EAEDED';
     const bgCardColor = colors?.background?.card || '#FFFFFF';
-    const iconStandard = colors?.icon?.standard || '#8B7E6B';
-    const iconHover = colors?.icon?.hover || '#C6A75E';
+    const iconStandard = colors?.icon?.standard || '#565959';
+    const iconHover = colors?.icon?.hover || '#FFA41C';
     
-    const primaryFont = fonts?.primary || "'Cormorant Garamond', serif";
-    const secondaryFont = fonts?.secondary || "'Manrope', sans-serif";
+    const primaryFont = fonts?.primary || "'Amazon Ember', Arial, sans-serif";
+    const secondaryFont = fonts?.secondary || "'Amazon Ember', sans-serif";
     
     // Appliquer les styles CSS
     const styleEl = document.createElement('style');
@@ -486,31 +486,35 @@ class SearchComponent {
     // Créer le modal de recherche
     const modal = document.createElement('div');
     modal.className = `search-overlay-${this.uniqueId}`;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Recherche dans le catalogue');
     modal.innerHTML = `
       <div class="search-container-${this.uniqueId}">
         <div class="search-header-${this.uniqueId}">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <div class="search-input-wrapper-${this.uniqueId}" style="flex: 1;">
               <i class="fas fa-search"></i>
-              <input type="text" 
+              <input type="search"
                      class="search-input-${this.uniqueId}" 
                      placeholder="Rechercher un produit, un article..."
+                     aria-label="Rechercher un produit ou un article"
                      id="searchInput-${this.uniqueId}"
                      autocomplete="off">
-              <button class="search-clear-${this.uniqueId}" id="searchClear-${this.uniqueId}">
+              <button type="button" class="search-clear-${this.uniqueId}" id="searchClear-${this.uniqueId}" aria-label="Effacer la recherche">
                 <i class="fas fa-times-circle"></i>
               </button>
             </div>
-            <button class="search-close-${this.uniqueId}" id="searchClose-${this.uniqueId}">
+            <button type="button" class="search-close-${this.uniqueId}" id="searchClose-${this.uniqueId}" aria-label="Fermer la recherche">
               <i class="fas fa-times"></i>
             </button>
           </div>
           
           <div class="search-suggestions-${this.uniqueId}">
-            <span class="search-suggestion-${this.uniqueId}" data-suggest="nouveautés">Nouveautés</span>
-            <span class="search-suggestion-${this.uniqueId}" data-suggest="promotions">Promotions</span>
-            <span class="search-suggestion-${this.uniqueId}" data-suggest="collection">Collection</span>
-            <span class="search-suggestion-${this.uniqueId}" data-suggest="édition limitée">Édition limitée</span>
+            <button type="button" class="search-suggestion-${this.uniqueId}" data-suggest="nouveautés">Nouveautés</button>
+            <button type="button" class="search-suggestion-${this.uniqueId}" data-suggest="promotions">Promotions</button>
+            <button type="button" class="search-suggestion-${this.uniqueId}" data-suggest="collection">Collection</button>
+            <button type="button" class="search-suggestion-${this.uniqueId}" data-suggest="édition limitée">Édition limitée</button>
           </div>
         </div>
         
@@ -913,7 +917,7 @@ class SearchComponent {
         
         if (type === 'product') {
           try {
-            const module = await import('./product-modal.js?v=20260714-1');
+            const module = await import('./product-modal.js?v=20260821-1');
             const ProductModal = module.default;
             
             new ProductModal({

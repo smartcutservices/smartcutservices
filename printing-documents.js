@@ -43,10 +43,10 @@ const DEFAULT_CONFIG = {
 const PRODUCT_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
   <rect width="240" height="240" rx="36" fill="#F2E9DA"/>
-  <rect x="58" y="36" width="124" height="168" rx="18" fill="#FFFFFF" stroke="#C6A75E" stroke-width="8"/>
+  <rect x="58" y="36" width="124" height="168" rx="18" fill="#FFFFFF" stroke="#FFA41C" stroke-width="8"/>
   <path d="M148 36v38c0 10 8 18 18 18h16" fill="#F6EFE2"/>
-  <path d="M148 36l34 34" stroke="#C6A75E" stroke-width="8" stroke-linecap="round"/>
-  <path d="M82 108h76M82 136h76M82 164h48" stroke="#1F1E1C" stroke-opacity=".75" stroke-width="8" stroke-linecap="round"/>
+  <path d="M148 36l34 34" stroke="#FFA41C" stroke-width="8" stroke-linecap="round"/>
+  <path d="M82 108h76M82 136h76M82 164h48" stroke="#0F1111" stroke-opacity=".75" stroke-width="8" stroke-linecap="round"/>
 </svg>
 `)}`;
 
@@ -212,35 +212,30 @@ class PrintingDocumentsPage {
     const isActive = this.currentStep === step;
     const isDone = this.currentStep > step || (step < 3 && this.getStepValidity(step));
     return `
-      <button type="button" class="printing-quiz-step ${isActive ? 'is-active' : ''} ${isDone ? 'is-done' : ''}" data-go-step="${step}">
-        <span class="printing-quiz-step-index">${isDone ? '<i class="fas fa-check"></i>' : step}</span>
-        <span class="printing-quiz-step-copy">
-          <strong>Etape ${step}</strong>
-          <small>${title}</small>
-        </span>
+      <button type="button" class="pdoc-step ${isActive ? 'is-active' : ''} ${isDone ? 'is-done' : ''}" data-go-step="${step}">
+        <span class="pdoc-step-dot">${isDone ? '<i class="fas fa-check"></i>' : step}</span>
+        <span class="pdoc-step-label">${title}</span>
       </button>
+      ${step < 3 ? '<span class="pdoc-step-line"></span>' : ''}
     `;
   }
 
   renderStepOne() {
     return `
-      <section class="printing-quiz-panel">
-        <div class="printing-quiz-panel-head">
-          <small>Etape 1</small>
-          <h2>Chargez votre fichier PDF</h2>
-          <p>Le site lira automatiquement le nombre de pages du PDF pour calculer votre tarif final.</p>
-        </div>
-        <label class="printing-quiz-field">
+      <section class="pdoc-panel">
+        <h2>Chargez votre PDF</h2>
+        <p class="pdoc-hint">Le nombre de pages est détecté automatiquement pour calculer votre tarif.</p>
+        <label class="pdoc-field">
           <span>Fichier PDF</span>
-          <div class="printing-quiz-upload">
-            <input id="printingPdfFile" class="printing-quiz-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}>
-            <div id="printingPdfStatus" class="printing-quiz-upload-status" style="color:${this.fileInfo ? '#0f9f6e' : '#6E6557'};">
+          <div class="pdoc-upload">
+            <input id="printingPdfFile" class="pdoc-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}>
+            <div id="printingPdfStatus" class="pdoc-upload-status" style="color:${this.fileInfo ? '#0f9f6e' : 'var(--sc-muted)'};">
               ${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.pageCount} page(s)` : 'Choisissez un fichier PDF pour commencer.'}
             </div>
           </div>
         </label>
-        <div class="printing-quiz-actions">
-          <button type="button" class="printing-quiz-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button>
+        <div class="pdoc-actions">
+          <button type="button" class="pdoc-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button>
         </div>
       </section>
     `;
@@ -250,43 +245,42 @@ class PrintingDocumentsPage {
     const papers = this.getEnabledPapers();
     const dimensions = this.getEnabledDimensions(this.formState.paperLabel);
     return `
-      <section class="printing-quiz-panel">
-        <div class="printing-quiz-panel-head">
-          <small>Etape 2</small>
-          <h2>Choisissez votre papier et votre dimension</h2>
-          <p>Chaque type de papier propose sa propre liste de dimensions et son propre tarif par page.</p>
-        </div>
-        <div class="printing-quiz-grid">
-          <label class="printing-quiz-field">
+      <section class="pdoc-panel">
+        <h2>Papier et dimension</h2>
+        <p class="pdoc-hint">Chaque type de papier propose sa propre liste de dimensions et son propre tarif par page.</p>
+        <div class="pdoc-grid2">
+          <label class="pdoc-field">
             <span>Type de papier</span>
-            <select id="printingPaper" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''}>
+            <select id="printingPaper" class="pdoc-input" ${this.config.enabled === false ? 'disabled' : ''}>
               <option value="">Choisir un papier</option>
               ${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}
             </select>
           </label>
-          <label class="printing-quiz-field">
+          <label class="pdoc-field">
             <span>Dimension</span>
-            <select id="printingDimension" class="printing-quiz-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}>
+            <select id="printingDimension" class="pdoc-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}>
               <option value="">Choisir une dimension</option>
               ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}">${this.escape(dimension.label)} · ${this.formatPrice(dimension.price || 0)} / page</option>`).join('')}
             </select>
           </label>
         </div>
-        <label class="printing-quiz-field">
-          <span>Nombre de copies</span>
-          <input id="printingCopies" class="printing-quiz-input" type="number" min="1" step="1" value="${this.formState.copies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
+        <div class="pdoc-grid2">
+          <label class="pdoc-field">
+            <span>Nombre de copies</span>
+            <input id="printingCopies" class="pdoc-input" type="number" min="1" step="1" value="${this.formState.copies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
+          </label>
+          <label class="pdoc-field">
+            <span>Nom du travail (optionnel)</span>
+            <input id="printingJobName" class="pdoc-input" type="text" value="${this.escape(this.formState.jobName || '')}" placeholder="Ex: Brochure, certificats...">
+          </label>
+        </div>
+        <label class="pdoc-field">
+          <span>Notes (optionnel)</span>
+          <textarea id="printingNotes" class="pdoc-textarea" rows="3" placeholder="Instructions utiles pour l impression.">${this.escape(this.formState.notes || '')}</textarea>
         </label>
-        <label class="printing-quiz-field">
-          <span>Nom du travail</span>
-          <input id="printingJobName" class="printing-quiz-input" type="text" value="${this.escape(this.formState.jobName || '')}" placeholder="Ex: Brochure, certificats, etc.">
-        </label>
-        <label class="printing-quiz-field">
-          <span>Notes</span>
-          <textarea id="printingNotes" class="printing-quiz-textarea" rows="4" placeholder="Instructions utiles pour l impression.">${this.escape(this.formState.notes || '')}</textarea>
-        </label>
-        <div class="printing-quiz-actions">
-          <button type="button" class="printing-quiz-btn ghost" data-prev-step="1">Retour</button>
-          <button type="button" class="printing-quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button>
+        <div class="pdoc-actions">
+          <button type="button" class="pdoc-btn ghost" data-prev-step="1">Retour</button>
+          <button type="button" class="pdoc-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button>
         </div>
       </section>
     `;
@@ -294,31 +288,27 @@ class PrintingDocumentsPage {
 
   renderStepThree(quote) {
     return `
-      <section class="printing-quiz-panel">
-        <div class="printing-quiz-panel-head">
-          <small>Etape 3</small>
-          <h2>Votre tarif est prêt</h2>
-          <p>Le total est calcule a partir du nombre de pages du PDF, de la dimension choisie et du nombre de copies.</p>
-        </div>
-        <div class="printing-quiz-summary">
-          <div class="printing-quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Pages PDF</span><strong id="quotePageCount">${quote.pageCount}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Pages imprimees</span><strong id="quotePrintedPages">${quote.pageCount * quote.copies}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Prix par copie</span><strong id="quoteUnitPrice">${this.formatPrice(quote.copyTotal)}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Copies</span><strong id="quoteCopies">${quote.copies}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Total impression</span><strong id="quotePrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Frais reception</span><strong id="quoteDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
-          <div class="printing-quiz-summary-total"><span>Total à payer</span><strong id="quoteTotalPrice">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
+      <section class="pdoc-panel">
+        <h2>Votre tarif</h2>
+        <div class="pdoc-summary">
+          <div class="pdoc-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
+          <div class="pdoc-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
+          <div class="pdoc-summary-row"><span>Pages PDF</span><strong id="quotePageCount">${quote.pageCount}</strong></div>
+          <div class="pdoc-summary-row"><span>Pages imprimées</span><strong id="quotePrintedPages">${quote.pageCount * quote.copies}</strong></div>
+          <div class="pdoc-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
+          <div class="pdoc-summary-row"><span>Prix par copie</span><strong id="quoteUnitPrice">${this.formatPrice(quote.copyTotal)}</strong></div>
+          <div class="pdoc-summary-row"><span>Copies</span><strong id="quoteCopies">${quote.copies}</strong></div>
+          <div class="pdoc-summary-row"><span>Total impression</span><strong id="quotePrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+          <div class="pdoc-summary-row"><span>Frais réception</span><strong id="quoteDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
+          <div class="pdoc-summary-total"><span>Total à payer</span><strong id="quoteTotalPrice">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
         </div>
         ${this.deliveryController.renderSection()}
-        ${this.config.notes ? `<div class="printing-quiz-note">${this.escape(this.config.notes)}</div>` : ''}
-        <div class="printing-quiz-actions">
-          <button type="button" class="printing-quiz-btn ghost" data-prev-step="2">Modifier mes choix</button>
-          <button type="button" class="printing-quiz-btn secondary" id="openCartFromPrinting">Ouvrir le panier</button>
-          <button type="button" class="printing-quiz-btn primary" id="submitPrintingOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button>
-          <span id="printingSubmitStatus" class="printing-quiz-submit-status"></span>
+        ${this.config.notes ? `<div class="pdoc-note">${this.escape(this.config.notes)}</div>` : ''}
+        <div class="pdoc-actions">
+          <button type="button" class="pdoc-btn ghost" data-prev-step="2">Modifier</button>
+          <button type="button" class="pdoc-btn secondary" id="openCartFromPrinting">Ouvrir le panier</button>
+          <button type="button" class="pdoc-btn primary" id="submitPrintingOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button>
+          <span id="printingSubmitStatus" class="pdoc-submit-status"></span>
         </div>
       </section>
     `;
@@ -329,61 +319,71 @@ class PrintingDocumentsPage {
 
     this.container.innerHTML = `
       <style>
-        .printing-quiz-shell{width:100%;max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1rem}
-        .printing-quiz-heading{display:grid;gap:.5rem;padding:.4rem 0 0}
-        .printing-quiz-heading small{color:#9b7c38;text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:800}
-        .printing-quiz-heading h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.8rem);line-height:.92;color:#1F1E1C}
-        .printing-quiz-heading p{color:#6E6557;line-height:1.8;max-width:60ch}
-        .printing-quiz-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}
-        .printing-quiz-step{border:1px solid rgba(31,30,28,.08);border-radius:1.4rem;background:rgba(255,255,255,.92);box-shadow:0 18px 36px rgba(31,30,28,.06);padding:.95rem 1rem;display:flex;gap:.8rem;align-items:center;text-align:left;cursor:pointer}
-        .printing-quiz-step.is-active{border-color:rgba(198,167,94,.35);box-shadow:0 20px 40px rgba(31,30,28,.08);background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(248,242,230,.94))}
-        .printing-quiz-step.is-done .printing-quiz-step-index{background:#0f9f6e;color:#fff}
-        .printing-quiz-step-index{width:36px;height:36px;min-width:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(198,167,94,.14);color:#9b7c38;font-weight:800}
-        .printing-quiz-step-copy{display:grid;gap:.16rem}
-        .printing-quiz-step-copy strong{font-size:.86rem;color:#6E6557}
-        .printing-quiz-step-copy small{font-size:1rem;color:#1F1E1C;font-weight:800}
-        .printing-quiz-panel{border:1px solid rgba(31,30,28,.08);border-radius:1.9rem;background:rgba(255,255,255,.94);box-shadow:0 24px 60px rgba(31,30,28,.08);padding:clamp(1.2rem,3vw,1.8rem);display:grid;gap:1.1rem}
-        .printing-quiz-panel-head{display:grid;gap:.45rem}
-        .printing-quiz-panel-head small{color:#9b7c38;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:800}
-        .printing-quiz-panel-head h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,2.9rem);line-height:.94;color:#1F1E1C}
-        .printing-quiz-panel-head p{color:#6E6557;line-height:1.8;max-width:58ch}
-        .printing-quiz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-        .printing-quiz-field{display:grid;gap:.5rem}
-        .printing-quiz-input,.printing-quiz-textarea{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:1rem;padding:.95rem 1rem;background:#fff;font:inherit}
-        .printing-quiz-textarea{resize:vertical}
-        .printing-quiz-upload{border:1px dashed rgba(198,167,94,.4);border-radius:1.3rem;padding:1rem;background:linear-gradient(180deg,rgba(248,242,230,.7),rgba(255,255,255,.96));display:grid;gap:.85rem}
-        .printing-quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}
-        .printing-quiz-summary-row,.printing-quiz-summary-total{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}
-        .printing-quiz-summary-total{margin-top:.25rem;padding-top:.9rem;border-top:1px solid rgba(31,30,28,.08);color:#1F1E1C;font-size:1.2rem;font-weight:800}
-        .printing-quiz-note{border-radius:1.2rem;background:rgba(198,167,94,.08);border:1px solid rgba(198,167,94,.16);color:#8A7450;padding:1rem 1.1rem;line-height:1.8}
-        .printing-quiz-actions{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}
-        .printing-quiz-btn{border:none;border-radius:999px;padding:.96rem 1.25rem;font:inherit;font-weight:800;cursor:pointer}
-        .printing-quiz-btn.primary{background:#1F1E1C;color:#F8F5EF;box-shadow:0 14px 28px rgba(31,30,28,.18)}
-        .printing-quiz-btn.secondary{background:#fff;color:#1F1E1C;border:1px solid rgba(31,30,28,.12)}
-        .printing-quiz-btn.ghost{background:transparent;color:#6E6557;border:1px solid rgba(31,30,28,.1)}
-        .printing-quiz-btn:disabled,.printing-quiz-step:disabled{opacity:.5;cursor:not-allowed}
-        @media (max-width: 860px) {
-          .printing-quiz-steps,
-          .printing-quiz-grid {
-            grid-template-columns: 1fr;
-          }
+        .pdoc-shell{width:100%;max-width:900px;margin:0 auto;padding:0 1rem 3rem;display:grid;gap:1.35rem}
+        .pdoc-hero{background:var(--sc-navy);color:#fff;border-radius:var(--sc-radius);padding:1.75rem 1.85rem;display:flex;align-items:center;gap:1.1rem}
+        .pdoc-hero-icon{width:50px;height:50px;min-width:50px;border-radius:13px;background:rgba(0,113,133,.35);display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#7fd4e3}
+        .pdoc-hero h1{font-size:clamp(1.35rem,2.6vw,1.7rem);font-weight:800;margin-bottom:.3rem;letter-spacing:-.01em}
+        .pdoc-hero p{color:rgba(255,255,255,.72);font-size:.88rem;line-height:1.5;max-width:56ch}
+        .pdoc-error-banner{border-radius:var(--sc-radius-sm);background:#fdecea;border:1px solid #f3c6c2;color:#991b1b;padding:.85rem 1rem;font-size:.88rem}
+
+        .pdoc-stepper{display:flex;align-items:center;padding:0 .2rem}
+        .pdoc-step{display:flex;align-items:center;gap:.55rem;background:none;border:none;cursor:pointer;padding:.35rem 0}
+        .pdoc-step-dot{width:26px;height:26px;min-width:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:800;background:var(--sc-canvas);color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pdoc-step.is-active .pdoc-step-dot{background:#007185;color:#fff;border-color:#007185}
+        .pdoc-step.is-done .pdoc-step-dot{background:#0f9f6e;color:#fff;border-color:#0f9f6e}
+        .pdoc-step-label{font-size:.8rem;font-weight:700;color:var(--sc-muted)}
+        .pdoc-step.is-active .pdoc-step-label{color:var(--sc-ink)}
+        .pdoc-step-line{flex:1;height:1px;background:var(--sc-line);margin:0 .6rem}
+
+        .pdoc-panel{background:var(--sc-surface);border:1px solid var(--sc-line);border-radius:var(--sc-radius);padding:1.5rem;display:grid;gap:1rem}
+        .pdoc-panel h2{font-size:1.15rem;font-weight:800;color:var(--sc-ink)}
+        .pdoc-hint{color:var(--sc-muted);font-size:.85rem;margin-top:-.55rem;line-height:1.5}
+
+        .pdoc-field{display:grid;gap:.4rem}
+        .pdoc-field span{font-size:.8rem;font-weight:700;color:var(--sc-muted)}
+        .pdoc-input,.pdoc-textarea{width:100%;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);padding:.7rem .8rem;font:inherit;font-size:.92rem;background:#fff;color:var(--sc-ink)}
+        .pdoc-input:focus,.pdoc-textarea:focus{outline:none;border-color:#007185;box-shadow:0 0 0 3px rgba(0,113,133,.14)}
+        .pdoc-textarea{resize:vertical}
+        .pdoc-grid2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+
+        .pdoc-upload{border:1.5px dashed #a9d4dc;border-radius:var(--sc-radius-sm);padding:1.1rem;background:#f2fafb;display:grid;gap:.7rem}
+        .pdoc-upload-status{font-size:.84rem}
+
+        .pdoc-summary{display:grid;gap:0;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);overflow:hidden}
+        .pdoc-summary-row{display:flex;justify-content:space-between;gap:1rem;color:var(--sc-muted);font-size:.86rem;padding:.55rem .85rem;border-bottom:1px solid var(--sc-line);background:#fff}
+        .pdoc-summary-row strong{color:var(--sc-ink)}
+        .pdoc-summary-total{display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;color:var(--sc-ink);padding:.75rem .85rem;background:var(--sc-canvas)}
+        .pdoc-note{border-radius:var(--sc-radius-sm);background:#f2fafb;border:1px solid #cfe8ec;color:#0a5a68;padding:.85rem .95rem;font-size:.86rem;line-height:1.6}
+
+        .pdoc-actions{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+        .pdoc-btn{border:none;border-radius:var(--sc-radius-sm);padding:.72rem 1.05rem;font:inherit;font-weight:700;font-size:.88rem;cursor:pointer}
+        .pdoc-btn.primary{background:var(--sc-orange);color:#0f1111;border:1px solid var(--sc-orange-border)}
+        .pdoc-btn.primary:hover:not(:disabled){background:var(--sc-orange-border)}
+        .pdoc-btn.secondary{background:#fff;color:var(--sc-ink);border:1px solid var(--sc-line)}
+        .pdoc-btn.ghost{background:transparent;color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pdoc-btn:disabled{opacity:.5;cursor:not-allowed}
+        .pdoc-submit-status{font-size:.84rem;color:var(--sc-muted)}
+        @media (max-width: 640px) {
+          .pdoc-hero{flex-direction:column;text-align:center;padding:1.5rem}
+          .pdoc-grid2{grid-template-columns:1fr}
+          .pdoc-step-label{display:none}
         }
       </style>
 
-      <section class="printing-quiz-shell">
-        <header class="printing-quiz-topbar">
-          <div class="printing-quiz-heading">
-            <small>Print on demand</small>
-            <h1>Impression documents PDF</h1>
-            <p>Choisissez d abord le type de papier, puis la dimension disponible pour ce papier. Le prix se calcule automatiquement sur le nombre de pages du PDF.</p>
-          </div>
-          ${this.config.enabled === false ? `<div class="printing-quiz-note" style="background:rgba(185,28,28,0.08);border-color:rgba(185,28,28,0.12);color:#991b1b;">Le module documents est temporairement indisponible.</div>` : ''}
-          <div class="printing-quiz-steps">
-            ${this.renderStepChip(1, 'Votre PDF')}
-            ${this.renderStepChip(2, 'Vos options')}
-            ${this.renderStepChip(3, 'Votre tarif')}
+      <section class="pdoc-shell">
+        <header class="pdoc-hero">
+          <div class="pdoc-hero-icon"><i class="fas fa-file-pdf"></i></div>
+          <div>
+            <h1>Impression de documents PDF</h1>
+            <p>Envoyez votre PDF, choisissez papier et dimension : le tarif se calcule automatiquement selon le nombre de pages.</p>
           </div>
         </header>
+        ${this.config.enabled === false ? `<div class="pdoc-error-banner">Le module documents est temporairement indisponible.</div>` : ''}
+        <nav class="pdoc-stepper">
+          ${this.renderStepChip(1, 'Votre PDF')}
+          ${this.renderStepChip(2, 'Vos options')}
+          ${this.renderStepChip(3, 'Votre tarif')}
+        </nav>
 
         ${this.currentStep === 1 ? this.renderStepOne() : ''}
         ${this.currentStep === 2 ? this.renderStepTwo() : ''}

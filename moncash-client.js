@@ -44,12 +44,14 @@ async function requestJson(url, options = {}) {
     hasBody: Boolean(options.body)
   });
 
+  const { headers: optionHeaders = {}, ...fetchOptions } = options;
   const response = await fetch(url, {
     headers: {
       Accept: 'application/json',
-      ...(options.body ? { 'Content-Type': 'application/json' } : {})
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...optionHeaders
     },
-    ...options
+    ...fetchOptions
   });
 
   const text = await response.text();
@@ -80,8 +82,13 @@ async function requestJson(url, options = {}) {
 }
 
 export async function createMoncashPaymentSession(payload) {
+  const { auth, authReadyPromise } = await import('./firebase-init.js');
+  await authReadyPromise;
+  if (!auth?.currentUser) throw new Error('Veuillez vous connecter avant de lancer le paiement.');
+  const token = await auth.currentUser.getIdToken();
   return requestJson(`${FUNCTION_BASE_URL}/createMoncashPayment`, {
     method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(payload)
   });
 }

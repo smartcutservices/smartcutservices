@@ -1,8 +1,8 @@
-﻿import { db } from './firebase-init.js?v=20260523-6';
+import { db } from './firebase-init.js?v=20260523-6';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js';
-import Navbar from './navbar.js?v=20260714-1';
-import { getCartManager } from './cart.js?v=20260714-1';
+import './search.js?v=20260816-4';
+import Navbar from './navbar.js?v=20260816-1';
+import { getCartManager } from './cart.js?v=20260816-1';
 import { getAuthManager } from './auth.js?v=20260523-6';
 import { getProfilePanel } from './profile-panel.js?v=20260525-6';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
@@ -35,9 +35,9 @@ class SierraHeaderNebula {
         --primary-color: #3a4e3f;
         --secondary-color: #b89b7b;
         --accent-color: #7c3e3e;
-        --primary-font: 'Cormorant Garamond', serif;
-        --brand-font: 'Playfair Display', 'Cormorant Garamond', serif;
-        --secondary-font: 'Manrope', sans-serif;
+        --primary-font: 'Amazon Ember', Arial, sans-serif;
+        --brand-font: 'Playfair Display', 'Amazon Ember', Arial, sans-serif;
+        --secondary-font: 'Amazon Ember', sans-serif;
         --announce-height: 0px;
         --header-height: 156px;
         --header-height-mobile: 92px;
@@ -95,6 +95,34 @@ class SierraHeaderNebula {
         min-width: 0;
         padding-top: 0.15rem;
         border-top: 1px solid rgba(184, 155, 123, 0.14);
+        overflow: hidden;
+      }
+
+      .desktop-nav-items {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .desktop-nav-items .desktop-nav-action,
+      .desktop-home-nav {
+        flex-shrink: 0;
+      }
+
+      .desktop-home-nav {
+        color: #ffffff;
+        background: #111923;
+        box-shadow: inset 0 0 0 1px rgba(198, 167, 94, 0.34);
+      }
+
+      .desktop-home-nav:hover {
+        color: #ffffff;
+        background: #253449;
       }
 
       .desktop-logo-area {
@@ -137,6 +165,7 @@ class SierraHeaderNebula {
       }
 
       .desktop-categories::-webkit-scrollbar,
+      .desktop-nav-items::-webkit-scrollbar,
       .mobile-nav-items::-webkit-scrollbar {
         display: none;
       }
@@ -171,7 +200,7 @@ class SierraHeaderNebula {
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.12);
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 0.9rem;
         font-weight: 700;
         flex-shrink: 0;
@@ -180,7 +209,7 @@ class SierraHeaderNebula {
       .desktop-nav-action {
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 0.9rem;
         font-weight: 700;
         background: rgba(255, 255, 255, 0.78);
@@ -204,7 +233,7 @@ class SierraHeaderNebula {
       .currency-selector {
         border: 1px solid rgba(184, 155, 123, 0.2);
         background: rgba(255, 255, 255, 0.78);
-        color: #1f1e1c;
+        color: #0f1111;
         border-radius: 999px;
         min-height: 44px;
         padding: 0 0.75rem;
@@ -273,7 +302,7 @@ class SierraHeaderNebula {
 
       .desktop-search-bar i,
       .mobile-search-bar i {
-        color: #8b7e6b;
+        color: #565959;
       }
 
       .desktop-search-input,
@@ -320,8 +349,8 @@ class SierraHeaderNebula {
         display: none;
         align-items: center;
         justify-content: center;
-        background: #C6A75E;
-        color: #1F1E1C;
+        background: #FFA41C;
+        color: #0F1111;
         font-size: 0.72rem;
         font-weight: 800;
         line-height: 1;
@@ -426,13 +455,10 @@ class SierraHeaderNebula {
         display: flex;
         align-items: center;
         gap: 0.7rem;
-        overflow-x: auto;
+        overflow: hidden;
         overflow-y: hidden;
         white-space: nowrap;
         flex-wrap: nowrap;
-        -webkit-overflow-scrolling: touch;
-        touch-action: pan-x;
-        scrollbar-width: none;
       }
 
       .mobile-nav-scroll::-webkit-scrollbar {
@@ -443,7 +469,7 @@ class SierraHeaderNebula {
         padding: 0.55rem 0.9rem;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.16);
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 0.88rem;
         font-weight: 700;
         flex-shrink: 0;
@@ -454,9 +480,13 @@ class SierraHeaderNebula {
         display: flex;
         align-items: center;
         gap: 0.45rem;
-        flex: 0 0 auto;
+        flex: 1 1 auto;
         flex-wrap: nowrap;
-        min-width: max-content;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
       }
 
       .mobile-nav-item {
@@ -468,6 +498,18 @@ class SierraHeaderNebula {
         font-size: 0.84rem;
         font-weight: 600;
         flex: 0 0 auto;
+      }
+
+      .mobile-home-nav {
+        color: #ffffff;
+        background: #111923;
+        box-shadow: inset 0 0 0 1px rgba(198, 167, 94, 0.34);
+        font-weight: 700;
+      }
+
+      .mobile-home-nav:hover {
+        color: #ffffff;
+        background: #253449;
       }
 
       #megaPortalLux21 {
@@ -569,56 +611,94 @@ class SierraHeaderNebula {
         top: 0;
         left: 0;
         width: 100vw;
-        height: 100vh;
-        background: white;
+        height: 100dvh;
+        border: 1px solid rgba(196, 143, 57, 0.34);
+        border-radius: 0;
+        background: #fffdf8;
+        box-shadow: 0 0 0 100vmax rgba(11, 18, 29, 0.84), 0 26px 70px rgba(0, 0, 0, 0.24);
         z-index: 2000;
         display: none;
         opacity: 0;
-        transition: opacity 0.4s ease;
+        transition: opacity 0.32s ease, transform 0.32s ease;
         overflow-y: auto;
+        overflow-x: hidden;
+        transform: translateY(0.75rem);
+        overscroll-behavior: contain;
+      }
+
+      #mobileMenuFullscreenOrion99.is-open {
+        transform: translateY(0);
+      }
+
+      #mobileMenuFullscreenOrion99::before {
+        content: '';
+        position: absolute;
+        top: 1.55rem;
+        left: 50%;
+        width: 7.5rem;
+        height: 0.5rem;
+        border-radius: 999px;
+        background: #d9d5ce;
+        transform: translateX(-50%);
       }
 
       .mobile-menu-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1.5rem 1.8rem;
-        border-bottom: 1px solid rgba(184, 155, 123, 0.15);
-        margin-bottom: 1.5rem;
+        padding: clamp(4.7rem, 8vw, 6.3rem) clamp(1.4rem, 6vw, 4.4rem) 2rem;
+        border: 0;
+        margin: 0;
       }
 
       .mobile-menu-title {
-        font-family: var(--primary-font);
-        font-size: 1.6rem;
-        font-weight: 600;
+        position: relative;
+        font-family: var(--brand-font), Georgia, serif;
+        font-size: clamp(2.6rem, 6vw, 4.4rem);
+        font-weight: 700;
+        letter-spacing: -0.045em;
+        line-height: 1;
+      }
+
+      .mobile-menu-title::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        bottom: -1.2rem;
+        width: 4.2rem;
+        height: 0.3rem;
+        border-radius: 999px;
+        background: #d49a3d;
+        box-shadow: 4.8rem 0 0 -0.08rem #d49a3d;
       }
 
       .mobile-menu-close {
-        width: 40px;
-        height: 40px;
+        width: clamp(3.4rem, 8vw, 5.25rem);
+        height: clamp(3.4rem, 8vw, 5.25rem);
         border-radius: 50%;
-        border: 1px solid rgba(184, 155, 123, 0.35);
-        background: #fff;
-        font-size: 1.15rem;
+        border: 1px solid #d3a25b;
+        background: rgba(255, 255, 255, 0.92);
+        color: #c58d3b;
+        font-size: clamp(1.35rem, 3vw, 2rem);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 9px 20px rgba(96, 67, 24, 0.13);
       }
 
       .mobile-categories-section,
       .mobile-columns-section,
       #mobileLinesLevel {
-        padding: 0 1.8rem;
+        padding: 0 clamp(1.4rem, 6vw, 4.4rem);
       }
 
       .mobile-category-carousel {
-        display: flex;
-        gap: 1.2rem;
-        overflow-x: auto;
-        padding-bottom: 1.2rem;
-        margin-bottom: 1rem;
-        scrollbar-width: none;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(1rem, 2.4vw, 1.7rem);
+        margin: 1.5rem 0 2.5rem;
+        overflow: visible;
       }
 
       .mobile-category-carousel::-webkit-scrollbar {
@@ -626,25 +706,99 @@ class SierraHeaderNebula {
       }
 
       .mobile-category-card {
-        flex: 0 0 108px;
+        position: relative;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        min-width: 0;
+        min-height: clamp(13rem, 34vw, 23rem);
+        padding: clamp(1rem, 3vw, 1.8rem);
+        overflow: hidden;
+        border: 1px solid rgba(211, 178, 126, 0.26);
+        border-radius: clamp(1.2rem, 3vw, 1.8rem);
+        background: rgba(255, 255, 255, 0.76);
+        box-shadow: 0 10px 24px rgba(65, 49, 28, 0.09);
         text-align: center;
         cursor: pointer;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+      }
+
+      .mobile-category-card:hover,
+      .mobile-category-card:focus-visible {
+        transform: translateY(-3px);
+        box-shadow: 0 16px 32px rgba(65, 49, 28, 0.14);
+        outline: none;
+      }
+
+      .mobile-category-image-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: clamp(6.5rem, 20vw, 14rem);
+        height: clamp(6.5rem, 20vw, 14rem);
+        border-radius: 50%;
+        border: 2px solid #d2a15c;
+        margin: 0 auto clamp(0.8rem, 2vw, 1.3rem);
+        overflow: hidden;
+        background: radial-gradient(circle at 35% 30%, #fffdf7, #efe3cf 72%, #dfc49b);
+        box-shadow: 0 0 0 4px rgba(255,255,255,.72), 0 8px 22px rgba(75,52,24,.12);
       }
 
       .mobile-category-image {
-        width: 88px;
-        height: 88px;
-        border-radius: 50%;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        border: 2px solid rgba(184, 155, 123, 0.45);
-        margin: 0 auto 0.5rem;
         display: block;
+        border-radius: inherit;
       }
 
+      .mobile-category-fallback-icon {
+        display: none;
+        color: #bd8331;
+        font-size: clamp(2.2rem, 7vw, 5rem);
+        filter: drop-shadow(0 5px 8px rgba(94, 59, 16, 0.14));
+      }
+
+      .mobile-category-image-wrap.is-fallback .mobile-category-image { display: none; }
+      .mobile-category-image-wrap.is-fallback .mobile-category-fallback-icon { display: block; }
+
       .mobile-category-name {
-        font-size: 0.82rem;
-        line-height: 1.2;
-        color: #1f1e1c;
+        position: relative;
+        display: block;
+        max-width: 16rem;
+        padding-bottom: 0.9rem;
+        font-family: var(--brand-font), Georgia, serif;
+        font-size: clamp(1.05rem, 2.7vw, 1.9rem);
+        font-weight: 600;
+        line-height: 1.08;
+        color: #24211e;
+      }
+
+      .mobile-category-name::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 2.35rem;
+        height: 2px;
+        border-radius: 999px;
+        background: #d49a3d;
+        transform: translateX(-50%);
+      }
+
+      .mobile-category-arrow {
+        position: absolute;
+        top: clamp(0.8rem, 2vw, 1.5rem);
+        right: clamp(0.8rem, 2vw, 1.5rem);
+        display: grid;
+        place-items: center;
+        width: clamp(2.6rem, 6vw, 3.8rem);
+        height: clamp(2.6rem, 6vw, 3.8rem);
+        border: 1px solid rgba(210, 161, 92, 0.48);
+        border-radius: 50%;
+        background: rgba(255,255,255,.86);
+        color: #c58d3b;
+        font-size: clamp(1rem, 2vw, 1.4rem);
       }
 
       .mobile-back-arrow {
@@ -659,64 +813,249 @@ class SierraHeaderNebula {
       }
 
       #mobileMenuContent {
-        padding-bottom: 6.2rem;
+        padding-bottom: 0;
       }
 
       .mobile-menu-footer {
-        position: sticky;
-        bottom: 0;
+        position: static;
         z-index: 4;
         display: grid;
-        grid-template-columns: 1fr auto;
-        align-items: end;
-        gap: 0.65rem 1rem;
-        padding: 0.85rem 1.2rem;
-        border-top: 1px solid rgba(184, 155, 123, 0.22);
-        background: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(10px);
+        grid-template-columns: 1fr;
+        gap: 1.35rem;
+        padding: clamp(2rem, 5vw, 3rem) clamp(1.4rem, 6vw, 4.4rem) clamp(1.4rem, 4vw, 2.4rem);
+        border-top: 1px solid rgba(196, 143, 57, 0.55);
+        background: linear-gradient(135deg, #fffdf8, #fbf5ea);
+      }
+
+      .mobile-footer-brand-wrap {
+        display: flex;
+        align-items: center;
+        gap: 1.3rem;
+      }
+
+      .mobile-footer-brand-icon {
+        display: grid;
+        place-items: center;
+        width: 5.5rem;
+        height: 5.5rem;
+        flex: 0 0 5.5rem;
+        border: 1px solid #d3a25b;
+        border-radius: 1.4rem;
+        background: rgba(255,255,255,.82);
+        color: #c58d3b;
+        font-size: 2rem;
+        box-shadow: 0 8px 18px rgba(83,60,30,.1);
+        overflow: hidden;
+        padding: .45rem;
+      }
+
+      .mobile-footer-brand-icon img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
       }
 
       .mobile-footer-brand {
-        font-family: var(--brand-font);
-        font-size: 0.92rem;
-        letter-spacing: 0.08em;
+        font-family: var(--primary-font);
+        font-size: clamp(1rem, 2.8vw, 1.6rem);
+        font-weight: 800;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
       }
 
       .mobile-footer-sub {
-        font-size: 0.76rem;
-        color: #6d665f;
+        margin-top: 0.35rem;
+        font-size: clamp(0.82rem, 2vw, 1.1rem);
+        color: #c58d3b;
       }
 
       .mobile-footer-close-btn {
-        border: 1px solid rgba(184, 155, 123, 0.45);
-        background: #fff;
-        border-radius: 999px;
-        padding: 0.52rem 0.92rem;
-        font-size: 0.82rem;
+        order: 3;
+        width: min(100%, 11.5rem);
+        min-height: 3rem;
+        justify-self: start;
+        border: 1px solid #d49a3d;
+        background: linear-gradient(135deg, #20242d, #11151d);
+        border-radius: .55rem;
+        padding: .65rem 1rem;
+        color: #f4dfbd;
+        font-family: var(--brand-font), Georgia, serif;
+        font-size: .9rem;
         font-weight: 600;
         cursor: pointer;
+        box-shadow: 0 5px 12px rgba(22,25,32,.14);
       }
 
       .mobile-footer-links {
-        grid-column: 1 / -1;
+        order: 2;
         display: flex;
         flex-wrap: wrap;
-        gap: 0.45rem 0.6rem;
+        gap: 0.7rem 0.85rem;
       }
 
       .mobile-footer-link {
-        font-size: 0.74rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        min-height: 2.85rem;
+        font-size: clamp(0.78rem, 1.8vw, 1rem);
         color: #2a2825;
         text-decoration: none;
-        border: 1px solid rgba(184, 155, 123, 0.35);
-        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(197, 141, 59, 0.62);
+        background: rgba(255, 255, 255, 0.76);
         border-radius: 999px;
-        padding: 0.26rem 0.62rem;
+        padding: 0.55rem 1rem;
+      }
+
+      .mobile-footer-link i {
+        color: #c58d3b;
       }
 
       .mobile-footer-link:hover {
         background: rgba(198, 167, 94, 0.14);
+      }
+
+      @media (max-width: 520px) {
+        #mobileMenuFullscreenOrion99 { top: 0; left: 0; width: 100vw; height: 100dvh; border-radius: 0; }
+        #mobileMenuFullscreenOrion99::before { top: 1.1rem; width: 5.8rem; height: .38rem; }
+        .mobile-menu-header { padding-top: 3.6rem; }
+        .mobile-menu-title { font-size: 2.5rem; }
+        .mobile-category-carousel { gap: .75rem; }
+        .mobile-category-card { min-height: 13rem; padding: .8rem; }
+        .mobile-category-arrow { top: .65rem; right: .65rem; }
+        .mobile-footer-brand-icon { width: 4rem; height: 4rem; flex-basis: 4rem; border-radius: 1rem; }
+        .mobile-footer-close-btn { min-height: 3rem; width: 10.5rem; }
+      }
+
+      @media (min-width: 1025px) {
+        #mobileMenuFullscreenOrion99 {
+          top: 50%;
+          left: 50%;
+          width: min(1080px, calc(100vw - 4rem));
+          height: min(760px, calc(100dvh - 4rem));
+          border-radius: 0;
+          transform: translate(-50%, calc(-50% + .75rem));
+          box-shadow: 0 0 0 100vmax rgba(11, 18, 29, .7), 0 22px 55px rgba(0, 0, 0, .22);
+        }
+
+        #mobileMenuFullscreenOrion99.is-open { transform: translate(-50%, -50%); }
+        #mobileMenuFullscreenOrion99::before { display: none; }
+
+        .mobile-menu-header {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          padding: 1.25rem 1.5rem 1rem;
+          border-bottom: 1px solid rgba(45, 38, 29, .1);
+          background: rgba(255, 253, 248, .96);
+          backdrop-filter: blur(12px);
+        }
+
+        .mobile-menu-title {
+          font-family: var(--primary-font), Arial, sans-serif;
+          font-size: 1.65rem;
+          font-weight: 750;
+          letter-spacing: -.025em;
+        }
+
+        .mobile-menu-title::after {
+          bottom: -.45rem;
+          width: 1.75rem;
+          height: 2px;
+          box-shadow: none;
+        }
+
+        .mobile-menu-close {
+          width: 2.65rem;
+          height: 2.65rem;
+          border-color: rgba(197, 141, 59, .5);
+          font-size: 1rem;
+          box-shadow: none;
+        }
+
+        .mobile-categories-section,
+        .mobile-columns-section,
+        #mobileLinesLevel { padding-inline: 1.5rem; }
+
+        .mobile-category-carousel {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: .75rem;
+          margin: 1rem 0 1.25rem;
+        }
+
+        .mobile-category-card {
+          min-height: 12.25rem;
+          padding: 1rem .75rem .85rem;
+          border-radius: .45rem;
+          box-shadow: 0 3px 10px rgba(65, 49, 28, .055);
+        }
+
+        .mobile-category-card:hover,
+        .mobile-category-card:focus-visible {
+          transform: translateY(-2px);
+          box-shadow: 0 7px 18px rgba(65, 49, 28, .09);
+        }
+
+        .mobile-category-image-wrap {
+          width: 6.5rem;
+          height: 6.5rem;
+          margin-bottom: .75rem;
+          border-width: 1px;
+          box-shadow: 0 4px 12px rgba(75, 52, 24, .08);
+        }
+
+        .mobile-category-fallback-icon { font-size: 2.25rem; }
+
+        .mobile-category-name {
+          max-width: 11rem;
+          padding-bottom: .55rem;
+          font-family: var(--primary-font), Arial, sans-serif;
+          font-size: .9rem;
+          font-weight: 700;
+          line-height: 1.2;
+        }
+
+        .mobile-category-name::after { width: 1.4rem; height: 1px; }
+
+        .mobile-category-arrow {
+          top: .65rem;
+          right: .65rem;
+          width: 1.9rem;
+          height: 1.9rem;
+          font-size: .72rem;
+        }
+
+        .mobile-menu-footer { gap: .8rem; padding: 1.25rem 1.5rem; }
+        .mobile-footer-brand-wrap { gap: .75rem; }
+
+        .mobile-footer-brand-icon {
+          width: 2.9rem;
+          height: 2.9rem;
+          flex-basis: 2.9rem;
+          border-radius: .5rem;
+          font-size: 1rem;
+          box-shadow: none;
+          padding: .25rem;
+        }
+
+        .mobile-footer-brand { font-size: .9rem; }
+        .mobile-footer-sub { margin-top: .15rem; font-size: .72rem; }
+        .mobile-footer-links { gap: .45rem; }
+
+        .mobile-footer-link {
+          min-height: 2.15rem;
+          padding: .35rem .7rem;
+          font-size: .72rem;
+        }
+
+        .mobile-footer-close-btn {
+          width: 10.5rem;
+          min-height: 3rem;
+          border-radius: .45rem;
+          font-family: var(--primary-font), Arial, sans-serif;
+          font-size: .9rem;
+        }
       }
 
       @media (max-width: 1024px) {
@@ -754,7 +1093,7 @@ class SierraHeaderNebula {
           <div class="desktop-top-row">
             <div class="desktop-logo-area">
               <a class="header-home-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
-                <img id="desktopLogoImg" class="desktop-logo" src="" alt="logo" style="display: none;">
+                <img id="desktopLogoImg" class="desktop-logo" src="" alt="Smart Cut Services" style="display: none;">
                 <span id="desktopCompanyName" class="desktop-company-name">Smart Cut Services</span>
               </a>
             </div>
@@ -777,12 +1116,27 @@ class SierraHeaderNebula {
           </div>
         </div>
         <div class="desktop-nav-row">
-          <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les catégories">
-            <i class="fas fa-bars"></i>
-            <span>Catégories</span>
-          </button>
-          <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
-          <a class="desktop-nav-action" href="./printing-hub.html">Imprimerie</a>
+          <a class="desktop-nav-action desktop-home-nav" href="${this.getHomepageUrl()}" aria-label="Accueil">
+            <i class="fas fa-home" aria-hidden="true"></i>
+            <span>Accueil</span>
+          </a>
+          <div class="desktop-nav-items">
+            <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les catégories">
+              <i class="fas fa-bars"></i>
+              <span>Catégories</span>
+            </button>
+            <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
+            <a class="desktop-nav-action" href="./printing-hub.html">Imprimerie</a>
+            <a class="desktop-nav-action" href="./personalization.html">Personnalisation</a>
+            <a class="desktop-nav-action" href="./auto-parts.html">Auto &amp; Parts</a>
+            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=forms">Inscriptions en ligne</a>
+            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=shops">Mini-boutique</a>
+            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=courses">Formation en ligne</a>
+            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=services">Réservations</a>
+            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=food">Cuisine &amp; artisanat</a>
+            <a class="desktop-nav-action" href="./logiciel%20proformat/">Freelancer</a>
+            <a class="desktop-nav-action" href="./health.html">Santé &amp; Pharmacie</a>
+          </div>
         </div>
       </div>
 
@@ -790,8 +1144,8 @@ class SierraHeaderNebula {
           <div class="mobile-top-bar">
           <div class="mobile-logo-center">
             <a class="mobile-logo-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
-              <img id="mobileLogoImg" class="mobile-logo" src="" alt="logo" style="display: none;">
-              <span id="mobileLogoText" class="mobile-logo-text">logo</span>
+              <img id="mobileLogoImg" class="mobile-logo" src="" alt="Smart Cut Services" style="display: none;">
+              <span id="mobileLogoText" class="mobile-logo-text">Smart Cut</span>
             </a>
           </div>
           <div id="mobileSearchBarTrigger" class="header-search-trigger mobile-search-bar" role="search">
@@ -813,13 +1167,26 @@ class SierraHeaderNebula {
           </div>
           </div>
           <div class="mobile-nav-scroll">
+            <a class="mobile-nav-item mobile-home-nav" href="${this.getHomepageUrl()}" aria-label="Accueil">
+              <i class="fas fa-home" aria-hidden="true"></i>
+              <span>Accueil</span>
+            </a>
             <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Afficher les catégories">
               <i class="fas fa-bars"></i>
               <span>Catégories</span>
             </button>
             <div class="mobile-nav-items">
-              <a class="mobile-nav-item" href="./vendor-application.html">Devenir vendeur</a>
+              <a class="mobile-nav-item" href="./vendor-application.html">Vendre</a>
               <a class="mobile-nav-item" href="./printing-hub.html">Imprimerie</a>
+              <a class="mobile-nav-item" href="./personalization.html">Personnalisation</a>
+              <a class="mobile-nav-item" href="./auto-parts.html">Auto &amp; Parts</a>
+              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=forms">Inscriptions en ligne</a>
+              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=shops">Mini-boutique</a>
+              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=courses">Formation en ligne</a>
+              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=services">Réservations</a>
+              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=food">Cuisine &amp; artisanat</a>
+              <a class="mobile-nav-item" href="./logiciel%20proformat/">Freelancer</a>
+              <a class="mobile-nav-item" href="./health.html">Santé &amp; Pharmacie</a>
             </div>
           </div>
         </div>
@@ -838,10 +1205,10 @@ class SierraHeaderNebula {
         </div>
       </div>
 
-      <div id="mobileMenuFullscreenOrion99">
+      <div id="mobileMenuFullscreenOrion99" role="dialog" aria-modal="true" aria-label="Catégories" aria-hidden="true">
         <div class="mobile-menu-header">
           <span class="mobile-menu-title">Catégories</span>
-          <button id="closeMobileMenuBtn" class="mobile-menu-close">
+          <button id="closeMobileMenuBtn" class="mobile-menu-close" type="button" aria-label="Fermer le menu">
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -870,12 +1237,15 @@ class SierraHeaderNebula {
         </div>
 
         <div class="mobile-menu-footer">
-          <div>
-            <div class="mobile-footer-brand">Smart Cut Services</div>
-            <div class="mobile-footer-sub">Service client premium</div>
+          <div class="mobile-footer-brand-wrap">
+            <div class="mobile-footer-brand-icon"><img src="./logo.png" alt="Logo Smart Cut Services"></div>
+            <div>
+              <div class="mobile-footer-brand">Smart Cut Services</div>
+              <div class="mobile-footer-sub">Service client premium</div>
+            </div>
           </div>
           <button id="mobileMenuFooterCloseBtn" class="mobile-footer-close-btn" type="button">
-            Fermer <i class="fas fa-times" style="margin-left: 0.35rem;"></i>
+            <i class="fas fa-times" style="margin-right: 0.55rem;"></i> Fermer
           </button>
           <div id="mobileFooterLinksContainer" class="mobile-footer-links"></div>
         </div>
@@ -907,12 +1277,27 @@ class SierraHeaderNebula {
     await this.loadMobileFooterLinks();
     this.setupCurrencySelectors();
     this.setupProfileActions();
+    this.openRequestedAuthModal();
     this.setupSearchBarInputs();
     this.setupScrollBehavior();
     this.setupCartBadge();
     this.setupHeaderLayoutSync();
     this.syncHeaderLayout();
     this.prewarmInteractivePanels();
+  }
+
+  openRequestedAuthModal() {
+    const url = new URL(window.location.href);
+    const mode = url.searchParams.get('auth');
+    if (!['login', 'register'].includes(mode) || globalThis.__SMART_CUT_AUTH_DEEP_LINK_HANDLED__) return;
+
+    globalThis.__SMART_CUT_AUTH_DEEP_LINK_HANDLED__ = true;
+    if (!this.authManager?.isAuthenticated?.()) {
+      requestAnimationFrame(() => this.authManager?.openAuthModal?.(mode));
+    }
+
+    url.searchParams.delete('auth');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }
 
   setupCurrencySelectors() {
@@ -987,9 +1372,11 @@ class SierraHeaderNebula {
       linksContainer.innerHTML = infos.map((item) => {
         const href = this.resolveFooterLink(item);
         const isExternal = this.isExternalLink(href);
+        const icon = this.getFooterInfoIcon(item.title);
         return `
-          <a class="mobile-footer-link" href="${href}" ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-            ${item.title}
+          <a class="mobile-footer-link" href="${this.escapeHtml(href)}" ${isExternal ? 'target="_blank" rel="noopener noreferrer"' : ''}>
+            <i class="${icon}" aria-hidden="true"></i>
+            ${this.escapeHtml(item.title)}
           </a>
         `;
       }).join('');
@@ -1003,6 +1390,16 @@ class SierraHeaderNebula {
     return './index.html';
   }
 
+  getFooterInfoIcon(title = '') {
+    const value = String(title).toLowerCase();
+    if (value.includes('mission')) return 'fas fa-compass';
+    if (value.includes('vision')) return 'far fa-eye';
+    if (value.includes('objectif')) return 'fas fa-chart-simple';
+    if (value.includes('livraison')) return 'fas fa-truck';
+    if (value.includes('remboursement')) return 'fas fa-shield-halved';
+    return 'fas fa-circle-info';
+  }
+
   resolveFooterLink(item) {
     if (item?.pageId) {
       return `./page.html?id=${encodeURIComponent(item.pageId)}`;
@@ -1012,6 +1409,15 @@ class SierraHeaderNebula {
 
   isExternalLink(href) {
     return /^https?:\/\//i.test(String(href || ''));
+  }
+
+  escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   async applyHeaderConfig() {
@@ -1198,8 +1604,10 @@ class SierraHeaderNebula {
 
         if (currentScrollY > lastScrollY && currentScrollY > 150) {
           header.style.transform = 'translateY(-100%)';
+          document.documentElement.classList.add('smart-header-hidden');
         } else {
           header.style.transform = 'translateY(0)';
+          document.documentElement.classList.remove('smart-header-hidden');
         }
 
         lastScrollY = currentScrollY;
@@ -1295,8 +1703,3 @@ class SierraHeaderNebula {
 }
 
 export default SierraHeaderNebula;
-
-
-
-
-

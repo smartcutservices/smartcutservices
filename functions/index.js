@@ -3,6 +3,16 @@ const crypto = require('crypto');
 const logger = require('firebase-functions/logger');
 const { defineSecret } = require('firebase-functions/params');
 const { onRequest } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { reserveStockValue } = require('./auto-parts/core');
+const {
+  DEFAULT_COMMISSION_RATE: DEFAULT_JWETPRO_COMMISSION_RATE,
+  calculateTicketAmounts,
+  normalizeRate: normalizeJwetproRate,
+  normalizeTicketStatus,
+  signPayload: signJwetproPayload,
+  verifySignedRequest: verifyJwetproSignedRequest
+} = require('./jwetpro-ticket-core');
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -30,11 +40,23 @@ const VENDOR_PLAN_SETTINGS_COLLECTION = 'vendorPlanSettings';
 const VENDOR_PLAN_SETTINGS_DOC = 'main';
 const VENDOR_PLAN_BONUSES_COLLECTION = 'vendorPlanBonuses';
 const DEFAULT_VENDOR_PRO_PLAN_PRICE = 1750;
+const JWETPRO_TICKETS_COLLECTION = 'jwetproTicketCatalog';
+const JWETPRO_ORDERS_COLLECTION = 'jwetproTicketOrders';
+const JWETPRO_SETTINGS_COLLECTION = 'jwetproTicketSettings';
+const JWETPRO_SETTINGS_DOC = 'main';
+const JWETPRO_EVENTS_COLLECTION = 'jwetproIntegrationEvents';
+const JWETPRO_RETURN_BASE_URL = normalizeBaseUrl(process.env.JWETPRO_RETURN_BASE_URL || 'https://jwetpro.com');
+const JWETPRO_CONFIRM_PAYMENT_URL = process.env.JWETPRO_CONFIRM_PAYMENT_URL ||
+  'https://us-central1-mopyonlakay.cloudfunctions.net/confirmChampionshipTicketPayment';
+const SITE_COMMENTS_COLLECTION = 'siteComments';
+const SITE_COMMENT_RATE_LIMITS_COLLECTION = 'siteCommentRateLimits';
+const SITE_COMMENT_MIN_INTERVAL_MS = 15000;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
 const MONCASH_SECRET_API_KEY = defineSecret('MONCASH_SECRET_API_KEY');
 const MONCASH_BUSINESS_KEY = defineSecret('MONCASH_BUSINESS_KEY');
+const JWETPRO_INTEGRATION_SECRET = defineSecret('JWETPRO_INTEGRATION_SECRET');
 
 let tokenCache = {
   accessToken: '',
@@ -1816,6 +1838,8 @@ function normalizeItems(items) {
           isDigitalProduct: Boolean(item?.isDigitalProduct),
           digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
           deliveryDelay: String(item?.deliveryDelay || '').trim()
+          ,autoBookingId: String(item?.autoBookingId || '').trim()
+          ,autoProgramType: String(item?.autoProgramType || '').trim()
         };
       })
     : [];
@@ -1884,6 +1908,14 @@ async function enrichMarketplaceItems(items = []) {
       }
 
       const productData = productSnap.data() || {};
+      const selectedVariationIndex = getSelectedVariationIndex(item);
+      const selectedVariation = Number.isInteger(selectedVariationIndex) && Array.isArray(productData?.variations)
+        ? productData.variations[selectedVariationIndex] || null
+        : null;
+      const trustedPriceCandidate = selectedVariation?.price ?? productData?.price;
+      const trustedPrice = Number(trustedPriceCandidate);
+      const trustedStockCandidate = selectedVariation?.stock ?? productData?.stock;
+      const trustedStock = Number(trustedStockCandidate);
       const resolvedCategory = String(item?.category || productData?.category || productData?.categoryName || '').trim();
       const productDeliveryCoverage = item?.productDeliveryCoverage || item?.deliveryCoverage || productData?.deliveryCoverage || productData?.productDeliveryCoverage || null;
       const productDeliveryZones = normalizeDeliveryZoneList(
@@ -1897,6 +1929,7 @@ async function enrichMarketplaceItems(items = []) {
       );
       return {
         ...item,
+        price: Number.isFinite(trustedPrice) ? Math.max(0, trustedPrice) : 0,
         name: item?.name || productData?.name || 'Produit vendeur',
         sku: item?.sku || productData?.sku || '',
         image: item?.image || (Array.isArray(productData?.images) ? productData.images[0] || '' : ''),
@@ -1920,6 +1953,9 @@ async function enrichMarketplaceItems(items = []) {
         isDigitalProduct: Boolean(item?.isDigitalProduct || productData?.isDigitalProduct),
         digitalDownloadLink: String(item?.digitalDownloadLink || productData?.digitalDownloadLink || '').trim(),
         deliveryDelay: String(item?.deliveryDelay || productData?.deliveryDelay || (productData?.isDigitalProduct ? 'Instantanee' : '')).trim()
+        ,catalogStatus: String(productData?.status || productData?.publicationStatus || '').trim().toLowerCase()
+        ,stockLimit: Number.isFinite(trustedStock) ? Math.max(0, trustedStock) : null
+        ,serverValidated: true
       };
     } catch (error) {
       logger.warn('Unable to enrich vendor marketplace item', {
@@ -1934,6 +1970,71 @@ async function enrichMarketplaceItems(items = []) {
       };
     }
   }));
+}
+
+async function validateAutoBookingItems(items = [], clientUid = '') {
+  const bookingItems = items.filter((item) => String(item?.autoBookingId || '').trim());
+  if (!bookingItems.length) return { ok: true };
+  const snapshots = await Promise.all(bookingItems.map((item) => db.collection('autoGarageBookings').doc(String(item.autoBookingId).trim()).get()));
+  for (let index = 0; index < bookingItems.length; index += 1) {
+    const item = bookingItems[index];
+    const snap = snapshots[index];
+    const booking = snap.data() || {};
+    if (!snap.exists || booking.customerUid !== clientUid || booking.status !== 'held' || Date.parse(booking.holdExpiresAt || '') <= Date.now()) {
+      return { ok: false, error: 'garage-booking-unavailable', productId: item.productId || '' };
+    }
+    if (booking.offerId && booking.offerId !== item.productId) {
+      return { ok: false, error: 'garage-booking-offer-mismatch', productId: item.productId || '' };
+    }
+  }
+  return { ok: true };
+}
+
+async function validateAndAttachAutoBookings(transaction, items = [], clientUid = '', paymentSessionId = '', orderId = '') {
+  const entries = [];
+  for (const item of items.filter((entry) => String(entry?.autoBookingId || '').trim())) {
+    const ref = db.collection('autoGarageBookings').doc(String(item.autoBookingId).trim());
+    entries.push({ item, ref, snap: await transaction.get(ref) });
+  }
+  for (const { item, ref, snap } of entries) {
+    const booking = snap.data() || {};
+    if (!snap.exists || booking.customerUid !== clientUid || booking.status !== 'held' || Date.parse(booking.holdExpiresAt || '') <= Date.now()) {
+      throw new Error('garage-booking-unavailable');
+    }
+    if ((booking.offerId && booking.offerId !== item.productId) || (booking.paymentSessionId && booking.paymentSessionId !== paymentSessionId)) {
+      throw new Error('garage-booking-already-in-checkout');
+    }
+  }
+  return entries.map(({ ref }) => ({ ref, patch: { paymentSessionId, paymentOrderId: orderId, updatedAt: new Date().toISOString() } }));
+}
+
+async function readAutoBookingsForRelease(transaction, items = [], paymentSessionId = '') {
+  const entries = [];
+  for (const item of items.filter((entry) => String(entry?.autoBookingId || '').trim())) {
+    const ref = db.collection('autoGarageBookings').doc(String(item.autoBookingId).trim());
+    const snap = await transaction.get(ref);
+    if (snap.exists && snap.data()?.status === 'held' && snap.data()?.paymentSessionId === paymentSessionId) entries.push({ ref, snap });
+  }
+  return entries;
+}
+
+function validateServerMarketplaceItems(items = []) {
+  for (const item of items) {
+    if (!item?.productId || item?.serverValidated !== true) {
+      return { ok: false, error: 'product-not-found', productId: item?.productId || '' };
+    }
+    const isVendorItem = item?.sourceType === 'vendor' || Boolean(item?.vendorId);
+    if (isVendorItem && item?.catalogStatus !== 'active') {
+      return { ok: false, error: 'product-not-available', productId: item.productId };
+    }
+    if (!Number.isFinite(Number(item?.price)) || Number(item.price) <= 0) {
+      return { ok: false, error: 'invalid-product-price', productId: item.productId };
+    }
+    if (!isDigitalOrderItem(item) && Number.isFinite(Number(item?.stockLimit)) && Number(item.stockLimit) < Number(item.quantity || 1)) {
+      return { ok: false, error: 'insufficient-stock', productId: item.productId, available: Number(item.stockLimit) };
+    }
+  }
+  return { ok: true };
 }
 
 function getCommissionRate(rule = null) {
@@ -2950,6 +3051,86 @@ function safeSecretValue(secretParam) {
   }
 }
 
+function getJwetproIntegrationSecret() {
+  const secret = safeSecretValue(JWETPRO_INTEGRATION_SECRET);
+  if (!secret) throw new Error('JWETPRO_INTEGRATION_SECRET is not configured');
+  return secret;
+}
+
+function buildJwetproSignedHeaders(body, eventId = crypto.randomUUID()) {
+  const timestamp = Date.now();
+  return {
+    'Content-Type': 'application/json',
+    'X-Jwetpro-Timestamp': String(timestamp),
+    'X-Jwetpro-Event-Id': eventId,
+    'X-Jwetpro-Signature': signJwetproPayload(getJwetproIntegrationSecret(), {
+      timestamp,
+      eventId,
+      body
+    })
+  };
+}
+
+function requireJwetproSignature(req, body) {
+  return verifyJwetproSignedRequest(getJwetproIntegrationSecret(), req.headers || {}, body);
+}
+
+async function getJwetproSettings() {
+  const snapshot = await db.collection(JWETPRO_SETTINGS_COLLECTION).doc(JWETPRO_SETTINGS_DOC).get();
+  const data = snapshot.exists ? snapshot.data() || {} : {};
+  return {
+    enabled: data.enabled === true,
+    globalCommissionRate: normalizeJwetproRate(data.globalCommissionRate, DEFAULT_JWETPRO_COMMISSION_RATE),
+    specialRates: data.specialRates && typeof data.specialRates === 'object' ? data.specialRates : {}
+  };
+}
+
+async function notifyJwetproPayment(orderRef, orderData, details, source) {
+  const current = (await orderRef.get()).data() || orderData || {};
+  if (current.jwetproCallbackStatus === 'confirmed') return { ok: true, repeated: true };
+  const callbackBody = {
+    eventType: 'ticket.payment.confirmed',
+    intentId: String(current.intentId || orderRef.id),
+    reservationId: String(current.reservationId || ''),
+    championshipId: String(current.championshipId || ''),
+    playerUid: String(current.playerUid || ''),
+    playerEmail: String(current.playerEmail || ''),
+    amount: Number(current.grossAmount || current.amount || 0),
+    currency: String(current.currency || MONCASH_CURRENCY),
+    smartCutOrderId: orderRef.id,
+    transactionId: String(details?.transactionId || current.providerTransactionId || ''),
+    confirmedAt: new Date().toISOString()
+  };
+  const eventId = `ticket-payment-${orderRef.id}`;
+  try {
+    const response = await fetch(JWETPRO_CONFIRM_PAYMENT_URL, {
+      method: 'POST',
+      headers: buildJwetproSignedHeaders(callbackBody, eventId),
+      body: JSON.stringify(callbackBody)
+    });
+    const responseText = await response.text();
+    if (!response.ok) throw new Error(`JwetPro webhook HTTP ${response.status}: ${responseText.slice(0, 300)}`);
+    const callbackResult = (() => { try { return JSON.parse(responseText); } catch (_) { return {}; } })();
+    await orderRef.set({
+      jwetproCallbackStatus: 'confirmed',
+      jwetproCallbackAt: new Date().toISOString(),
+      jwetproCallbackSource: source || '',
+      jwetproCallbackError: '',
+      jwetproRegistrationStatus: sanitizeText(callbackResult.status, 40),
+      ...(callbackResult.status === 'credited' ? { payoutStatus: 'credit_pending', creditStatus: 'available' } : {})
+    }, { merge: true });
+    return { ok: true, status: callbackResult.status || 'paid' };
+  } catch (error) {
+    await orderRef.set({
+      jwetproCallbackStatus: 'failed',
+      jwetproCallbackError: String(error?.message || error).slice(0, 500),
+      jwetproCallbackAttemptedAt: new Date().toISOString()
+    }, { merge: true });
+    logger.error('JWETPRO payment callback failed', { orderId: orderRef.id, message: error?.message || '' });
+    return { ok: false, error: error?.message || 'callback-failed' };
+  }
+}
+
 function buildBasicAuthHeader(clientId, clientSecret) {
   return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`;
 }
@@ -3305,8 +3486,9 @@ async function decrementInventoryForItems(transaction, items = []) {
     const patch = {};
     let touched = false;
 
-    if (Number.isFinite(toNumber(productData.stock))) {
-      patch.stock = Math.max(0, toNumber(productData.stock) - quantity);
+    if (productData.stock !== null && productData.stock !== undefined && Number.isFinite(Number(productData.stock))) {
+      const currentStock = Number(productData.stock);
+      patch.stock = reserveStockValue(currentStock, quantity);
       touched = true;
     }
 
@@ -3314,8 +3496,9 @@ async function decrementInventoryForItems(transaction, items = []) {
     if (Number.isInteger(variationIndex) && Array.isArray(productData.variations) && productData.variations[variationIndex]) {
       const variations = productData.variations.map((variation) => ({ ...variation }));
       const variation = { ...variations[variationIndex] };
-      if (Number.isFinite(toNumber(variation.stock))) {
-        variation.stock = Math.max(0, toNumber(variation.stock) - quantity);
+      if (variation.stock !== null && variation.stock !== undefined && Number.isFinite(Number(variation.stock))) {
+        const currentVariationStock = Number(variation.stock);
+        variation.stock = reserveStockValue(currentVariationStock, quantity);
         variations[variationIndex] = variation;
         patch.variations = variations;
         touched = true;
@@ -3327,12 +3510,12 @@ async function decrementInventoryForItems(transaction, items = []) {
       let sizeTouched = false;
       const sizes = productData.sizes.map((size) => {
         if (String(size?.size || '') !== sizeValue) return size;
-        const currentQty = toNumber(size?.quantity);
-        if (!Number.isFinite(currentQty)) return size;
+        if (size?.quantity === null || size?.quantity === undefined || !Number.isFinite(Number(size.quantity))) return size;
+        const currentQty = Number(size.quantity);
         sizeTouched = true;
         return {
           ...size,
-          quantity: Math.max(0, currentQty - quantity)
+          quantity: reserveStockValue(currentQty, quantity)
         };
       });
 
@@ -3345,6 +3528,46 @@ async function decrementInventoryForItems(transaction, items = []) {
     if (touched) {
       transaction.set(productRef, patch, { merge: true });
     }
+  }
+}
+
+async function restoreInventoryForItems(transaction, items = []) {
+  const inventoryEntries = [];
+  for (const item of items) {
+    if (isDigitalOrderItem(item)) continue;
+    const productId = String(item?.productId || '').trim();
+    if (!productId) continue;
+    const quantity = Math.max(1, toNumber(item?.quantity) || 1);
+    const productRef = db.collection(getProductCollectionName(item)).doc(productId);
+    const snap = await transaction.get(productRef);
+    inventoryEntries.push({ item, quantity, productRef, snap });
+  }
+  for (const { item, quantity, productRef, snap } of inventoryEntries) {
+    if (!snap.exists) continue;
+    const data = snap.data() || {};
+    const patch = {};
+    if (data.stock !== null && data.stock !== undefined && Number.isFinite(Number(data.stock))) {
+      patch.stock = Number(data.stock) + quantity;
+    }
+    const variationIndex = getSelectedVariationIndex(item);
+    if (Number.isInteger(variationIndex) && Array.isArray(data.variations) && data.variations[variationIndex]) {
+      const variations = data.variations.map((variation) => ({ ...variation }));
+      if (variations[variationIndex].stock !== null && variations[variationIndex].stock !== undefined && Number.isFinite(Number(variations[variationIndex].stock))) {
+        variations[variationIndex].stock = Number(variations[variationIndex].stock) + quantity;
+        patch.variations = variations;
+      }
+    }
+    const sizeValue = getSelectedSizeValue(item);
+    if (sizeValue && Array.isArray(data.sizes)) {
+      let touched = false;
+      patch.sizes = data.sizes.map((size) => {
+        if (String(size?.size || '') !== sizeValue || !Number.isFinite(Number(size?.quantity))) return size;
+        touched = true;
+        return { ...size, quantity: Number(size.quantity) + quantity };
+      });
+      if (!touched) delete patch.sizes;
+    }
+    if (Object.keys(patch).length) transaction.set(productRef, patch, { merge: true });
   }
 }
 
@@ -3745,6 +3968,61 @@ async function syncVendorServiceFeePayment({ session, details, source = '' }) {
   };
 }
 
+async function syncJwetproTicketPayment({ session, details, source = '' }) {
+  const paymentStatus = derivePaymentStatus(details);
+  const sessionData = session?.data || {};
+  const intentId = String(sessionData.intentId || '').trim();
+  if (!session || !intentId) {
+    return { sessionId: session?.id || '', paymentStatus, updated: false, paymentType: 'jwetpro_ticket' };
+  }
+
+  const orderRef = db.collection(JWETPRO_ORDERS_COLLECTION).doc(intentId);
+  const now = new Date().toISOString();
+  let orderData = {};
+  await db.runTransaction(async (transaction) => {
+    const freshSession = await transaction.get(session.ref);
+    const freshOrder = await transaction.get(orderRef);
+    const freshSessionData = freshSession.data() || {};
+    orderData = freshOrder.data() || {};
+    const alreadyPaid = String(orderData.status || '').toLowerCase() === 'paid';
+    const patch = {
+      status: paymentStatus,
+      providerOrderId: details?.orderId || freshSessionData.orderId || '',
+      providerTransactionId: details?.transactionId || null,
+      providerMessage: details?.message || '',
+      providerResponse: details?.providerResponse || null,
+      updatedAt: now
+    };
+    if (paymentStatus === 'paid') {
+      const amounts = alreadyPaid
+        ? {
+            grossAmount: Number(orderData.grossAmount || orderData.amount || 0),
+            commissionRate: Number(orderData.commissionRate || 0),
+            commissionAmount: Number(orderData.commissionAmount || 0),
+            netAmount: Number(orderData.netAmount || 0)
+          }
+        : calculateTicketAmounts(orderData.amount, orderData.commissionRate);
+      Object.assign(patch, amounts, { paidAt: orderData.paidAt || now, payoutStatus: orderData.payoutStatus || 'upcoming' });
+    }
+    transaction.set(session.ref, patch, { merge: true });
+    transaction.set(orderRef, patch, { merge: true });
+  });
+
+  let callback = null;
+  if (paymentStatus === 'paid') {
+    callback = await notifyJwetproPayment(orderRef, orderData, details, source);
+  }
+  return {
+    sessionId: session.id,
+    orderId: sessionData.orderId || details?.orderId || '',
+    intentId,
+    paymentStatus,
+    paymentType: 'jwetpro_ticket',
+    callback,
+    updated: true
+  };
+}
+
 function derivePaymentStatus(details) {
   if (details?.ok) return 'paid';
 
@@ -3762,6 +4040,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   const sessionData = session?.data || {};
   if (String(sessionData.paymentType || '').trim() === 'vendor_service_fee') {
     return syncVendorServiceFeePayment({ session, details, source });
+  }
+  if (String(sessionData.paymentType || '').trim() === 'jwetpro_ticket') {
+    return syncJwetproTicketPayment({ session, details, source });
   }
   const clientId = sessionData.clientId || '';
   const orderId = sessionData.orderId || details.orderId || '';
@@ -3793,6 +4074,7 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   if (paymentStatus === 'paid') {
     orderPatch.paidAt = now;
     orderPatch.fulfillmentStatus = 'ordered';
+    orderPatch.stockReservationStatus = 'consumed';
     orderPatch.receiptAvailable = true;
     orderPatch.receiptReadyAt = now;
   }
@@ -3804,7 +4086,7 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       const orderRef = db.collection('clients').doc(clientId).collection('orders').doc(orderId);
       const orderSnap = await transaction.get(orderRef);
       const orderData = orderSnap.data() || {};
-      const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
+      const alreadyApplied = Boolean(freshSessionData.inventoryAppliedAt || freshSessionData.inventoryReservedAt) || String(freshSessionData.status || '').toLowerCase() === 'paid';
       const vendorNotifications = !alreadyApplied ? buildVendorOrderNotifications(orderData, session.id) : [];
       const smartCutNotification = !alreadyApplied ? buildSmartCutOrderNotification(orderData, session.id) : null;
       const promoCode = freshSessionData.promoCode && typeof freshSessionData.promoCode === 'object'
@@ -3846,6 +4128,13 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       const existingAffiliateEarningSnap = shouldCheckAffiliate
         ? await transaction.get(affiliateEarningRef)
         : null;
+      const bookingEntries = [];
+      for (const item of orderData.items || []) {
+        const bookingId = String(item?.autoBookingId || '').trim();
+        if (!bookingId) continue;
+        const bookingRef = db.collection('autoGarageBookings').doc(bookingId);
+        bookingEntries.push({ ref: bookingRef, snap: await transaction.get(bookingRef) });
+      }
 
       if (!alreadyApplied) {
         await decrementInventoryForItems(transaction, orderData.items || []);
@@ -3945,11 +4234,16 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         providerResponse: details.providerResponse || null,
         updatedAt: now,
         paidAt: now,
-        inventoryAppliedAt: alreadyApplied ? freshSessionData.inventoryAppliedAt || null : now,
+        inventoryAppliedAt: freshSessionData.inventoryAppliedAt || (freshSessionData.inventoryReservedAt ? now : (alreadyApplied ? null : now)),
         promoUsageRecordedAt: shouldRecordPromoUsage ? now : freshSessionData.promoUsageRecordedAt || null
       }, { merge: true });
 
       transaction.set(orderRef, orderPatch, { merge: true });
+      bookingEntries.forEach(({ ref, snap }) => {
+        if (snap.exists && snap.data()?.customerUid === String(sessionData.clientUid || clientId) && snap.data()?.status === 'held' && (!snap.data()?.paymentSessionId || snap.data()?.paymentSessionId === session.id)) {
+          transaction.set(ref, { status: 'confirmed', paymentOrderId: orderId, confirmedAt: now, updatedAt: now }, { merge: true });
+        }
+      });
 
       vendorNotifications.forEach((notification) => {
         const notificationRef = db.collection('notificationBroadcasts').doc(notification.id);
@@ -3962,20 +4256,24 @@ async function syncMoncashPayment({ session, details, source = '' }) {
       }
     });
   } else {
+    if (paymentStatus === 'failed' && sessionData.inventoryReservedAt && !sessionData.inventoryReleasedAt) {
+      await db.runTransaction(async (transaction) => {
+        const freshSession = await transaction.get(session.ref);
+        const freshData = freshSession.data() || {};
+        if (freshData.inventoryReservedAt && !freshData.inventoryReleasedAt && String(freshData.status || '').toLowerCase() !== 'paid') {
+          const orderRef = db.collection('clients').doc(clientId).collection('orders').doc(orderId);
+          const orderSnap = await transaction.get(orderRef);
+          const orderItems = orderSnap.data()?.items || [];
+          const bookingEntries = await readAutoBookingsForRelease(transaction, orderItems, session.id);
+          await restoreInventoryForItems(transaction, orderItems);
+          bookingEntries.forEach(({ ref }) => transaction.set(ref, { paymentSessionId: admin.firestore.FieldValue.delete(), paymentOrderId: admin.firestore.FieldValue.delete(), updatedAt: now }, { merge: true }));
+          transaction.set(session.ref, { inventoryReleasedAt: now }, { merge: true });
+          transaction.set(orderRef, { stockReservationStatus: 'released' }, { merge: true });
+        }
+      });
+    }
     await Promise.all([
-      session.ref.set(
-        {
-          status: paymentStatus,
-          providerOrderId: details.orderId || orderId,
-          providerTransactionId: details.transactionId || null,
-          payer: details.payer || null,
-          providerMessage: details.message || '',
-          providerResponse: details.providerResponse || null,
-          updatedAt: now,
-          paidAt: sessionData.paidAt || null
-        },
-        { merge: true }
-      ),
+      session.ref.set({ status: paymentStatus, providerOrderId: details.orderId || orderId, providerTransactionId: details.transactionId || null, payer: details.payer || null, providerMessage: details.message || '', providerResponse: details.providerResponse || null, updatedAt: now, paidAt: sessionData.paidAt || null }, { merge: true }),
       updateOrderState(clientId, orderId, orderPatch)
     ]);
   }
@@ -4042,6 +4340,8 @@ function buildStatusResponse({ session, details, syncResult, fallbackSessionId =
     currency: sessionData.currency || MONCASH_CURRENCY,
     orderId: details?.orderId || sessionData.orderId || '',
     paymentType,
+    intentId: sessionData.intentId || syncResult?.intentId || '',
+    externalReturnUrl: sessionData.externalReturnUrl || '',
     feeId: sessionData.feeId || syncResult?.feeId || '',
     vendorId: sessionData.vendorId || syncResult?.vendorId || '',
     transactionId: details?.transactionId || sessionData.providerTransactionId || '',
@@ -4051,6 +4351,299 @@ function buildStatusResponse({ session, details, syncResult, fallbackSessionId =
     order: order ? { id: order.id, ...orderData } : null
   };
 }
+
+exports.syncJwetproTicket = onRequest(
+  { region: REGION, secrets: [JWETPRO_INTEGRATION_SECRET] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+    const body = parseBody(req);
+    const verification = requireJwetproSignature(req, body);
+    if (!verification.ok) return sendJson(res, 401, { ok: false, error: verification.error });
+    const championshipId = sanitizeText(body.championshipId, 150);
+    if (!championshipId) return sendJson(res, 400, { ok: false, error: 'missing-championship-id' });
+    const eventRef = db.collection(JWETPRO_EVENTS_COLLECTION).doc(verification.eventId);
+    const ticketRef = db.collection(JWETPRO_TICKETS_COLLECTION).doc(championshipId);
+    const now = new Date().toISOString();
+    const reservationExpiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+    await db.runTransaction(async (transaction) => {
+      const eventSnapshot = await transaction.get(eventRef);
+      if (eventSnapshot.exists) return;
+      transaction.set(ticketRef, {
+        championshipId,
+        name: sanitizeText(body.name, 180),
+        description: sanitizeText(body.description, 1200),
+        imageUrl: sanitizeText(body.imageUrl, 1500),
+        price: Math.max(0, Number(body.price) || 0),
+        currency: sanitizeText(body.currency || 'HTG', 12),
+        capacity: Math.max(0, Math.floor(Number(body.capacity) || 0)),
+        paidCount: Math.max(0, Math.floor(Number(body.paidCount) || 0)),
+        reservedCount: Math.max(0, Math.floor(Number(body.reservedCount) || 0)),
+        registrationDeadline: sanitizeText(body.registrationDeadline, 80),
+        championshipStartsAt: sanitizeText(body.championshipStartsAt, 80),
+        championshipEndsAt: sanitizeText(body.championshipEndsAt, 80),
+        jwetproUrl: sanitizeText(body.jwetproUrl, 1500),
+        status: normalizeTicketStatus(body.status),
+        visible: normalizeTicketStatus(body.status) === 'registration-open',
+        testMode: body.testMode === true,
+        sourceUpdatedAt: sanitizeText(body.updatedAt, 80),
+        syncedAt: now
+      }, { merge: true });
+      transaction.set(eventRef, { type: 'ticket.sync', championshipId, processedAt: now });
+    });
+    if (normalizeTicketStatus(body.status) === 'cancelled') {
+      const affected = await db.collection(JWETPRO_ORDERS_COLLECTION).where('championshipId', '==', championshipId).get();
+      const batch = db.batch();
+      affected.docs.forEach((item) => {
+        if (item.data()?.status === 'paid' && item.data()?.payoutStatus !== 'paid') batch.set(item.ref, { payoutStatus: 'credit_pending', creditStatus: 'available', updatedAt: now }, { merge: true });
+      });
+      if (!affected.empty) await batch.commit();
+    }
+    return sendJson(res, 200, { ok: true, championshipId });
+  }
+);
+
+exports.syncJwetproCreditUsage = onRequest(
+  { region: REGION, secrets: [JWETPRO_INTEGRATION_SECRET] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+    const body = parseBody(req);
+    const verification = requireJwetproSignature(req, body);
+    if (!verification.ok) return sendJson(res, 401, { ok: false, error: verification.error });
+    const targetChampionshipId = sanitizeText(body.targetChampionshipId, 150);
+    const allocations = Array.isArray(body.allocations) ? body.allocations : [];
+    if (!targetChampionshipId || !allocations.length) return sendJson(res, 400, { ok: false, error: 'invalid-credit-usage' });
+    const eventRef = db.collection(JWETPRO_EVENTS_COLLECTION).doc(verification.eventId);
+    await db.runTransaction(async (transaction) => {
+      const event = await transaction.get(eventRef);
+      if (event.exists) return;
+      const allocationEntries = allocations
+        .map((allocation) => ({
+          allocation,
+          sourceIntentId: sanitizeText(allocation?.sourceIntentId, 150)
+        }))
+        .filter((entry) => entry.sourceIntentId)
+        .map((entry) => ({
+          ...entry,
+          orderRef: db.collection(JWETPRO_ORDERS_COLLECTION).doc(entry.sourceIntentId)
+        }));
+      const orders = await Promise.all(allocationEntries.map((entry) => transaction.get(entry.orderRef)));
+      orders.forEach((order, index) => {
+        if (!order.exists || order.data()?.status !== 'paid') return;
+        const { allocation, sourceIntentId, orderRef } = allocationEntries[index];
+        const usedAmount = Math.max(0, Number(allocation.amount) || 0);
+        if (!usedAmount || order.data()?.creditStatus === 'used') return;
+        const rate = Number(order.data()?.commissionRate || 0);
+        const amounts = calculateTicketAmounts(usedAmount, rate);
+        const allocationRef = db.collection('jwetproTicketCreditAllocations').doc(`${sourceIntentId}__${sanitizeText(body.targetIntentId, 150)}`);
+        transaction.set(allocationRef, { sourceIntentId, targetIntentId: sanitizeText(body.targetIntentId, 150), targetChampionshipId, playerUid: sanitizeText(body.playerUid, 150), ...amounts, status: 'upcoming', createdAt: new Date().toISOString() }, { merge: true });
+        transaction.set(orderRef, { creditStatus: 'used', creditUsedForIntentId: sanitizeText(body.targetIntentId, 150), creditUsedAt: new Date().toISOString() }, { merge: true });
+      });
+      transaction.set(eventRef, { type: 'credit.used', targetChampionshipId, processedAt: new Date().toISOString() });
+    });
+    return sendJson(res, 200, { ok: true });
+  }
+);
+
+exports.listJwetproTickets = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const snapshot = await db.collection(JWETPRO_TICKETS_COLLECTION).where('visible', '==', true).limit(100).get();
+  const includeTest = String(req.query?.includeTest || '') === '1';
+  const now = Date.now();
+  const staleTickets = [];
+  const tickets = snapshot.docs
+    .map((item) => ({ ref: item.ref, id: item.id, ...item.data() }))
+    .filter((ticket) => {
+      const deadlineMs = Date.parse(String(ticket.registrationDeadline || ''));
+      const isExpired = Number.isFinite(deadlineMs) && deadlineMs <= now;
+      const isOpen = ticket.status === 'registration-open' && ticket.visible !== false && !isExpired;
+      if (!isOpen) staleTickets.push(ticket.ref);
+      return isOpen && (includeTest || ticket.testMode !== true);
+    })
+    .map(({ ref, ...ticket }) => ticket);
+
+  // Keep historical ticket data for reporting, but remove stale entries from the public catalogue.
+  if (staleTickets.length) {
+    const batch = db.batch();
+    staleTickets.forEach((ref) => batch.set(ref, {
+      visible: false,
+      publicClosedAt: new Date(now).toISOString()
+    }, { merge: true }));
+    await batch.commit();
+  }
+  return sendJson(res, 200, { ok: true, tickets });
+});
+
+exports.createJwetproTicketPayment = onRequest(
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY, JWETPRO_INTEGRATION_SECRET] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+    const body = parseBody(req);
+    const verification = requireJwetproSignature(req, body);
+    if (!verification.ok) return sendJson(res, 401, { ok: false, error: verification.error });
+    const requestedReturnBaseUrl = normalizeBaseUrl(body.returnBaseUrl || '');
+    const isLocalTestReturn = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(requestedReturnBaseUrl);
+    const settings = await getJwetproSettings();
+    if (!settings.enabled && !isLocalTestReturn) {
+      return sendJson(res, 503, { ok: false, error: 'jwetpro-tickets-disabled' });
+    }
+    const intentId = sanitizeText(body.intentId, 150);
+    const championshipId = sanitizeText(body.championshipId, 150);
+    const playerUid = sanitizeText(body.playerUid, 150);
+    if (!intentId || !championshipId || !playerUid) {
+      return sendJson(res, 400, { ok: false, error: 'invalid-ticket-intent' });
+    }
+    const ticketRef = db.collection(JWETPRO_TICKETS_COLLECTION).doc(championshipId);
+    const ticketSnapshot = await ticketRef.get();
+    if (!ticketSnapshot.exists) return sendJson(res, 404, { ok: false, error: 'ticket-not-found' });
+    const ticket = ticketSnapshot.data() || {};
+    if (ticket.testMode === true && !isLocalTestReturn) {
+      return sendJson(res, 403, { ok: false, error: 'test-ticket-local-only' });
+    }
+    if (ticket.status !== 'registration-open') return sendJson(res, 409, { ok: false, error: 'registration-closed' });
+    const registrationDeadlineMs = Date.parse(String(ticket.registrationDeadline || ''));
+    if (Number.isFinite(registrationDeadlineMs) && registrationDeadlineMs <= Date.now()) {
+      return sendJson(res, 409, { ok: false, error: 'registration-deadline-passed' });
+    }
+    const signedAmount = Math.max(0, Number(body.amount) || 0);
+    if (!signedAmount || Math.abs(signedAmount - Number(ticket.price || 0)) > 0.01) {
+      return sendJson(res, 409, { ok: false, error: 'ticket-price-changed', currentPrice: ticket.price || 0 });
+    }
+    const orderRef = db.collection(JWETPRO_ORDERS_COLLECTION).doc(intentId);
+    const existing = await orderRef.get();
+    if (existing.exists) {
+      const data = existing.data() || {};
+      if (data.checkoutUrl && data.status !== 'failed') {
+        return sendJson(res, 200, { ok: true, repeated: true, intentId, sessionId: data.sessionId, checkoutUrl: data.checkoutUrl });
+      }
+    }
+    const specialRate = settings.specialRates?.[championshipId];
+    const commissionRate = normalizeJwetproRate(specialRate, settings.globalCommissionRate);
+    const sessionId = createSessionId();
+    const providerOrderId = db.collection('paymentSessions').doc().id;
+    const sessionRef = db.collection('paymentSessions').doc(sessionId);
+    const returnBaseUrl = isLocalTestReturn ? requestedReturnBaseUrl : JWETPRO_RETURN_BASE_URL;
+    const externalReturnUrl = `${returnBaseUrl}/registration-return.html?intent=${encodeURIComponent(intentId)}`;
+    const now = new Date().toISOString();
+    const baseData = {
+      paymentType: 'jwetpro_ticket',
+      intentId,
+      reservationId: sanitizeText(body.reservationId, 150),
+      championshipId,
+      payoutChampionshipId: championshipId,
+      championshipName: sanitizeText(ticket.name || body.championshipName, 180),
+      playerUid,
+      playerEmail: sanitizeText(body.playerEmail, 320),
+      playerName: sanitizeText(body.playerName, 180),
+      orderId: providerOrderId,
+      amount: signedAmount,
+      grossAmount: signedAmount,
+      commissionRate,
+      currency: ticket.currency || MONCASH_CURRENCY,
+      status: 'initiated',
+      externalReturnUrl,
+      createdAt: now,
+      updatedAt: now
+    };
+    try {
+      await Promise.all([sessionRef.set({ identifier: sessionId, provider: 'moncash', ...baseData }), orderRef.set({ sessionId, ...baseData })]);
+      const redirect = await createMoncashRedirect(providerOrderId, signedAmount);
+      const redirectPatch = { status: 'redirect_ready', checkoutUrl: redirect.checkoutUrl, paymentToken: redirect.paymentToken, providerMode: redirect.providerMode, updatedAt: new Date().toISOString() };
+      await Promise.all([sessionRef.set(redirectPatch, { merge: true }), orderRef.set(redirectPatch, { merge: true })]);
+      return sendJson(res, 200, { ok: true, intentId, sessionId, checkoutUrl: redirect.checkoutUrl, returnUrl: externalReturnUrl });
+    } catch (error) {
+      await Promise.all([sessionRef.set({ status: 'server_error', errorMessage: error?.message || '', updatedAt: now }, { merge: true }), orderRef.set({ status: 'server_error', errorMessage: error?.message || '', updatedAt: now }, { merge: true })]);
+      const publicError = getSafeMoncashPublicError(error);
+      return sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
+    }
+  }
+);
+
+exports.getJwetproTicketAdminData = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const user = await verifyBearerUser(req);
+  if (!user || !(await isAdminUser(user.uid))) return sendJson(res, 403, { ok: false, error: 'admin-required' });
+  const [ticketsSnapshot, ordersSnapshot, payoutsSnapshot, creditAllocationsSnapshot, settings] = await Promise.all([
+    db.collection(JWETPRO_TICKETS_COLLECTION).limit(250).get(),
+    db.collection(JWETPRO_ORDERS_COLLECTION).limit(1000).get(),
+    db.collection('jwetproTicketPayouts').limit(250).get(),
+    db.collection('jwetproTicketCreditAllocations').limit(500).get(),
+    getJwetproSettings()
+  ]);
+  return sendJson(res, 200, {
+    ok: true,
+    settings,
+    tickets: ticketsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    orders: ordersSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    payouts: payoutsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })),
+    credits: creditAllocationsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }))
+  });
+});
+
+exports.manageJwetproTickets = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const user = await verifyBearerUser(req);
+  if (!user || !(await isAdminUser(user.uid))) return sendJson(res, 403, { ok: false, error: 'admin-required' });
+  const body = parseBody(req);
+  const action = sanitizeText(body.action, 60);
+  const now = new Date().toISOString();
+  if (action === 'save-settings') {
+    const specialRates = {};
+    Object.entries(body.specialRates && typeof body.specialRates === 'object' ? body.specialRates : {}).forEach(([key, value]) => {
+      specialRates[sanitizeText(key, 150)] = normalizeJwetproRate(value);
+    });
+    const data = { enabled: body.enabled === true, globalCommissionRate: normalizeJwetproRate(body.globalCommissionRate), specialRates, updatedAt: now, updatedBy: user.uid };
+    await db.collection(JWETPRO_SETTINGS_COLLECTION).doc(JWETPRO_SETTINGS_DOC).set(data, { merge: true });
+    return sendJson(res, 200, { ok: true, settings: data });
+  }
+  if (action === 'create-payout') {
+    const championshipId = sanitizeText(body.championshipId, 150);
+    const payoutRef = db.collection('jwetproTicketPayouts').doc();
+    let totals = { grossAmount: 0, commissionAmount: 0, netAmount: 0 };
+    try {
+      await db.runTransaction(async (transaction) => {
+        const ticketRef = db.collection(JWETPRO_TICKETS_COLLECTION).doc(championshipId);
+        const paidOrdersQuery = db.collection(JWETPRO_ORDERS_COLLECTION).where('payoutChampionshipId', '==', championshipId).where('status', '==', 'paid');
+        const creditAllocationsQuery = db.collection('jwetproTicketCreditAllocations').where('targetChampionshipId', '==', championshipId).where('status', '==', 'upcoming');
+        const [ticketSnapshot, paidOrders, creditAllocations] = await Promise.all([
+          transaction.get(ticketRef),
+          transaction.get(paidOrdersQuery),
+          transaction.get(creditAllocationsQuery)
+        ]);
+        if (!ticketSnapshot.exists || ticketSnapshot.data()?.status !== 'completed') {
+          throw new Error('championship-not-completed');
+        }
+        const eligible = paidOrders.docs.filter((item) => {
+          const payoutStatus = String(item.data()?.payoutStatus || 'upcoming');
+          return payoutStatus !== 'paid' && payoutStatus !== 'credit_pending';
+        });
+        if (!eligible.length && creditAllocations.empty) throw new Error('nothing-to-payout');
+        totals = [...eligible, ...creditAllocations.docs].reduce((acc, item) => {
+          acc.grossAmount += Number(item.data()?.grossAmount || 0);
+          acc.commissionAmount += Number(item.data()?.commissionAmount || 0);
+          acc.netAmount += Number(item.data()?.netAmount || 0);
+          return acc;
+        }, { grossAmount: 0, commissionAmount: 0, netAmount: 0 });
+        eligible.forEach((item) => transaction.set(item.ref, { payoutStatus: 'paid', payoutId: payoutRef.id, paidOutAt: now }, { merge: true }));
+        creditAllocations.docs.forEach((item) => transaction.set(item.ref, { status: 'paid', payoutId: payoutRef.id, paidOutAt: now }, { merge: true }));
+        transaction.set(payoutRef, { championshipId, ...totals, orderCount: eligible.length, creditAllocationCount: creditAllocations.size, method: sanitizeText(body.method || 'manuel', 60), reference: sanitizeText(body.reference, 180), createdAt: now, createdBy: user.uid });
+      });
+    } catch (error) {
+      if (['championship-not-completed', 'nothing-to-payout'].includes(error?.message)) {
+        return sendJson(res, 409, { ok: false, error: error.message });
+      }
+      logger.error('JWETPRO payout transaction failed', { championshipId, message: error?.message || '' });
+      return sendJson(res, 500, { ok: false, error: 'payout-failed' });
+    }
+    return sendJson(res, 200, { ok: true, payoutId: payoutRef.id, ...totals });
+  }
+  return sendJson(res, 400, { ok: false, error: 'unsupported-action' });
+});
 
 exports.createMoncashPayment = onRequest(
   { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
@@ -4080,8 +4673,19 @@ exports.createMoncashPayment = onRequest(
     const customerAddress = String(body.customerAddress || '').trim();
     const customerCity = String(body.customerCity || '').trim();
     const delivery = body.delivery && typeof body.delivery === 'object' ? body.delivery : null;
-    const items = await enrichMarketplaceItems(body.items);
     const requestedPromo = body.promo && typeof body.promo === 'object' ? body.promo : null;
+
+    let authenticatedClient = null;
+    try {
+      authenticatedClient = await verifyBearerUser(req);
+    } catch (error) {
+      logger.warn('MONCASH_CREATE_DEBUG request:invalid-auth', { message: error?.message || '' });
+    }
+    if (!authenticatedClient?.uid || authenticatedClient.uid !== clientUid || authenticatedClient.uid !== localClientId) {
+      sendJson(res, 403, { ok: false, error: 'client-identity-mismatch' });
+      return;
+    }
+    const items = await enrichMarketplaceItems(body.items);
 
     logger.info('MONCASH_CREATE_DEBUG request:start', {
       clientId: localClientId,
@@ -4112,6 +4716,20 @@ exports.createMoncashPayment = onRequest(
     if (items.length === 0) {
       logger.warn('MONCASH_CREATE_DEBUG request:missing-items');
       sendJson(res, 400, { ok: false, error: 'missing-items' });
+      return;
+    }
+
+    const itemValidation = validateServerMarketplaceItems(items);
+    if (!itemValidation.ok) {
+      logger.warn('MONCASH_CREATE_DEBUG request:item-invalid', itemValidation);
+      sendJson(res, 409, { ok: false, ...itemValidation });
+      return;
+    }
+
+    const autoBookingValidation = await validateAutoBookingItems(items, clientUid);
+    if (!autoBookingValidation.ok) {
+      logger.warn('MONCASH_CREATE_DEBUG request:auto-booking-invalid', autoBookingValidation);
+      sendJson(res, 409, autoBookingValidation);
       return;
     }
 
@@ -4251,11 +4869,16 @@ exports.createMoncashPayment = onRequest(
       updatedAt: now
     };
 
+    let inventoryReserved = false;
     try {
-      await Promise.all([
-        orderRef.set(orderDraft, { merge: true }),
-        sessionRef.set(sessionData, { merge: true })
-      ]);
+      await db.runTransaction(async (transaction) => {
+        const bookingAttachments = await validateAndAttachAutoBookings(transaction, items, clientUid, sessionId, orderId);
+        await decrementInventoryForItems(transaction, items);
+        bookingAttachments.forEach(({ ref, patch }) => transaction.set(ref, patch, { merge: true }));
+        transaction.set(orderRef, { ...orderDraft, stockReservationStatus: 'reserved' }, { merge: true });
+        transaction.set(sessionRef, { ...sessionData, inventoryReservedAt: now, inventoryReservationExpiresAt: reservationExpiresAt }, { merge: true });
+      });
+      inventoryReserved = true;
 
       logger.info('MONCASH_CREATE_DEBUG redirect:start', {
         sessionId,
@@ -4304,7 +4927,10 @@ exports.createMoncashPayment = onRequest(
       });
     } catch (error) {
       logger.error('MonCash create payment failed', error);
-      const publicError = getSafeMoncashPublicError(error);
+      const bookingConflict = ['garage-booking-unavailable', 'garage-booking-already-in-checkout'].includes(error?.message);
+      const publicError = bookingConflict
+        ? { status: 409, error: error.message, message: 'Ce rendez-vous n’est plus disponible. Choisissez un autre créneau.' }
+        : getSafeMoncashPublicError(error);
       logger.warn('MONCASH_CREATE_DEBUG redirect:error', {
         status: publicError.status,
         publicError: publicError.error,
@@ -4313,6 +4939,23 @@ exports.createMoncashPayment = onRequest(
         payload: error?.payload || null
       });
 
+      if (inventoryReserved) {
+        try {
+          await db.runTransaction(async (transaction) => {
+            const freshSession = await transaction.get(sessionRef);
+            const freshData = freshSession.data() || {};
+            if (freshData.inventoryReservedAt && !freshData.inventoryReleasedAt && String(freshData.status || '').toLowerCase() !== 'paid') {
+              const bookingEntries = await readAutoBookingsForRelease(transaction, items, sessionId);
+              await restoreInventoryForItems(transaction, items);
+              bookingEntries.forEach(({ ref }) => transaction.set(ref, { paymentSessionId: admin.firestore.FieldValue.delete(), paymentOrderId: admin.firestore.FieldValue.delete(), updatedAt: new Date().toISOString() }, { merge: true }));
+              transaction.set(sessionRef, { inventoryReleasedAt: new Date().toISOString() }, { merge: true });
+              transaction.set(orderRef, { stockReservationStatus: 'released' }, { merge: true });
+            }
+          });
+        } catch (releaseError) {
+          logger.error('Unable to release failed payment stock reservation', releaseError);
+        }
+      }
       await Promise.all([
         sessionRef.set(
           {
@@ -5551,7 +6194,7 @@ exports.createAffiliatePayout = onRequest(
 );
 
 exports.moncashAlert = onRequest(
-  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY, JWETPRO_INTEGRATION_SECRET] },
   async (req, res) => {
     if (handleOptions(req, res)) return;
 
@@ -5572,6 +6215,37 @@ exports.moncashAlert = onRequest(
     if (!sessionId && !orderId && !transactionId) {
       sendJson(res, 400, { ok: false, error: 'missing-payment-reference' });
       return;
+    }
+
+    // Les intents du module Facturation utilisent le meme compte MonCash et le
+    // meme alert URL marchand. Route-les vers leur verificateur dedie avant le
+    // flux e-commerce historique; la confirmation y est idempotente et revalide
+    // toujours la transaction aupres de MonCash.
+    if (orderId) {
+      try {
+        const billingIntent = await db.collection('billingPaymentIntents').doc(orderId).get();
+        if (billingIntent.exists) {
+          const callbackUrl = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/billingPaymentCallback`;
+          const callbackResponse = await fetch(callbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, transactionId })
+          });
+          const callbackBody = await callbackResponse.json().catch(() => ({ ok: callbackResponse.ok }));
+          if (req.method === 'GET') {
+            res.redirect(302, buildReturnPageUrl({ orderId, transactionId, status: callbackResponse.ok ? '' : 'failed' }));
+            return;
+          }
+          sendJson(res, callbackResponse.ok ? 200 : 409, callbackBody);
+          return;
+        }
+      } catch (billingError) {
+        logger.error('Billing MonCash alert routing failed', billingError);
+        if (req.method === 'POST') {
+          sendJson(res, 500, { ok: false, error: 'billing-sync-failed' });
+          return;
+        }
+      }
     }
 
       try {
@@ -5625,7 +6299,7 @@ exports.moncashAlert = onRequest(
 );
 
 exports.getMoncashPaymentStatus = onRequest(
-  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY, JWETPRO_INTEGRATION_SECRET] },
   async (req, res) => {
     if (handleOptions(req, res)) return;
 
@@ -7034,6 +7708,104 @@ exports.getWebsiteAnalytics = onRequest(
   }
 );
 
+exports.listSiteComments = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+
+  try {
+    const requestedLimit = clampNumber(req.query?.limit, 1, 100, 30);
+    const snapshot = await db.collection(SITE_COMMENTS_COLLECTION)
+      .orderBy('createdAt', 'desc')
+      .limit(requestedLimit)
+      .get();
+    const comments = snapshot.docs
+      .map((item) => ({ id: item.id, ...(item.data() || {}) }))
+      .filter((comment) => comment.status === 'published' && String(comment.text || '').trim())
+      .map((comment) => ({
+        id: comment.id,
+        text: sanitizeText(comment.text, 500),
+        source: comment.source || 'homepage',
+        createdAt: comment.createdAt?.toDate?.()?.toISOString?.() || null
+      }));
+    return sendJson(res, 200, { ok: true, comments });
+  } catch (error) {
+    logger.error('List site comments failed', error);
+    return sendJson(res, 500, { ok: false, error: 'comments-load-failed' });
+  }
+});
+
+exports.submitSiteComment = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+
+  try {
+    const body = parseBody(req);
+    const text = sanitizeText(body.text, 500);
+    if (text.length < 2) {
+      return sendJson(res, 400, { ok: false, error: 'comment-too-short' });
+    }
+
+    const now = Date.now();
+    const clientKey = hashValue(`${getClientIp(req)}|${String(req.headers['user-agent'] || '').slice(0, 160)}`) || 'anonymous';
+    const rateLimitRef = db.collection(SITE_COMMENT_RATE_LIMITS_COLLECTION).doc(clientKey);
+    const commentRef = db.collection(SITE_COMMENTS_COLLECTION).doc();
+
+    await db.runTransaction(async (transaction) => {
+      const rateLimitSnapshot = await transaction.get(rateLimitRef);
+      const lastSubmittedAtMs = Number(rateLimitSnapshot.data()?.lastSubmittedAtMs || 0);
+      if (lastSubmittedAtMs && now - lastSubmittedAtMs < SITE_COMMENT_MIN_INTERVAL_MS) {
+        const error = new Error('comment-rate-limited');
+        error.code = 'comment-rate-limited';
+        throw error;
+      }
+      transaction.set(commentRef, {
+        text,
+        type: 'user',
+        status: 'published',
+        source: 'homepage',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      transaction.set(rateLimitRef, {
+        lastSubmittedAtMs: now,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+
+    return sendJson(res, 201, { ok: true, id: commentRef.id });
+  } catch (error) {
+    if (error?.code === 'comment-rate-limited') {
+      return sendJson(res, 429, {
+        ok: false,
+        error: 'comment-rate-limited',
+        message: 'Veuillez patienter quelques secondes avant d’envoyer un autre message.'
+      });
+    }
+    logger.error('Submit site comment failed', error);
+    return sendJson(res, 500, { ok: false, error: 'comment-save-failed' });
+  }
+});
+
+exports.deleteSiteComment = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+
+  try {
+    const user = await verifyBearerUser(req);
+    if (!user || !(await isAdminUser(user.uid))) {
+      return sendJson(res, 403, { ok: false, error: 'admin-required' });
+    }
+    const commentId = sanitizeText(parseBody(req).commentId, 160);
+    if (!commentId || commentId.includes('/')) {
+      return sendJson(res, 400, { ok: false, error: 'invalid-comment-id' });
+    }
+    await db.collection(SITE_COMMENTS_COLLECTION).doc(commentId).delete();
+    return sendJson(res, 200, { ok: true, id: commentId });
+  } catch (error) {
+    logger.error('Delete site comment failed', error);
+    return sendJson(res, 500, { ok: false, error: 'comment-delete-failed' });
+  }
+});
+
 exports.productSharePage = onRequest(
   { region: REGION },
   async (req, res) => {
@@ -7066,3 +7838,91 @@ exports.productSharePage = onRequest(
     }
   }
 );
+
+// Libere automatiquement les stocks reserves lorsque le client abandonne le
+// paiement MonCash. La transaction et les marqueurs rendent l'operation idempotente.
+exports.releaseExpiredInventoryReservations = onSchedule(
+  { region: REGION, schedule: 'every 15 minutes', timeZone: 'America/Port-au-Prince' },
+  async () => {
+    const now = new Date().toISOString();
+    const snapshot = await db.collection('paymentSessions')
+      .where('inventoryReservationExpiresAt', '<=', now)
+      .limit(100)
+      .get();
+    for (const sessionDoc of snapshot.docs) {
+      try {
+        await db.runTransaction(async (transaction) => {
+          const fresh = await transaction.get(sessionDoc.ref);
+          const session = fresh.data() || {};
+          const status = String(session.status || '').toLowerCase();
+          if (!session.inventoryReservedAt || session.inventoryReleasedAt || status === 'paid') return;
+          const clientId = String(session.clientId || '').trim();
+          const orderId = String(session.orderId || '').trim();
+          if (!clientId || !orderId) return;
+          const orderRef = db.collection('clients').doc(clientId).collection('orders').doc(orderId);
+          const orderSnap = await transaction.get(orderRef);
+          const orderItems = orderSnap.data()?.items || [];
+          const bookingEntries = await readAutoBookingsForRelease(transaction, orderItems, sessionDoc.id);
+          await restoreInventoryForItems(transaction, orderItems);
+          bookingEntries.forEach(({ ref }) => transaction.set(ref, { paymentSessionId: admin.firestore.FieldValue.delete(), paymentOrderId: admin.firestore.FieldValue.delete(), updatedAt: now }, { merge: true }));
+          transaction.set(sessionDoc.ref, { inventoryReleasedAt: now, status: status === 'failed' ? status : 'expired', updatedAt: now }, { merge: true });
+          transaction.set(orderRef, { stockReservationStatus: 'released', status: status === 'failed' ? status : 'expired', updatedAt: now }, { merge: true });
+        });
+      } catch (error) {
+        logger.error('Expired inventory reservation release failed', { sessionId: sessionDoc.id, message: error?.message || '' });
+      }
+    }
+  }
+);
+
+// ============================================================
+// SmartSolutionTek shared-core internals exposed for reuse.
+// Additive only — does not change behavior of anything above.
+// See ARCHITECTURE_SMARTSOLUTIONTEK.md §3 and §6.
+// ============================================================
+const __sstInternals = {
+  admin,
+  db,
+  REGION,
+  verifyBearerUser,
+  isAdminUser,
+  getVendorProfile,
+  createMoncashRedirect,
+  retrieveMoncashPayment,
+  MONCASH_CLIENT_ID,
+  MONCASH_CLIENT_SECRET,
+  MONCASH_SECRET_API_KEY,
+  MONCASH_BUSINESS_KEY
+};
+
+// Mount all SmartSolutionTek Cloud Functions (see functions/smartsolutiontek/index.js).
+// Additive only: every export below is sst-prefixed and cannot collide with anything above.
+// __sstInternals is intentionally kept OFF module.exports: the Cloud Functions deploy-time
+// loader recursively walks every exported object looking for grouped/nested trigger
+// definitions, and recursing into `admin`/`db` (deeply circular SDK internals) overflowed
+// the stack. Passing it as a plain local avoids that walk entirely.
+Object.assign(exports, require('./smartsolutiontek')(__sstInternals));
+
+// SmartCut Facturation: proformas, MonCash entrant, ledger et retraits manuels.
+// Chaque export est explicitement prefixe afin de rester additif au backend existant.
+const __billingFunctions = require('./invoicing')(__sstInternals);
+for (const [name, fn] of Object.entries(__billingFunctions)) {
+  exports[`billing${name.charAt(0).toUpperCase()}${name.slice(1)}`] = fn;
+}
+
+// SmartCut Services marketplace. Additive: the existing invoicing exports stay unchanged.
+const __marketplaceFunctions = require('./marketplace')(__sstInternals);
+for (const [name, fn] of Object.entries(__marketplaceFunctions)) {
+  exports[`marketplace${name.charAt(0).toUpperCase()}${name.slice(1)}`] = fn;
+}
+
+// Smart Cut Health (pharmacie, medecins, laboratoires) — Phase 1: Pharmacie.
+// Chaque export est deja prefixe health* dans functions/health/index.js.
+Object.assign(exports, require('./health')(__sstInternals));
+
+// Smart Cut Auto & Parts — catalogue de pieces, compatibilite vehicule et garage client.
+Object.assign(exports, require('./auto-parts')(__sstInternals));
+
+// Smart Cut Education — espace professionnel et publication sécurisée.
+Object.assign(exports, require('./education/publisher')(__sstInternals));
+Object.assign(exports, require('./education/tutors')(__sstInternals));

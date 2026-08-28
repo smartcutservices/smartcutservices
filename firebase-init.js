@@ -1,6 +1,6 @@
 // ============= FIREBASE INIT - MODULAR V9 =============
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { getFirestore, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import {
   getAuth,
   setPersistence,
@@ -8,9 +8,10 @@ import {
   browserSessionPersistence,
   inMemoryPersistence,
   onAuthStateChanged,
-  GoogleAuthProvider
+  GoogleAuthProvider,
+  connectAuthEmulator
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-import { getStorage } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
+import { getStorage, connectStorageEmulator } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBVTWSRyv7mzVhXLj5NHmg_MKKyWYgeBXg",
@@ -155,9 +156,30 @@ try {
     logAuthDebug('firebase-singleton:create');
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+
+    // Opt-in only, never active unless the URL explicitly asks for it (used
+    // by Playwright tests exercising the real repository/rules against a
+    // local Firestore emulator — see EDUCATION_DATA_ARCHITECTURE.md). No
+    // effect on any existing page since nothing else passes this param.
+    const emulatorParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const useAllEmulators = emulatorParams?.get('useFirebaseEmulators') === '1';
+    if (emulatorParams?.get('useFirestoreEmulator') === '1' || useAllEmulators) {
+      try {
+        connectFirestoreEmulator(db, '127.0.0.1', 8080);
+        console.info('[FIREBASE] Connecté à l’émulateur Firestore local (127.0.0.1:8080)');
+      } catch (error) {
+        console.warn('[FIREBASE] Connexion à l’émulateur Firestore impossible:', error);
+      }
+    }
+
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
     storage = getStorage(app, STORAGE_BUCKET_URL);
+
+    if (useAllEmulators) {
+      try { connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true }); } catch (error) { console.warn('[FIREBASE] Connexion à l’émulateur Auth impossible:', error); }
+      try { connectStorageEmulator(storage, '127.0.0.1', 9199); } catch (error) { console.warn('[FIREBASE] Connexion à l’émulateur Storage impossible:', error); }
+    }
 
     googleProvider.setCustomParameters({
       prompt: 'select_account'
@@ -191,4 +213,3 @@ try {
 }
 
 export { app, db, auth, googleProvider, storage, STORAGE_BUCKET_URL, authReadyPromise };
-

@@ -1,51 +1,26 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#1F1E1C">
+  <meta name="theme-color" content="#131921">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Smart Cut Services</title>
-  
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Manrope:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&family=Lato:wght@300;400;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;600;700&family=Poppins:wght@300;400;500;600&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
-  
-  <!-- Font Awesome -->
+  <!-- Pas de webfont custom : Arial/Amazon Ember systeme, comme amazon.com -->
+<!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="./tailwind-site.css?v=20260816-1">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260827-4">
+  <link rel="stylesheet" href="./health-teaser.css?v=20260827-2">
+  <link rel="stylesheet" href="./services-teaser.css?v=20260827-3">
   
-  <!-- Anime.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
   <!-- Import Map Firebase -->
   <script type="importmap">
     {
       "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
         "firebase/app": "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js",
         "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"
-      }
-    }
-  </script>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#2C2A29',
-            secondary: '#C6A75E',
-            accent: '#7A746B',
-            luxury: '#1F1E1C',
-            ivory: '#F5F1E8'
-          },
-          fontFamily: {
-            serif: ['Cormorant Garamond', 'serif'],
-            sans: ['Manrope', 'sans-serif']
-          }
-        }
       }
     }
   </script>
@@ -58,7 +33,7 @@
       overflow-x: clip;
     }
     body {
-      font-family: 'Manrope', sans-serif;
+      font-family: 'Amazon Ember', Arial, Helvetica, sans-serif;
       background: #f9f7f4;
       overflow-x: clip;
       text-rendering: optimizeLegibility;
@@ -79,6 +54,7 @@
 
     #sierra-hero-root,
     #sierra-products-root,
+    #sierra-home-tickets-root,
     #sierra-home-discovery-root,
     #sierra-commentaire-root,
     #sierra-footer-root {
@@ -91,7 +67,7 @@
     }
 
     #sierra-hero-root {
-      min-height: 68vh;
+      min-height: 0;
       padding-top: 0;
     }
 
@@ -113,8 +89,7 @@
     .cart-overlay,
     .auth-overlay,
     [class*="checkout-overlay"],
-    #megaPortalLux21,
-    #mobileMenuFullscreenOrion99 {
+    #megaPortalLux21 {
       height: 100dvh !important;
       min-height: 100dvh !important;
     }
@@ -163,11 +138,12 @@
       }
 
       #sierra-hero-root {
+        min-height: 0;
         padding-top: calc(var(--header-height-mobile, 70px) + 1rem);
       }
 
       #sierra-products-root {
-        margin-top: 1rem !important;
+        margin-top: .5rem !important;
       }
 
     }
@@ -182,7 +158,7 @@
       }
 
       #sierra-products-root {
-        margin-top: 0 !important;
+        margin-top: .75rem !important;
         padding-top: 0 !important;
       }
     }
@@ -230,14 +206,32 @@
 
   <!-- 4. Découverte: sponsored, recommandations, top vendeurs -->
   <div id="sierra-home-discovery-root" class="my-10"></div>
+
+  <div id="sierra-services-teaser-root"></div>
+
+  <!-- 4a. Studio de personnalisation: t-shirt, tasse... -->
+  <div id="sierra-personalization-teaser-root"></div>
+
+  <div id="sierra-auto-parts-teaser-root"></div>
+
+  <!-- 4a-bis. Teaser Smart Cut Education -->
+  <div id="sierra-education-teaser-root"></div>
+
+  <div id="sierra-health-teaser-root"></div>
+
+  <!-- 4b. Vitrine SmartSolutionTek: creer ses propres pages -->
+  <div id="sierra-sst-showcase-root"></div>
+
+  <!-- 5. Tickets de championnat -->
+  <div id="sierra-home-tickets-root" hidden></div>
   
-  <!-- 7. Commentaire Section - NOUVEAU POINT D'INJECTION -->
+  <!-- 6. Commentaire Section -->
   <div id="sierra-commentaire-root" class="my-12 max-w-2xl mx-auto px-4"></div>
-<!-- 8. Footer Section - NOUVEAU POINT D'INJECTION -->
+<!-- 7. Footer Section -->
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260714-1';
+    const ASSET_VERSION = '20260827-4';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -323,18 +317,33 @@
       visibleProductsMobile: 1.2,
       scrollIndicator: false,
       layout: 'grid-cards',
-      sectionTitle: 'Selection produits',
+      sectionTitle: 'Sélection de produits',
       maxRelatedProducts: 6,
       maxDisplayCount: 10,
       randomizeOnLoad: true
     });
 
+    mount('home-tickets', 'sierra-home-tickets-root', () => import(`./homepage-tickets.js?v=${ASSET_VERSION}`));
+
     mountOnVisible('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
-      imageBasePath: './'
+      imageBasePath: './',
+      maxProducts: 6
     }, '550px');
 
+    mountOnVisible('services-teaser', 'sierra-services-teaser-root', () => import(`./services-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+
+    mountOnVisible('personalization-teaser', 'sierra-personalization-teaser-root', () => import(`./personalization-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+
+    mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+
+    mountOnVisible('education-teaser', 'sierra-education-teaser-root', () => import(`./education-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+
+    mountOnVisible('health-teaser', 'sierra-health-teaser-root', () => import(`./health-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+
+    mountOnVisible('sst-showcase', 'sierra-sst-showcase-root', () => import(`./smartsolutiontek-showcase.js?v=${ASSET_VERSION}`), {}, '550px');
+
     mountOnVisible('commentaire', 'sierra-commentaire-root', () => import(`./coment.js?v=${ASSET_VERSION}`), {
-      title: 'Commentaires en direct',
+      title: 'Avis clients',
       placeholder: 'Écrivez votre message...',
       buttonText: 'Envoyer',
       maxComments: 30,
@@ -398,7 +407,7 @@
     /* Container commentaire */
     #sierra-commentaire-root {
       width: 100%;
-      max-width: 600px;
+      max-width: 1440px;
       margin-left: auto;
       margin-right: auto;
     }

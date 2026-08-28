@@ -277,7 +277,7 @@ export default class HomepageDiscovery {
     this.root = document.getElementById(rootId);
     this.options = {
       imageBasePath: options.imageBasePath || './',
-      maxProducts: options.maxProducts || 10,
+      maxProducts: options.maxProducts || 6,
       maxVendors: options.maxVendors || 6
     };
 
@@ -291,7 +291,7 @@ export default class HomepageDiscovery {
       <section class="home-discovery" aria-label="Sections produits">
         <div class="home-discovery__section" data-section="sponsored">
           <div class="home-discovery__heading">
-            <h2>Sponsored</h2>
+            <h2>Produits à la une</h2>
           </div>
           <div class="home-discovery__rail" data-sponsored-list>${this.renderSkeletonCards(4)}</div>
         </div>
@@ -366,7 +366,7 @@ export default class HomepageDiscovery {
       selected.push(...shuffle(filler).slice(0, this.options.maxProducts - selected.length));
     }
     this.root.querySelector('[data-sponsored-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product, { badge: 'Sponsored' })).join('')
+      ? selected.map((product) => this.renderProductCard(product, { badge: 'À la une' })).join('')
       : this.renderEmpty('Aucun produit sponsorisé disponible.');
   }
 
@@ -376,21 +376,28 @@ export default class HomepageDiscovery {
       signals?.categoryIds?.size ||
       signals?.terms?.size
     );
+    const headingEl = this.root.querySelector('[data-section="recommended"] .home-discovery__heading h2');
 
     if (!hasSignals) {
-      this.root.querySelector('[data-recommended-list]').innerHTML = this.renderEmpty('Les recommandations personnalisées apparaîtront après vos recherches ou vos achats.');
+      if (headingEl) headingEl.textContent = 'Tendances du moment';
+      const fallback = shuffle(products).slice(0, this.options.maxProducts);
+      this.root.querySelector('[data-recommended-list]').innerHTML = fallback.length
+        ? fallback.map((product) => this.renderProductCard(product, { badge: 'Tendance' })).join('')
+        : this.renderEmpty('Aucun produit disponible pour le moment.');
       return;
     }
 
+    if (headingEl) headingEl.textContent = 'Recommandé pour vous';
     const scored = products
       .map((product) => ({ product, score: scorePersonalRecommendation(product, signals) }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.product);
 
-    const selected = scored.slice(0, this.options.maxProducts);
+    const selected = scored.length ? scored.slice(0, this.options.maxProducts) : shuffle(products).slice(0, this.options.maxProducts);
+    const badge = scored.length ? 'Pour vous' : 'Tendance';
     this.root.querySelector('[data-recommended-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product, { badge: 'Recommended' })).join('')
+      ? selected.map((product) => this.renderProductCard(product, { badge })).join('')
       : this.renderEmpty('Aucun produit similaire trouvé pour le moment.');
   }
 
@@ -424,44 +431,9 @@ export default class HomepageDiscovery {
   }
 
   async loadVendorProductInsights() {
-    const proVendorIds = new Set();
-    const salesByProduct = new Map();
-
-    try {
-      const snapshot = await getDocs(query(collection(db, 'vendors'), limit(100)));
-      snapshot.docs.forEach((docSnap) => {
-        const vendor = { id: docSnap.id, ...docSnap.data() };
-        const status = normalizeText(vendor.status || vendor.vendorStatus || 'active');
-        const isActive = !status || ['active', 'approved'].some((value) => status.includes(value));
-        if (!isActive) return;
-
-        const planId = normalizeText(vendor.planId || vendor.servicePlanId || vendor.subscriptionPlan);
-        const planLabel = normalizeText(vendor.planLabel || vendor.servicePlanLabel || vendor.subscriptionLabel);
-        const serviceStatus = normalizeText(vendor.serviceFeeStatus || vendor.vendorServiceFeeStatus || vendor.subscriptionStatus);
-        const planIsPro = planId === 'pro' || planLabel.includes('pro');
-        const serviceActive = !['suspended', 'expired', 'unpaid', 'past_due'].some((value) => serviceStatus.includes(value));
-        if (planIsPro && serviceActive) {
-          proVendorIds.add(String(vendor.id));
-        }
-      });
-    } catch (error) {
-      console.warn('Lecture plans vendeurs ignoree:', error);
-    }
-
-    try {
-      const ordersSnapshot = await getDocs(query(collection(db, 'orders'), limit(300)));
-      ordersSnapshot.docs.forEach((docSnap) => {
-        const order = docSnap.data() || {};
-        if (!isPaidLikeOrder(order)) return;
-        getOrderProductSales(order).forEach(({ productId, quantity }) => {
-          salesByProduct.set(productId, (salesByProduct.get(productId) || 0) + quantity);
-        });
-      });
-    } catch (error) {
-      console.warn('Lecture commandes top produits vendeurs ignoree:', error);
-    }
-
-    return { proVendorIds, salesByProduct };
+    // Les informations publiques nécessaires existent déjà sur les produits.
+    // Ne pas interroger les collections privées vendors/orders depuis la vitrine.
+    return { proVendorIds: new Set(), salesByProduct: new Map() };
   }
 
   renderTopVendorProducts(products, insights = {}) {
@@ -644,10 +616,10 @@ export default class HomepageDiscovery {
 
       .home-discovery__heading h2 {
         margin: 0;
-        font-family: "Cormorant Garamond", serif;
+        font-family: "Amazon Ember", Arial, sans-serif;
         font-size: 1.875rem;
         line-height: 1.15;
-        color: #1f1e1c;
+        color: #0f1111;
       }
 
       .home-discovery__rail {
@@ -712,7 +684,7 @@ export default class HomepageDiscovery {
         overflow: hidden;
         border-radius: 18px;
         background: #ffffff;
-        color: #1f1e1c;
+        color: #0f1111;
         text-decoration: none;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
         transition: transform 0.22s ease, box-shadow 0.22s ease;
@@ -807,7 +779,7 @@ export default class HomepageDiscovery {
       .home-discovery-card h3 {
         min-height: 3.05rem;
         margin: 0 0 0.35rem;
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 1.125rem;
         font-weight: 500;
         line-height: 1.35;
@@ -876,12 +848,12 @@ export default class HomepageDiscovery {
       }
 
       .home-discovery-card__footer strong {
-        color: #1f1e1c;
+        color: #0f1111;
         font-size: 1.25rem;
       }
 
       .home-discovery-card__footer span {
-        color: #8b7e6b;
+        color: #565959;
         font-size: 0.9rem;
         text-decoration: line-through;
       }
@@ -895,7 +867,7 @@ export default class HomepageDiscovery {
         border-radius: 18px;
         padding: 0.9rem;
         background: #ffffff;
-        color: #1f1e1c;
+        color: #0f1111;
         text-decoration: none;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
         transition: transform 0.22s ease, box-shadow 0.22s ease;
@@ -913,9 +885,9 @@ export default class HomepageDiscovery {
         width: 54px;
         height: 54px;
         border-radius: 18px;
-        background: #1f1e1c;
-        color: #f5f1e8;
-        font-family: "Cormorant Garamond", serif;
+        background: #0f1111;
+        color: #eaeded;
+        font-family: "Amazon Ember", Arial, sans-serif;
         font-size: 1.25rem;
         font-weight: 800;
       }
@@ -1004,8 +976,37 @@ export default class HomepageDiscovery {
 
         .home-discovery__section {
           border-radius: 0;
-          margin-bottom: 2rem;
-          padding: 1.05rem 1rem;
+          margin-bottom: 1rem;
+          padding: 1.25rem 0 1.1rem 1rem;
+        }
+
+        .home-discovery__heading {
+          padding-right: 1rem;
+          margin-bottom: .9rem;
+        }
+
+        .home-discovery__heading h2 {
+          font-size: 1.8rem;
+        }
+
+        .home-discovery__rail {
+          display: flex;
+          gap: .8rem;
+          overflow-x: auto;
+          overflow-y: hidden;
+          scroll-snap-type: x mandatory;
+          scrollbar-width: none;
+          padding: .1rem 1rem .85rem 0;
+        }
+
+        .home-discovery__rail::-webkit-scrollbar {
+          display: none;
+        }
+
+        .home-discovery__rail .home-discovery-card {
+          flex: 0 0 68vw;
+          max-width: 270px;
+          scroll-snap-align: start;
         }
 
         .home-discovery-card__body {
@@ -1014,6 +1015,11 @@ export default class HomepageDiscovery {
 
         .home-discovery-card h3 {
           font-size: 1rem;
+        }
+
+        .home-discovery-card__desc {
+          display: none;
+          min-height: 0;
         }
 
         .home-discovery__section--vendors .home-discovery-card {

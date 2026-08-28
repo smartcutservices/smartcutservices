@@ -211,7 +211,7 @@ class PrintingCadPage {
   renderStep(step, title) {
     const active = this.currentStep === step;
     const done = this.currentStep > step || (step < 3 && this.getStepValidity(step));
-    return `<button type="button" class="quiz-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-go-step="${step}"><span class="quiz-step-index">${done ? '<i class="fas fa-check"></i>' : step}</span><span class="quiz-step-copy"><strong>Etape ${step}</strong><small>${title}</small></span></button>`;
+    return `<button type="button" class="pcad-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-go-step="${step}"><span class="pcad-step-dot">${done ? '<i class="fas fa-check"></i>' : step}</span><span class="pcad-step-label">${title}</span></button>${step < 3 ? '<span class="pcad-step-line"></span>' : ''}`;
   }
 
   render() {
@@ -221,59 +221,102 @@ class PrintingCadPage {
 
     this.container.innerHTML = `
       <style>
-        .quiz-shell{width:100%;max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1rem}
-        .quiz-heading{display:grid;gap:.5rem}.quiz-heading small{color:#9b7c38;text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:800}.quiz-heading h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.8rem);line-height:.92;color:#1F1E1C}.quiz-heading p{color:#6E6557;line-height:1.8;max-width:60ch}
-        .quiz-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}.quiz-step{border:1px solid rgba(31,30,28,.08);border-radius:1.4rem;background:rgba(255,255,255,.92);box-shadow:0 18px 36px rgba(31,30,28,.06);padding:.95rem 1rem;display:flex;gap:.8rem;align-items:center;text-align:left;cursor:pointer}.quiz-step.is-active{border-color:rgba(198,167,94,.35);background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(248,242,230,.94))}.quiz-step.is-done .quiz-step-index{background:#0f9f6e;color:#fff}.quiz-step-index{width:36px;height:36px;min-width:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(198,167,94,.14);color:#9b7c38;font-weight:800}.quiz-step-copy{display:grid;gap:.16rem}.quiz-step-copy strong{font-size:.86rem;color:#6E6557}.quiz-step-copy small{font-size:1rem;color:#1F1E1C;font-weight:800}
-        .quiz-panel{border:1px solid rgba(31,30,28,.08);border-radius:1.9rem;background:rgba(255,255,255,.94);box-shadow:0 24px 60px rgba(31,30,28,.08);padding:clamp(1.2rem,3vw,1.8rem);display:grid;gap:1rem}.quiz-head{display:grid;gap:.45rem}.quiz-head small{color:#9b7c38;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:800}.quiz-head h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,2.9rem);line-height:.94;color:#1F1E1C}.quiz-head p{color:#6E6557;line-height:1.8}
-        .quiz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.quiz-field{display:grid;gap:.5rem}.quiz-field span{font-size:.9rem;color:#6E6557;font-weight:700}.quiz-input{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:1rem;padding:.95rem 1rem;background:#fff;font:inherit}.quiz-upload{border:1px dashed rgba(198,167,94,.4);border-radius:1.3rem;padding:1rem;background:linear-gradient(180deg,rgba(248,242,230,.7),rgba(255,255,255,.96));display:grid;gap:.85rem}
-        .quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}.quiz-summary-row,.quiz-summary-total{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}.quiz-summary-total{margin-top:.25rem;padding-top:.9rem;border-top:1px solid rgba(31,30,28,.08);color:#1F1E1C;font-size:1.2rem;font-weight:800}
-        .quiz-note{border-radius:1.2rem;background:rgba(198,167,94,.08);border:1px solid rgba(198,167,94,.16);color:#8A7450;padding:1rem 1.1rem;line-height:1.8}.quiz-note.is-error{background:rgba(185,28,28,.08);border-color:rgba(185,28,28,.12);color:#991b1b}
-        .quiz-actions{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}.quiz-btn{border:none;border-radius:999px;padding:.96rem 1.25rem;font:inherit;font-weight:800;cursor:pointer}.quiz-btn.primary{background:#1F1E1C;color:#F8F5EF}.quiz-btn.secondary{background:#fff;color:#1F1E1C;border:1px solid rgba(31,30,28,.12)}.quiz-btn.ghost{background:transparent;color:#6E6557;border:1px solid rgba(31,30,28,.1)}
-        @media (max-width:860px){.quiz-steps,.quiz-grid{grid-template-columns:1fr}}
+        .pcad-shell{width:100%;max-width:900px;margin:0 auto;padding:0 1rem 3rem;display:grid;gap:1.35rem}
+        .pcad-hero{position:relative;overflow:hidden;background:var(--sc-navy);color:#fff;border-radius:var(--sc-radius);padding:1.75rem 1.85rem;display:flex;align-items:center;gap:1.1rem}
+        .pcad-hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:22px 22px;pointer-events:none}
+        .pcad-hero-icon{position:relative;z-index:1;width:50px;height:50px;min-width:50px;border-radius:13px;background:rgba(69,83,107,.5);display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#a9c4e8}
+        .pcad-hero h1{position:relative;z-index:1;font-size:clamp(1.35rem,2.6vw,1.7rem);font-weight:800;margin-bottom:.3rem;letter-spacing:-.01em}
+        .pcad-hero p{position:relative;z-index:1;color:rgba(255,255,255,.72);font-size:.88rem;line-height:1.5;max-width:56ch}
+        .pcad-error-banner{border-radius:var(--sc-radius-sm);background:#fdecea;border:1px solid #f3c6c2;color:#991b1b;padding:.85rem 1rem;font-size:.88rem}
+
+        .pcad-stepper{display:flex;align-items:center;padding:0 .2rem}
+        .pcad-step{display:flex;align-items:center;gap:.55rem;background:none;border:none;cursor:pointer;padding:.35rem 0}
+        .pcad-step-dot{width:26px;height:26px;min-width:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:800;background:var(--sc-canvas);color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pcad-step.is-active .pcad-step-dot{background:#45536B;color:#fff;border-color:#45536B}
+        .pcad-step.is-done .pcad-step-dot{background:#0f9f6e;color:#fff;border-color:#0f9f6e}
+        .pcad-step-label{font-size:.8rem;font-weight:700;color:var(--sc-muted)}
+        .pcad-step.is-active .pcad-step-label{color:var(--sc-ink)}
+        .pcad-step-line{flex:1;height:1px;background:var(--sc-line);margin:0 .6rem}
+
+        .pcad-panel{background:var(--sc-surface);border:1px solid var(--sc-line);border-radius:var(--sc-radius);padding:1.5rem;display:grid;gap:1rem}
+        .pcad-panel h2{font-size:1.15rem;font-weight:800;color:var(--sc-ink)}
+        .pcad-hint{color:var(--sc-muted);font-size:.85rem;margin-top:-.55rem;line-height:1.5}
+
+        .pcad-field{display:grid;gap:.4rem}
+        .pcad-field span{font-size:.8rem;font-weight:700;color:var(--sc-muted);text-transform:uppercase;letter-spacing:.03em}
+        .pcad-input{width:100%;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);padding:.7rem .8rem;font:inherit;font-size:.92rem;background:#fff;color:var(--sc-ink)}
+        .pcad-input:focus{outline:none;border-color:#45536B;box-shadow:0 0 0 3px rgba(69,83,107,.14)}
+        .pcad-grid2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+        .pcad-upload{border:1.5px dashed #b9c3d2;border-radius:var(--sc-radius-sm);padding:1.1rem;background:#f4f6f9;display:grid;gap:.7rem}
+        .pcad-suggest{border-radius:var(--sc-radius-sm);background:#f4f6f9;border:1px solid #dbe1ea;color:#3c4a63;padding:.75rem .9rem;font-size:.86rem}
+        .pcad-suggest strong{font-variant-numeric:tabular-nums}
+
+        .pcad-summary{display:grid;gap:0;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);overflow:hidden;font-variant-numeric:tabular-nums}
+        .pcad-summary-row{display:flex;justify-content:space-between;gap:1rem;color:var(--sc-muted);font-size:.86rem;padding:.55rem .85rem;border-bottom:1px solid var(--sc-line);background:#fff}
+        .pcad-summary-row strong{color:var(--sc-ink)}
+        .pcad-summary-total{display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;color:var(--sc-ink);padding:.75rem .85rem;background:var(--sc-canvas)}
+        .pcad-note{border-radius:var(--sc-radius-sm);background:#f4f6f9;border:1px solid #dbe1ea;color:#3c4a63;padding:.85rem .95rem;font-size:.86rem;line-height:1.6}
+
+        .pcad-actions{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+        .pcad-btn{border:none;border-radius:var(--sc-radius-sm);padding:.72rem 1.05rem;font:inherit;font-weight:700;font-size:.88rem;cursor:pointer}
+        .pcad-btn.primary{background:var(--sc-orange);color:#0f1111;border:1px solid var(--sc-orange-border)}
+        .pcad-btn.primary:hover:not(:disabled){background:var(--sc-orange-border)}
+        .pcad-btn.secondary{background:#fff;color:var(--sc-ink);border:1px solid var(--sc-line)}
+        .pcad-btn.ghost{background:transparent;color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pcad-btn:disabled{opacity:.5;cursor:not-allowed}
+        @media (max-width: 640px) {
+          .pcad-hero{flex-direction:column;text-align:center;padding:1.5rem}
+          .pcad-grid2{grid-template-columns:1fr}
+          .pcad-step-label{display:none}
+        }
       </style>
-      <section class="quiz-shell">
-        <header class="quiz-heading">
-          <small>Plans CAD</small>
-          <h1>Chargez votre plan PDF, confirmez le papier et voyez votre tarif.</h1>
-          <p>Le parcours suggere la dimension la plus proche, puis le site calcule le total selon le nombre de pages et le prix configure pour cette dimension dans le papier choisi.</p>
+      <section class="pcad-shell">
+        <header class="pcad-hero">
+          <div class="pcad-hero-icon"><i class="fas fa-drafting-compass"></i></div>
+          <div>
+            <h1>Plans CAD & architecture</h1>
+            <p>Envoyez votre plan PDF : le format le plus proche est suggéré automatiquement, et le tarif suit le nombre de pages.</p>
+          </div>
         </header>
-        ${this.config.enabled === false ? `<div class="quiz-note is-error">Le module CAD est temporairement indisponible.</div>` : ''}
-        <div class="quiz-steps">${this.renderStep(1, 'Votre plan')}${this.renderStep(2, 'Vos options')}${this.renderStep(3, 'Votre tarif')}</div>
+        ${this.config.enabled === false ? `<div class="pcad-error-banner">Le module CAD est temporairement indisponible.</div>` : ''}
+        <nav class="pcad-stepper">${this.renderStep(1, 'Votre plan')}${this.renderStep(2, 'Vos options')}${this.renderStep(3, 'Votre tarif')}</nav>
         ${this.currentStep === 1 ? `
-          <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 1</small><h2>Chargez votre plan PDF</h2><p>Ajoutez votre PDF pour lire le nombre de pages et proposer la dimension la plus proche.</p></div>
-            <label class="quiz-field"><span>Fichier PDF</span><div class="quiz-upload"><input id="cadPdfFile" class="quiz-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}><div id="cadPdfStatus" style="color:${this.fileInfo ? '#0f9f6e' : '#6E6557'};">${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.pageCount} page(s)` : 'Choisissez un plan PDF pour analyse automatique.'}</div></div></label>
-            ${this.fileInfo?.suggestedDimension ? `<div class="quiz-note">Dimension suggeree automatiquement : <strong>${this.escape(this.fileInfo.suggestedDimension)}</strong></div>` : ''}
-            <div class="quiz-actions"><button type="button" class="quiz-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
+          <section class="pcad-panel">
+            <h2>Chargez votre plan PDF</h2>
+            <p class="pcad-hint">Le format le plus proche du plan est suggéré automatiquement.</p>
+            <label class="pcad-field"><span>Fichier PDF</span><div class="pcad-upload"><input id="cadPdfFile" class="pcad-input" type="file" accept="application/pdf" ${this.config.enabled === false ? 'disabled' : ''}><div id="cadPdfStatus" style="color:${this.fileInfo ? '#0f9f6e' : 'var(--sc-muted)'};font-size:.84rem;">${this.fileInfo ? `${this.escape(this.fileInfo.name)} · ${this.fileInfo.pageCount} page(s)` : 'Choisissez un plan PDF pour analyse automatique.'}</div></div></label>
+            ${this.fileInfo?.suggestedDimension ? `<div class="pcad-suggest">Format suggéré : <strong>${this.escape(this.fileInfo.suggestedDimension)}</strong></div>` : ''}
+            <div class="pcad-actions"><button type="button" class="pcad-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button></div>
           </section>` : ''}
         ${this.currentStep === 2 ? `
-          <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 2</small><h2>Confirmez vos options</h2><p>Choisissez d abord le papier, puis la dimension disponible pour ce papier.</p></div>
-            <div class="quiz-grid">
-              <label class="quiz-field"><span>Papier</span><select id="cadPaper" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''}><option value="">Choisir un papier</option>${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}</select></label>
-              <label class="quiz-field"><span>Dimension</span><select id="cadDimension" class="quiz-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}><option value="">Choisir un format</option>${dimensions.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)} / page</option>`).join('')}</select></label>
-              </div>
-              <label class="quiz-field"><span>Nombre d impressions</span><input id="cadCopies" class="quiz-input" type="number" min="1" step="1" value="${this.formState.copies || 1}" ${this.config.enabled === false ? 'disabled' : ''}></label>
-              <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="1">Retour</button><button type="button" class="quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button></div>
-            </section>` : ''}
+          <section class="pcad-panel">
+            <h2>Papier et dimension</h2>
+            <p class="pcad-hint">Choisissez d'abord le papier, puis la dimension disponible pour ce papier.</p>
+            <div class="pcad-grid2">
+              <label class="pcad-field"><span>Papier</span><select id="cadPaper" class="pcad-input" ${this.config.enabled === false ? 'disabled' : ''}><option value="">Choisir un papier</option>${papers.map((paper) => `<option value="${this.escape(paper.label)}">${this.escape(paper.label)}</option>`).join('')}</select></label>
+              <label class="pcad-field"><span>Dimension</span><select id="cadDimension" class="pcad-input" ${this.config.enabled === false ? 'disabled' : ''} ${!this.formState.paperLabel ? 'disabled' : ''}><option value="">Choisir un format</option>${dimensions.map((item) => `<option value="${this.escape(item.label)}">${this.escape(item.label)} · ${this.formatPrice(item.price || 0)} / page</option>`).join('')}</select></label>
+            </div>
+            <label class="pcad-field" style="max-width:220px;"><span>Nombre d'impressions</span><input id="cadCopies" class="pcad-input" type="number" min="1" step="1" value="${this.formState.copies || 1}" ${this.config.enabled === false ? 'disabled' : ''}></label>
+            <div class="pcad-actions"><button type="button" class="pcad-btn ghost" data-prev-step="1">Retour</button><button type="button" class="pcad-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button></div>
+          </section>` : ''}
         ${this.currentStep === 3 ? `
-          <section class="quiz-panel">
-            <div class="quiz-head"><small>Etape 3</small><h2>Votre tarif est prêt</h2><p>Le total suit directement le prix de la dimension choisie et le nombre de pages du PDF.</p></div>
-            <div class="quiz-summary">
-              <div class="quiz-summary-row"><span>Pages</span><strong id="cadQuotePages">${quote.pageCount}</strong></div>
-                <div class="quiz-summary-row"><span>Pages imprimees</span><strong id="cadQuotePrintedPages">${quote.pageCount * quote.copies}</strong></div>
-                <div class="quiz-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
-                <div class="quiz-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
-                <div class="quiz-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
-                <div class="quiz-summary-row"><span>Prix par impression</span><strong id="cadQuoteUnitPrice">${this.formatPrice(quote.printUnitPrice)}</strong></div>
-                <div class="quiz-summary-row"><span>Nombre d impressions</span><strong id="cadQuoteCopies">${quote.copies}</strong></div>
-                <div class="quiz-summary-row"><span>Total impression</span><strong id="cadPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
-                <div class="quiz-summary-row"><span>Frais reception</span><strong id="cadDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
-                <div class="quiz-summary-total"><span>Total à payer</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
-              </div>
+          <section class="pcad-panel">
+            <h2>Votre tarif</h2>
+            <div class="pcad-summary">
+              <div class="pcad-summary-row"><span>Pages</span><strong id="cadQuotePages">${quote.pageCount}</strong></div>
+              <div class="pcad-summary-row"><span>Pages imprimées</span><strong id="cadQuotePrintedPages">${quote.pageCount * quote.copies}</strong></div>
+              <div class="pcad-summary-row"><span>Papier</span><strong>${this.escape(quote.paper?.label || '-')}</strong></div>
+              <div class="pcad-summary-row"><span>Dimension</span><strong>${this.escape(quote.dimension?.label || '-')}</strong></div>
+              <div class="pcad-summary-row"><span>Prix par page</span><strong>${this.formatPrice(quote.pricePerPage)}</strong></div>
+              <div class="pcad-summary-row"><span>Prix par impression</span><strong id="cadQuoteUnitPrice">${this.formatPrice(quote.printUnitPrice)}</strong></div>
+              <div class="pcad-summary-row"><span>Nombre d'impressions</span><strong id="cadQuoteCopies">${quote.copies}</strong></div>
+              <div class="pcad-summary-row"><span>Total impression</span><strong id="cadPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+              <div class="pcad-summary-row"><span>Frais réception</span><strong id="cadDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
+              <div class="pcad-summary-total"><span>Total à payer</span><strong id="cadQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
+            </div>
             ${this.deliveryController.renderSection()}
-            ${this.config.notes ? `<div class="quiz-note">${this.escape(this.config.notes)}</div>` : ''}
-            <div class="quiz-actions"><button type="button" class="quiz-btn ghost" data-prev-step="2">Modifier mes choix</button><button type="button" class="quiz-btn secondary" id="openCartFromCad">Ouvrir le panier</button><button type="button" class="quiz-btn primary" id="submitCadOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button><span id="cadSubmitStatus"></span></div>
+            ${this.config.notes ? `<div class="pcad-note">${this.escape(this.config.notes)}</div>` : ''}
+            <div class="pcad-actions"><button type="button" class="pcad-btn ghost" data-prev-step="2">Modifier</button><button type="button" class="pcad-btn secondary" id="openCartFromCad">Ouvrir le panier</button><button type="button" class="pcad-btn primary" id="submitCadOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button><span id="cadSubmitStatus" style="font-size:.84rem;color:var(--sc-muted);"></span></div>
           </section>` : ''}
       </section>
     `;

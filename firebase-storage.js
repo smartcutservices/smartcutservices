@@ -1,7 +1,7 @@
 import { storage } from './firebase-init.js';
 import {
   ref,
-  uploadBytes,
+  uploadBytesResumable,
   getDownloadURL,
   deleteObject
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
@@ -112,35 +112,46 @@ export async function uploadStorageFile(file, folder = 'misc', options = {}) {
   const storageRef = ref(storage, storagePath);
 
   try {
-    await uploadBytes(storageRef, file, {
+    const uploadTask = uploadBytesResumable(storageRef, file, {
       contentType: file.type,
-      cacheControl: 'public,max-age=31536000,immutable'
+      cacheControl: options.exposeDownloadUrl === false
+        ? 'private,no-store,max-age=0'
+        : 'public,max-age=31536000,immutable'
     });
+    options.onTask?.(uploadTask);
+    await new Promise((resolve, reject) => uploadTask.on('state_changed',
+      (snapshot) => options.onProgress?.(snapshot.totalBytes ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) : 0),
+      reject,
+      resolve
+    ));
 
     let url = '';
     let urlSource = 'firebase-download-url';
-    try {
-      url = await getDownloadURL(storageRef);
-    } catch (downloadError) {
-      url = buildMediaUrl(storagePath);
-      urlSource = 'direct-media-url-fallback';
-      console.warn('[STORAGE] uploadStorageFile:getDownloadURL:fallback', {
-        storagePath,
-        fallbackUrl: url,
-        code: downloadError?.code || null,
-        message: downloadError?.message || String(downloadError),
-        customData: downloadError?.customData || null
-      });
+    if (options.exposeDownloadUrl !== false) {
+      try {
+        url = await getDownloadURL(storageRef);
+      } catch (downloadError) {
+        url = buildMediaUrl(storagePath);
+        urlSource = 'direct-media-url-fallback';
+        console.warn('[STORAGE] uploadStorageFile:getDownloadURL:fallback', {
+          storagePath,
+          fallbackUrl: url,
+          code: downloadError?.code || null,
+          message: downloadError?.message || String(downloadError),
+          customData: downloadError?.customData || null
+        });
+      }
     }
 
-    if (!url) {
+    if (!url && options.exposeDownloadUrl !== false) {
       throw new Error(`Upload reussi, mais URL image introuvable pour ${storagePath}.`);
     }
 
     return {
       url,
       path: storagePath,
-      name: uniqueName
+      name: uniqueName,
+      private: options.exposeDownloadUrl === false
     };
   } catch (error) {
     console.error('[STORAGE] uploadStorageFile:error', {

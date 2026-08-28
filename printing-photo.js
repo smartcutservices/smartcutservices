@@ -44,9 +44,9 @@ const DEFAULT_CONFIG = {
 const PRODUCT_IMAGE = `data:image/svg+xml;utf8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">
   <rect width="240" height="240" rx="36" fill="#F2E9DA"/>
-  <rect x="42" y="52" width="156" height="136" rx="18" fill="#FFFFFF" stroke="#C6A75E" stroke-width="8"/>
+  <rect x="42" y="52" width="156" height="136" rx="18" fill="#FFFFFF" stroke="#FFA41C" stroke-width="8"/>
   <circle cx="92" cy="102" r="18" fill="#F6EFE2"/>
-  <path d="M66 166l34-30 24 20 26-24 24 34" fill="none" stroke="#1F1E1C" stroke-opacity=".78" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M66 166l34-30 24 20 26-24 24 34" fill="none" stroke="#0F1111" stroke-opacity=".78" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
 `)}`;
 
@@ -191,48 +191,45 @@ class PrintingPhotoPage {
     const active = this.currentStep === step;
     const done = this.currentStep > step || (step < 3 && this.getStepValidity(step));
     return `
-      <button type="button" class="printing-quiz-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-go-step="${step}">
-        <span class="printing-quiz-step-index">${done ? '<i class="fas fa-check"></i>' : step}</span>
-        <span class="printing-quiz-step-copy"><strong>Etape ${step}</strong><small>${title}</small></span>
+      <button type="button" class="pphoto-step ${active ? 'is-active' : ''} ${done ? 'is-done' : ''}" data-go-step="${step}">
+        <span class="pphoto-step-dot">${done ? '<i class="fas fa-check"></i>' : step}</span>
+        <span class="pphoto-step-label">${title}</span>
       </button>
+      ${step < 3 ? '<span class="pphoto-step-line"></span>' : ''}
     `;
   }
 
   renderStepOne() {
     return `
-      <section class="printing-quiz-panel">
-        <div class="printing-quiz-panel-head">
-          <small>Etape 1</small>
-          <h2>Chargez vos photos</h2>
-          <p>Ajoutez une ou plusieurs photos. Vous pourrez choisir une dimension pour chaque photo a l etape suivante.</p>
-        </div>
-        <label class="printing-quiz-field">
+      <section class="pphoto-panel">
+        <h2>Chargez vos photos</h2>
+        <p class="pphoto-hint">Ajoutez une ou plusieurs images. Chacune pourra avoir son propre format à l'étape suivante.</p>
+        <label class="pphoto-field">
           <span>Fichiers image</span>
-          <div class="printing-quiz-upload">
-            <input id="photoImageFile" class="printing-quiz-input" type="file" accept="image/*" multiple ${this.config.enabled === false ? 'disabled' : ''}>
-            <div id="photoFileStatus" class="printing-quiz-upload-status" style="color:${this.photos.length ? '#0f9f6e' : '#6E6557'};">
-              ${this.photos.length ? `${this.photos.length} photo(s) ajoutee(s).` : 'Choisissez des images JPG, PNG, WEBP ou GIF pour commencer.'}
+          <div class="pphoto-upload">
+            <input id="photoImageFile" class="pphoto-input" type="file" accept="image/*" multiple ${this.config.enabled === false ? 'disabled' : ''}>
+            <div id="photoFileStatus" class="pphoto-upload-status" style="color:${this.photos.length ? '#0f9f6e' : 'var(--sc-muted)'};">
+              ${this.photos.length ? `${this.photos.length} photo(s) ajoutée(s).` : 'JPG, PNG, WEBP ou GIF.'}
             </div>
           </div>
         </label>
         ${this.photos.length ? `
-          <div class="photo-list">
+          <div class="photo-grid">
             ${this.photos.map((photo, index) => `
-              <article class="photo-card">
-                <div>
+              <article class="photo-thumb-card">
+                <div class="photo-thumb-media"><img src="${this.escape(photo.previewUrl)}" alt="${this.escape(photo.name)}"></div>
+                <div class="photo-thumb-body">
                   <strong>${index + 1}. ${this.escape(photo.name)}</strong>
-                  <small>${this.escape(photo.type || 'image')}</small>
+                  <button type="button" class="pphoto-btn ghost small" data-remove-photo="${this.escape(photo.id)}">
+                    <i class="fas fa-trash"></i> Retirer
+                  </button>
                 </div>
-                <button type="button" class="printing-quiz-btn ghost small" data-remove-photo="${this.escape(photo.id)}">
-                  <i class="fas fa-trash"></i>
-                  Retirer
-                </button>
               </article>
             `).join('')}
           </div>
         ` : ''}
-        <div class="printing-quiz-actions">
-          <button type="button" class="printing-quiz-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button>
+        <div class="pphoto-actions">
+          <button type="button" class="pphoto-btn primary" data-next-step="2" ${!this.getStepValidity(1) || this.config.enabled === false ? 'disabled' : ''}>Continuer</button>
         </div>
       </section>
     `;
@@ -241,53 +238,49 @@ class PrintingPhotoPage {
   renderStepTwo() {
     const papers = this.getEnabledPapers();
     return `
-      <section class="printing-quiz-panel">
-        <div class="printing-quiz-panel-head">
-          <small>Etape 2</small>
-          <h2>Choisissez vos options</h2>
-          <p>Chaque photo peut avoir son propre type de papier, son format et son nombre de tirages.</p>
-        </div>
-        <div class="printing-quiz-grid">
-          <label class="printing-quiz-field">
-            <span>Tirages par defaut</span>
-            <input id="photoDefaultCopies" class="printing-quiz-input" type="number" min="1" step="1" value="${this.formState.defaultCopies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
-          </label>
-          <div class="printing-quiz-note">Choisissez le papier et le format directement sur chaque photo. Les prix se recalculent automatiquement.</div>
-        </div>
+      <section class="pphoto-panel">
+        <h2>Papier, format et tirages</h2>
+        <p class="pphoto-hint">Chaque photo peut avoir son propre papier, son format et son nombre de tirages.</p>
+        <label class="pphoto-field">
+          <span>Tirages par défaut</span>
+          <input id="photoDefaultCopies" class="pphoto-input" style="max-width:180px;" type="number" min="1" step="1" value="${this.formState.defaultCopies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
+        </label>
         <div class="photo-options-list">
           ${this.photos.map((photo, index) => {
             const dimensions = this.getEnabledDimensions(photo.paperLabel);
             return `
             <article class="photo-option-card" data-photo-option-row="${this.escape(photo.id)}">
-              <div class="photo-option-title">
-                <strong>${index + 1}. ${this.escape(photo.name)}</strong>
-                <small>Choix independant: papier, format et tirages.</small>
+              <div class="photo-option-media"><img src="${this.escape(photo.previewUrl)}" alt="${this.escape(photo.name)}"></div>
+              <div class="photo-option-fields">
+                <strong class="photo-option-name">${index + 1}. ${this.escape(photo.name)}</strong>
+                <div class="photo-option-grid">
+                  <label class="pphoto-field">
+                    <span>Type de papier</span>
+                    <select class="pphoto-input" data-photo-paper="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''}>
+                      <option value="">Choisir</option>
+                      ${papers.map((paper) => `<option value="${this.escape(paper.label)}" ${photo.paperLabel === paper.label ? 'selected' : ''}>${this.escape(paper.label)}</option>`).join('')}
+                    </select>
+                  </label>
+                  <label class="pphoto-field">
+                    <span>Format</span>
+                    <select class="pphoto-input" data-photo-dimension="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''} ${!photo.paperLabel ? 'disabled' : ''}>
+                      <option value="">Choisir</option>
+                      ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}" ${photo.dimensionLabel === dimension.label ? 'selected' : ''}>${this.escape(dimension.label)} - ${this.formatPrice(dimension.price || 0)}</option>`).join('')}
+                    </select>
+                  </label>
+                  <label class="pphoto-field">
+                    <span>Tirages</span>
+                    <input class="pphoto-input" type="number" min="1" step="1" data-photo-copies="${this.escape(photo.id)}" value="${photo.copies || this.formState.defaultCopies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
+                  </label>
+                </div>
               </div>
-              <label class="printing-quiz-field">
-                <span>Type de papier</span>
-                <select class="printing-quiz-input" data-photo-paper="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''}>
-                  <option value="">Choisir un papier</option>
-                  ${papers.map((paper) => `<option value="${this.escape(paper.label)}" ${photo.paperLabel === paper.label ? 'selected' : ''}>${this.escape(paper.label)}</option>`).join('')}
-                </select>
-              </label>
-              <label class="printing-quiz-field">
-                <span>Format</span>
-                <select class="printing-quiz-input" data-photo-dimension="${this.escape(photo.id)}" ${this.config.enabled === false ? 'disabled' : ''} ${!photo.paperLabel ? 'disabled' : ''}>
-                  <option value="">Choisir un format</option>
-                  ${dimensions.map((dimension) => `<option value="${this.escape(dimension.label)}" ${photo.dimensionLabel === dimension.label ? 'selected' : ''}>${this.escape(dimension.label)} - ${this.formatPrice(dimension.price || 0)} / tirage</option>`).join('')}
-                </select>
-              </label>
-              <label class="printing-quiz-field">
-                <span>Nombre de tirages</span>
-                <input class="printing-quiz-input" type="number" min="1" step="1" data-photo-copies="${this.escape(photo.id)}" value="${photo.copies || this.formState.defaultCopies || 1}" ${this.config.enabled === false ? 'disabled' : ''}>
-              </label>
             </article>
           `;
           }).join('')}
         </div>
-        <div class="printing-quiz-actions">
-          <button type="button" class="printing-quiz-btn ghost" data-prev-step="1">Retour</button>
-          <button type="button" class="printing-quiz-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button>
+        <div class="pphoto-actions">
+          <button type="button" class="pphoto-btn ghost" data-prev-step="1">Retour</button>
+          <button type="button" class="pphoto-btn primary" data-next-step="3" ${!this.getStepValidity(2) || this.config.enabled === false ? 'disabled' : ''}>Voir mon tarif</button>
         </div>
       </section>
     `;
@@ -295,34 +288,32 @@ class PrintingPhotoPage {
 
   renderStepThree(quote) {
     return `
-      <section class="printing-quiz-panel">
-        <div class="printing-quiz-panel-head">
-          <small>Etape 3</small>
-          <h2>Votre tarif est prêt</h2>
-          <p>Le total se base sur le prix de la dimension choisie, votre image et le nombre de tirages.</p>
+      <section class="pphoto-panel">
+        <h2>Votre tarif</h2>
+        <div class="pphoto-summary">
+          <div class="pphoto-summary-row"><span>Images</span><strong>${quote.imageCount}</strong></div>
+          <div class="pphoto-summary-row"><span>Tirages</span><strong id="photoQuoteCopies">${quote.totalCopies}</strong></div>
         </div>
-        <div class="printing-quiz-summary">
-          <div class="printing-quiz-summary-row"><span>Images</span><strong>${quote.imageCount}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Tirages</span><strong id="photoQuoteCopies">${quote.totalCopies}</strong></div>
-          <div class="photo-summary-list" id="photoQuoteLines">
-            ${quote.lines.map((line, index) => `
-              <div class="photo-summary-line">
-                <span>${index + 1}. ${this.escape(line.name)} - ${this.escape(line.paper?.label || '-')} - ${this.escape(line.dimension?.label || '-')} - ${line.copies} tirage(s)</span>
-                <strong>${this.formatPrice(line.total)}</strong>
-              </div>
-            `).join('')}
-          </div>
-          <div class="printing-quiz-summary-row"><span>Total impression</span><strong id="photoPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
-          <div class="printing-quiz-summary-row"><span>Frais reception</span><strong id="photoDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
-          <div class="printing-quiz-summary-total"><span>Total à payer</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
+        <div class="photo-summary-list" id="photoQuoteLines">
+          ${quote.lines.map((line, index) => `
+            <div class="photo-summary-line">
+              <span>${index + 1}. ${this.escape(line.name)} · ${this.escape(line.paper?.label || '-')} · ${this.escape(line.dimension?.label || '-')} · ${line.copies}x</span>
+              <strong>${this.formatPrice(line.total)}</strong>
+            </div>
+          `).join('')}
+        </div>
+        <div class="pphoto-summary">
+          <div class="pphoto-summary-row"><span>Total impression</span><strong id="photoPrintTotal">${this.formatPrice(quote.totalPrice)}</strong></div>
+          <div class="pphoto-summary-row"><span>Frais réception</span><strong id="photoDeliveryFee">${this.formatPrice(this.deliveryController.getFee())}</strong></div>
+          <div class="pphoto-summary-total"><span>Total à payer</span><strong id="photoQuoteTotal">${this.formatPrice(quote.totalPrice + this.deliveryController.getFee())}</strong></div>
         </div>
         ${this.deliveryController.renderSection()}
-        ${this.config.notes ? `<div class="printing-quiz-note">${this.escape(this.config.notes)}</div>` : ''}
-        <div class="printing-quiz-actions">
-          <button type="button" class="printing-quiz-btn ghost" data-prev-step="2">Modifier mes choix</button>
-          <button type="button" class="printing-quiz-btn secondary" id="openCartFromPhoto">Ouvrir le panier</button>
-          <button type="button" class="printing-quiz-btn primary" id="submitPhotoOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button>
-          <span id="photoSubmitStatus" class="printing-quiz-submit-status"></span>
+        ${this.config.notes ? `<div class="pphoto-note">${this.escape(this.config.notes)}</div>` : ''}
+        <div class="pphoto-actions">
+          <button type="button" class="pphoto-btn ghost" data-prev-step="2">Modifier</button>
+          <button type="button" class="pphoto-btn secondary" id="openCartFromPhoto">Ouvrir le panier</button>
+          <button type="button" class="pphoto-btn primary" id="submitPhotoOrder" ${this.config.enabled === false ? 'disabled' : ''}>Ajouter au panier</button>
+          <span id="photoSubmitStatus" class="pphoto-submit-status"></span>
         </div>
       </section>
     `;
@@ -333,63 +324,90 @@ class PrintingPhotoPage {
 
     this.container.innerHTML = `
       <style>
-        .printing-quiz-shell{width:100%;max-width:1100px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1rem}
-        .printing-quiz-heading{display:grid;gap:.5rem;padding:.4rem 0 0}
-        .printing-quiz-heading small{color:#9b7c38;text-transform:uppercase;letter-spacing:.16em;font-size:.75rem;font-weight:800}
-        .printing-quiz-heading h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.8rem);line-height:.92;color:#1F1E1C}
-        .printing-quiz-heading p{color:#6E6557;line-height:1.8;max-width:60ch}
-        .printing-quiz-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.85rem}
-        .printing-quiz-step{border:1px solid rgba(31,30,28,.08);border-radius:1.4rem;background:rgba(255,255,255,.92);box-shadow:0 18px 36px rgba(31,30,28,.06);padding:.95rem 1rem;display:flex;gap:.8rem;align-items:center;text-align:left;cursor:pointer}
-        .printing-quiz-step.is-active{border-color:rgba(198,167,94,.35);box-shadow:0 20px 40px rgba(31,30,28,.08);background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(248,242,230,.94))}
-        .printing-quiz-step.is-done .printing-quiz-step-index{background:#0f9f6e;color:#fff}
-        .printing-quiz-step-index{width:36px;height:36px;min-width:36px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:rgba(198,167,94,.14);color:#9b7c38;font-weight:800}
-        .printing-quiz-step-copy{display:grid;gap:.16rem}
-        .printing-quiz-step-copy strong{font-size:.86rem;color:#6E6557}
-        .printing-quiz-step-copy small{font-size:1rem;color:#1F1E1C;font-weight:800}
-        .printing-quiz-panel{border:1px solid rgba(31,30,28,.08);border-radius:1.9rem;background:rgba(255,255,255,.94);box-shadow:0 24px 60px rgba(31,30,28,.08);padding:clamp(1.2rem,3vw,1.8rem);display:grid;gap:1.1rem}
-        .printing-quiz-panel-head{display:grid;gap:.45rem}
-        .printing-quiz-panel-head small{color:#9b7c38;text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:800}
-        .printing-quiz-panel-head h2{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,4vw,2.9rem);line-height:.94;color:#1F1E1C}
-        .printing-quiz-panel-head p{color:#6E6557;line-height:1.8;max-width:58ch}
-        .printing-quiz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-        .printing-quiz-field{display:grid;gap:.5rem}
-        .printing-quiz-input{width:100%;border:1px solid rgba(31,30,28,.12);border-radius:1rem;padding:.95rem 1rem;background:#fff;font:inherit}
-        .printing-quiz-upload{border:1px dashed rgba(198,167,94,.4);border-radius:1.3rem;padding:1rem;background:linear-gradient(180deg,rgba(248,242,230,.7),rgba(255,255,255,.96));display:grid;gap:.85rem}
-        .photo-list,.photo-options-list,.photo-summary-list{display:grid;gap:.75rem}
-        .photo-card,.photo-option-card{border:1px solid rgba(31,30,28,.08);border-radius:1.15rem;background:rgba(255,255,255,.82);padding:.95rem;display:grid;gap:.85rem}
-        .photo-card{grid-template-columns:1fr auto;align-items:center}
-        .photo-card strong,.photo-option-title strong{color:#1F1E1C}
-        .photo-card small,.photo-option-title small{display:block;color:#6E6557;margin-top:.2rem}
-        .photo-option-card{grid-template-columns:1.25fr 1fr 1fr .75fr;align-items:end}
-        .photo-summary-line{display:flex;justify-content:space-between;gap:1rem;padding:.75rem .8rem;border-radius:1rem;background:rgba(255,255,255,.74);color:#6E6557}
-        .printing-quiz-summary{display:grid;gap:.8rem;border:1px solid rgba(31,30,28,.08);border-radius:1.35rem;background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(248,242,230,.9));padding:1.1rem}
-        .printing-quiz-summary-row,.printing-quiz-summary-total{display:flex;justify-content:space-between;gap:1rem;color:#6E6557}
-        .printing-quiz-summary-total{margin-top:.25rem;padding-top:.9rem;border-top:1px solid rgba(31,30,28,.08);color:#1F1E1C;font-size:1.2rem;font-weight:800}
-        .printing-quiz-note{border-radius:1.2rem;background:rgba(198,167,94,.08);border:1px solid rgba(198,167,94,.16);color:#8A7450;padding:1rem 1.1rem;line-height:1.8}
-        .printing-quiz-note.is-error{background:rgba(185,28,28,.08);border-color:rgba(185,28,28,.12);color:#991b1b}
-        .printing-quiz-actions{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center}
-        .printing-quiz-btn{border:none;border-radius:999px;padding:.96rem 1.25rem;font:inherit;font-weight:800;cursor:pointer}
-        .printing-quiz-btn.primary{background:#1F1E1C;color:#F8F5EF;box-shadow:0 14px 28px rgba(31,30,28,.18)}
-        .printing-quiz-btn.secondary{background:#fff;color:#1F1E1C;border:1px solid rgba(31,30,28,.12)}
-        .printing-quiz-btn.ghost{background:transparent;color:#6E6557;border:1px solid rgba(31,30,28,.1)}
-        .printing-quiz-btn.small{padding:.65rem .8rem;font-size:.85rem}
-        .printing-quiz-btn:disabled,.printing-quiz-step:disabled{opacity:.5;cursor:not-allowed}
-        @media (max-width:860px){.printing-quiz-steps,.printing-quiz-grid,.photo-option-card,.photo-card{grid-template-columns:1fr}}
+        .pphoto-shell{width:100%;max-width:940px;margin:0 auto;padding:0 1rem 3rem;display:grid;gap:1.35rem}
+        .pphoto-hero{background:var(--sc-navy);color:#fff;border-radius:var(--sc-radius);padding:1.75rem 1.85rem;display:flex;align-items:center;gap:1.1rem}
+        .pphoto-hero-icon{width:50px;height:50px;min-width:50px;border-radius:13px;background:rgba(232,96,76,.28);display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:#f2a99c}
+        .pphoto-hero h1{font-size:clamp(1.35rem,2.6vw,1.7rem);font-weight:800;margin-bottom:.3rem;letter-spacing:-.01em}
+        .pphoto-hero p{color:rgba(255,255,255,.72);font-size:.88rem;line-height:1.5;max-width:56ch}
+        .pphoto-error-banner{border-radius:var(--sc-radius-sm);background:#fdecea;border:1px solid #f3c6c2;color:#991b1b;padding:.85rem 1rem;font-size:.88rem}
+
+        .pphoto-stepper{display:flex;align-items:center;padding:0 .2rem}
+        .pphoto-step{display:flex;align-items:center;gap:.55rem;background:none;border:none;cursor:pointer;padding:.35rem 0}
+        .pphoto-step-dot{width:26px;height:26px;min-width:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:800;background:var(--sc-canvas);color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pphoto-step.is-active .pphoto-step-dot{background:#E8604C;color:#fff;border-color:#E8604C}
+        .pphoto-step.is-done .pphoto-step-dot{background:#0f9f6e;color:#fff;border-color:#0f9f6e}
+        .pphoto-step-label{font-size:.8rem;font-weight:700;color:var(--sc-muted)}
+        .pphoto-step.is-active .pphoto-step-label{color:var(--sc-ink)}
+        .pphoto-step-line{flex:1;height:1px;background:var(--sc-line);margin:0 .6rem}
+
+        .pphoto-panel{background:var(--sc-surface);border:1px solid var(--sc-line);border-radius:var(--sc-radius);padding:1.5rem;display:grid;gap:1rem}
+        .pphoto-panel h2{font-size:1.15rem;font-weight:800;color:var(--sc-ink)}
+        .pphoto-hint{color:var(--sc-muted);font-size:.85rem;margin-top:-.55rem;line-height:1.5}
+
+        .pphoto-field{display:grid;gap:.4rem}
+        .pphoto-field span{font-size:.78rem;font-weight:700;color:var(--sc-muted)}
+        .pphoto-input{width:100%;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);padding:.65rem .75rem;font:inherit;font-size:.88rem;background:#fff;color:var(--sc-ink)}
+        .pphoto-input:focus{outline:none;border-color:#E8604C;box-shadow:0 0 0 3px rgba(232,96,76,.14)}
+
+        .pphoto-upload{border:1.5px dashed #f0c0b6;border-radius:var(--sc-radius-sm);padding:1.1rem;background:#fdf3f1;display:grid;gap:.7rem}
+        .pphoto-upload-status{font-size:.84rem}
+
+        .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.75rem}
+        .photo-thumb-card{border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);overflow:hidden;background:#fff}
+        .photo-thumb-media{aspect-ratio:1/1;background:var(--sc-canvas)}
+        .photo-thumb-media img{width:100%;height:100%;object-fit:cover;display:block}
+        .photo-thumb-body{padding:.55rem .6rem;display:grid;gap:.4rem}
+        .photo-thumb-body strong{font-size:.78rem;color:var(--sc-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+        .photo-options-list{display:grid;gap:.75rem}
+        .photo-option-card{border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);background:#fff;padding:.85rem;display:flex;gap:.9rem}
+        .photo-option-media{width:64px;height:64px;min-width:64px;border-radius:var(--sc-radius-sm);overflow:hidden;background:var(--sc-canvas)}
+        .photo-option-media img{width:100%;height:100%;object-fit:cover;display:block}
+        .photo-option-fields{flex:1;min-width:0;display:grid;gap:.6rem}
+        .photo-option-name{font-size:.86rem;color:var(--sc-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .photo-option-grid{display:grid;grid-template-columns:1fr 1fr .7fr;gap:.6rem}
+
+        .photo-summary-list{display:grid;gap:.4rem}
+        .photo-summary-line{display:flex;justify-content:space-between;gap:1rem;padding:.5rem .7rem;border-radius:var(--sc-radius-sm);background:var(--sc-canvas);color:var(--sc-muted);font-size:.84rem}
+        .photo-summary-line strong{color:var(--sc-ink)}
+
+        .pphoto-summary{display:grid;gap:0;border:1px solid var(--sc-line);border-radius:var(--sc-radius-sm);overflow:hidden}
+        .pphoto-summary-row{display:flex;justify-content:space-between;gap:1rem;color:var(--sc-muted);font-size:.86rem;padding:.55rem .85rem;border-bottom:1px solid var(--sc-line);background:#fff}
+        .pphoto-summary-row strong{color:var(--sc-ink)}
+        .pphoto-summary-total{display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;color:var(--sc-ink);padding:.75rem .85rem;background:var(--sc-canvas)}
+        .pphoto-note{border-radius:var(--sc-radius-sm);background:#fdf3f1;border:1px solid #f0c0b6;color:#9c3b26;padding:.85rem .95rem;font-size:.86rem;line-height:1.6}
+
+        .pphoto-actions{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+        .pphoto-btn{border:none;border-radius:var(--sc-radius-sm);padding:.72rem 1.05rem;font:inherit;font-weight:700;font-size:.88rem;cursor:pointer}
+        .pphoto-btn.primary{background:var(--sc-orange);color:#0f1111;border:1px solid var(--sc-orange-border)}
+        .pphoto-btn.primary:hover:not(:disabled){background:var(--sc-orange-border)}
+        .pphoto-btn.secondary{background:#fff;color:var(--sc-ink);border:1px solid var(--sc-line)}
+        .pphoto-btn.ghost{background:transparent;color:var(--sc-muted);border:1px solid var(--sc-line)}
+        .pphoto-btn.small{padding:.45rem .65rem;font-size:.78rem}
+        .pphoto-btn:disabled{opacity:.5;cursor:not-allowed}
+        .pphoto-submit-status{font-size:.84rem;color:var(--sc-muted)}
+        @media (max-width: 640px) {
+          .pphoto-hero{flex-direction:column;text-align:center;padding:1.5rem}
+          .pphoto-step-label{display:none}
+          .photo-option-card{flex-direction:column}
+          .photo-option-media{width:100%;height:120px}
+          .photo-option-grid{grid-template-columns:1fr}
+        }
       </style>
-      <section class="printing-quiz-shell">
-        <header class="printing-quiz-topbar">
-          <div class="printing-quiz-heading">
-            <small>Impression photo</small>
-            <h1>Commandez plusieurs tirages photo</h1>
-            <p>Ajoutez vos photos, choisissez une dimension pour chacune, puis validez votre reception. Le prix final suit automatiquement vos choix.</p>
-          </div>
-          ${this.config.enabled === false ? `<div class="printing-quiz-note is-error">Le module photo est temporairement indisponible.</div>` : ''}
-          <div class="printing-quiz-steps">
-            ${this.renderStepChip(1, 'Votre image')}
-            ${this.renderStepChip(2, 'Vos options')}
-            ${this.renderStepChip(3, 'Votre tarif')}
+      <section class="pphoto-shell">
+        <header class="pphoto-hero">
+          <div class="pphoto-hero-icon"><i class="fas fa-images"></i></div>
+          <div>
+            <h1>Impression photo</h1>
+            <p>Ajoutez vos photos, choisissez papier et format pour chacune : le prix suit automatiquement vos choix.</p>
           </div>
         </header>
+        ${this.config.enabled === false ? `<div class="pphoto-error-banner">Le module photo est temporairement indisponible.</div>` : ''}
+        <nav class="pphoto-stepper">
+          ${this.renderStepChip(1, 'Vos photos')}
+          ${this.renderStepChip(2, 'Vos options')}
+          ${this.renderStepChip(3, 'Votre tarif')}
+        </nav>
         ${this.currentStep === 1 ? this.renderStepOne() : ''}
         ${this.currentStep === 2 ? this.renderStepTwo() : ''}
         ${this.currentStep === 3 ? this.renderStepThree(quote) : ''}
@@ -479,6 +497,7 @@ class PrintingPhotoPage {
         file,
         name: file.name,
         type: file.type || 'image/*',
+        previewUrl: URL.createObjectURL(file),
         paperLabel: '',
         dimensionLabel: '',
         copies: this.formState.defaultCopies || 1
@@ -496,6 +515,8 @@ class PrintingPhotoPage {
   }
 
   removePhoto(photoId) {
+    const removed = this.photos.find((photo) => photo.id === photoId);
+    if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
     this.photos = this.photos.filter((photo) => photo.id !== photoId);
     this.render();
     this.attachEvents();

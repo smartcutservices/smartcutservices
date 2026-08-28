@@ -189,15 +189,15 @@ export class NotificationComponent {
       'padding:16px'
     ].join(';');
     overlay.innerHTML = `
-      <div style="background:#fff;max-width:420px;width:100%;border-radius:14px;padding:18px;border:1px solid #E2E8F0;font-family:Manrope,sans-serif;">
-        <h3 style="margin:0 0 10px 0;font-size:18px;color:#1F1E1C;">Recevoir les notifications de commande ?</h3>
+      <div style="background:#fff;max-width:420px;width:100%;border-radius:14px;padding:18px;border:1px solid #E2E8F0;font-family:Amazon Ember,sans-serif;">
+        <h3 style="margin:0 0 10px 0;font-size:18px;color:#0F1111;">Recevoir les notifications de commande ?</h3>
         <p style="margin:0 0 14px 0;color:#4A4A4A;font-size:14px;">
           Voulez-vous recevoir une notification quand votre commande est approuvée ou rejetée ?
         </p>
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
           <button id="order-notif-never" style="padding:8px 10px;border:1px solid #CBD5E1;background:#fff;border-radius:999px;cursor:pointer;">Non et ne plus montrer</button>
           <button id="order-notif-no" style="padding:8px 10px;border:1px solid #CBD5E1;background:#fff;border-radius:999px;cursor:pointer;">Non</button>
-          <button id="order-notif-yes" style="padding:8px 10px;border:1px solid #C6A75E;background:#C6A75E;color:#1F1E1C;border-radius:999px;cursor:pointer;font-weight:600;">Oui</button>
+          <button id="order-notif-yes" style="padding:8px 10px;border:1px solid #FFA41C;background:#FFA41C;color:#0F1111;border-radius:999px;cursor:pointer;font-weight:600;">Oui</button>
         </div>
       </div>
     `;

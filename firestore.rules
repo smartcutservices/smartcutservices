@@ -15,6 +15,66 @@ service cloud.firestore {
         get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == "admin";
     }
 
+    function isSmartManagementUser() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/smartManagementUsers/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/smartManagementUsers/$(request.auth.uid)).data.smartManagementAccess == true &&
+        get(/databases/$(database)/documents/smartManagementUsers/$(request.auth.uid)).data.status == "active";
+    }
+
+    function hasSmartManagementRole(roles) {
+      return signedIn() && (
+        (
+          exists(/databases/$(database)/documents/smartManagementUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/smartManagementUsers/$(request.auth.uid)).data.role in roles
+        ) ||
+        (
+          exists(/databases/$(database)/documents/clients/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in roles
+        )
+      );
+    }
+
+    function isEcommerceManager() {
+      return hasSmartManagementRole([
+        "responsable_ecommerce",
+        "ecommerce_manager",
+        "responsable_e_commerce",
+        "ecommerce"
+      ]);
+    }
+
+    function hasSmartManagementLocationReadAccess() {
+      return isAdmin() || isSmartManagementUser() || (
+        signedIn() &&
+        (
+          get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in [
+            "manager",
+            "responsable",
+            "caissier",
+            "caissiere",
+            "caissière",
+            "stock_manager",
+            "responsable_stock",
+            "lecture_seule"
+          ] ||
+          get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.smartManagementAccess == true ||
+          get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.dashboardAccess == true ||
+          (
+            get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role == "responsable_ecommerce" &&
+            (
+              get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.smartManagementAccess == true ||
+              get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.dashboardAccess == true
+            )
+          )
+        )
+      );
+    }
+
+    function hasSmartManagementProductReadAccess() {
+      return hasSmartManagementLocationReadAccess();
+    }
+
     function isApprovedVendor() {
       return signedIn() && (
         (
@@ -138,7 +198,7 @@ service cloud.firestore {
     }
 
     match /promoCodes/{docId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || isEcommerceManager();
       allow write: if isAdmin();
     }
 
@@ -199,16 +259,186 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /smartManagementLocations/{docId} {
+      allow read: if hasSmartManagementLocationReadAccess();
+      allow write: if isAdmin();
+    }
+
+    match /smartManagementLocationCodes/{docId} {
+      allow read: if hasSmartManagementLocationReadAccess();
+      allow write: if isAdmin();
+    }
+
+    match /smartManagementProductSkus/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow write: if isAdmin();
+    }
+
+    match /smartManagementProductBarcodes/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow write: if isAdmin();
+    }
+
+    match /smartManagementStockBalances/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow write: if false;
+    }
+
+    match /smartManagementStockMovements/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow write: if false;
+    }
+
+    match /smartManagementStockTransfers/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow write: if false;
+    }
+
+    match /smartManagementStockOperations/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /smartManagementPosSales/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow create, update: if isAdmin() || hasSmartManagementRole(["manager", "caissier", "caissiere"]) || (
+        signedIn() &&
+        get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in [
+          "manager",
+          "caissier",
+          "caissiere",
+          "caissière"
+        ]
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /smartManagementCashSessions/{docId} {
+      allow read: if hasSmartManagementProductReadAccess();
+      allow create, update: if isAdmin() || hasSmartManagementRole(["manager", "caissier", "caissiere"]) || (
+        signedIn() &&
+        get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.role in [
+          "manager",
+          "caissier",
+          "caissiere",
+          "caissière"
+        ]
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /smartManagementUsers/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // A signed-in owner may update their own clients/{uid} doc EXCEPT the Smart Cut
+    // Health verification fields — those must only ever change via isAdmin() (the
+    // D:/dashboard- admin approving/suspending a pharmacy) or a Cloud Function using
+    // the Admin SDK (which bypasses these rules entirely). Without this carve-out a
+    // pharmacy could set pharmacyStatus:"verified" on itself through a plain client
+    // write, exactly the self-verification the Health spec explicitly forbids.
+    function keepsHealthStatusFields() {
+      return (!('pharmacyStatus' in request.resource.data) || request.resource.data.pharmacyStatus == resource.data.pharmacyStatus) &&
+        (!('doctorStatus' in request.resource.data) || request.resource.data.doctorStatus == resource.data.doctorStatus) &&
+        (!('labStatus' in request.resource.data) || request.resource.data.labStatus == resource.data.labStatus);
+    }
+
+    function isVerifiedHealthProfessional(uid) {
+      return signedIn() && request.auth.uid == uid && exists(/databases/$(database)/documents/clients/$(uid)) && (
+        get(/databases/$(database)/documents/clients/$(uid)).data.pharmacyStatus == 'verified' ||
+        get(/databases/$(database)/documents/clients/$(uid)).data.doctorStatus == 'verified' ||
+        get(/databases/$(database)/documents/clients/$(uid)).data.labStatus == 'verified'
+      );
+    }
+
     match /clients/{uid} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || isAdmin() || isEcommerceManager();
       allow create: if signedIn() && request.auth.uid == uid;
-      allow update: if isOwner(uid) || isAdmin();
+      allow update: if isAdmin() || (isOwner(uid) && keepsHealthStatusFields());
       allow delete: if isAdmin() && resource.data.role != "admin";
     }
 
     match /clients/{uid}/orders/{orderId} {
-      allow read: if isOwner(uid) || isAdmin();
+      allow read: if isOwner(uid) || isAdmin() || isEcommerceManager();
       allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // Auto & Parts "Mon garage". Les mutations passent par autoPartsApi afin que
+    // ownerUid soit toujours derive du token; la lecture directe reste strictement
+    // limitee au proprietaire pour permettre un futur mode hors-ligne controle.
+    match /clients/{uid}/garageVehicles/{vehicleId} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
+    // Catalogue canonique Auto & Parts. Les offres commerciales restent dans
+    // vendorProducts pour reutiliser le panier, MonCash, les commandes et retraits.
+    match /autoParts/{partId} {
+      allow read: if resource.data.publicationStatus == 'published' || isAdmin();
+      allow write: if false;
+    }
+    match /autoPartCategories/{categoryId} {
+      allow read: if resource.data.isActive == true || isAdmin();
+      allow write: if false;
+    }
+    match /autoVehicleCatalog/{vehicleId} {
+      allow read: if resource.data.isActive == true || isAdmin();
+      allow write: if false;
+    }
+    match /autoPartRequests/{requestId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.customerUid == request.auth.uid);
+      allow write: if false;
+    }
+    match /autoPartQuotes/{quoteId} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.customerUid == request.auth.uid || resource.data.vendorId == request.auth.uid));
+      allow write: if false;
+    }
+    match /autoPartRequestRoutes/{routeId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.vendorId == request.auth.uid);
+      allow write: if false;
+    }
+    match /autoGarages/{garageId} {
+      allow read: if resource.data.publicationStatus == 'published' || isAdmin();
+      allow write: if false;
+    }
+    match /autoGarageApplications/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow write: if false;
+    }
+    match /autoGarageServices/{serviceId} {
+      allow read: if resource.data.status == 'published' || isAdmin() || (signedIn() && resource.data.garageId == request.auth.uid);
+      allow write: if false;
+    }
+    match /autoGarageAvailability/{garageId} {
+      allow read: if isAdmin() || isOwner(garageId);
+      allow write: if false;
+    }
+    match /autoGarageBookings/{bookingId} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.customerUid == request.auth.uid || resource.data.garageId == request.auth.uid));
+      allow write: if false;
+    }
+    match /autoPartsAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /autoClaims/{claimId} {
+      allow read: if isAdmin() || (signedIn() && (resource.data.customerUid == request.auth.uid || resource.data.vendorId == request.auth.uid));
+      allow write: if false;
+    }
+    match /autoVendorApplications/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow write: if false;
+    }
+    match /autoPartCatalogRequests/{requestId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.vendorId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /{path=**}/orders/{orderId} {
+      allow read: if isAdmin() || isEcommerceManager();
+      allow write: if false;
     }
 
     match /vendorApplications/{docId} {
@@ -264,6 +494,524 @@ service cloud.firestore {
 
     match /printingDeletedFiles/{docId} {
       allow read, write: if isAdmin();
+    }
+
+    // ============================================================
+    // SmartSolutionTek shared core — additive, see SECURITY_MODEL.md §3.
+    // All money-moving collections are write:false for clients; every write
+    // happens exclusively through Cloud Functions using the Admin SDK, which
+    // bypasses these rules entirely (same pattern as vendorPayouts above).
+    // ============================================================
+
+    function sstPlatformRole() {
+      return exists(/databases/$(database)/documents/platformRoles/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/platformRoles/$(request.auth.uid)).data
+        : null;
+    }
+
+    function isSstPlatformStaff(roles) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/platformRoles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/platformRoles/$(request.auth.uid)).data.status == "active" &&
+        get(/databases/$(database)/documents/platformRoles/$(request.auth.uid)).data.role in roles;
+    }
+
+    function sstOrgMemberDoc(orgId) {
+      return get(/databases/$(database)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data;
+    }
+
+    function isSstOrgMember(orgId, roles) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)) &&
+        sstOrgMemberDoc(orgId).status == "active" &&
+        sstOrgMemberDoc(orgId).role in roles;
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isSstOrgMember(orgId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Creation and financial fields (ownerUid, kycStatus) are Admin-SDK only —
+      // see functions/smartsolutiontek/organizations.js sstCreateOrganization.
+      allow write: if false;
+    }
+
+    match /organizationMembers/{memberId} {
+      allow read: if signedIn() && (
+        resource.data.uid == request.auth.uid ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"])
+      );
+      allow write: if false; // Admin-SDK only — see sstInviteMember / sstRemoveMember.
+    }
+
+    match /platformRoles/{uid} {
+      allow read: if isOwner(uid) || isSstPlatformStaff(["platform_admin"]);
+      allow write: if false; // Assigned out-of-band by a platform_admin via the Admin SDK.
+    }
+
+    match /applications/{appId} {
+      allow read: if true;
+      allow write: if isSstPlatformStaff(["platform_admin"]);
+    }
+
+    match /publicPages/{pageId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstPublishPage / sstSetPageStatus (slug uniqueness needs a transaction).
+    }
+
+    match /commissionRules/{ruleId} {
+      allow read: if isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent", "partner_admin"]) ||
+        (resource.data.scope == "organization" && isSstOrgMember(resource.data.organizationId, ["creator_owner"]));
+      allow write: if false; // Admin-SDK only — see sstSaveCommissionRule.
+    }
+
+    match /paymentIntents/{intentId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — amounts are always server-computed.
+    }
+
+    match /ledgerEntries/{entryId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]) ||
+        isVerifiedHealthProfessional(resource.data.organizationId);
+      allow write: if false; // Append-only, Admin-SDK only. Never update/delete an existing entry.
+    }
+
+    match /balances/{orgId} {
+      allow read: if isSstOrgMember(orgId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]) ||
+        isVerifiedHealthProfessional(orgId);
+      allow write: if false; // Derived exclusively from ledgerEntries by Cloud Functions.
+    }
+
+    match /refunds/{refundId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstConfirmRefund.
+    }
+
+    match /payoutRequests/{requestId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Creation, approval and payout are all Admin-SDK only (server validates balance,
+      // cooldown and KYC status) — see sstCreatePayoutRequest / sstReviewPayoutRequest / sstMarkPayoutPaid.
+      allow write: if false;
+    }
+
+    match /payouts/{payoutId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /webhookEvents/{eventId} {
+      allow read: if isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /notifications/{notifId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow update: if signedIn() && resource.data.uid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow create, delete: if false; // Created by Cloud Functions only.
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isSstPlatformStaff(["platform_admin", "finance_admin"]);
+      allow write: if false; // Written exclusively by Cloud Functions alongside the action they record.
+    }
+
+    match /formSchemas/{formId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstSaveFormSchema / sstSetFormStatus.
+    }
+
+    match /submissions/{submissionId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Public submission goes through sstSubmitForm (Admin SDK) so server-side
+      // validation (required fields, capacity, price snapshot) cannot be bypassed.
+      allow write: if false;
+    }
+
+    match /shopCatalogs/{catalogId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstSaveShopCatalog / sstSetCatalogStatus.
+    }
+
+    match /shopProducts/{productId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — price/stock are always server-validated.
+    }
+
+    match /shopOrders/{orderId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Public checkout goes through sstCreateShopOrder (Admin SDK) so line totals and
+      // stock are always recomputed server-side — never trusted from the client.
+      allow write: if false;
+    }
+
+    match /courses/{courseId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstSaveCourse / sstSetCourseStatus.
+    }
+
+    match /courseModules/{moduleId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Public structure (titles only) is served by sstGetPublicCourse, not by direct
+      // client reads, so unenrolled visitors never see this collection directly.
+      allow write: if false;
+    }
+
+    match /lessons/{lessonId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Protected content (video/PDF/file URLs) is NEVER served by a direct client read —
+      // only by sstGetPublicCourse (free-preview lessons only) or sstGetEnrolledCourseContent
+      // (after server-side enrollment verification). See courses.js module docstring.
+      allow write: if false;
+    }
+
+    match /enrollments/{enrollmentId} {
+      allow read: if signedIn() && resource.data.studentUid == request.auth.uid ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstEnrollCourse / sstUpdateLessonProgress.
+    }
+
+    match /lessonProgress/{progressId} {
+      allow read: if signedIn() && resource.data.studentUid == request.auth.uid ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false; // Server validates enrollment and lesson -> course relation.
+    }
+
+    match /courseProgress/{progressId} {
+      allow read: if signedIn() && resource.data.studentUid == request.auth.uid ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false; // Derived server-side from lessonProgress.
+    }
+
+    match /courseAssets/{assetId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false; // Asset ownership and usage checks require Cloud Functions.
+    }
+
+    match /courseAuditLogs/{logId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false; // Append-only through privileged course handlers.
+    }
+
+    match /courseAnalyticsEvents/{eventId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false; // First-party events are validated and deduplicated server-side.
+    }
+
+    match /courseRefundRequests/{requestId} {
+      allow read: if signedIn() && resource.data.studentUid == request.auth.uid ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Manual workflow only; no direct financial mutation.
+    }
+
+    match /services/{serviceId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstSaveService / sstSetServiceStatus.
+    }
+
+    match /availabilityRules/{ruleId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Public slot computation is served by sstGetAvailableSlots (Admin SDK), not by a
+      // direct client read, so booked/blocked internals are never exposed raw.
+      allow write: if false;
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Public booking goes through sstCreateBooking (Admin SDK, transactional slot-conflict
+      // check) — never a direct client write.
+      allow write: if false;
+    }
+
+    match /menus/{menuId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstSaveMenu / sstSetMenuStatus.
+    }
+
+    match /menuItems/{itemId} {
+      allow read: if resource.data.status == "published" ||
+        isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false; // Admin-SDK only — see sstSaveMenuItem.
+    }
+
+    match /foodOrders/{orderId} {
+      allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager", "creator_staff"]) ||
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      // Public checkout goes through sstCreateFoodOrder (Admin SDK) so line totals
+      // (including selected options) are always recomputed server-side.
+      allow write: if false;
+    }
+
+    // ============================================================
+    // Smart Cut Education. Public catalog reads stay limited to published
+    // records. Professional creation, review and reporting go exclusively
+    // through the Education Cloud Functions, which enforce ownerUid.
+    // ============================================================
+
+    match /educationCategories/{categoryId} {
+      allow read: if resource.data.isActive == true;
+      allow write: if false; // Admin-SDK only.
+    }
+
+    match /educationSchools/{schoolId} {
+      allow read: if resource.data.publicationStatus == "published";
+      // ownerUid, verification.status and publicationStatus are server-only.
+      allow write: if false;
+    }
+
+    match /educationPrograms/{programId} {
+      // A program's read rule only checks its own publicationStatus: cross-checking
+      // the associated school's status here would need an extra get() per document
+      // read, which this step intentionally avoids (see EDUCATION_DATA_ARCHITECTURE.md
+      // §"Programme publié sans établissement publié"). The future publish function is
+      // refuses publishing a program whose school is not verified.
+      allow read: if resource.data.publicationStatus == "published";
+      allow write: if false; // Admin-SDK only.
+    }
+
+    match /educationTutorProfiles/{tutorId} {
+      allow read, write: if false; // Public catalog and owner dashboard use Cloud Functions.
+    }
+
+    match /educationTutorServices/{serviceId} {
+      allow read, write: if false;
+    }
+
+    match /educationTutorRequests/{requestId} {
+      allow read, write: if false;
+    }
+
+    match /{educationPrivateCollection}/{docId} {
+      allow read, write: if educationPrivateCollection in [
+        "educationProgramModules", "educationProgramLessons", "educationProgramAssets",
+        "educationEnrollments", "educationAnalyticsEvents", "educationAuditLogs"
+      ] && false;
+    }
+
+    // SmartCut Facturation. Toutes les mutations, y compris les CRUD metier,
+    // passent par les Cloud Functions afin que ownerUid, montants, statuts,
+    // numeros de documents et ecritures financieres soient calcules au serveur.
+    function isBillingOwner() {
+      return signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /billingProfiles/{uid} {
+      allow read: if isOwner(uid) || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /{billingCollection}/{docId} {
+      allow read: if billingCollection in [
+          "billingClients", "billingServices", "billingProformas", "billingInvoices",
+          "billingPayments", "billingWithdrawals", "billingLedgerEntries", "billingPaymentIntents", "billingNotifications"
+        ] && (isBillingOwner() || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]));
+      allow write: if false;
+    }
+
+    match /billingBalances/{uid} {
+      allow read: if isOwner(uid) || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /billingCounters/{docId} { allow read, write: if false; }
+    match /billingMoncashTransactions/{docId} { allow read, write: if false; }
+    match /billingAuditLogs/{docId} {
+      allow read: if isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin"]);
+      allow write: if false;
+    }
+
+    // SmartCut Services marketplace. Public reads are limited to records whose
+    // server-controlled status is actually public; every mutation is Admin-SDK only.
+    match /providerProfiles/{uid} {
+      allow read: if resource.data.status == "ACTIVE" || isOwner(uid) || isAdmin() ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /billingServices/{serviceId} {
+      allow read: if (resource.data.publicationStatus == "PUBLISHED" && resource.data.visibility == "PUBLIC") ||
+        (signedIn() && resource.data.ownerUid == request.auth.uid) || isAdmin() ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /serviceCategories/{categoryId} {
+      allow read: if resource.data.active == true || isAdmin() || isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    function marketplaceParticipant() {
+      return signedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.providerUid == request.auth.uid);
+    }
+
+    match /{marketplaceCollection}/{docId} {
+      allow read: if marketplaceCollection in ["serviceRequests", "serviceProposals", "serviceOrders", "serviceDeliveries", "serviceRevisionRequests", "serviceDisputes"] &&
+        (marketplaceParticipant() || isAdmin() || isSstPlatformStaff(["platform_admin", "support_agent", "finance_admin"]));
+      allow write: if false;
+    }
+
+    match /serviceOrderMessages/{messageId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participantUids || isAdmin() ||
+        isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /serviceReviews/{reviewId} {
+      allow read: if resource.data.status == "PUBLISHED" || (signedIn() && (resource.data.buyerUid == request.auth.uid || resource.data.providerUid == request.auth.uid)) ||
+        isAdmin() || isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /marketplaceNotifications/{notificationId} {
+      allow read: if signedIn() && resource.data.recipientUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /serviceModerationLogs/{logId} {
+      allow read: if isAdmin() || isSstPlatformStaff(["platform_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    match /marketplaceSettings/{docId} { allow read, write: if false; }
+    match /marketplaceCommissionRules/{docId} { allow read, write: if false; }
+    match /marketplaceRateLimits/{docId} { allow read, write: if false; }
+
+    // ============================================================
+    // Smart Cut Health — Phase 1 (Pharmacy). Additive only. Every mutation past the
+    // initial application goes through functions/health/index.js (Admin SDK, bypasses
+    // these rules), so status transitions, prices and stock are always server-computed
+    // — see the "healthXxx" Cloud Functions for the actual logic. A pharmacy can never
+    // self-verify (see keepsHealthStatusFields() above on clients/{uid}).
+    // ============================================================
+
+    match /pharmacyApplications/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    match /healthDoctorApplications/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    match /healthLabApplications/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
+    // Medicine listings: public read (non-sensitive catalog data — the search page
+    // needs it), but every write is Admin-SDK only (healthSaveMedicine / healthDeleteMedicine)
+    // so stock/price can never be edited by anything except the verified owning pharmacy,
+    // and only after the server re-validates prescriptionRequired/coldChainRequired.
+    match /healthPharmacyProducts/{productId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Prescriptions carry real health data. Never a direct client write (creation must
+    // also atomically fan out healthPrescriptionRoutes) — see healthSubmitPrescription.
+    match /healthPrescriptions/{prescriptionId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.patientUid == request.auth.uid) ||
+        (signedIn() && exists(/databases/$(database)/documents/healthPrescriptionRoutes/$(prescriptionId + '_' + request.auth.uid)));
+      allow write: if false;
+    }
+
+    match /healthPrescriptionRoutes/{routeId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.pharmacyId == request.auth.uid) ||
+        (signedIn() && exists(/databases/$(database)/documents/healthPrescriptions/$(resource.data.prescriptionId)) &&
+          get(/databases/$(database)/documents/healthPrescriptions/$(resource.data.prescriptionId)).data.patientUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /healthPrescriptionOffers/{offerId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.pharmacyId == request.auth.uid) ||
+        (signedIn() && exists(/databases/$(database)/documents/healthPrescriptions/$(resource.data.prescriptionId)) &&
+          get(/databases/$(database)/documents/healthPrescriptions/$(resource.data.prescriptionId)).data.patientUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /healthOrders/{orderId} {
+      allow read: if isAdmin() ||
+        (signedIn() && resource.data.patientUid == request.auth.uid) ||
+        (signedIn() && resource.data.pharmacyId == request.auth.uid);
+      allow write: if false; // Admin-SDK only — price/stock/status always server-computed.
+    }
+
+    match /healthPaymentSessions/{sessionId} {
+      allow read: if isAdmin(); // internal — patients/pharmacies poll status via healthCheckPaymentStatus instead.
+      allow write: if false;
+    }
+
+    // Clinical data: slots and public catalog discovery go through sanitized Cloud
+    // Functions. A patient/provider may read only appointments they participate in.
+    match /healthAvailabilitySlots/{slotId} {
+      allow read: if signedIn() && resource.data.providerUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /healthAppointments/{appointmentId} {
+      allow read: if isAdmin() || (signedIn() && (
+        resource.data.patientUid == request.auth.uid || resource.data.providerUid == request.auth.uid
+      ));
+      allow write: if false;
+    }
+
+    match /healthLabExams/{examId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /healthLabResults/{resultId} {
+      allow read: if isAdmin() || (signedIn() && (
+        resource.data.patientUid == request.auth.uid || resource.data.laboratoryId == request.auth.uid
+      ));
+      allow write: if false;
+    }
+
+    match /healthRateLimits/{limitId} { allow read, write: if false; }
+
+    match /healthAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /{document=**} {
