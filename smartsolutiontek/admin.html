@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - SmartSolutionTek</title>
+<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div id="app"><div class="sst-loading">Chargement...</div></div>
+
+  <script type="module">
+    import { auth, db, googleProvider } from '../firebase-init.js';
+    import { onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+    import { collection, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+    import { callSst, showToast, formatCurrency, escapeHtml } from './api.js';
+
+    const app = document.getElementById('app');
+    let currentUser = null;
+    let activeTab = 'payouts';
+    let unsubscribers = [];
+
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      unsubscribers.forEach((fn) => { try { fn(); } catch (_) {} });
+      unsubscribers = [];
+      if (!user) return renderLoginGate();
+      renderShell();
+    });
+
+    function renderLoginGate(errorMessage) {
+      app.innerHTML = `
+        <main style="min-height:100vh;display:grid;place-items:center;padding:2rem;background:var(--background);">
+          <section class="sst-card" style="max-width:400px;width:100%;">
+            <div style="display:inline-flex;align-items:center;gap:.5rem;color:#0F1111;font-weight:700;font-size:.95rem;margin-bottom:1.1rem;">
+              <i class="fas fa-shield-halved" style="color:var(--secondary);"></i>
+              Admin SmartCut <span class="sst-badge info">SmartSolutionTek</span>
+            </div>
+            <h1 style="font-size:1.4rem;font-weight:700;margin-bottom:1rem;">Connexion</h1>
+            ${errorMessage ? `<div class="sst-error">${escapeHtml(errorMessage)}</div>` : ''}
+            <form id="loginForm">
+              <div class="sst-field"><label class="sst-label">Email</label><input class="sst-input" type="email" id="loginEmail" required></div>
+              <div class="sst-field"><label class="sst-label">Mot de passe</label><input class="sst-input" type="password" id="loginPassword" required></div>
+              <button type="submit" class="sst-btn sst-btn-primary" style="width:100%;">Se connecter</button>
+            </form>
+            <div style="display:flex;align-items:center;gap:.75rem;margin:1.1rem 0;color:var(--text-tertiary);font-size:.8rem;">
+              <div style="flex:1;height:1px;background:var(--border);"></div>ou<div style="flex:1;height:1px;background:var(--border);"></div>
+            </div>
+            <button type="button" id="googleLoginBtn" class="sst-btn sst-btn-secondary" style="width:100%;">
+              <i class="fab fa-google"></i> Continuer avec Google
+            </button>
+          </section>
+        </main>
+      `;
+      document.getElementById('loginForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+          await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value.trim(), document.getElementById('loginPassword').value);
+        } catch (error) { renderLoginGate('Email ou mot de passe incorrect.'); }
+      });
+      document.getElementById('googleLoginBtn').addEventListener('click', async () => {
+        try {
+          await signInWithPopup(auth, googleProvider);
+        } catch (error) {
+          if (error?.code === 'auth/popup-closed-by-user') return;
+          renderLoginGate('Connexion Google impossible. Reessayez.');
+        }
+      });
+    }
+
+    function renderShell() {
+      app.innerHTML = `
+        <header class="sst-header">
+          <div class="sst-header-brand"><i class="fas fa-shield-halved"></i> Admin SmartCut <span class="badge">SmartSolutionTek</span></div>
+          <div class="sst-header-actions"><button class="sst-btn sst-btn-secondary" id="signOutBtn"><i class="fas fa-arrow-right-from-bracket"></i> Deconnexion</button></div>
+        </header>
+        <main class="sst-main">
+          <div class="sst-tabs">
+            <div class="sst-tab ${activeTab === 'payouts' ? 'active' : ''}" data-tab="payouts">Decaissements</div>
+            <div class="sst-tab ${activeTab === 'organizations' ? 'active' : ''}" data-tab="organizations">Organisations / KYC</div>
+            <div class="sst-tab ${activeTab === 'commissions' ? 'active' : ''}" data-tab="commissions">Commissions</div>
+          </div>
+          <div id="tabContent"></div>
+        </main>
+      `;
+      document.getElementById('signOutBtn').addEventListener('click', () => signOut(auth));
+      document.querySelectorAll('.sst-tab').forEach((tab) => tab.addEventListener('click', () => {
+        activeTab = tab.dataset.tab;
+        unsubscribers.forEach((fn) => { try { fn(); } catch (_) {} });
+        unsubscribers = [];
+        renderShell();
+      }));
+
+      const content = document.getElementById('tabContent');
+      if (activeTab === 'payouts') renderPayoutsTab(content);
+      if (activeTab === 'organizations') renderOrganizationsTab(content);
+      if (activeTab === 'commissions') renderCommissionsTab(content);
+    }
+
+    // ---------- Payouts review ----------
+    function renderPayoutsTab(content) {
+      content.innerHTML = `<div class="sst-card"><div class="sst-card-header"><h3>Demandes de decaissement</h3></div><div id="payoutsList"><div class="sst-loading">Chargement...</div></div></div>`;
+
+      const payoutsQuery = query(collection(db, 'payoutRequests'), where('status', 'in', ['requested', 'approved']));
+      unsubscribers.push(onSnapshot(payoutsQuery, (snap) => {
+        const list = document.getElementById('payoutsList');
+        if (!list) return;
+        if (snap.empty) { list.innerHTML = '<div class="sst-empty">Aucune demande en attente.</div>'; return; }
+        list.innerHTML = `
+          <table class="sst-table">
+            <thead><tr><th>Organisation</th><th>Montant</th><th>Statut</th><th>Actions</th></tr></thead>
+            <tbody>
+              ${snap.docs.map((d) => {
+                const p = d.data();
+                return `<tr>
+                  <td>${escapeHtml(p.organizationId)}</td>
+                  <td>${formatCurrency(p.amountRequested)}</td>
+                  <td><span class="sst-badge ${p.status}">${escapeHtml(p.status)}</span></td>
+                  <td>
+                    ${p.status === 'requested' ? `
+                      <button class="sst-btn sst-btn-primary" data-approve="${d.id}">Approuver</button>
+                      <button class="sst-btn sst-btn-danger" data-reject="${d.id}">Rejeter</button>
+                    ` : `<button class="sst-btn sst-btn-primary" data-mark-paid="${d.id}" data-amount="${p.amountRequested}">Marquer paye</button>`}
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+        list.querySelectorAll('[data-approve]').forEach((btn) => btn.addEventListener('click', () => reviewPayout(btn.dataset.approve, 'approve')));
+        list.querySelectorAll('[data-reject]').forEach((btn) => btn.addEventListener('click', () => {
+          const reason = prompt('Raison du rejet :');
+          if (reason) reviewPayout(btn.dataset.reject, 'reject', reason);
+        }));
+        list.querySelectorAll('[data-mark-paid]').forEach((btn) => btn.addEventListener('click', () => {
+          const reference = prompt(`Confirmez le virement de ${formatCurrency(btn.dataset.amount)} deja effectue manuellement.\nReference du virement (obligatoire) :`);
+          if (reference && reference.trim()) markPaid(btn.dataset.markPaid, reference.trim());
+        }));
+      }, () => { const list = document.getElementById('payoutsList'); if (list) list.innerHTML = '<div class="sst-error">Erreur de chargement (verifiez votre role platformRoles).</div>'; }));
+    }
+
+    async function reviewPayout(payoutRequestId, decision, rejectionReason) {
+      try {
+        await callSst('ReviewPayoutRequest', { method: 'POST', auth: currentUser, body: { payoutRequestId, decision, rejectionReason } });
+        showToast(decision === 'approve' ? 'Demande approuvee.' : 'Demande rejetee.');
+      } catch (error) { showToast(error.message, 'error'); }
+    }
+
+    async function markPaid(payoutRequestId, providerReference) {
+      try {
+        await callSst('MarkPayoutPaid', { method: 'POST', auth: currentUser, body: { payoutRequestId, providerReference } });
+        showToast('Decaissement marque comme paye.');
+      } catch (error) { showToast(error.message, 'error'); }
+    }
+
+    // ---------- Organizations / KYC ----------
+    function renderOrganizationsTab(content) {
+      content.innerHTML = `<div class="sst-card"><div class="sst-card-header"><h3>Organisations</h3></div><div id="orgsList"><div class="sst-loading">Chargement...</div></div></div>`;
+      callSst('ListAllOrganizations', { auth: currentUser })
+        .then((result) => {
+          const list = document.getElementById('orgsList');
+          if (!result.organizations.length) { list.innerHTML = '<div class="sst-empty">Aucune organisation pour le moment.</div>'; return; }
+          list.innerHTML = `
+            <table class="sst-table">
+              <thead><tr><th>Nom</th><th>Statut KYC</th><th>Actions</th></tr></thead>
+              <tbody>
+                ${result.organizations.map((org) => `<tr>
+                  <td>${escapeHtml(org.name)}</td>
+                  <td><span class="sst-badge ${org.kycStatus === 'approved' ? 'approved' : org.kycStatus === 'rejected' ? 'rejected' : 'pending'}">${escapeHtml(org.kycStatus || 'not_started')}</span></td>
+                  <td>
+                    <button class="sst-btn sst-btn-primary" data-kyc-approve="${org.id}">Approuver</button>
+                    <button class="sst-btn sst-btn-danger" data-kyc-reject="${org.id}">Rejeter</button>
+                  </td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          `;
+          list.querySelectorAll('[data-kyc-approve]').forEach((btn) => btn.addEventListener('click', () => setKyc(btn.dataset.kycApprove, 'approved')));
+          list.querySelectorAll('[data-kyc-reject]').forEach((btn) => btn.addEventListener('click', () => {
+            const reason = prompt('Raison du rejet KYC :');
+            if (reason) setKyc(btn.dataset.kycReject, 'rejected', reason);
+          }));
+        })
+        .catch((error) => { document.getElementById('orgsList').innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`; });
+    }
+
+    async function setKyc(organizationId, status, rejectionReason) {
+      try {
+        await callSst('SetKycStatus', { method: 'POST', auth: currentUser, body: { organizationId, status, rejectionReason } });
+        showToast('Statut KYC mis a jour.');
+        renderOrganizationsTab(document.getElementById('tabContent'));
+      } catch (error) { showToast(error.message, 'error'); }
+    }
+
+    // ---------- Commissions ----------
+    function renderCommissionsTab(content) {
+      content.innerHTML = `
+        <div class="sst-card">
+          <div class="sst-card-header"><h3>Nouvelle regle de commission</h3></div>
+          <div class="sst-grid cols-3">
+            <div class="sst-field"><label class="sst-label">Portee</label>
+              <select class="sst-select" id="ruleScope">
+                <option value="global">Globale</option>
+                <option value="application">Par application</option>
+                <option value="organization">Par organisation</option>
+              </select>
+            </div>
+            <div class="sst-field" id="ruleTargetField" style="display:none;"><label class="sst-label">ID cible</label><input class="sst-input" id="ruleTarget"></div>
+            <div class="sst-field"><label class="sst-label">Type</label>
+              <select class="sst-select" id="ruleType"><option value="percentage">Pourcentage</option><option value="fixed">Montant fixe</option></select>
+            </div>
+            <div class="sst-field"><label class="sst-label">Valeur</label><input class="sst-input" type="number" id="ruleValue" step="0.01"></div>
+            <div class="sst-field"><label class="sst-label">Part SmartSolutionTek (%)</label><input class="sst-input" type="number" id="rulePartnerShare" value="0"></div>
+          </div>
+          <button class="sst-btn sst-btn-primary" id="saveRuleBtn">Enregistrer la regle</button>
+          <p class="sst-hint" style="margin-top:.6rem;">Aucun paiement n'est possible sans une regle globale active (FINANCIAL_MODEL.md §2).</p>
+        </div>
+      `;
+      document.getElementById('ruleScope').addEventListener('change', (e) => {
+        document.getElementById('ruleTargetField').style.display = e.target.value === 'global' ? 'none' : 'block';
+      });
+      document.getElementById('saveRuleBtn').addEventListener('click', async () => {
+        const scope = document.getElementById('ruleScope').value;
+        const body = {
+          scope,
+          type: document.getElementById('ruleType').value,
+          value: Number(document.getElementById('ruleValue').value),
+          partnerShare: Number(document.getElementById('rulePartnerShare').value) || 0,
+          effectiveFrom: new Date().toISOString()
+        };
+        if (scope === 'application') body.applicationId = document.getElementById('ruleTarget').value.trim();
+        if (scope === 'organization') body.organizationId = document.getElementById('ruleTarget').value.trim();
+        try {
+          await callSst('SaveCommissionRule', { method: 'POST', auth: currentUser, body });
+          showToast('Regle de commission enregistree.');
+        } catch (error) { showToast(error.message, 'error'); }
+      });
+    }
+
+    renderLoginGate();
+  </script>
+</body>
+</html>

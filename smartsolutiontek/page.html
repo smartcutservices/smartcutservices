@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page publique — Smart Cut Services</title>
+<link rel="stylesheet" href="./styles.css?v=20260827-2">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div id="app"><div class="sst-loading">Chargement...</div></div>
+  <footer class="sst-platform-watermark" aria-label="Création et assistance">
+    <a class="sst-platform-watermark-brand" href="../index.html" aria-label="Visiter Smart Cut Services">
+      <span>Made in</span><strong>Smart Cut Services</strong>
+    </a>
+    <a class="sst-platform-watermark-dev" href="https://wa.me/50942536029?text=Bonjour%2C%20je%20vous%20contacte%20depuis%20une%20page%20Smart%20Cut%20Services." target="_blank" rel="noopener noreferrer">
+      <i class="fab fa-whatsapp" aria-hidden="true"></i><span>Contacter le développeur</span>
+    </a>
+  </footer>
+
+  <script type="module">
+    import { auth, db, googleProvider } from '../firebase-init.js';
+    import { signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+    import { collection, query, where, getDocs, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+    import { callSst, showToast, formatCurrency, escapeHtml } from './api.js';
+    import { uploadStorageFile } from '../firebase-storage.js';
+    import { renderHero, renderFieldsForm, renderConfirmation, collectAnswers, applyFormTheme } from './field-renderer.js';
+    import {
+      renderShopNav, renderShopHero, renderProductDetail, renderRelatedProducts, applyShopTheme,
+      renderAnnouncementBar, renderClosedBanner, renderSectionsInOrder, renderShopFooter
+    } from './shop-renderer.js?v=20260827-2';
+    import { renderMenuHero, renderMenuTabs, renderMenuGrid, renderItemOptionsForm, collectSelectedOptions, validateRequiredOptions, applyFoodTheme } from './food-renderer.js';
+    import { renderOrderedCourseSections, applyCourseTheme } from './course-renderer.js';
+    import { renderServiceHero, renderCalendar, renderSlotGroups, applyServiceTheme } from './service-renderer.js';
+
+    const app = document.getElementById('app');
+    const params = new URLSearchParams(location.search);
+    const cart = new Map(); // productId__variantId -> { product, variant, quantity }
+
+    async function boot() {
+      let applicationId = params.get('app');
+      let resourceId = params.get('formId') || params.get('catalogId') || params.get('courseId') || params.get('serviceId') || params.get('menuId');
+      const organizationId = params.get('org');
+      const slug = params.get('slug');
+
+      if (!resourceId && slug && organizationId) {
+        const pagesSnap = await getDocs(query(collection(db, 'publicPages'), where('slug', '==', slug), limit(1)));
+        if (pagesSnap.empty) return renderNotFound();
+        const page = pagesSnap.docs[0].data();
+        applicationId = page.applicationId;
+        resourceId = String(page.resourceRef || '').split('/').pop();
+      }
+
+      if (!applicationId || !resourceId) return renderNotFound();
+      if (applicationId === 'forms') return renderForm(resourceId);
+      if (applicationId === 'shops') return renderShop(resourceId, organizationId);
+      if (applicationId === 'courses') return renderCourse(resourceId, organizationId);
+      if (applicationId === 'services') return renderService(resourceId, organizationId);
+      if (applicationId === 'food') return renderFood(resourceId, organizationId);
+      return renderNotFound();
+    }
+
+    function renderNotFound() {
+      app.innerHTML = `<div class="sst-loading"><i class="fas fa-circle-exclamation" style="font-size:1.4rem;color:var(--text-tertiary);"></i><br><br>Page introuvable ou non publiee.</div>`;
+    }
+
+    // ---------- Form rendering ----------
+    async function renderForm(formSchemaId) {
+      let result;
+      try {
+        result = await callSst('GetPublicForm', { query: { formSchemaId } });
+      } catch (error) {
+        return renderNotFound();
+      }
+      const form = result.form;
+
+      app.innerHTML = `
+        <div class="sst-public-form-shell ${form.layout === 'image' && form.coverImageUrl ? 'sst-public-form-shell-image' : ''}">
+          ${renderHero(form)}
+          <main class="sst-form-page">${renderFieldsForm(form)}</main>
+        </div>
+      `;
+      applyFormTheme(document.body, form);
+      bindFileInputs(form, formSchemaId);
+
+      const formEl = document.getElementById('sstPublicForm');
+      const submitBtn = document.getElementById('sstSubmitBtn');
+      const resultEl = document.getElementById('sstFormResult');
+      const isPaid = form.pricingType === 'fixed' && Number(form.price) > 0;
+      const idleLabel = isPaid ? 'Continuer vers le paiement' : "S'inscrire";
+
+      formEl.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        resultEl.innerHTML = '';
+
+        const pendingUpload = formEl.querySelector('.sst-form-file-input[data-uploading="1"]');
+        if (pendingUpload) {
+          resultEl.innerHTML = '<div class="sst-error">Veuillez attendre la fin du televersement du fichier.</div>';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Envoi...';
+
+        const answers = collectAnswers(form.fields, formEl);
+        const emailField = form.fields.find((f) => f.type === 'email');
+        const participantEmail = emailField ? String(answers[emailField.id] || '') : '';
+
+        try {
+          const submission = await callSst('SubmitForm', {
+            method: 'POST',
+            body: { formSchemaId, answers, participantEmail }
+          });
+
+          if (!submission.requiresPayment) {
+            app.innerHTML = renderConfirmation(form);
+            return;
+          }
+
+          const intent = await callSst('CreatePaymentIntent', {
+            method: 'POST',
+            body: {
+              resourceType: 'submission',
+              resourceId: submission.submissionId,
+              organizationId: form.organizationId || params.get('org'),
+              applicationId: 'forms',
+              customerEmail: participantEmail,
+              customerName: ''
+            }
+          });
+          window.location.href = intent.checkoutUrl;
+        } catch (error) {
+          resultEl.innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`;
+          submitBtn.disabled = false;
+          submitBtn.textContent = idleLabel;
+        }
+      });
+    }
+
+    /** Wires every file-type field's <input> to actually upload on change, storing the
+     * resulting URL on the input's dataset for collectAnswers() to read back later. */
+    function bindFileInputs(form, formSchemaId) {
+      form.fields.filter((f) => f.type === 'file').forEach((field) => {
+        const input = document.getElementById(`field_${field.id}`);
+        const statusEl = document.getElementById(`status_${field.id}`);
+        if (!input || !statusEl) return;
+
+        input.addEventListener('change', async () => {
+          const file = input.files[0];
+          if (!file) return;
+          delete input.dataset.uploadedUrl;
+          input.dataset.uploading = '1';
+          statusEl.innerHTML = '<span class="sst-form-upload-progress"><i class="fas fa-spinner fa-spin"></i> Televersement...</span>';
+
+          const allowedTypes = field.fileKind === 'image'
+            ? new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+            : new Set(['image/png', 'image/jpeg', 'image/webp', 'application/pdf']);
+
+          try {
+            const uploaded = await uploadStorageFile(file, `sst-form-uploads/${formSchemaId}`, {
+              allowedTypes,
+              maxSizeMb: field.maxSizeMB || 10
+            });
+            input.dataset.uploadedUrl = uploaded.url;
+            statusEl.innerHTML = `<span class="sst-form-upload-ok"><i class="fas fa-circle-check"></i> ${escapeHtml(file.name)}</span>`;
+          } catch (error) {
+            statusEl.innerHTML = `<span class="sst-form-upload-error">${escapeHtml(error.message)}</span>`;
+            input.value = '';
+          } finally {
+            delete input.dataset.uploading;
+          }
+        });
+      });
+    }
+
+    // ---------- Shop rendering ----------
+    let shopActiveCategory = '';
+    let shopSearchTerm = '';
+    let shopSortOrder = 'relevance';
+    let shopCatalogId = null;
+    let shopOrganizationId = null;
+    let shopCatalogData = null;
+    let shopProductsData = [];
+
+    async function renderShop(catalogId, organizationId) {
+      let result;
+      try {
+        result = await callSst('GetPublicShop', { query: { catalogId } });
+      } catch (error) {
+        return renderNotFound();
+      }
+      const { catalog, products } = result;
+      cart.clear();
+      shopActiveCategory = '';
+      shopSearchTerm = '';
+      shopSortOrder = 'relevance';
+      shopCatalogId = catalogId;
+      shopOrganizationId = organizationId || catalog.organizationId;
+      shopCatalogData = catalog;
+      shopProductsData = products;
+
+      document.title = catalog.seo?.pageTitle || `${catalog.name || 'Boutique'} — Boutique en ligne`;
+      setMetaDescription(catalog.seo?.description || catalog.description || '');
+
+      app.innerHTML = `
+        <div class="sst-shop-shell">
+          ${renderAnnouncementBar(catalog)}
+          ${renderClosedBanner(catalog)}
+          ${renderShopNav(catalog, 0)}
+          ${renderShopHero(catalog)}
+          <div id="shopSections">${renderSectionsInOrder(catalog, products, { activeCategory: shopActiveCategory, searchTerm: shopSearchTerm, sort: shopSortOrder })}</div>
+          ${renderShopFooter(catalog)}
+        </div>
+        <div class="sst-shop-cart-backdrop" id="shopCartBackdrop"></div>
+        <div class="sst-shop-cart-drawer" id="shopCartDrawer" role="dialog" aria-modal="true" aria-label="Panier">
+          <div class="sst-shop-cart-header"><h3>Votre panier</h3><button class="sst-builder-icon-btn" id="shopCartClose" aria-label="Fermer le panier"><i class="fas fa-xmark"></i></button></div>
+          <div class="sst-shop-cart-items" id="shopCartItems"></div>
+          <div class="sst-shop-cart-footer" id="shopCartFooter"></div>
+        </div>
+        <div class="sst-modal-overlay sst-shop-product-overlay" id="shopProductModal"><div class="sst-modal sst-shop-product-modal" id="shopProductModalBody"></div></div>
+      `;
+
+      applyShopTheme(app, catalog);
+      bindShopSectionEvents();
+
+      document.getElementById('shopCartFab').addEventListener('click', () => toggleShopCart(true));
+      document.getElementById('shopNavSearch')?.addEventListener('click', () => {
+        window.setTimeout(() => document.getElementById('shopSearchInput')?.focus(), 0);
+      });
+      document.getElementById('shopCartClose').addEventListener('click', () => toggleShopCart(false));
+      document.getElementById('shopCartBackdrop').addEventListener('click', () => toggleShopCart(false));
+      document.getElementById('shopProductModal').addEventListener('click', (e) => { if (e.target.id === 'shopProductModal') closeShopProductModal(); });
+      document.addEventListener('keydown', shopModalEscHandler);
+
+      renderShopCart();
+
+      const initialProductId = params.get('productId');
+      if (initialProductId) {
+        const product = products.find((p) => p.id === initialProductId);
+        if (product) openShopProductModal(product);
+      }
+    }
+
+    function setMetaDescription(text) {
+      if (!text) return;
+      let tag = document.querySelector('meta[name="description"]');
+      if (!tag) { tag = document.createElement('meta'); tag.name = 'description'; document.head.appendChild(tag); }
+      tag.content = text.slice(0, 160);
+    }
+
+    function refreshShopSections() {
+      document.getElementById('shopSections').innerHTML = renderSectionsInOrder(shopCatalogData, shopProductsData, { activeCategory: shopActiveCategory, searchTerm: shopSearchTerm, sort: shopSortOrder });
+      bindShopSectionEvents();
+    }
+
+    function bindShopSectionEvents() {
+      document.querySelectorAll('[data-shop-cat]').forEach((btn) => btn.addEventListener('click', () => { shopActiveCategory = btn.dataset.shopCat; refreshShopSections(); }));
+      document.getElementById('shopSearchInput')?.addEventListener('input', (e) => { shopSearchTerm = e.target.value; refreshShopSections(); });
+      document.getElementById('shopSortSelect')?.addEventListener('change', (e) => { shopSortOrder = e.target.value; refreshShopSections(); });
+      document.querySelectorAll('[data-open-product]').forEach((btn) => btn.addEventListener('click', () => {
+        const product = shopProductsData.find((p) => p.id === btn.dataset.openProduct);
+        if (product) openShopProductModal(product);
+      }));
+      document.querySelectorAll('[data-shop-legal]').forEach((btn) => btn.addEventListener('click', () => openShopLegalModal(btn.dataset.shopLegal)));
+    }
+
+    function openShopLegalModal(key) {
+      const legal = shopCatalogData.legal || {};
+      const map = { delivery: ['Politique de livraison', legal.deliveryPolicy], returns: ['Politique de retour', legal.returnPolicy], terms: ['Conditions de vente', legal.terms] };
+      const entry = map[key];
+      if (!entry || !entry[1]) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'sst-modal-overlay open';
+      overlay.innerHTML = `<div class="sst-modal sst-shop-legal-modal"><h3 style="margin-bottom:1rem;">${escapeHtml(entry[0])}</h3><p>${escapeHtml(entry[1])}</p><button class="sst-btn sst-btn-secondary" id="legalClose" style="margin-top:1rem;">Fermer</button></div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector('#legalClose').addEventListener('click', () => overlay.remove());
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    }
+
+    function toggleShopCart(open) {
+      document.getElementById('shopCartDrawer').classList.toggle('open', open);
+      document.getElementById('shopCartBackdrop').classList.toggle('open', open);
+    }
+
+    function shopModalEscHandler(e) {
+      if (e.key === 'Escape') closeShopProductModal();
+    }
+    function closeShopProductModal() {
+      document.getElementById('shopProductModal')?.classList.remove('open');
+      const url = new URL(location.href);
+      url.searchParams.delete('productId');
+      history.replaceState(null, '', url);
+    }
+
+    function openShopProductModal(product) {
+      const modal = document.getElementById('shopProductModal');
+      document.getElementById('shopProductModalBody').innerHTML = renderProductDetail(product) + renderRelatedProducts(product, shopProductsData);
+      modal.classList.add('open');
+      const url = new URL(location.href);
+      url.searchParams.set('productId', product.id);
+      history.replaceState(null, '', url);
+      modal.querySelector('[data-close-shop-product]')?.addEventListener('click', closeShopProductModal);
+
+      const gallery = modal.querySelectorAll('[data-gallery-index]');
+      modal.querySelectorAll('[data-thumb-index]').forEach((thumb) => {
+        thumb.addEventListener('click', () => {
+          modal.querySelectorAll('.sst-shop-thumb').forEach((t) => t.classList.remove('active'));
+          thumb.classList.add('active');
+          gallery.forEach((g) => g.classList.toggle('active', g.dataset.galleryIndex === thumb.dataset.thumbIndex));
+        });
+      });
+
+      const qtyInput = modal.querySelector('#shopQtyInput');
+      modal.querySelector('#shopQtyMinus')?.addEventListener('click', () => { qtyInput.value = Math.max(1, Number(qtyInput.value) - 1); });
+      modal.querySelector('#shopQtyPlus')?.addEventListener('click', () => { qtyInput.value = Number(qtyInput.value) + 1; });
+
+      modal.querySelector('#shopAddToCartBtn')?.addEventListener('click', () => {
+        const variantSelect = modal.querySelector('#shopVariantSelect');
+        const variant = variantSelect ? product.variants.find((v) => v.id === variantSelect.value) : null;
+        const quantity = Math.max(1, Math.floor(Number(qtyInput.value) || 1));
+        const key = `${product.id}__${variant ? variant.id : 'base'}`;
+        const unitPrice = product.price + (variant ? Number(variant.priceDelta || 0) : 0);
+        const existing = cart.get(key) || { product, variant, unitPrice, quantity: 0 };
+        existing.quantity += quantity;
+        cart.set(key, existing);
+        closeShopProductModal();
+        renderShopCart();
+        toggleShopCart(true);
+      });
+
+      modal.querySelectorAll('[data-open-product]').forEach((btn) => btn.addEventListener('click', () => {
+        const related = shopProductsData.find((p) => p.id === btn.dataset.openProduct);
+        if (related) openShopProductModal(related);
+      }));
+    }
+
+    function adjustCartQuantity(key, delta) {
+      const entry = cart.get(key);
+      if (!entry) return;
+      entry.quantity = Math.max(1, entry.quantity + delta);
+      renderShopCart();
+    }
+
+    function renderShopCart() {
+      const organizationId = shopOrganizationId;
+      const catalogId = shopCatalogId;
+      const catalog = shopCatalogData;
+      const entries = Array.from(cart.values());
+      const countEl = document.getElementById('shopCartCount');
+      if (countEl) countEl.textContent = entries.reduce((sum, e) => sum + e.quantity, 0);
+
+      const itemsEl = document.getElementById('shopCartItems');
+      const footerEl = document.getElementById('shopCartFooter');
+      if (!itemsEl || !footerEl) return;
+
+      if (!entries.length) {
+        itemsEl.innerHTML = '<div class="sst-empty">Votre panier est vide.</div>';
+        footerEl.innerHTML = '';
+        return;
+      }
+
+      itemsEl.innerHTML = entries.map((entry) => {
+        const key = `${entry.product.id}__${entry.variant ? entry.variant.id : 'base'}`;
+        const image = entry.product.images?.[0];
+        return `
+          <div class="sst-shop-cart-item" data-cart-key="${escapeHtml(key)}">
+            ${image ? `<img src="${escapeHtml(image)}" alt="">` : `<div class="sst-shop-cart-item-noimage"><i class="fas fa-image"></i></div>`}
+            <div class="sst-shop-cart-item-info">
+              <div class="sst-shop-cart-item-name">${escapeHtml(entry.product.name)}</div>
+              ${entry.variant ? `<div class="sst-shop-cart-item-variant">${escapeHtml(entry.variant.name)}</div>` : ''}
+              <div class="sst-shop-cart-item-row">
+                <div class="sst-shop-cart-item-qty">
+                  <button type="button" data-cart-qty-minus="${escapeHtml(key)}" aria-label="Diminuer la quantité">-</button>
+                  <span>${entry.quantity}</span>
+                  <button type="button" data-cart-qty-plus="${escapeHtml(key)}" aria-label="Augmenter la quantité">+</button>
+                </div>
+                <span class="sst-shop-cart-item-price">${formatCurrency(entry.unitPrice * entry.quantity)}</span>
+              </div>
+              <button type="button" class="sst-shop-cart-item-remove" data-cart-remove="${escapeHtml(key)}">Retirer</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      itemsEl.querySelectorAll('[data-cart-qty-minus]').forEach((btn) => btn.addEventListener('click', () => adjustCartQuantity(btn.dataset.cartQtyMinus, -1)));
+      itemsEl.querySelectorAll('[data-cart-qty-plus]').forEach((btn) => btn.addEventListener('click', () => adjustCartQuantity(btn.dataset.cartQtyPlus, 1)));
+      itemsEl.querySelectorAll('[data-cart-remove]').forEach((btn) => btn.addEventListener('click', () => { cart.delete(btn.dataset.cartRemove); renderShopCart(); }));
+
+      const subtotal = entries.reduce((sum, e) => sum + e.unitPrice * e.quantity, 0);
+      const delivery = catalog.delivery || { pickupEnabled: true, deliveryEnabled: false, zones: [] };
+
+      if (!delivery.pickupEnabled && !delivery.deliveryEnabled) {
+        footerEl.innerHTML = `<div class="sst-error">Aucun mode de retrait ou de livraison n'est disponible pour le moment.</div>`;
+        return;
+      }
+      if (catalog.closedTemporarily) {
+        footerEl.innerHTML = `<div class="sst-error">${escapeHtml(catalog.closedMessage || 'Cette boutique est temporairement fermée.')}</div>`;
+        return;
+      }
+
+      const methodOptions = [
+        delivery.pickupEnabled ? '<option value="pickup">Retrait sur place</option>' : '',
+        delivery.deliveryEnabled ? '<option value="delivery">Livraison</option>' : ''
+      ].join('');
+
+      footerEl.innerHTML = `
+        <div class="sst-shop-cart-summary-row"><span>Sous-total</span><span>${formatCurrency(subtotal)}</span></div>
+        <div class="sst-shop-cart-summary-row" id="shopCartFeeRow" style="display:none;"><span>Livraison (estimation)</span><span id="shopCartFeeValue">—</span></div>
+        <div class="sst-shop-cart-summary-row total"><span>Total</span><span id="shopCartTotalValue">${formatCurrency(subtotal)}</span></div>
+        <div class="sst-field"><label class="sst-label">Email *</label><input class="sst-input" type="email" id="checkoutEmail" required></div>
+        <div class="sst-field"><label class="sst-label">Nom</label><input class="sst-input" id="checkoutName"></div>
+        ${delivery.phoneRequired ? '<div class="sst-field"><label class="sst-label">Téléphone *</label><input class="sst-input" type="tel" id="checkoutPhone" required></div>' : ''}
+        <div class="sst-field">
+          <label class="sst-label">Mode</label>
+          <select class="sst-select" id="checkoutMethod">${methodOptions}</select>
+        </div>
+        <div class="sst-field" id="deliveryZoneField" style="display:none;">
+          <label class="sst-label">Zone de livraison</label>
+          <select class="sst-select" id="checkoutZone">${(delivery.zones || []).map((z) => `<option value="${escapeHtml(z.id)}">${escapeHtml(z.name)} — ${formatCurrency(z.fee)}${z.etaLabel ? ` (${escapeHtml(z.etaLabel)})` : ''}</option>`).join('')}</select>
+        </div>
+        <div class="sst-field" id="deliveryAddressField" style="display:none;">
+          <label class="sst-label">Adresse de livraison</label><input class="sst-input" id="checkoutAddress">
+        </div>
+        ${delivery.minOrderAmount ? `<p class="sst-hint">Commande minimum : ${formatCurrency(delivery.minOrderAmount)}</p>` : ''}
+        <button class="sst-btn sst-btn-primary" id="checkoutBtn" style="width:100%;">Continuer vers le paiement</button>
+        <div id="checkoutResult" style="margin-top:1rem;"></div>
+      `;
+
+      const updateFeePreview = () => {
+        const method = document.getElementById('checkoutMethod')?.value;
+        const feeRow = document.getElementById('shopCartFeeRow');
+        const feeValue = document.getElementById('shopCartFeeValue');
+        const totalValue = document.getElementById('shopCartTotalValue');
+        let fee = 0;
+        if (method === 'delivery') {
+          const zoneId = document.getElementById('checkoutZone')?.value;
+          const zone = (delivery.zones || []).find((z) => z.id === zoneId);
+          fee = zone ? zone.fee : 0;
+          if (delivery.freeDeliveryThreshold && subtotal >= delivery.freeDeliveryThreshold) fee = 0;
+          feeRow.style.display = '';
+          feeValue.textContent = formatCurrency(fee);
+        } else if (feeRow) {
+          feeRow.style.display = 'none';
+        }
+        if (totalValue) totalValue.textContent = formatCurrency(subtotal + fee);
+      };
+
+      document.getElementById('checkoutMethod').addEventListener('change', (e) => {
+        const isDelivery = e.target.value === 'delivery';
+        document.getElementById('deliveryAddressField').style.display = isDelivery ? 'block' : 'none';
+        document.getElementById('deliveryZoneField').style.display = isDelivery ? 'block' : 'none';
+        updateFeePreview();
+      });
+      document.getElementById('checkoutZone')?.addEventListener('change', updateFeePreview);
+      updateFeePreview();
+
+      document.getElementById('checkoutBtn').addEventListener('click', async () => {
+        const email = document.getElementById('checkoutEmail').value.trim();
+        if (!email) { showToast('Email requis.', 'error'); return; }
+        const deliveryMethod = document.getElementById('checkoutMethod').value;
+        const deliveryAddress = document.getElementById('checkoutAddress')?.value.trim() || '';
+        if (deliveryMethod === 'delivery' && !deliveryAddress) { showToast('Adresse requise.', 'error'); return; }
+        const phone = document.getElementById('checkoutPhone')?.value.trim() || '';
+        if (delivery.phoneRequired && !phone) { showToast('Téléphone requis.', 'error'); return; }
+
+        const btn = document.getElementById('checkoutBtn');
+        btn.disabled = true;
+        btn.textContent = 'Vérification…';
+        try {
+          const order = await callSst('CreateShopOrder', {
+            method: 'POST',
+            body: {
+              organizationId,
+              catalogId,
+              items: entries.map((entry) => ({ productId: entry.product.id, variantId: entry.variant ? entry.variant.id : undefined, quantity: entry.quantity })),
+              customerEmail: email,
+              customerName: document.getElementById('checkoutName').value.trim(),
+              customerPhone: phone || undefined,
+              deliveryMethod,
+              deliveryZoneId: deliveryMethod === 'delivery' ? document.getElementById('checkoutZone').value : undefined,
+              deliveryAddress
+            }
+          });
+
+          const intent = await callSst('CreatePaymentIntent', {
+            method: 'POST',
+            body: {
+              resourceType: 'shop_order', resourceId: order.orderId,
+              organizationId, applicationId: 'shops',
+              customerEmail: email, customerName: document.getElementById('checkoutName').value.trim()
+            }
+          });
+          window.location.href = intent.checkoutUrl;
+        } catch (error) {
+          document.getElementById('checkoutResult').innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`;
+          btn.disabled = false;
+          btn.textContent = 'Continuer vers le paiement';
+        }
+      });
+    }
+
+    // ---------- Course rendering ----------
+    async function renderCourse(courseId, organizationId) {
+      let result;
+      try {
+        result = await callSst('GetPublicCourse', { query: { courseId } });
+      } catch (error) {
+        return renderNotFound();
+      }
+      const { course, modules } = result;
+      document.title = course.seo?.pageTitle || `${course.title || 'Formation'} — Formation en ligne`;
+      setMetaDescription(course.seo?.description || course.shortDescription || course.description || '');
+      const offerHtml = `<aside class="sst-public-checkout-card" id="courseEnroll"><span class="sst-public-checkout-eyebrow">Accès complet</span><div class="sst-public-checkout-price">${course.pricing?.type === 'free' || Number(course.price) === 0 ? 'Gratuit' : formatCurrency(course.pricing?.amount ?? course.price)}</div><p>Accédez au programme et avancez à votre rythme. ${course.accessPolicy?.type === 'limited' ? `Accès pendant ${Number(course.accessPolicy.durationDays) || 1} jours.` : 'Accès sans date d’expiration.'}</p><div class="sst-field"><label class="sst-label">Nom complet</label><input class="sst-input" id="enrollName" autocomplete="name"></div><div class="sst-field"><label class="sst-label">Email *</label><input class="sst-input" type="email" id="enrollEmail" autocomplete="email" required></div><button class="sst-btn sst-btn-primary" id="enrollBtn">S’inscrire maintenant</button><small><i class="fas fa-lock"></i> ${course.pricing?.type === 'free' || Number(course.price) === 0 ? 'Compte requis pour sauvegarder votre progression' : 'Connexion et paiement sécurisé requis'}</small>${course.refundPolicy ? `<details class="sst-course-refund"><summary>Politique de remboursement</summary><p>${escapeHtml(course.refundPolicy)}</p></details>` : ''}<div id="enrollResult"></div></aside>`;
+
+      app.innerHTML = `
+        <div class="sst-course-shell">
+          <nav class="sst-public-brand-nav"><a href="#">${escapeHtml(course.title || 'Formation')}</a><span>Formation en ligne</span></nav>
+          ${renderOrderedCourseSections(course, modules, offerHtml)}
+        </div>
+      `;
+      applyCourseTheme(app, course);
+      const analyticsSessionId = sessionStorage.getItem('sstCourseAnalyticsSession') || (crypto.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`);
+      sessionStorage.setItem('sstCourseAnalyticsSession', analyticsSessionId);
+      const trackCourseEvent = (eventType) => callSst('RecordCourseAnalyticsEvent', { method: 'POST', body: { courseId, eventType, sessionId: analyticsSessionId } }).catch(() => {});
+      trackCourseEvent('page_view');
+      document.querySelector('.sst-course-hero-actions a')?.addEventListener('click', () => trackCourseEvent('cta_click'));
+      document.querySelectorAll('[data-toggle-module]').forEach((btn) => {
+        btn.addEventListener('click', () => btn.closest('.sst-course-module').classList.toggle('open'));
+      });
+      document.querySelectorAll('[data-course-preview]').forEach((button) => button.addEventListener('click', async () => {
+        const lesson = modules.flatMap((module) => module.lessons || []).find((item) => item.id === button.dataset.coursePreview);
+        if (!lesson) return;
+        if (lesson.type === 'text' && lesson.content) { openCoursePreview(lesson, null); return; }
+        button.disabled = true;
+        try { const access = await callSst('GetLessonPreviewAccess', { query: { courseId, lessonId: lesson.id } }); openCoursePreview(lesson, access.url); }
+        catch (error) { showToast(error.message, 'error'); }
+        finally { button.disabled = false; }
+      }));
+
+      document.getElementById('enrollBtn')?.addEventListener('click', async () => {
+        trackCourseEvent('checkout_started');
+        if (!auth.currentUser) {
+          try {
+            await signInWithPopup(auth, googleProvider);
+            document.getElementById('enrollEmail').value = auth.currentUser?.email || document.getElementById('enrollEmail').value;
+          } catch (error) {
+            if (error?.code === 'auth/popup-closed-by-user') return;
+            document.getElementById('enrollResult').innerHTML = '<div class="sst-error">Connexion requise avant l’inscription.</div>';
+            return;
+          }
+        }
+        const email = auth.currentUser?.email || document.getElementById('enrollEmail').value.trim();
+        if (!email) { showToast('Email requis.', 'error'); return; }
+        const name = document.getElementById('enrollName').value.trim();
+        try {
+          const enrollment = await callSst('EnrollCourse', {
+            method: 'POST',
+            auth: auth.currentUser,
+            body: { courseId, studentEmail: email, studentName: name }
+          });
+          if (enrollment.status === 'confirmed') {
+            document.getElementById('enrollResult').innerHTML = '<div class="sst-success">Accès confirmé. <a href="./learn.html">Ouvrir ma bibliothèque</a></div>';
+            return;
+          }
+          const intent = await callSst('CreatePaymentIntent', {
+            method: 'POST',
+            auth: auth.currentUser,
+            body: { resourceType: 'enrollment', resourceId: enrollment.enrollmentId, organizationId, applicationId: 'courses', customerEmail: email, customerName: name }
+          });
+          window.location.href = intent.checkoutUrl;
+        } catch (error) {
+          document.getElementById('enrollResult').innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`;
+        }
+      });
+
+      function openCoursePreview(lesson, url) {
+        const overlay = document.createElement('div');
+        overlay.className = 'sst-modal-overlay open';
+        const media = lesson.type === 'text' ? `<div class="sst-learner-text">${escapeHtml(lesson.content)}</div>` : lesson.type === 'video' ? `<video class="sst-learner-video" controls controlsList="nodownload" autoplay src="${escapeHtml(url)}"></video>` : lesson.type === 'audio' ? `<audio class="sst-learner-audio" controls autoplay src="${escapeHtml(url)}"></audio>` : `<a class="sst-btn sst-btn-secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener">Ouvrir l’aperçu</a>`;
+        overlay.innerHTML = `<div class="sst-modal sst-course-preview-modal"><div class="sst-course-panel-heading"><h2>${escapeHtml(lesson.title)}</h2><button data-close-preview aria-label="Fermer"><i class="fas fa-xmark"></i></button></div>${media}</div>`;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove(); overlay.querySelector('[data-close-preview]').addEventListener('click', close); overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+      }
+    }
+
+    // ---------- Service rendering ----------
+    async function renderService(serviceId, organizationId) {
+      let result;
+      try {
+        result = await callSst('GetPublicService', { query: { serviceId } });
+      } catch (error) {
+        return renderNotFound();
+      }
+      const service = result.service;
+      let selectedSlot = null;
+      const today = new Date();
+      let calYear = today.getFullYear();
+      let calMonth = today.getMonth();
+      let selectedDateKey = null;
+
+      app.innerHTML = `
+        <div class="sst-service-shell">
+          <nav class="sst-public-brand-nav"><a href="#">${escapeHtml(service.title || 'Réservation')}</a><span>Réservation en ligne</span></nav>
+          ${renderServiceHero(service)}
+          <main class="sst-service-page">
+            <section class="sst-service-booking-panel">
+              <div class="sst-public-section-heading"><span>Disponibilités</span><h2>Choisissez votre créneau</h2><p>${service.durationMinutes} min · ${service.priceType === 'deposit' ? `Acompte ${formatCurrency(service.depositAmount)}` : formatCurrency(service.price)}</p></div>
+            <div id="serviceCalendar">${renderCalendar(calYear, calMonth, service.availableDaysOfWeek, selectedDateKey)}</div>
+              <div id="slotsList"></div>
+            </section>
+
+            <aside class="sst-public-checkout-card" id="bookingForm" style="display:none;">
+              <span class="sst-public-checkout-eyebrow">Finaliser</span>
+              <h3>Vos coordonnées</h3>
+              <p>Vous pourrez vérifier votre choix avant le paiement.</p>
+              <div class="sst-field"><label class="sst-label">Nom complet</label><input class="sst-input" id="bkName" autocomplete="name"></div>
+              <div class="sst-field"><label class="sst-label">Email *</label><input class="sst-input" type="email" id="bkEmail" autocomplete="email" required></div>
+              <button class="sst-btn sst-btn-primary" id="bookBtn">Confirmer ce créneau</button>
+              <div id="bookResult"></div>
+            </aside>
+          </main>
+        </div>
+      `;
+      applyServiceTheme(app, service);
+      bindServiceCalendar();
+
+      function bindServiceCalendar() {
+        document.getElementById('calPrevMonth').addEventListener('click', () => { calMonth -= 1; if (calMonth < 0) { calMonth = 11; calYear -= 1; } refreshCalendar(); });
+        document.getElementById('calNextMonth').addEventListener('click', () => { calMonth += 1; if (calMonth > 11) { calMonth = 0; calYear += 1; } refreshCalendar(); });
+        document.querySelectorAll('[data-cal-date]').forEach((btn) => btn.addEventListener('click', () => selectDate(btn.dataset.calDate)));
+      }
+
+      function refreshCalendar() {
+        document.getElementById('serviceCalendar').innerHTML = renderCalendar(calYear, calMonth, service.availableDaysOfWeek, selectedDateKey);
+        bindServiceCalendar();
+      }
+
+      async function selectDate(dateKey) {
+        selectedDateKey = dateKey;
+        selectedSlot = null;
+        document.getElementById('bookingForm').style.display = 'none';
+        refreshCalendar();
+        const slotsList = document.getElementById('slotsList');
+        slotsList.innerHTML = '<div class="sst-loading">Chargement...</div>';
+        try {
+          const result = await callSst('GetAvailableSlots', { query: { serviceId, date: dateKey } });
+          slotsList.innerHTML = renderSlotGroups(result.slots);
+          slotsList.querySelectorAll('[data-slot]').forEach((btn) => btn.addEventListener('click', () => {
+            selectedSlot = btn.dataset.slot;
+            slotsList.querySelectorAll('[data-slot]').forEach((b) => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('bookingForm').style.display = 'block';
+          }));
+        } catch (error) { slotsList.innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`; }
+      }
+
+      document.getElementById('bookBtn').addEventListener('click', async () => {
+        if (!selectedSlot) { showToast('Choisissez un creneau.', 'error'); return; }
+        const email = document.getElementById('bkEmail').value.trim();
+        if (!email) { showToast('Email requis.', 'error'); return; }
+        const name = document.getElementById('bkName').value.trim();
+        try {
+          const booking = await callSst('CreateBooking', {
+            method: 'POST',
+            body: { organizationId, serviceId, slotStart: selectedSlot, customerEmail: email, customerName: name }
+          });
+          const intent = await callSst('CreatePaymentIntent', {
+            method: 'POST',
+            body: { resourceType: 'booking', resourceId: booking.bookingId, organizationId, applicationId: 'services', customerEmail: email, customerName: name }
+          });
+          window.location.href = intent.checkoutUrl;
+        } catch (error) {
+          document.getElementById('bookResult').innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`;
+        }
+      });
+    }
+
+    // ---------- Food rendering ----------
+    let foodActiveCategory = '';
+    let foodMenuId = null;
+    let foodOrganizationId = null;
+    const foodCart = new Map(); // key(itemId__optionsHash) -> { item, quantity, selectedOptions }
+
+    async function renderFood(menuId, organizationId) {
+      let result;
+      try {
+        result = await callSst('GetPublicMenu', { query: { menuId } });
+      } catch (error) {
+        return renderNotFound();
+      }
+      const { menu, items } = result;
+      foodCart.clear();
+      foodActiveCategory = '';
+      foodMenuId = menuId;
+      foodOrganizationId = organizationId || menu.organizationId;
+
+      app.innerHTML = `
+        <div class="sst-food-shell">
+          <nav class="sst-public-brand-nav"><a href="#">${escapeHtml(menu.name || 'Cuisine & artisanat')}</a><span>${menu.isOpen === false ? 'Fermé actuellement' : 'Commandes ouvertes'}</span></nav>
+          ${renderMenuHero(menu)}
+          <main class="sst-food-page">
+            <div class="sst-public-section-heading sst-food-collection-heading"><span>La carte</span><h2>Fait avec soin, commandé simplement.</h2></div>
+            <div id="foodTabs">${renderMenuTabs(items, foodActiveCategory)}</div>
+            <div id="foodGrid">${renderMenuGrid(items, foodActiveCategory)}</div>
+          </main>
+          <footer class="sst-public-minimal-footer">${escapeHtml(menu.name || 'Cuisine & artisanat')}</footer>
+        </div>
+        <button class="sst-shop-cart-fab" id="foodCartFab"><i class="fas fa-bag-shopping"></i> Panier (<span id="foodCartCount">0</span>)</button>
+        <div class="sst-shop-cart-backdrop" id="foodCartBackdrop"></div>
+        <div class="sst-shop-cart-drawer" id="foodCartDrawer">
+          <div class="sst-shop-cart-header"><h3>Votre commande</h3><button class="sst-builder-icon-btn" id="foodCartClose"><i class="fas fa-xmark"></i></button></div>
+          <div class="sst-shop-cart-items" id="foodCartItems"></div>
+          <div class="sst-shop-cart-footer" id="foodCartFooter"></div>
+        </div>
+        <div class="sst-modal-overlay" id="foodItemModal"><div class="sst-modal" id="foodItemModalBody"></div></div>
+      `;
+
+      applyFoodTheme(app, menu);
+      bindFoodTabs(items, menu);
+      bindFoodGrid(items, menu);
+
+      document.getElementById('foodCartFab').addEventListener('click', () => toggleFoodCart(true));
+      document.getElementById('foodCartClose').addEventListener('click', () => toggleFoodCart(false));
+      document.getElementById('foodCartBackdrop').addEventListener('click', () => toggleFoodCart(false));
+      document.getElementById('foodItemModal').addEventListener('click', (e) => { if (e.target.id === 'foodItemModal') e.target.classList.remove('open'); });
+
+      renderFoodCart(menu);
+    }
+
+    function bindFoodTabs(items, menu) {
+      document.querySelectorAll('[data-food-cat]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          foodActiveCategory = btn.dataset.foodCat;
+          document.getElementById('foodTabs').innerHTML = renderMenuTabs(items, foodActiveCategory);
+          document.getElementById('foodGrid').innerHTML = renderMenuGrid(items, foodActiveCategory);
+          bindFoodTabs(items, menu);
+          bindFoodGrid(items, menu);
+        });
+      });
+    }
+
+    function bindFoodGrid(items, menu) {
+      document.querySelectorAll('[data-open-item]').forEach((btn) => {
+        btn.addEventListener('click', () => openFoodItemModal(items.find((i) => i.id === btn.dataset.openItem), menu));
+      });
+    }
+
+    function toggleFoodCart(open) {
+      document.getElementById('foodCartDrawer').classList.toggle('open', open);
+      document.getElementById('foodCartBackdrop').classList.toggle('open', open);
+    }
+
+    function openFoodItemModal(item, menu) {
+      if (menu.isOpen === false) { showToast('Ce commerce est actuellement ferme.', 'error'); return; }
+      const modal = document.getElementById('foodItemModal');
+      document.getElementById('foodItemModalBody').innerHTML = `
+        <h3 style="margin-bottom:.3rem;">${escapeHtml(item.name)}</h3>
+        <p class="sst-hint" style="margin-bottom:1rem;">${formatCurrency(item.price)}</p>
+        <div id="foodOptionsForm">${renderItemOptionsForm(item)}</div>
+        <div class="sst-field"><label class="sst-label">Quantite</label>
+          <div class="sst-shop-qty-stepper"><button type="button" id="foodQtyMinus">-</button><input type="number" id="foodQtyInput" value="1" min="1"><button type="button" id="foodQtyPlus">+</button></div>
+        </div>
+        <button class="sst-food-btn-add" style="width:100%;min-height:46px;" id="foodAddToCartBtn">Ajouter au panier</button>
+      `;
+      modal.classList.add('open');
+
+      const qtyInput = modal.querySelector('#foodQtyInput');
+      modal.querySelector('#foodQtyMinus').addEventListener('click', () => { qtyInput.value = Math.max(1, Number(qtyInput.value) - 1); });
+      modal.querySelector('#foodQtyPlus').addEventListener('click', () => { qtyInput.value = Number(qtyInput.value) + 1; });
+
+      modal.querySelector('#foodAddToCartBtn').addEventListener('click', () => {
+        const optionsForm = modal.querySelector('#foodOptionsForm');
+        const missing = validateRequiredOptions(item, optionsForm);
+        if (missing.length) { showToast(`Veuillez choisir : ${missing.join(', ')}`, 'error'); return; }
+
+        const selectedOptions = collectSelectedOptions(item, optionsForm);
+        const quantity = Math.max(1, Math.floor(Number(qtyInput.value) || 1));
+        const key = `${item.id}__${selectedOptions.map((s) => `${s.optionId}:${s.choiceLabel}`).join(',')}`;
+        const existing = foodCart.get(key) || { item, selectedOptions, quantity: 0 };
+        existing.quantity += quantity;
+        foodCart.set(key, existing);
+        modal.classList.remove('open');
+        renderFoodCart(menu);
+        toggleFoodCart(true);
+      });
+    }
+
+    function foodUnitPrice(entry) {
+      const optionsTotal = (entry.selectedOptions || []).reduce((sum, sel) => {
+        const opt = (entry.item.options || []).find((o) => o.id === sel.optionId);
+        const choice = opt?.choices.find((c) => c.label === sel.choiceLabel);
+        return sum + (choice ? Number(choice.priceDelta || 0) : 0);
+      }, 0);
+      return entry.item.price + optionsTotal;
+    }
+
+    function renderFoodCart(menu) {
+      const entries = Array.from(foodCart.values());
+      const countEl = document.getElementById('foodCartCount');
+      if (countEl) countEl.textContent = entries.reduce((sum, e) => sum + e.quantity, 0);
+
+      const itemsEl = document.getElementById('foodCartItems');
+      const footerEl = document.getElementById('foodCartFooter');
+      if (!itemsEl || !footerEl) return;
+
+      if (!entries.length) {
+        itemsEl.innerHTML = '<div class="sst-empty">Votre panier est vide.</div>';
+        footerEl.innerHTML = '';
+        return;
+      }
+
+      const subtotal = entries.reduce((sum, e) => sum + foodUnitPrice(e) * e.quantity, 0);
+      itemsEl.innerHTML = entries.map((entry) => `
+        <div style="padding:.6rem 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;">
+            <span>${escapeHtml(entry.item.name)} &times; ${entry.quantity}</span>
+            <strong>${formatCurrency(foodUnitPrice(entry) * entry.quantity)}</strong>
+          </div>
+          ${(entry.selectedOptions || []).length ? `<div class="sst-hint">${entry.selectedOptions.map((s) => escapeHtml(s.choiceLabel)).join(', ')}</div>` : ''}
+        </div>
+      `).join('');
+
+      footerEl.innerHTML = `
+        <p style="font-weight:700;margin-bottom:1rem;">Sous-total : ${formatCurrency(subtotal)}</p>
+        ${menu.minOrderAmount > 0 && subtotal < menu.minOrderAmount ? `<div class="sst-error">Commande minimum : ${formatCurrency(menu.minOrderAmount)}</div>` : ''}
+        <div class="sst-field"><label class="sst-label">Email *</label><input class="sst-input" id="foodEmail"></div>
+        <div class="sst-field"><label class="sst-label">Nom</label><input class="sst-input" id="foodName"></div>
+        <div class="sst-field">
+          <label class="sst-label">Mode</label>
+          <select class="sst-select" id="foodMethod">
+            ${menu.pickupAvailable ? '<option value="pickup">Retrait sur place</option>' : ''}
+            ${menu.deliveryZones?.length ? '<option value="delivery">Livraison</option>' : ''}
+          </select>
+        </div>
+        <div class="sst-field" id="foodZoneField" style="display:none;">
+          <label class="sst-label">Zone de livraison</label>
+          <select class="sst-select" id="foodZone">${(menu.deliveryZones || []).map((z) => `<option value="${escapeHtml(z.name)}">${escapeHtml(z.name)} (+${formatCurrency(z.fee)})</option>`).join('')}</select>
+        </div>
+        <div class="sst-field" id="foodAddressField" style="display:none;"><label class="sst-label">Adresse</label><input class="sst-input" id="foodAddress"></div>
+        <div class="sst-field"><label class="sst-label">Heure souhaitee</label><input class="sst-input" type="datetime-local" id="foodTime"></div>
+        <button class="sst-btn sst-btn-primary" style="width:100%;" id="foodCheckoutBtn">Continuer vers le paiement</button>
+        <div id="foodCheckoutResult" style="margin-top:1rem;"></div>
+      `;
+
+      document.getElementById('foodMethod')?.addEventListener('change', (e) => {
+        document.getElementById('foodZoneField').style.display = e.target.value === 'delivery' ? 'block' : 'none';
+        document.getElementById('foodAddressField').style.display = e.target.value === 'delivery' ? 'block' : 'none';
+      });
+
+      document.getElementById('foodCheckoutBtn').addEventListener('click', async () => {
+        const email = document.getElementById('foodEmail').value.trim();
+        if (!email) { showToast('Email requis.', 'error'); return; }
+        const fulfillmentMethod = document.getElementById('foodMethod')?.value || 'pickup';
+        const deliveryAddress = document.getElementById('foodAddress')?.value.trim() || '';
+        if (fulfillmentMethod === 'delivery' && !deliveryAddress) { showToast('Adresse requise.', 'error'); return; }
+
+        try {
+          const order = await callSst('CreateFoodOrder', {
+            method: 'POST',
+            body: {
+              organizationId: foodOrganizationId, menuId: foodMenuId,
+              items: entries.map((entry) => ({ itemId: entry.item.id, quantity: entry.quantity, selectedOptions: entry.selectedOptions })),
+              customerEmail: email, customerName: document.getElementById('foodName').value.trim(),
+              fulfillmentMethod,
+              deliveryZone: fulfillmentMethod === 'delivery' ? document.getElementById('foodZone').value : undefined,
+              deliveryAddress,
+              desiredTime: document.getElementById('foodTime').value || null
+            }
+          });
+          const intent = await callSst('CreatePaymentIntent', {
+            method: 'POST',
+            body: { resourceType: 'food_order', resourceId: order.orderId, organizationId: foodOrganizationId, applicationId: 'food', customerEmail: email, customerName: document.getElementById('foodName').value.trim() }
+          });
+          window.location.href = intent.checkoutUrl;
+        } catch (error) {
+          document.getElementById('foodCheckoutResult').innerHTML = `<div class="sst-error">${escapeHtml(error.message)}</div>`;
+        }
+      });
+    }
+
+    boot();
+  </script>
+</body>
+</html>

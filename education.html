@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#131921">
+  <title>Smart Academi | Formations, écoles et tuteurs en Haïti</title>
+  <meta name="description" content="Découvrez des écoles, des formations professionnelles et des tuteurs près de chez vous avec Smart Academi.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260816-3">
+  <link rel="stylesheet" href="./education.css?v=20260827-3">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; min-width: 0; }
+    html, body { width: 100%; max-width: 100%; overflow-x: clip; }
+    body {
+      font-family: 'Amazon Ember', Arial, Helvetica, sans-serif;
+      color: #16181D;
+      background: #FFFFFF;
+      overflow-x: clip;
+    }
+    #education-boot-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .6rem;
+      min-height: 50vh;
+      padding-top: calc(var(--header-height, 156px) + 1rem);
+      color: #4B5160;
+      font-size: .95rem;
+    }
+    .education-home-page #education-boot-loading {
+      padding-top: calc(var(--edu-header-height, 72px) + 1rem);
+    }
+    @media (max-width: 1023px) {
+      #education-boot-loading {
+        padding-top: calc(var(--header-height-mobile, 92px) + 1rem);
+      }
+    }
+  </style>
+</head>
+<body class="education-home-page">
+  <div id="education-header-root"></div>
+  <main id="education-root">
+    <div id="education-boot-loading"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Chargement de Smart Academi...</div>
+  </main>
+  <div id="sierra-footer-root"></div>
+
+  <script type="module">
+    import './firebase-init.js';
+
+    const mount = async (rootId, loader, options = {}) => {
+      const root = document.getElementById(rootId);
+      if (!root) return;
+      try {
+        const mod = await loader();
+        new mod.default(rootId, options);
+      } catch (error) {
+        console.error(`Erreur composant ${rootId}:`, error);
+      }
+    };
+
+    mount('education-header-root', () => import('./education-header.js?v=20260827-4'));
+    mount('education-root', () => import('./education.js?v=20260827-4'));
+    mount('sierra-footer-root', () => import('./footer.js'), {
+      imageBasePath: './',
+      showSocial: true,
+      showContact: true,
+      showInfos: true,
+      showPayments: true,
+      showCopyright: true
+    });
+  </script>
+</body>
+</html>

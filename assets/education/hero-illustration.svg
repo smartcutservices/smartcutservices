@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img">
+  <title>Illustration originale Smart Cut Education : deux apprenants échangent autour d'un ordinateur portable et d'un livre, dans une ambiance chaleureuse inspirée des Caraïbes.</title>
+  <defs>
+    <linearGradient id="eduBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFF8F1"/>
+      <stop offset="55%" stop-color="#FDEDE9"/>
+      <stop offset="100%" stop-color="#FBE1D8"/>
+    </linearGradient>
+    <radialGradient id="eduSun" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#F5A860" stop-opacity=".85"/>
+      <stop offset="100%" stop-color="#F5A860" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="eduScreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E4472F" stop-opacity=".88"/>
+      <stop offset="100%" stop-color="#232C3B" stop-opacity=".92"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#eduBg)"/>
+
+  <circle cx="644" cy="112" r="170" fill="url(#eduSun)"/>
+  <circle cx="644" cy="112" r="66" fill="#F5A860"/>
+
+  <g opacity=".16" fill="#2F6F5E">
+    <ellipse cx="26" cy="560" rx="20" ry="90" transform="rotate(18 26 560)"/>
+    <ellipse cx="70" cy="580" rx="18" ry="100" transform="rotate(-6 70 580)"/>
+    <ellipse cx="6" cy="520" rx="16" ry="80" transform="rotate(42 6 520)"/>
+  </g>
+
+  <path d="M60,150 L120,130 L180,150 L120,170 Z" fill="#E4472F"/>
+  <path d="M92,158 L92,180 Q120,191 148,180 L148,158" fill="none" stroke="#E4472F" stroke-width="4" stroke-linecap="round"/>
+  <line x1="178" y1="150" x2="178" y2="176" stroke="#16181D" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="178" cy="181" r="4.5" fill="#16181D"/>
+
+  <ellipse cx="400" cy="432" rx="260" ry="16" fill="#16181D" opacity=".06"/>
+
+  <path d="M110,392 Q108,258 156,252 Q204,258 202,392 Z" fill="#232C3B"/>
+  <path d="M172,298 Q214,326 208,368" stroke="#232C3B" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <rect x="144" y="246" width="26" height="22" rx="9" fill="#C98A52"/>
+  <circle cx="157" cy="220" r="37" fill="#C98A52"/>
+  <g fill="#16181D">
+    <circle cx="128" cy="202" r="15"/>
+    <circle cx="145" cy="188" r="16"/>
+    <circle cx="166" cy="186" r="16"/>
+    <circle cx="184" cy="197" r="15"/>
+    <circle cx="190" cy="218" r="11"/>
+  </g>
+  <path d="M147,231 Q157,238 167,231" stroke="#16181D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <path d="M690,392 Q692,256 644,250 Q596,256 598,392 Z" fill="#E4472F"/>
+  <path d="M628,298 Q592,324 558,346" stroke="#E4472F" stroke-width="26" stroke-linecap="round" fill="none"/>
+  <rect x="632" y="244" width="26" height="22" rx="9" fill="#A8623E"/>
+  <circle cx="645" cy="218" r="35" fill="#A8623E"/>
+  <path d="M609,214 Q611,178 645,180 Q679,178 681,214 Q676,194 645,194 Q614,194 609,214 Z" fill="#16181D"/>
+  <path d="M636,229 Q645,235 654,229" stroke="#16181D" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <rect x="150" y="398" width="460" height="22" rx="11" fill="#C98A52"/>
+  <rect x="150" y="414" width="460" height="8" rx="4" fill="#B97A45"/>
+
+  <path d="M206,394 L206,352 Q246,340 286,352 L286,394 Z" fill="#FFFCF7" stroke="#E7D9C6" stroke-width="2"/>
+  <path d="M286,394 L286,352 Q326,340 366,352 L366,394 Z" fill="#FFFCF7" stroke="#E7D9C6" stroke-width="2"/>
+  <line x1="286" y1="352" x2="286" y2="394" stroke="#D8C6AE" stroke-width="2"/>
+  <g stroke="#E7D9C6" stroke-width="2" stroke-linecap="round">
+    <line x1="216" y1="368" x2="270" y2="362"/>
+    <line x1="216" y1="378" x2="264" y2="373"/>
+    <line x1="302" y1="368" x2="356" y2="362"/>
+    <line x1="302" y1="378" x2="350" y2="373"/>
+  </g>
+
+  <path d="M405,386 L405,298 Q405,290 413,290 L517,290 Q525,290 525,298 L525,386 Z" fill="#232C3B"/>
+  <rect x="413" y="298" width="104" height="80" rx="4" fill="url(#eduScreen)"/>
+  <g fill="#FFFFFF" opacity=".82">
+    <rect x="423" y="308" width="46" height="7" rx="3.5"/>
+    <rect x="423" y="321" width="70" height="7" rx="3.5"/>
+    <rect x="423" y="334" width="34" height="7" rx="3.5"/>
+  </g>
+  <rect x="390" y="386" width="150" height="10" rx="4" fill="#16181D"/>
+
+  <ellipse cx="575" cy="394" rx="16" ry="6" fill="#FFFFFF"/>
+  <rect x="560" y="374" width="32" height="24" rx="8" fill="#FFFFFF"/>
+  <path d="M592,380 q15,4 0,16" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+  <ellipse cx="576" cy="374" rx="16" ry="5" fill="#F5A860"/>
+
+  <path d="M616,398 L646,398 L641,416 L621,416 Z" fill="#8A5A3B"/>
+  <g fill="#4C7A5E">
+    <path d="M631,400 C610,392 604,364 616,346 C620,372 626,388 631,400 Z"/>
+    <path d="M631,400 C652,392 658,364 646,346 C642,372 636,388 631,400 Z"/>
+    <path d="M631,400 C627,378 631,356 631,340 C639,360 637,382 631,400 Z" fill="#6FA37E"/>
+  </g>
+
+  <rect x="330" y="150" width="112" height="54" rx="18" fill="#FFFFFF" opacity=".96"/>
+  <path d="M372,204 L362,222 L387,206 Z" fill="#FFFFFF" opacity=".96"/>
+  <g fill="#16181D" opacity=".55">
+    <circle cx="362" cy="177" r="5"/>
+    <circle cx="386" cy="177" r="5"/>
+    <circle cx="410" cy="177" r="5"/>
+  </g>
+</svg>

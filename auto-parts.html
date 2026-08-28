@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Trouvez des pièces compatibles avec votre voiture, moto, camion ou équipement sur Smart Cut Auto & Parts.">
+  <title>Auto & Parts | Smart Cut Services</title>
+  <link rel="icon" href="./logo.png">
+  <link rel="preload" as="image" href="./assets/auto-parts/hero-auto-parts-v1.png" fetchpriority="high">
+  <link rel="stylesheet" href="./site-foundation.css">
+  <link rel="stylesheet" href="./auto-parts.css?v=20260827-2">
+</head>
+<body>
+  <div id="auto-parts-header"></div>
+  <main id="auto-parts-app" class="ap-shell" aria-live="polite">
+    <div class="ap-loading" role="status">Chargement de Smart Cut Auto &amp; Parts…</div>
+  </main>
+  <script type="module">
+    const version = '20260827-2';
+    const [{ default: Header }, { default: AutoPartsApp }] = await Promise.all([
+      import(`./auto-parts-header.js?v=${version}`),
+      import(`./auto-parts.js?v=${version}`)
+    ]);
+    new Header('auto-parts-header');
+    new AutoPartsApp('auto-parts-app');
+  </script>
+</body>
+</html>

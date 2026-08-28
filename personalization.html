@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#131921">
+  <title>Studio de personnalisation | Smart Cut Services</title>
+  <meta name="description" content="Creez votre t-shirt ou votre tasse personnalisee: ajoutez texte, image ou illustration, visualisez le resultat en 3D et commandez en ligne.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260816-3">
+  <link rel="stylesheet" href="./personalization.css?v=20260827-4">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; min-width: 0; }
+    html, body { width: 100%; max-width: 100%; overflow-x: clip; }
+    body {
+      font-family: 'Amazon Ember', Arial, Helvetica, sans-serif;
+      color: #1F1E1C;
+      background: var(--sc-canvas, #eaeded);
+      overflow-x: clip;
+    }
+    #personalization-root {
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+      padding: .65rem .75rem 1.25rem;
+    }
+    @media (max-width: 1023px) {
+      #personalization-root {
+        padding-top: calc(var(--header-height-mobile, 92px) + .55rem);
+      }
+    }
+    @media (max-width: 640px) {
+      #personalization-root {
+        padding-right: .5rem;
+        padding-left: .5rem;
+      }
+    }
+    .pz-boot-loading {
+      display: flex; align-items: center; justify-content: center; gap: .6rem;
+      min-height: 40vh; color: #6E6557; font-size: .95rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="sierra-header-root"></div>
+  <main id="personalization-root">
+    <div class="pz-boot-loading"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Chargement du studio de personnalisation...</div>
+  </main>
+  <div id="sierra-footer-root"></div>
+
+  <script type="module">
+    import './firebase-init.js';
+
+    const mount = async (rootId, loader, options = {}) => {
+      const root = document.getElementById(rootId);
+      if (!root) return;
+      try {
+        const mod = await loader();
+        if (typeof mod.getCartManager === 'function') {
+          mod.getCartManager(options);
+          return;
+        }
+        new mod.default(rootId, options);
+      } catch (error) {
+        console.error(`Erreur composant ${rootId}:`, error);
+      }
+    };
+
+    mount('sierra-header-root', () => import('./header.js?v=20260714-1'));
+    mount('personalization-root', () => import('./personalization.js?v=20260825-1'));
+    mount('sierra-footer-root', () => import('./footer.js'), {
+      imageBasePath: './',
+      showSocial: true,
+      showContact: true,
+      showInfos: true,
+      showPayments: true,
+      showCopyright: true
+    });
+  </script>
+</body>
+</html>

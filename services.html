@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Découvrez des prestations professionnelles vérifiées et trouvez rapidement le prestataire adapté à votre projet sur Smart Cut Services.">
+  <title>Services professionnels | Smart Cut Services</title>
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="./marketplace-public.css?v=20260826-1">
+  <link rel="stylesheet" href="./services-page.css?v=20260826-1">
+</head>
+<body class="services-page">
+  <header class="services-site-header">
+    <div class="services-header-inner">
+      <a class="services-brand" href="./index.html" aria-label="Retour à l’accueil Smart Cut Services">
+        <img src="./logo.png" alt="Smart Cut Services" width="52" height="52">
+        <span>Smart Cut Services</span>
+      </a>
+      <nav class="services-nav" aria-label="Navigation principale">
+        <a href="./index.html">Accueil</a>
+        <a class="is-current" href="./services.html" aria-current="page">Services</a>
+        <a href="./mes-commandes.html">Mes commandes</a>
+        <a class="services-provider-link" href="./logiciel proformat/">Proposer un service <span aria-hidden="true">→</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="services-hero" aria-labelledby="services-title">
+      <div class="services-hero-inner">
+        <p class="services-kicker">Marketplace de services</p>
+        <h1 id="services-title">Le bon expert pour faire avancer votre projet.</h1>
+        <p class="services-intro">Comparez des prestations claires, des délais précis et des prestataires vérifiés.</p>
+      </div>
+    </section>
+
+    <section class="services-discovery" aria-label="Recherche et filtres">
+      <form id="filters" class="services-filters" role="search">
+        <div class="services-primary-filters">
+          <label class="services-search-field">
+            <span class="sr-only">Rechercher un service</span>
+            <span class="services-search-icon" aria-hidden="true"></span>
+            <input name="q" type="search" placeholder="Rechercher un service ou une spécialité" autocomplete="off">
+          </label>
+          <label class="services-select-field">
+            <span class="sr-only">Catégorie</span>
+            <select name="category" aria-label="Filtrer par catégorie">
+              <option value="">Toutes les catégories</option>
+              <option value="design">Graphisme</option>
+              <option value="development">Développement</option>
+              <option value="marketing">Marketing</option>
+              <option value="writing">Rédaction & traduction</option>
+              <option value="video">Vidéo</option>
+            </select>
+          </label>
+          <button class="services-search-button" type="submit">Rechercher</button>
+        </div>
+
+        <div class="services-filter-footer">
+          <details class="services-more-filters">
+            <summary>Plus de filtres <span aria-hidden="true">+</span></summary>
+            <div class="services-secondary-filters">
+              <label><span>Tarification</span><select name="pricingType"><option value="">Tous les prix</option><option value="FIXED">Prix fixe</option><option value="STARTING_AT">À partir de</option><option value="CUSTOM_QUOTE">Sur devis</option></select></label>
+              <label><span>Budget maximum</span><select name="maxPrice"><option value="">Sans limite</option><option value="5000">5 000 HTG</option><option value="15000">15 000 HTG</option><option value="30000">30 000 HTG</option></select></label>
+              <label><span>Délai maximum</span><select name="maxDeliveryDays"><option value="">Tous les délais</option><option value="3">3 jours</option><option value="7">7 jours</option><option value="14">14 jours</option></select></label>
+              <label><span>Mode de travail</span><select name="remote"><option value="">Tous</option><option value="1">À distance</option></select></label>
+              <label><span>Trier par</span><select name="sort"><option value="recent">Plus récents</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix décroissant</option></select></label>
+            </div>
+          </details>
+          <button id="clearFilters" class="services-clear-button" type="button" hidden>Réinitialiser</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="services-results" aria-labelledby="services-results-title">
+      <div class="services-results-head">
+        <div>
+          <p class="services-section-label">Prestations disponibles</p>
+          <h2 id="services-results-title">Services sélectionnés</h2>
+        </div>
+        <p id="servicesCount" class="services-count" aria-live="polite">Recherche en cours…</p>
+      </div>
+      <div id="servicesGrid" class="services-grid services-page-grid" aria-live="polite" aria-busy="true">
+        <div class="services-skeleton" aria-hidden="true"></div>
+        <div class="services-skeleton" aria-hidden="true"></div>
+        <div class="services-skeleton" aria-hidden="true"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="services-footer">
+    <div><span>Smart Cut Services</span><span>Des services professionnels, simplement.</span></div>
+    <a href="./index.html">Retour à l’accueil</a>
+  </footer>
+
+  <script type="module" src="./services-public.js?v=20260826-3"></script>
+</body>
+</html>
