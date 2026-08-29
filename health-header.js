@@ -1,6 +1,21 @@
 // Header autonome de Smart Cut Health.
 // Il ne dépend pas du header marketplace utilisé sur la page d'accueil.
 
+const NAV_ORDER_KEY = 'sch:navOrder:v1';
+
+// Liens du sous-menu santé. L'ordre d'affichage s'adapte aux préférences de
+// l'utilisateur : le dernier lien ouvert repasse en tête, l'ordre étant mémorisé
+// dans localStorage et conservé d'une page à l'autre.
+const NAV_LINKS = [
+  { href: './health-teleconsultation.html', label: 'Téléconsultation', match: ['health-teleconsultation.html'] },
+  { href: './health-pharmacie.html', label: 'Pharmacie', match: ['health-pharmacie.html'] },
+  { href: './health-medecins.html', label: 'Médecins', match: ['health-medecins.html'] },
+  { href: './health-laboratoires.html', label: 'Laboratoires', match: ['health-laboratoires.html'] },
+  { href: './health-espace.html', label: 'Mon espace', match: ['health-espace.html'] },
+  { href: './health-doctor.html', label: 'Espace médecin', icon: 'fa-user-doctor', match: ['health-doctor.html'] },
+  { href: './health-professionnel.html', label: 'Professionnels', match: ['health-professionnel.html', 'health-candidature.html'] },
+];
+
 export default class SmartCutHealthHeader {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
@@ -163,13 +178,7 @@ export default class SmartCutHealthHeader {
           </button>
 
           <nav class="health-site-header__nav" aria-label="Navigation Smart Cut Health" data-health-menu>
-            <a class="health-site-header__link ${this.isCurrentPage('health-teleconsultation.html') ? 'is-active' : ''}" href="./health-teleconsultation.html">Téléconsultation</a>
-            <a class="health-site-header__link ${this.isCurrentPage('health-pharmacie.html') ? 'is-active' : ''}" href="./health-pharmacie.html">Pharmacie</a>
-            <a class="health-site-header__link ${this.isCurrentPage('health-ordonnance.html') ? 'is-active' : ''}" href="./health-ordonnance.html">Ordonnance</a>
-            <a class="health-site-header__link ${this.isCurrentPage('health-medecins.html') ? 'is-active' : ''}" href="./health-medecins.html">Médecins</a>
-            <a class="health-site-header__link ${this.isCurrentPage('health-laboratoires.html') ? 'is-active' : ''}" href="./health-laboratoires.html">Laboratoires</a>
-            <a class="health-site-header__link ${this.isCurrentPage('health-espace.html') ? 'is-active' : ''}" href="./health-espace.html">Mon espace</a>
-            <a class="health-site-header__link ${(this.isCurrentPage('health-professionnel.html') || this.isCurrentPage('health-candidature.html')) ? 'is-active' : ''}" href="./health-professionnel.html">Professionnels</a>
+            ${this.renderNavLinks()}
             <a class="health-site-header__link health-site-header__link--back" href="./index.html"><i class="fas fa-arrow-left" aria-hidden="true"></i> Smart Cut Services</a>
           </nav>
         </div>
@@ -204,6 +213,11 @@ export default class SmartCutHealthHeader {
 
     menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
 
+    // Mémoire des préférences : le lien ouvert repasse en tête du sous-menu.
+    menu.querySelectorAll('[data-health-nav-link]').forEach((link) => {
+      link.addEventListener('click', () => this.rememberNavClick(link.dataset.healthNavLink));
+    });
+
     window.addEventListener('resize', () => {
       if (window.innerWidth > 1100) closeMenu();
     });
@@ -211,5 +225,46 @@ export default class SmartCutHealthHeader {
 
   isCurrentPage(fileName) {
     return window.location.pathname.split('/').pop() === fileName;
+  }
+
+  // Rendu des liens du sous-menu dans l'ordre préféré de l'utilisateur.
+  renderNavLinks() {
+    return this.orderedNavLinks().map((link) => {
+      const active = link.match.some((file) => this.isCurrentPage(file));
+      const icon = link.icon ? `<i class="fas ${link.icon}" aria-hidden="true"></i> ` : '';
+      return `<a class="health-site-header__link ${active ? 'is-active' : ''}" href="${link.href}" data-health-nav-link="${link.href}">${icon}${link.label}</a>`;
+    }).join('');
+  }
+
+  // Liens préférés (déjà cliqués) en premier, dans l'ordre du plus récent au
+  // plus ancien, puis les liens restants dans leur ordre d'origine.
+  orderedNavLinks() {
+    const saved = this.readNavOrder();
+    const preferred = saved
+      .map((href) => NAV_LINKS.find((link) => link.href === href))
+      .filter(Boolean);
+    const rest = NAV_LINKS.filter((link) => !saved.includes(link.href));
+    return [...preferred, ...rest];
+  }
+
+  readNavOrder() {
+    try {
+      const raw = JSON.parse(window.localStorage.getItem(NAV_ORDER_KEY) || '[]');
+      if (!Array.isArray(raw)) return [];
+      const known = new Set(NAV_LINKS.map((link) => link.href));
+      return raw.filter((href) => known.has(href));
+    } catch (_) {
+      return [];
+    }
+  }
+
+  rememberNavClick(href) {
+    if (!NAV_LINKS.some((link) => link.href === href)) return;
+    try {
+      const next = [href, ...this.readNavOrder().filter((item) => item !== href)].slice(0, NAV_LINKS.length);
+      window.localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(next));
+    } catch (_) {
+      /* localStorage indisponible : la préférence n'est pas mémorisée, sans erreur. */
+    }
   }
 }

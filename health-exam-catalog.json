@@ -1,0 +1,5874 @@
+{
+  "_meta": {
+    "purpose": "Catalogue maître des examens de laboratoire Smart Health. Référence unique dans laquelle les laboratoires affiliés sélectionnent les examens qu'ils réalisent et fixent leur prix.",
+    "notes": "Le prix, la disponibilité et le délai réel appartiennent à l'offre de chaque laboratoire, PAS à ce catalogue. Aucun résultat d'examen n'est stocké dans Smart Health.",
+    "version": "2026-08-28",
+    "source": "Liste de référence fournie par le propriétaire (38 catégories).",
+    "examCount": 436
+  },
+  "categories": [
+    {
+      "id": "hematologie",
+      "label": "Hématologie",
+      "order": 1
+    },
+    {
+      "id": "hemostase-coagulation",
+      "label": "Hémostase / Coagulation",
+      "order": 2
+    },
+    {
+      "id": "biochimie-fonction-renale",
+      "label": "Biochimie – Fonction rénale",
+      "order": 3
+    },
+    {
+      "id": "biochimie-electrolytes-et-mineraux",
+      "label": "Biochimie – Électrolytes et minéraux",
+      "order": 4
+    },
+    {
+      "id": "glycemie-diabete",
+      "label": "Glycémie / Diabète",
+      "order": 5
+    },
+    {
+      "id": "bilan-lipidique",
+      "label": "Bilan lipidique",
+      "order": 6
+    },
+    {
+      "id": "fonction-hepatique",
+      "label": "Fonction hépatique",
+      "order": 7
+    },
+    {
+      "id": "fonction-pancreatique",
+      "label": "Fonction pancréatique",
+      "order": 8
+    },
+    {
+      "id": "bilan-cardiaque",
+      "label": "Bilan cardiaque",
+      "order": 9
+    },
+    {
+      "id": "marqueurs-inflammatoires",
+      "label": "Marqueurs inflammatoires",
+      "order": 10
+    },
+    {
+      "id": "bilan-martial-anemie",
+      "label": "Bilan martial / Anémie",
+      "order": 11
+    },
+    {
+      "id": "thyroide",
+      "label": "Thyroïde",
+      "order": 12
+    },
+    {
+      "id": "hormones-endocrinologie",
+      "label": "Hormones / Endocrinologie",
+      "order": 13
+    },
+    {
+      "id": "grossesse-fertilite",
+      "label": "Grossesse / Fertilité",
+      "order": 14
+    },
+    {
+      "id": "analyse-urinaire",
+      "label": "Analyse urinaire",
+      "order": 15
+    },
+    {
+      "id": "microbiologie-bacteriologie",
+      "label": "Microbiologie – Bactériologie",
+      "order": 16
+    },
+    {
+      "id": "tuberculose-mycobacteriologie",
+      "label": "Tuberculose / Mycobactériologie",
+      "order": 17
+    },
+    {
+      "id": "parasitologie",
+      "label": "Parasitologie",
+      "order": 18
+    },
+    {
+      "id": "mycologie",
+      "label": "Mycologie",
+      "order": 19
+    },
+    {
+      "id": "vih",
+      "label": "VIH",
+      "order": 20
+    },
+    {
+      "id": "hepatites-virales",
+      "label": "Hépatites virales",
+      "order": 21
+    },
+    {
+      "id": "infections-sexuellement-transmissibles",
+      "label": "Infections sexuellement transmissibles",
+      "order": 22
+    },
+    {
+      "id": "serologies-infectieuses",
+      "label": "Sérologies infectieuses",
+      "order": 23
+    },
+    {
+      "id": "immunologie-maladies-auto-immunes",
+      "label": "Immunologie / Maladies auto-immunes",
+      "order": 24
+    },
+    {
+      "id": "allergologie",
+      "label": "Allergologie",
+      "order": 25
+    },
+    {
+      "id": "groupage-sanguin-banque-de-sang",
+      "label": "Groupage sanguin / Banque de sang",
+      "order": 26
+    },
+    {
+      "id": "marqueurs-tumoraux",
+      "label": "Marqueurs tumoraux",
+      "order": 27
+    },
+    {
+      "id": "gastro-enterologie-selles",
+      "label": "Gastro-entérologie / Selles",
+      "order": 28
+    },
+    {
+      "id": "gaz-du-sang-urgences",
+      "label": "Gaz du sang / Urgences",
+      "order": 29
+    },
+    {
+      "id": "toxicologie",
+      "label": "Toxicologie",
+      "order": 30
+    },
+    {
+      "id": "vitamines-et-micronutriments",
+      "label": "Vitamines et micronutriments",
+      "order": 31
+    },
+    {
+      "id": "proteines-electrophorese",
+      "label": "Protéines / Électrophorèse",
+      "order": 32
+    },
+    {
+      "id": "liquide-cephalorachidien-lcr",
+      "label": "Liquide céphalorachidien (LCR)",
+      "order": 33
+    },
+    {
+      "id": "autres-liquides-biologiques",
+      "label": "Autres liquides biologiques",
+      "order": 34
+    },
+    {
+      "id": "biologie-moleculaire-pcr",
+      "label": "Biologie moléculaire / PCR",
+      "order": 35
+    },
+    {
+      "id": "genetique-cytogenetique",
+      "label": "Génétique / Cytogénétique",
+      "order": 36
+    },
+    {
+      "id": "examens-prenataux",
+      "label": "Examens prénataux",
+      "order": 37
+    },
+    {
+      "id": "anatomopathologie-cytologie",
+      "label": "Anatomopathologie / Cytologie",
+      "order": 38
+    }
+  ],
+  "exams": [
+    {
+      "id": "electrophorese-de-lhemoglobine",
+      "name": "Électrophorèse de l’hémoglobine",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "formule-leucocytaire",
+      "name": "Formule leucocytaire",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "frottis-sanguin-peripherique",
+      "name": "Frottis sanguin périphérique",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "goutte-epaisse",
+      "name": "Goutte épaisse",
+      "categories": [
+        "hematologie",
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Paludisme goutte épaisse",
+        "Malaria"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hematocrite-ht",
+      "name": "Hématocrite (Ht)",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Ht",
+        "PCV"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hemoglobine-hb",
+      "name": "Hémoglobine (Hb)",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Hb"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hemogramme-complet-nfs",
+      "name": "Hémogramme complet / NFS",
+      "categories": [
+        "hematologie",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "NFS",
+        "CBC",
+        "FBC",
+        "Numération formule sanguine",
+        "Hémogramme",
+        "Numération sanguine"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "immunophenotypage-des-cellules-sanguines",
+      "name": "Immunophénotypage des cellules sanguines",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / moelle",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "myelogramme",
+      "name": "Myélogramme",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Moelle osseuse",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "numeration-des-globules-blancs",
+      "name": "Numération des globules blancs",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "numeration-des-globules-rouges",
+      "name": "Numération des globules rouges",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "numeration-plaquettaire",
+      "name": "Numération plaquettaire",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-dhemoparasites",
+      "name": "Recherche d’hémoparasites",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "reticulocytes",
+      "name": "Réticulocytes",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-de-falciformation",
+      "name": "Test de falciformation",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-rapide-du-paludisme",
+      "name": "Test rapide du paludisme",
+      "categories": [
+        "hematologie",
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TDR paludisme",
+        "RDT malaria",
+        "Malaria"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vgm-tcmh-ccmh",
+      "name": "VGM, TCMH, CCMH",
+      "categories": [
+        "hematologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Indices érythrocytaires",
+        "MCV",
+        "MCH",
+        "MCHC"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitesse-de-sedimentation-vs",
+      "name": "Vitesse de sédimentation (VS)",
+      "categories": [
+        "hematologie",
+        "marqueurs-inflammatoires"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "VS",
+        "ESR",
+        "Sédimentation"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "activite-du-facteur-von-willebrand",
+      "name": "Activité du facteur von Willebrand",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anticoagulant-lupique",
+      "name": "Anticoagulant lupique",
+      "categories": [
+        "hemostase-coagulation",
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "antithrombine-iii",
+      "name": "Antithrombine III",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "d-dimeres",
+      "name": "D-Dimères",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "D-dimères",
+        "D-Dimer"
+      ],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "dosage-du-facteur-viii",
+      "name": "Dosage du facteur VIII",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "facteur-ix",
+      "name": "Facteur IX",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "facteur-von-willebrand",
+      "name": "Facteur von Willebrand",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "facteur-xi",
+      "name": "Facteur XI",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "facteur-xii",
+      "name": "Facteur XII",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fibrinogene",
+      "name": "Fibrinogène",
+      "categories": [
+        "hemostase-coagulation",
+        "marqueurs-inflammatoires"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "inr",
+      "name": "INR",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "proteine-c",
+      "name": "Protéine C",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "proteine-s",
+      "name": "Protéine S",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tca-aptt",
+      "name": "TCA / aPTT",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TCA",
+        "aPTT",
+        "APTT",
+        "Temps de céphaline activée"
+      ],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "temps-de-prothrombine-tp",
+      "name": "Temps de prothrombine (TP)",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TP",
+        "PT",
+        "Taux de prothrombine"
+      ],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "temps-de-saignement",
+      "name": "Temps de saignement",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "temps-de-thrombine",
+      "name": "Temps de thrombine",
+      "categories": [
+        "hemostase-coagulation"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (plasma citraté)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "acide-urique",
+      "name": "Acide urique",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Uricémie"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bun",
+      "name": "BUN",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Blood urea nitrogen",
+        "Azote uréique"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "clairance-de-la-creatinine",
+      "name": "Clairance de la créatinine",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine (24 h) + sang",
+      "preparation": "Recueil des urines de 24 h",
+      "active": true
+    },
+    {
+      "id": "creatinine",
+      "name": "Créatinine",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Créat"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cystatine-c",
+      "name": "Cystatine C",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "dfg-estime-egfr",
+      "name": "DFG estimé / eGFR",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "eGFR",
+        "DFGe",
+        "Débit de filtration glomérulaire estimé"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "uree",
+      "name": "Urée",
+      "categories": [
+        "biochimie-fonction-renale"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Urée sanguine"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bicarbonates-co2-total",
+      "name": "Bicarbonates / CO₂ total",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CO2 total",
+        "Bicarbonate",
+        "HCO3"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "calcium-ionise",
+      "name": "Calcium ionisé",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "calcium-total",
+      "name": "Calcium total",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "chlorure-cl",
+      "name": "Chlorure (Cl⁻)",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "magnesium",
+      "name": "Magnésium",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux",
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "osmolalite-sanguine",
+      "name": "Osmolalité sanguine",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "osmolalite-urinaire",
+      "name": "Osmolalité urinaire",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux",
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "phosphore-phosphate",
+      "name": "Phosphore / Phosphate",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "potassium-k",
+      "name": "Potassium (K⁺)",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "sodium-na",
+      "name": "Sodium (Na⁺)",
+      "categories": [
+        "biochimie-electrolytes-et-mineraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cetonemie",
+      "name": "Cétonémie",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "corps-cetoniques-urinaires",
+      "name": "Corps cétoniques urinaires",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fructosamine",
+      "name": "Fructosamine",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "glycemie-a-jeun",
+      "name": "Glycémie à jeun",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "GAJ",
+        "Fasting glucose",
+        "Sucre à jeun"
+      ],
+      "specimenType": "Sang",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "glycemie-aleatoire",
+      "name": "Glycémie aléatoire",
+      "categories": [
+        "glycemie-diabete",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "glycemie-postprandiale",
+      "name": "Glycémie postprandiale",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": "Prélèvement 2 h après le repas",
+      "active": true
+    },
+    {
+      "id": "hba1c",
+      "name": "HbA1c",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Hémoglobine glyquée",
+        "A1c"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hyperglycemie-provoquee-par-voie-orale-hgpo-ogtt",
+      "name": "Hyperglycémie provoquée par voie orale (HGPO/OGTT)",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "HGPO",
+        "OGTT",
+        "Test de charge en glucose"
+      ],
+      "specimenType": "Sang",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "insulinemie",
+      "name": "Insulinémie",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "microalbuminurie",
+      "name": "Microalbuminurie",
+      "categories": [
+        "glycemie-diabete",
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "peptide-c",
+      "name": "Peptide C",
+      "categories": [
+        "glycemie-diabete",
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "rapport-albumine-creatinine-urinaire",
+      "name": "Rapport albumine/créatinine urinaire",
+      "categories": [
+        "glycemie-diabete"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "apolipoproteine-a1",
+      "name": "Apolipoprotéine A1",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "apolipoproteine-b",
+      "name": "Apolipoprotéine B",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "cholesterol-non-hdl",
+      "name": "Cholestérol non-HDL",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "cholesterol-total",
+      "name": "Cholestérol total",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CT"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "hdl-cholesterol",
+      "name": "HDL-cholestérol",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "HDL",
+        "Bon cholestérol"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "ldl-cholesterol",
+      "name": "LDL-cholestérol",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "LDL",
+        "Mauvais cholestérol"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "lipoproteine-a-lp-a",
+      "name": "Lipoprotéine(a) – Lp(a)",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Lp(a)"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "triglycerides",
+      "name": "Triglycérides",
+      "categories": [
+        "bilan-lipidique",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TG"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "vldl",
+      "name": "VLDL",
+      "categories": [
+        "bilan-lipidique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "5-nucleotidase",
+      "name": "5'-nucléotidase",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "alat-alt-tgp",
+      "name": "ALAT / ALT / TGP",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "ALAT",
+        "ALT",
+        "TGP",
+        "SGPT"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "albumine",
+      "name": "Albumine",
+      "categories": [
+        "fonction-hepatique",
+        "proteines-electrophorese",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ammoniemie",
+      "name": "Ammoniémie",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Ammoniac",
+        "NH3"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "asat-ast-tgo",
+      "name": "ASAT / AST / TGO",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "ASAT",
+        "AST",
+        "TGO",
+        "SGOT"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bilirubine-directe",
+      "name": "Bilirubine directe",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bilirubine-indirecte",
+      "name": "Bilirubine indirecte",
+      "categories": [
+        "fonction-hepatique",
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bilirubine-totale",
+      "name": "Bilirubine totale",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "BT"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "gamma-gt-ggt",
+      "name": "Gamma-GT (GGT)",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "GGT",
+        "Gamma-glutamyl transférase",
+        "γGT"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ldh",
+      "name": "LDH",
+      "categories": [
+        "fonction-hepatique",
+        "bilan-cardiaque",
+        "bilan-martial-anemie",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Lactate déshydrogénase",
+        "Lactico-déshydrogénase"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "phosphatases-alcalines-pal-alp",
+      "name": "Phosphatases alcalines (PAL/ALP)",
+      "categories": [
+        "fonction-hepatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "PAL",
+        "ALP",
+        "Phosphatase alcaline"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "proteines-totales",
+      "name": "Protéines totales",
+      "categories": [
+        "fonction-hepatique",
+        "proteines-electrophorese",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "amylase-serique",
+      "name": "Amylase sérique",
+      "categories": [
+        "fonction-pancreatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Amylase",
+        "Amylasémie"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "amylase-urinaire",
+      "name": "Amylase urinaire",
+      "categories": [
+        "fonction-pancreatique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "elastase-fecale",
+      "name": "Élastase fécale",
+      "categories": [
+        "fonction-pancreatique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "lipase",
+      "name": "Lipase",
+      "categories": [
+        "fonction-pancreatique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Lipasémie"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "trypsinogene",
+      "name": "Trypsinogène",
+      "categories": [
+        "fonction-pancreatique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bnp",
+      "name": "BNP",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Peptide natriurétique de type B"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ck-totale",
+      "name": "CK totale",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CPK",
+        "Créatine kinase"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ck-mb",
+      "name": "CK-MB",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CK-MB",
+        "CPK-MB"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "homocysteine",
+      "name": "Homocystéine",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "myoglobine",
+      "name": "Myoglobine",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "nt-probnp",
+      "name": "NT-proBNP",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "NT-proBNP"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "troponine-i",
+      "name": "Troponine I",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "troponine-t",
+      "name": "Troponine T",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "troponine-ultrasensible",
+      "name": "Troponine ultrasensible",
+      "categories": [
+        "bilan-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "crp",
+      "name": "CRP",
+      "categories": [
+        "marqueurs-inflammatoires"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Protéine C réactive"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "crp-ultrasensible",
+      "name": "CRP ultrasensible",
+      "categories": [
+        "marqueurs-inflammatoires"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CRPus",
+        "hs-CRP"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ferritine",
+      "name": "Ferritine",
+      "categories": [
+        "marqueurs-inflammatoires",
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Ferritinémie"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "procalcitonine",
+      "name": "Procalcitonine",
+      "categories": [
+        "marqueurs-inflammatoires"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "PCT"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "acide-methylmalonique",
+      "name": "Acide méthylmalonique",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "capacite-non-saturee-de-fixation-du-fer-uibc",
+      "name": "Capacité non saturée de fixation du fer (UIBC)",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "UIBC"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "capacite-totale-de-fixation-du-fer-tibc-ctff",
+      "name": "Capacité totale de fixation du fer (TIBC/CTFF)",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TIBC",
+        "CTFF"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "coefficient-de-saturation-de-la-transferrine",
+      "name": "Coefficient de saturation de la transferrine",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CST",
+        "Saturation de la transferrine"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fer-serique",
+      "name": "Fer sérique",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Sidérémie",
+        "Fer sérique"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": "À jeun (8 à 12 h)",
+      "active": true
+    },
+    {
+      "id": "folates-vitamine-b9",
+      "name": "Folates / Vitamine B9",
+      "categories": [
+        "bilan-martial-anemie",
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Folates",
+        "Acide folique",
+        "Vitamine B9",
+        "B9"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "haptoglobine",
+      "name": "Haptoglobine",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "transferrine",
+      "name": "Transferrine",
+      "categories": [
+        "bilan-martial-anemie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-b12",
+      "name": "Vitamine B12",
+      "categories": [
+        "bilan-martial-anemie",
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Cobalamine",
+        "B12"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-thyroglobuline",
+      "name": "Anti-thyroglobuline",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-tpo",
+      "name": "Anti-TPO",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Anti-thyroperoxydase",
+        "ATPO"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anticorps-anti-recepteur-de-la-tsh-trab",
+      "name": "Anticorps anti-récepteur de la TSH (TRAb)",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TRAb",
+        "TRAK",
+        "Anti-RTSH"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "calcitonine",
+      "name": "Calcitonine",
+      "categories": [
+        "thyroide",
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "t3-libre-ft3",
+      "name": "T3 libre (FT3)",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FT3",
+        "T3L"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "t3-totale",
+      "name": "T3 totale",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "t4-libre-ft4",
+      "name": "T4 libre (FT4)",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FT4",
+        "T4L"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "t4-totale",
+      "name": "T4 totale",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "thyroglobuline",
+      "name": "Thyroglobuline",
+      "categories": [
+        "thyroide",
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tsh",
+      "name": "TSH",
+      "categories": [
+        "thyroide"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Thyréostimuline",
+        "Thyrotropine"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "17-oh-progesterone",
+      "name": "17-OH-progestérone",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "17-OHP",
+        "17-hydroxyprogestérone"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "acth",
+      "name": "ACTH",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "aldosterone",
+      "name": "Aldostérone",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": "Préciser la position (couché/debout) et les traitements en cours",
+      "active": true
+    },
+    {
+      "id": "androstenedione",
+      "name": "Androstènedione",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "catecholamines",
+      "name": "Catécholamines",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cortisol",
+      "name": "Cortisol",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": "Prélèvement le matin (8 h) sauf indication contraire",
+      "active": true
+    },
+    {
+      "id": "dhea-s",
+      "name": "DHEA-S",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "DHEA-S",
+        "Sulfate de DHEA",
+        "SDHEA"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fsh",
+      "name": "FSH",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hormone-de-croissance-gh",
+      "name": "Hormone de croissance (GH)",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "GH",
+        "STH",
+        "Somatotropine"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "igf-1",
+      "name": "IGF-1",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "IGF-1",
+        "Somatomédine C"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "insuline",
+      "name": "Insuline",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "lh",
+      "name": "LH",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "metanephrines-plasmatiques",
+      "name": "Métanéphrines plasmatiques",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": "Repos allongé 30 min avant prélèvement",
+      "active": true
+    },
+    {
+      "id": "metanephrines-urinaires",
+      "name": "Métanéphrines urinaires",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine (24 h)",
+      "preparation": "Recueil des urines de 24 h",
+      "active": true
+    },
+    {
+      "id": "stradiol",
+      "name": "Œstradiol",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "progesterone",
+      "name": "Progestérone",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "prolactine",
+      "name": "Prolactine",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pth",
+      "name": "PTH",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Parathormone",
+        "Hormone parathyroïdienne"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "rapport-aldosterone-renine",
+      "name": "Rapport aldostérone/rénine",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "renine",
+      "name": "Rénine",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": "Préciser la position (couché/debout) et les traitements en cours",
+      "active": true
+    },
+    {
+      "id": "shbg",
+      "name": "SHBG",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "testosterone-libre",
+      "name": "Testostérone libre",
+      "categories": [
+        "hormones-endocrinologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "testosterone-totale",
+      "name": "Testostérone totale",
+      "categories": [
+        "hormones-endocrinologie",
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Testostéronémie"
+      ],
+      "specimenType": "Sang (sérum/plasma)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "amh",
+      "name": "AMH",
+      "categories": [
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Hormone antimüllérienne"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "spermoculture",
+      "name": "Spermoculture",
+      "categories": [
+        "grossesse-fertilite",
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sperme",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "spermocytogramme",
+      "name": "Spermocytogramme",
+      "categories": [
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sperme",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "spermogramme",
+      "name": "Spermogramme",
+      "categories": [
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sperme",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-de-migration-survie-des-spermatozoides",
+      "name": "Test de migration-survie des spermatozoïdes",
+      "categories": [
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sperme",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "beta-hcg-qualitative",
+      "name": "β-hCG qualitative",
+      "categories": [
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "β-hCG qualitatif",
+        "Test de grossesse"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "beta-hcg-quantitative",
+      "name": "β-hCG quantitative",
+      "categories": [
+        "grossesse-fertilite"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "β-hCG plasmatique",
+        "HCG quantitatif"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "acide-urique-urinaire",
+      "name": "Acide urique urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "analyse-durine-complete",
+      "name": "Analyse d'urine complète",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bandelette-urinaire",
+      "name": "Bandelette urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "BU",
+        "Dipstick urinaire"
+      ],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bilirubinurie",
+      "name": "Bilirubinurie",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "calcium-urinaire",
+      "name": "Calcium urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cetonurie",
+      "name": "Cétonurie",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "creatinine-urinaire",
+      "name": "Créatinine urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "densite-urinaire",
+      "name": "Densité urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "glycosurie",
+      "name": "Glycosurie",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hematurie",
+      "name": "Hématurie",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "leucocytes-urinaires",
+      "name": "Leucocytes urinaires",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "nitrites",
+      "name": "Nitrites",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ph-urinaire",
+      "name": "pH urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "potassium-urinaire",
+      "name": "Potassium urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "proteinurie",
+      "name": "Protéinurie",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "proteinurie-des-24-heures",
+      "name": "Protéinurie des 24 heures",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": "Recueil des urines de 24 h",
+      "active": true
+    },
+    {
+      "id": "rapport-albumine-creatinine",
+      "name": "Rapport albumine/créatinine",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "sediment-urinaire",
+      "name": "Sédiment urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "sodium-urinaire",
+      "name": "Sodium urinaire",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "urobilinogene",
+      "name": "Urobilinogène",
+      "categories": [
+        "analyse-urinaire"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "antibiogramme",
+      "name": "Antibiogramme",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon site",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "coloration-de-gram",
+      "name": "Coloration de Gram",
+      "categories": [
+        "microbiologie-bacteriologie",
+        "liquide-cephalorachidien-lcr",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon site",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "coproculture",
+      "name": "Coproculture",
+      "categories": [
+        "microbiologie-bacteriologie",
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-cervicale",
+      "name": "Culture cervicale",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement cervical",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-crachats-expectorations",
+      "name": "Culture de crachats / expectorations",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Crachats",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-gorge",
+      "name": "Culture de gorge",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement de gorge",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-liquide-articulaire",
+      "name": "Culture de liquide articulaire",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Liquide articulaire",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-liquide-dascite",
+      "name": "Culture de liquide d'ascite",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon site",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-liquide-pleural",
+      "name": "Culture de liquide pleural",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Liquide pleural",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-plaie",
+      "name": "Culture de plaie",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement de plaie",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-pus",
+      "name": "Culture de pus",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Pus",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-de-selles",
+      "name": "Culture de selles",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-du-lcr",
+      "name": "Culture du LCR",
+      "categories": [
+        "microbiologie-bacteriologie",
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-nasale",
+      "name": "Culture nasale",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement nasal",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-uretrale",
+      "name": "Culture urétrale",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement urétral",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-vaginale",
+      "name": "Culture vaginale",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement vaginal",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ecbu-culture-durine",
+      "name": "ECBU / Culture d'urine",
+      "categories": [
+        "microbiologie-bacteriologie",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon site",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hemoculture",
+      "name": "Hémoculture",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Culture de sang",
+        "Blood culture"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "identification-bacterienne",
+      "name": "Identification bactérienne",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon site",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-de-bacteries-multiresistantes",
+      "name": "Recherche de bactéries multirésistantes",
+      "categories": [
+        "microbiologie-bacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon site",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "coloration-de-ziehl-neelsen",
+      "name": "Coloration de Ziehl-Neelsen",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Crachats / prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-des-mycobacteries",
+      "name": "Culture des mycobactéries",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Crachats / prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "genexpert-mtb-rif",
+      "name": "GeneXpert MTB/RIF",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Xpert MTB/RIF",
+        "GeneXpert"
+      ],
+      "specimenType": "Crachats / prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "igra-quantiferon-tb",
+      "name": "IGRA / Quantiferon-TB",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "IGRA",
+        "QuantiFERON-TB",
+        "Quantiferon"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "intradermoreaction-a-la-tuberculine",
+      "name": "Intradermoréaction à la tuberculine",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Intradermique (test cutané)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-mycobacterium-tuberculosis",
+      "name": "PCR Mycobacterium tuberculosis",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Crachats / prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-de-baar",
+      "name": "Recherche de BAAR",
+      "categories": [
+        "tuberculose-mycobacteriologie",
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "BAAR",
+        "Bacilles acido-alcoolo-résistants",
+        "BK"
+      ],
+      "specimenType": "Crachats / prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-de-sensibilite-aux-antituberculeux",
+      "name": "Test de sensibilité aux antituberculeux",
+      "categories": [
+        "tuberculose-mycobacteriologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Culture",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "concentration-parasitaire",
+      "name": "Concentration parasitaire",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cryptosporidium",
+      "name": "Cryptosporidium",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cyclospora",
+      "name": "Cyclospora",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "examen-direct-des-selles",
+      "name": "Examen direct des selles",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "examen-parasitologique-des-selles",
+      "name": "Examen parasitologique des selles",
+      "categories": [
+        "parasitologie",
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "frottis-sanguin-pour-plasmodium",
+      "name": "Frottis sanguin pour Plasmodium",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "giardia",
+      "name": "Giardia",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "oxyures-scotch-test",
+      "name": "Oxyures / Scotch test",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement péri-anal",
+      "preparation": "Prélèvement péri-anal le matin avant toilette",
+      "active": true
+    },
+    {
+      "id": "recherche-dentamoeba-histolytica",
+      "name": "Recherche d'Entamoeba histolytica",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-d-ufs-et-parasites",
+      "name": "Recherche d'œufs et parasites",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "schistosoma",
+      "name": "Schistosoma",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "strongyloides",
+      "name": "Strongyloides",
+      "categories": [
+        "parasitologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "antigene-cryptococcique",
+      "name": "Antigène cryptococcique",
+      "categories": [
+        "mycologie",
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "aspergillus-galactomannane",
+      "name": "Aspergillus / Galactomannane",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cryptococcus",
+      "name": "Cryptococcus",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-fongique",
+      "name": "Culture fongique",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "examen-mycologique-direct",
+      "name": "Examen mycologique direct",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement cutané / phanères",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-de-candida",
+      "name": "Recherche de Candida",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-de-dermatophytes",
+      "name": "Recherche de dermatophytes",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement cutané / phanères",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "beta-d-glucane",
+      "name": "β-D-glucane",
+      "categories": [
+        "mycologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cd4",
+      "name": "CD4",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cd8",
+      "name": "CD8",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "charge-virale-vih-arn",
+      "name": "Charge virale VIH (ARN)",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CV VIH",
+        "ARN VIH",
+        "HIV viral load"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "genotypage-de-resistance-du-vih",
+      "name": "Génotypage de résistance du VIH",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Génotypage VIH",
+        "Test de résistance VIH"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ratio-cd4-cd8",
+      "name": "Ratio CD4/CD8",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "serologie-vih-1-2",
+      "name": "Sérologie VIH 1/2",
+      "categories": [
+        "vih",
+        "infections-sexuellement-transmissibles",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-de-confirmation-vih",
+      "name": "Test de confirmation VIH",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-rapide-vih",
+      "name": "Test rapide VIH",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TDR VIH",
+        "HIV rapid test"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-vih-ag-ac-4e-generation",
+      "name": "Test VIH Ag/Ac 4e génération",
+      "categories": [
+        "vih"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "VIH combo",
+        "HIV Ag/Ab 4e génération",
+        "Duo VIH"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "adn-vhb-charge-virale-hbv",
+      "name": "ADN VHB / charge virale HBV",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [
+        "ADN VHB",
+        "Charge virale VHB",
+        "HBV DNA"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hav-igg",
+      "name": "Anti-HAV IgG",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite A",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hav-igm",
+      "name": "Anti-HAV IgM",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite A",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hbc-igm",
+      "name": "Anti-HBc IgM",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hbc-total",
+      "name": "Anti-HBc total",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [
+        "Ac anti-HBc total"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hbe",
+      "name": "Anti-HBe",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hbs",
+      "name": "Anti-HBs",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [
+        "Ac anti-HBs"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hcv",
+      "name": "Anti-HCV",
+      "categories": [
+        "hepatites-virales",
+        "examens-prenataux"
+      ],
+      "subcategory": "Hépatite C",
+      "aliases": [
+        "Ac anti-VHC",
+        "Sérologie hépatite C"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hdv",
+      "name": "Anti-HDV",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite D",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hev-igg",
+      "name": "Anti-HEV IgG",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite E",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-hev-igm",
+      "name": "Anti-HEV IgM",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite E",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "arn-hdv",
+      "name": "ARN HDV",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite D",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "arn-vhc-charge-virale-hcv",
+      "name": "ARN VHC / charge virale HCV",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite C",
+      "aliases": [
+        "ARN VHC",
+        "Charge virale VHC",
+        "HCV RNA"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "genotypage-vhc",
+      "name": "Génotypage VHC",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite C",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hbeag",
+      "name": "HBeAg",
+      "categories": [
+        "hepatites-virales"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hbsag",
+      "name": "HBsAg",
+      "categories": [
+        "hepatites-virales",
+        "examens-prenataux"
+      ],
+      "subcategory": "Hépatite B",
+      "aliases": [
+        "Antigène HBs",
+        "Ag HBs"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-gonocoque",
+      "name": "Culture gonocoque",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fta-abs",
+      "name": "FTA-ABS",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "genotypage-hpv",
+      "name": "Génotypage HPV",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement cervical",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hpv",
+      "name": "HPV",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement cervical",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hsv-1",
+      "name": "HSV-1",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hsv-2",
+      "name": "HSV-2",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "mycoplasma-genitalium",
+      "name": "Mycoplasma genitalium",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "mycoplasma-hominis",
+      "name": "Mycoplasma hominis",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-chlamydia-trachomatis",
+      "name": "PCR Chlamydia trachomatis",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-herpes",
+      "name": "PCR Herpès",
+      "categories": [
+        "infections-sexuellement-transmissibles",
+        "liquide-cephalorachidien-lcr",
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-neisseria-gonorrhoeae",
+      "name": "PCR Neisseria gonorrhoeae",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "rpr",
+      "name": "RPR",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Rapid plasma reagin"
+      ],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tpha-tppa",
+      "name": "TPHA / TPPA",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TPHA",
+        "TPPA",
+        "Syphilis TPHA"
+      ],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "trichomonas-vaginalis",
+      "name": "Trichomonas vaginalis",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement vaginal",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ureaplasma-urealyticum",
+      "name": "Ureaplasma urealyticum",
+      "categories": [
+        "infections-sexuellement-transmissibles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vdrl",
+      "name": "VDRL",
+      "categories": [
+        "infections-sexuellement-transmissibles",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Syphilis VDRL",
+        "Réagine"
+      ],
+      "specimenType": "Prélèvement génital / sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "antigene-h-pylori-dans-les-selles",
+      "name": "Antigène H. pylori dans les selles",
+      "categories": [
+        "serologies-infectieuses",
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "aslo",
+      "name": "ASLO",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Antistreptolysine O",
+        "ASO"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "brucellose",
+      "name": "Brucellose",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "chikungunya",
+      "name": "Chikungunya",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cmv-igg-igm",
+      "name": "CMV IgG/IgM",
+      "categories": [
+        "serologies-infectieuses",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "dengue-igm-igg",
+      "name": "Dengue IgM/IgG",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "dengue-ns1",
+      "name": "Dengue NS1",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ebv",
+      "name": "EBV",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "helicobacter-pylori-igg",
+      "name": "Helicobacter pylori IgG",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Sérologie H. pylori"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hsv-1-igg-igm",
+      "name": "HSV-1 IgG/IgM",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hsv-2-igg-igm",
+      "name": "HSV-2 IgG/IgM",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "leptospirose",
+      "name": "Leptospirose",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "rubeole-igg-igm",
+      "name": "Rubéole IgG/IgM",
+      "categories": [
+        "serologies-infectieuses",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "salmonella-widal",
+      "name": "Salmonella / Widal",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Widal",
+        "Sérodiagnostic de Widal",
+        "Widal et Félix"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "toxoplasmose-igg-igm",
+      "name": "Toxoplasmose IgG/IgM",
+      "categories": [
+        "serologies-infectieuses",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "zika",
+      "name": "Zika",
+      "categories": [
+        "serologies-infectieuses"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ana-fan",
+      "name": "ANA / FAN",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FAN",
+        "ANA",
+        "Anticorps antinucléaires"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anca",
+      "name": "ANCA",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-ccp",
+      "name": "Anti-CCP",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "ACPA",
+        "Anti-peptides citrullinés"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-centromere",
+      "name": "Anti-centromère",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-dsdna",
+      "name": "Anti-dsDNA",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Anti-ADN natif",
+        "Anti-DNA"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-jo-1",
+      "name": "Anti-Jo-1",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-mpo",
+      "name": "Anti-MPO",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-pr3",
+      "name": "Anti-PR3",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-rnp",
+      "name": "Anti-RNP",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-scl-70",
+      "name": "Anti-Scl-70",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-sm",
+      "name": "Anti-Sm",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-ssa-ro",
+      "name": "Anti-SSA/Ro",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-ssb-la",
+      "name": "Anti-SSB/La",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anti-beta2-glycoproteine-i",
+      "name": "Anti-β2 glycoprotéine I",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anticardiolipines",
+      "name": "Anticardiolipines",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "anticorps-antiphospholipides",
+      "name": "Anticorps antiphospholipides",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "APL",
+        "SAPL bilan"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "c-anca",
+      "name": "c-ANCA",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "c3",
+      "name": "C3",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "c4",
+      "name": "C4",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ch50",
+      "name": "CH50",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "facteur-rhumatoide-fr",
+      "name": "Facteur rhumatoïde (FR)",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FR",
+        "Latex-Waaler-Rose"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ige-totale",
+      "name": "IgE totale",
+      "categories": [
+        "immunologie-maladies-auto-immunes",
+        "allergologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "IgE"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "immunoglobulines-igg-iga-igm",
+      "name": "Immunoglobulines IgG, IgA, IgM",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Dosage pondéral des immunoglobulines",
+        "IgG IgA IgM"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "p-anca",
+      "name": "p-ANCA",
+      "categories": [
+        "immunologie-maladies-auto-immunes"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "eosinophiles",
+      "name": "Éosinophiles",
+      "categories": [
+        "allergologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ige-specifiques",
+      "name": "IgE spécifiques",
+      "categories": [
+        "allergologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "panel-allergenes-alimentaires",
+      "name": "Panel allergènes alimentaires",
+      "categories": [
+        "allergologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "panel-allergenes-respiratoires",
+      "name": "Panel allergènes respiratoires",
+      "categories": [
+        "allergologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tryptase",
+      "name": "Tryptase",
+      "categories": [
+        "allergologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cross-match-epreuve-de-compatibilite",
+      "name": "Cross-match / Épreuve de compatibilité",
+      "categories": [
+        "groupage-sanguin-banque-de-sang"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "depistage-danticorps-irreguliers",
+      "name": "Dépistage d'anticorps irréguliers",
+      "categories": [
+        "groupage-sanguin-banque-de-sang"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "groupe-abo",
+      "name": "Groupe ABO",
+      "categories": [
+        "groupage-sanguin-banque-de-sang",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Groupe sanguin",
+        "ABO"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "phenotypage-rh-kell",
+      "name": "Phénotypage Rh/Kell",
+      "categories": [
+        "groupage-sanguin-banque-de-sang"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-dagglutinines-irregulieres-rai",
+      "name": "Recherche d’agglutinines irrégulières (RAI)",
+      "categories": [
+        "groupage-sanguin-banque-de-sang",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "rhesus-d",
+      "name": "Rhésus D",
+      "categories": [
+        "groupage-sanguin-banque-de-sang"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Rh",
+        "Rhésus",
+        "RhD"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-de-coombs-direct",
+      "name": "Test de Coombs direct",
+      "categories": [
+        "groupage-sanguin-banque-de-sang"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TCD",
+        "Coombs direct",
+        "Test à l’antiglobuline direct"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-de-coombs-indirect",
+      "name": "Test de Coombs indirect",
+      "categories": [
+        "groupage-sanguin-banque-de-sang"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TCI",
+        "Coombs indirect"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "afp",
+      "name": "AFP",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Alpha-fœtoprotéine"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ca-125",
+      "name": "CA 125",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CA-125"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ca-15-3",
+      "name": "CA 15-3",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CA15-3"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ca-19-9",
+      "name": "CA 19-9",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CA19-9"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cea",
+      "name": "CEA",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Antigène carcino-embryonnaire",
+        "ACE"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "chromogranine-a",
+      "name": "Chromogranine A",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cyfra-21-1",
+      "name": "CYFRA 21-1",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "he4",
+      "name": "HE4",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "nse",
+      "name": "NSE",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Énolase neurone-spécifique"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "psa-libre",
+      "name": "PSA libre",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "psa-total",
+      "name": "PSA total",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Antigène prostatique spécifique"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "scc-antigen",
+      "name": "SCC antigen",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "beta-hcg",
+      "name": "β-hCG",
+      "categories": [
+        "marqueurs-tumoraux",
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "HCG",
+        "Gonadotrophine chorionique"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "beta2-microglobuline",
+      "name": "β2-microglobuline",
+      "categories": [
+        "marqueurs-tumoraux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "β2-microglobuline",
+        "B2M"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "calprotectine-fecale",
+      "name": "Calprotectine fécale",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Calprotectine"
+      ],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "elastase-pancreatique-fecale",
+      "name": "Élastase pancréatique fécale",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "examen-complet-des-selles",
+      "name": "Examen complet des selles",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "graisses-fecales",
+      "name": "Graisses fécales",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "lactoferrine-fecale",
+      "name": "Lactoferrine fécale",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ph-des-selles",
+      "name": "pH des selles",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "sang-occulte-dans-les-selles",
+      "name": "Sang occulte dans les selles",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Recherche de sang dans les selles",
+        "FOBT"
+      ],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "test-immunologique-fecal-fit",
+      "name": "Test immunologique fécal (FIT)",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FIT",
+        "iFOBT"
+      ],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "toxine-clostridioides-difficile",
+      "name": "Toxine Clostridioides difficile",
+      "categories": [
+        "gastro-enterologie-selles"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Selles",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "base-excess",
+      "name": "Base excess",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang artériel",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "carboxyhemoglobine",
+      "name": "Carboxyhémoglobine",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "gaz-du-sang-arteriel",
+      "name": "Gaz du sang artériel",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "GDS",
+        "Gazométrie artérielle",
+        "ABG"
+      ],
+      "specimenType": "Sang artériel",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "gaz-du-sang-veineux",
+      "name": "Gaz du sang veineux",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang veineux",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hco3",
+      "name": "HCO₃⁻",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang artériel",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "lactate",
+      "name": "Lactate",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "methemoglobine",
+      "name": "Méthémoglobine",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "paco2",
+      "name": "PaCO₂",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang artériel",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pao2",
+      "name": "PaO₂",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang artériel",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "ph-gaz-du-sang",
+      "name": "pH (gaz du sang)",
+      "categories": [
+        "gaz-du-sang-urgences",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang artériel",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "saturation-o2",
+      "name": "Saturation O₂",
+      "categories": [
+        "gaz-du-sang-urgences"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "acetaminophene-paracetamol",
+      "name": "Acétaminophène / Paracétamol",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Paracétamolémie",
+        "Acétaminophène",
+        "Tylenol"
+      ],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "alcoolemie",
+      "name": "Alcoolémie",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "amphetamines",
+      "name": "Amphétamines",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "barbituriques",
+      "name": "Barbituriques",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "benzodiazepines",
+      "name": "Benzodiazépines",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cannabis-thc",
+      "name": "Cannabis / THC",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "THC",
+        "Cannabis"
+      ],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "carbamazepine",
+      "name": "Carbamazépine",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cocaine",
+      "name": "Cocaïne",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "depistage-urinaire-de-drogues",
+      "name": "Dépistage urinaire de drogues",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Screening toxicologique urinaire",
+        "Tox urinaire"
+      ],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "digoxine",
+      "name": "Digoxine",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fentanyl",
+      "name": "Fentanyl",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "lithium",
+      "name": "Lithium",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "methadone",
+      "name": "Méthadone",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "methamphetamines",
+      "name": "Méthamphétamines",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "opiaces",
+      "name": "Opiacés",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "phenytoine",
+      "name": "Phénytoïne",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "salicylates",
+      "name": "Salicylates",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "valproate",
+      "name": "Valproate",
+      "categories": [
+        "toxicologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cuivre",
+      "name": "Cuivre",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "selenium",
+      "name": "Sélénium",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-a",
+      "name": "Vitamine A",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-b1",
+      "name": "Vitamine B1",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-b6",
+      "name": "Vitamine B6",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-d-25-oh",
+      "name": "Vitamine D (25-OH)",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "25-OH-vitamine D",
+        "25(OH)D",
+        "Calcidiol"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-e",
+      "name": "Vitamine E",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "vitamine-k",
+      "name": "Vitamine K",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "zinc",
+      "name": "Zinc",
+      "categories": [
+        "vitamines-et-micronutriments"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "bence-jones",
+      "name": "Bence-Jones",
+      "categories": [
+        "proteines-electrophorese"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Protéinurie de Bence-Jones",
+        "Chaînes légères urinaires"
+      ],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "chaines-legeres-libres-kappa-lambda",
+      "name": "Chaînes légères libres kappa/lambda",
+      "categories": [
+        "proteines-electrophorese"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FLC",
+        "Chaînes légères libres sériques"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "electrophorese-des-proteines-seriques",
+      "name": "Électrophorèse des protéines sériques",
+      "categories": [
+        "proteines-electrophorese"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "EPS",
+        "EPP",
+        "Électrophorèse des protéines"
+      ],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "electrophorese-des-proteines-urinaires",
+      "name": "Électrophorèse des protéines urinaires",
+      "categories": [
+        "proteines-electrophorese"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "immunofixation",
+      "name": "Immunofixation",
+      "categories": [
+        "proteines-electrophorese"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang (sérum)",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cytologie-du-lcr",
+      "name": "Cytologie du LCR",
+      "categories": [
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "glycorachie",
+      "name": "Glycorachie",
+      "categories": [
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "numeration-cellulaire",
+      "name": "Numération cellulaire",
+      "categories": [
+        "liquide-cephalorachidien-lcr",
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR / liquide biologique",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-bacterienne-virale",
+      "name": "PCR bactérienne/virale",
+      "categories": [
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-meningocoque",
+      "name": "PCR méningocoque",
+      "categories": [
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-pneumocoque",
+      "name": "PCR pneumocoque",
+      "categories": [
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "proteinorachie",
+      "name": "Protéinorachie",
+      "categories": [
+        "liquide-cephalorachidien-lcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "LCR",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "amylase",
+      "name": "Amylase",
+      "categories": [
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Liquide biologique",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "culture-liquide-biologique",
+      "name": "Culture (liquide biologique)",
+      "categories": [
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Liquide biologique",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cytologie",
+      "name": "Cytologie",
+      "categories": [
+        "autres-liquides-biologiques",
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Cellules",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "glucose",
+      "name": "Glucose",
+      "categories": [
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Liquide biologique",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "recherche-de-cristaux",
+      "name": "Recherche de cristaux",
+      "categories": [
+        "autres-liquides-biologiques"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Liquide articulaire",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "panels-gastro-intestinaux-multiplex",
+      "name": "Panels gastro-intestinaux multiplex",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "panels-meningite-encephalite",
+      "name": "Panels méningite/encéphalite",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "panels-respiratoires-multiplex",
+      "name": "Panels respiratoires multiplex",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-chlamydia",
+      "name": "PCR Chlamydia",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-cmv",
+      "name": "PCR CMV",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-ebv",
+      "name": "PCR EBV",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-gonocoque",
+      "name": "PCR Gonocoque",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-hpv",
+      "name": "PCR HPV",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-influenza",
+      "name": "PCR Influenza",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-mycoplasma",
+      "name": "PCR Mycoplasma",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-rsv",
+      "name": "PCR RSV",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-sars-cov-2",
+      "name": "PCR SARS-CoV-2",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "PCR COVID",
+        "RT-PCR SARS-CoV-2",
+        "COVID-19 PCR"
+      ],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-tuberculose",
+      "name": "PCR Tuberculose",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-vhb",
+      "name": "PCR VHB",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-vhc",
+      "name": "PCR VHC",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-vih",
+      "name": "PCR VIH",
+      "categories": [
+        "biologie-moleculaire-pcr"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Prélèvement selon cible",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "caryotype",
+      "name": "Caryotype",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Analyse chromosomique"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "exome",
+      "name": "Exome",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "facteur-v-leiden",
+      "name": "Facteur V Leiden",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Mutation FV Leiden",
+        "RPCa"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "fish",
+      "name": "FISH",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Hybridation in situ en fluorescence"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "genome",
+      "name": "Génome",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "hla-b27",
+      "name": "HLA-B27",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "mutation-prothrombine-g20210a",
+      "name": "Mutation prothrombine G20210A",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "FII G20210A",
+        "Mutation facteur II"
+      ],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "panels-de-genes",
+      "name": "Panels de gènes",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "pcr-genetique",
+      "name": "PCR génétique",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "sequencage-cible",
+      "name": "Séquençage ciblé",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tests-de-paternite-adn",
+      "name": "Tests de paternité / ADN",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tests-de-thrombophilie-genetique",
+      "name": "Tests de thrombophilie génétique",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "tests-genetiques-prenataux",
+      "name": "Tests génétiques prénataux",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "typage-hla",
+      "name": "Typage HLA",
+      "categories": [
+        "genetique-cytogenetique"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "analyse-durine",
+      "name": "Analyse d'urine",
+      "categories": [
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "depistage-du-diabete-gestationnel",
+      "name": "Dépistage du diabète gestationnel",
+      "categories": [
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "O’Sullivan",
+        "HGPO 75 g grossesse"
+      ],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "depistage-prenatal-chromosomique-dpni",
+      "name": "Dépistage prénatal chromosomique / DPNI",
+      "categories": [
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "DPNI",
+        "NIPT",
+        "Test ADN fœtal libre"
+      ],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "streptocoque-du-groupe-b",
+      "name": "Streptocoque du groupe B",
+      "categories": [
+        "examens-prenataux"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SGB",
+        "Strepto B",
+        "Prélèvement vaginal SGB"
+      ],
+      "specimenType": "Sang / urine",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "analyse-anatomopathologique-de-pieces-operatoires",
+      "name": "Analyse anatomopathologique de pièces opératoires",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Pièce opératoire",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "biopsie-avec-examen-histopathologique",
+      "name": "Biopsie avec examen histopathologique",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "biopsie-cutanee",
+      "name": "Biopsie cutanée",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "biopsie-digestive",
+      "name": "Biopsie digestive",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "biopsie-ganglionnaire",
+      "name": "Biopsie ganglionnaire",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "biopsie-mammaire",
+      "name": "Biopsie mammaire",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "biopsie-prostatique",
+      "name": "Biopsie prostatique",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "cytoponction",
+      "name": "Cytoponction",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Cytoponction",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "frottis-cervico-uterin-pap-test",
+      "name": "Frottis cervico-utérin / Pap test",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Pap test",
+        "Frottis cervical",
+        "Cytologie cervico-utérine"
+      ],
+      "specimenType": "Prélèvement cervico-utérin",
+      "preparation": null,
+      "active": true
+    },
+    {
+      "id": "immunohistochimie",
+      "name": "Immunohistochimie",
+      "categories": [
+        "anatomopathologie-cytologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "specimenType": "Tissu",
+      "preparation": null,
+      "active": true
+    }
+  ]
+}

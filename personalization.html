@@ -8,7 +8,8 @@
   <meta name="description" content="Creez votre t-shirt ou votre tasse personnalisee: ajoutez texte, image ou illustration, visualisez le resultat en 3D et commandez en ligne.">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="./site-foundation.css?v=20260816-3">
-  <link rel="stylesheet" href="./personalization.css?v=20260827-4">
+  <link rel="stylesheet" href="./personalization-header.css?v=20260828-1">
+  <link rel="stylesheet" href="./personalization.css?v=20260828-1">
   <script type="importmap">
     {
       "imports": {
@@ -32,9 +33,7 @@
       padding: .65rem .75rem 1.25rem;
     }
     @media (max-width: 1023px) {
-      #personalization-root {
-        padding-top: calc(var(--header-height-mobile, 92px) + .55rem);
-      }
+      #personalization-root { padding-top: .55rem; }
     }
     @media (max-width: 640px) {
       #personalization-root {
@@ -49,12 +48,10 @@
   </style>
 </head>
 <body>
-  <div id="sierra-header-root"></div>
+  <div id="personalization-header-root"></div>
   <main id="personalization-root">
     <div class="pz-boot-loading"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Chargement du studio de personnalisation...</div>
   </main>
-  <div id="sierra-footer-root"></div>
-
   <script type="module">
     import './firebase-init.js';
 
@@ -73,16 +70,8 @@
       }
     };
 
-    mount('sierra-header-root', () => import('./header.js?v=20260714-1'));
-    mount('personalization-root', () => import('./personalization.js?v=20260825-1'));
-    mount('sierra-footer-root', () => import('./footer.js'), {
-      imageBasePath: './',
-      showSocial: true,
-      showContact: true,
-      showInfos: true,
-      showPayments: true,
-      showCopyright: true
-    });
+    mount('personalization-header-root', () => import('./personalization-header.js?v=20260828-1'));
+    mount('personalization-root', () => import('./personalization.js?v=20260828-1'));
   </script>
 </body>
 </html>

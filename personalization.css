@@ -340,7 +340,7 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     position: sticky;
-    top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + 0.35rem);
+    top: calc(64px + 0.35rem);
     z-index: 5;
     background: var(--pz-ivory);
     padding: 0.5rem;
@@ -402,6 +402,7 @@
   background: var(--sc-navy, #131921);
   border-radius: 10px;
 }
+.pz-workbar { top: calc(64px + .35rem); }
 .pz-workbar-main, .pz-workbar-actions { display: flex; align-items: center; gap: .45rem; }
 .pz-workbar-main > div { display: grid; gap: .05rem; }
 .pz-workbar-main span { color: rgba(255,255,255,.62); font-size: .62rem; letter-spacing: .07em; text-transform: uppercase; }
@@ -522,7 +523,7 @@
 @media (max-width: 1100px) {
   .pz-app { grid-template-columns: 1fr; grid-template-areas: "workbar" "steps" "left" "center" "right" "bottom"; }
   .pz-mobile-steps { grid-area: steps; }
-  .pz-workbar { position: sticky; top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + .25rem); z-index: 10; }
+  .pz-workbar { position: sticky; top: calc(64px + .25rem); z-index: 10; }
   .pz-save-state, .pz-workbar .pz-btn.ghost { display: none; }
   .pz-col-left, .pz-col-right { max-height: none; overflow: visible; }
   .pz-viewer { height: min(58vh, 560px); min-height: 360px; }
@@ -536,7 +537,7 @@
   .pz-workbar { border-radius: 0; margin-inline: -.75rem; padding-inline: .65rem; }
   .pz-workbar-main span, .pz-workbar-actions .pz-icon-action { display: none; }
   .pz-workbar .pz-btn.compact { padding-inline: .65rem; }
-  .pz-mobile-steps { top: calc(var(--announce-height, 44px) + var(--header-height-mobile, 70px) + 3.85rem); grid-template-columns: repeat(3, 1fr); border-radius: 8px; }
+  .pz-mobile-steps { top: calc(64px + 3.85rem); grid-template-columns: repeat(3, 1fr); border-radius: 8px; }
   .pz-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pz-viewer-head { align-items: stretch; flex-direction: column; gap: .5rem; }
   .pz-view-switch { width: 100%; }
@@ -582,7 +583,7 @@
 
   .pz-workbar {
     position: sticky;
-    top: var(--header-height-mobile, 92px);
+    top: 64px;
     margin-inline: -.5rem;
     padding: .45rem .6rem;
     border-radius: 0;
@@ -594,7 +595,7 @@
   .pz-workbar .pz-btn.compact { min-height: 40px; padding-inline: .75rem; white-space: nowrap; }
 
   .pz-mobile-steps {
-    top: calc(var(--header-height-mobile, 92px) + 3.5rem);
+    top: calc(64px + 3.5rem);
     gap: .25rem;
     padding: .4rem;
     border-radius: 9px;

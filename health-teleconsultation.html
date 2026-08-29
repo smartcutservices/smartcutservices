@@ -17,8 +17,8 @@
   <script type="module">
     import './firebase-init.js';
     const mount=async(id,loader,options={})=>{const root=document.getElementById(id);if(!root)return;try{const mod=await loader();new mod.default(id,options)}catch(error){console.error(`Erreur ${id}:`,error);root.innerHTML='<div class="health-empty">Chargement impossible.</div>'}};
-    mount('health-header-root',()=>import('./health-header.js?v=20260827-3'));
-    mount('health-teleconsultation-root',()=>import('./health-teleconsultation.js?v=20260827-1'));
+    mount('health-header-root',()=>import('./health-header.js?v=20260828-1'));
+    mount('health-teleconsultation-root',()=>import('./health-teleconsultation.js?v=20260828-1'));
     mount('sierra-footer-root',()=>import('./footer.js'),{imageBasePath:'./',showSocial:true,showContact:true,showInfos:true,showPayments:true,showCopyright:true});
   </script>
 </body>

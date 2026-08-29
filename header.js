@@ -7,6 +7,10 @@ import { getAuthManager } from './auth.js?v=20260523-6';
 import { getProfilePanel } from './profile-panel.js?v=20260525-6';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
+import { applyNavPreference } from './nav-preference.js?v=20260828-1';
+
+// Rangée de navlinks personnalisable : le dernier lien ouvert repasse en tête.
+const MAIN_NAV_PREF_KEY = 'sc:navOrder:main:v1';
 
 class SierraHeaderNebula {
   constructor(containerId = 'sierra-header-root') {
@@ -1251,6 +1255,18 @@ class SierraHeaderNebula {
         </div>
       </div>
     `;
+
+    // Réordonne les liens de service (desktop + mobile) selon les préférences
+    // de l'utilisateur. Le bouton « Catégories » et le lien « Accueil » ne sont
+    // pas concernés : ils sont hors des conteneurs ciblés.
+    applyNavPreference(headerRoot.querySelector('.desktop-nav-items'), {
+      key: MAIN_NAV_PREF_KEY,
+      linkSelector: 'a.desktop-nav-action',
+    });
+    applyNavPreference(headerRoot.querySelector('.mobile-nav-items'), {
+      key: MAIN_NAV_PREF_KEY,
+      linkSelector: 'a.mobile-nav-item',
+    });
   }
 
   async init() {

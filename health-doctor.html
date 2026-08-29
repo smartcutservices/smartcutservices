@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Espace médecin · Smart Cut Health</title>
+<link rel="stylesheet" href="./site-foundation.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --g:#0d7665;--g-dark:#0f2d29;--ink:#12302d;--muted:#5f7d77;
+  --bg:#eef3f2;--surface:#fff;--line:#e2ece9;
+  --shadow:0 10px 30px rgba(13,66,52,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple-system,Segoe UI,Arial,sans-serif}
+.muted{color:var(--muted)}
+
+/* --- Header professionnel (surcharge du header partagé, fond blanc) --- */
+#health-header-root{position:sticky;top:0;z-index:1000}
+#health-header-root .health-site-header{background:#fff!important;color:var(--ink)!important;border-bottom:1px solid var(--line);box-shadow:0 1px 3px rgba(16,40,45,.08)}
+#health-header-root .health-site-header__inner{width:auto;max-width:none;margin:0;padding:0 26px 0 22px}
+#health-header-root .health-site-header__brand{color:var(--ink)}
+#health-header-root .health-site-header__logo{box-shadow:none;border:1px solid var(--line);background:#fff}
+#health-header-root .health-site-header__name{color:var(--ink)}
+#health-header-root .health-site-header__label{color:var(--g)}
+#health-header-root .health-site-header__link{color:#4c655f}
+#health-header-root .health-site-header__link:hover,
+#health-header-root .health-site-header__link:focus-visible,
+#health-header-root .health-site-header__link.is-active{color:#0b3d35;background:#eef6f4}
+#health-header-root .health-site-header__link--back{color:#8aa39d}
+#health-header-root .health-site-header__menu{border-color:#cdddd8;color:var(--ink)}
+
+/* --- Coque dashboard --- */
+.dash{position:relative}
+.sidebar{position:fixed;left:0;top:70px;bottom:0;width:250px;background:var(--g-dark);
+  display:flex;flex-direction:column;gap:6px;padding:22px 14px;z-index:20;box-shadow:6px 0 24px rgba(8,39,33,.12)}
+.sidebar__label{margin:0 0 8px;padding:0 12px;color:#8fc3b8;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:11px;border:0;background:transparent;color:#cfe6e0;
+  text-align:left;border-radius:10px;padding:11px 12px;cursor:pointer;font:inherit;font-size:14px;font-weight:600}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button.active{background:#1b544a;color:#fff;font-weight:700}
+.nav__ico{width:20px;text-align:center;opacity:.85;font-size:13px;flex:0 0 auto}
+
+.account{margin-top:auto;display:grid;gap:10px;padding:14px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.09);border-radius:12px}
+.account__id{display:flex;gap:10px;align-items:center;min-width:0}
+.account__avatar{width:34px;height:34px;border-radius:9px;background:var(--g);color:#fff;display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+.account__meta{display:grid;gap:2px;min-width:0}
+.account__role{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:#8fc3b8;font-weight:800}
+.account__name{font-size:13px;color:#eaf5f1;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-logout{width:100%;border:1px solid rgba(255,255,255,.16);background:transparent;color:#d7ebe6;
+  border-radius:9px;padding:9px;font:inherit;font-weight:700;cursor:pointer}
+.btn-logout:hover{background:rgba(255,255,255,.1);color:#fff}
+
+.content{margin-left:250px;padding:30px 34px 70px;max-width:1210px}
+
+/* --- Notice en toast (n'occupe pas l'espace des modules) --- */
+.toast{position:fixed;top:86px;right:24px;z-index:900;max-width:360px;background:#fff;
+  border:1px solid var(--line);border-left:4px solid var(--g);border-radius:12px;padding:13px 16px;
+  font-size:13.5px;font-weight:600;color:var(--ink);box-shadow:0 16px 40px rgba(13,66,52,.16)}
+.toast:empty{display:none}
+
+/* --- Titres de module --- */
+.page-head{margin-bottom:20px}
+.page-head h1{margin:0;font-size:26px;letter-spacing:-.02em}
+.page-head p{margin:6px 0 0}
+
+/* --- Statistiques (uniquement dans la vue d'ensemble) --- */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
+.stat{position:relative;overflow:hidden}
+.stat__label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:#6c8982}
+.stat strong{display:block;font-size:30px;line-height:1.1;margin:9px 0 4px;letter-spacing:-.02em}
+.stat__hint{font-size:12px;color:#7c9a94}
+.stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--g)}
+.stat:nth-child(1)::before{background:#e2a53c}
+.stat:nth-child(2)::before{background:#0d7665}
+.stat:nth-child(3)::before{background:#3f7fd0}
+.stat:nth-child(4)::before{background:#5aa469}
+
+/* --- Cartes & panneaux --- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow)}
+.card + .card{margin-top:16px}
+.card__head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.card__head h2{margin:0;font-size:18px}
+.panel[hidden]{display:none!important}
+.panel h3{font-size:14px;margin:0 0 12px;color:#2b4a45}
+
+/* --- Listes --- */
+.appointment,.patient,.slot{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:14px 0;border-bottom:1px solid #edf2f0}
+.appointment:last-child,.patient:last-child,.slot:last-child{border:0}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#edf5f3;font-size:12px;font-weight:600;color:#2b4a45}
+.actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:end}
+.empty{color:#718a85;padding:18px 0}
+
+/* --- Boutons & formulaires --- */
+.btn{border:1px solid #bdd4ce;background:#fff;color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer;font:inherit;font-weight:600}
+.btn:hover{border-color:var(--g);color:var(--g)}
+.btn.primary{background:var(--g);border-color:var(--g);color:#fff}
+.btn.primary:hover{background:#0b6555;color:#fff}
+.btn.danger{color:#a33a32;border-color:#e5c8c4}
+.btn.danger:hover{border-color:#a33a32;color:#a33a32}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.form{display:grid;gap:12px}
+.form label{display:grid;gap:5px;font-size:13px;font-weight:700}
+.form input,.form textarea{width:100%;padding:10px 12px;border:1px solid #cbdcd8;border-radius:9px;font:inherit;background:#fff}
+.form input:focus,.form textarea:focus{outline:2px solid rgba(13,118,101,.25);border-color:var(--g)}
+
+@media(max-width:900px){
+  .sidebar{position:static;top:0;width:auto;flex-direction:row;align-items:center;flex-wrap:nowrap;
+    overflow-x:auto;gap:8px;padding:10px 12px;box-shadow:none}
+  .sidebar__label{display:none}
+  .sidebar .nav{flex-direction:row}
+  .nav button{white-space:nowrap}
+  .account{margin:0 0 0 auto;padding:6px 0;background:transparent;border:0;grid-auto-flow:column;align-items:center}
+  .account__id{display:none}
+  .btn-logout{width:auto;padding:9px 12px;white-space:nowrap}
+  .content{margin-left:0;padding:22px 16px 60px}
+  .toast{top:auto;bottom:16px;right:12px;left:12px;max-width:none}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .split{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="health-header-root"></div>
+
+<div class="dash">
+  <aside class="sidebar">
+    <p class="sidebar__label">Espace médecin</p>
+    <nav class="nav" aria-label="Navigation espace médecin">
+      <button class="active" data-tab="overview"><span class="nav__ico">⌂</span>Vue d’ensemble</button>
+      <button data-tab="consultations"><span class="nav__ico">◷</span>Consultations</button>
+      <button data-tab="agenda"><span class="nav__ico">▦</span>Agenda</button>
+      <button data-tab="patients"><span class="nav__ico">♟</span>Patients</button>
+      <button data-tab="wallet"><span class="nav__ico">◈</span>Revenus</button>
+      <button data-tab="profile"><span class="nav__ico">◎</span>Profil</button>
+    </nav>
+    <div class="account">
+      <div class="account__id">
+        <span class="account__avatar" aria-hidden="true"><i class="fas fa-user-doctor"></i></span>
+        <span class="account__meta">
+          <span class="account__role">Médecin vérifié</span>
+          <span id="doctorName" class="account__name">Chargement du profil…</span>
+        </span>
+      </div>
+      <button class="btn-logout" id="logout">Se déconnecter</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <div id="notice" class="toast" role="status" aria-live="polite"></div>
+
+    <section class="panel" id="overview">
+      <div class="page-head">
+        <h1>Vue d’ensemble</h1>
+        <p class="muted">Suivi de votre activité médicale en temps réel.</p>
+      </div>
+      <div class="stats">
+        <div class="card stat">
+          <span class="stat__label">À traiter</span>
+          <strong id="pending">—</strong>
+          <span class="stat__hint">Demandes en attente</span>
+        </div>
+        <div class="card stat">
+          <span class="stat__label">Aujourd’hui</span>
+          <strong id="today">—</strong>
+          <span class="stat__hint">Consultations planifiées</span>
+        </div>
+        <div class="card stat">
+          <span class="stat__label">Patients</span>
+          <strong id="patientsCount">—</strong>
+          <span class="stat__hint">Dossiers suivis</span>
+        </div>
+        <div class="card stat">
+          <span class="stat__label">Revenus estimés</span>
+          <strong id="revenue">—</strong>
+          <span class="stat__hint">Après validation des présences</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card__head"><h2>Prochaines consultations</h2></div>
+        <div id="overviewList">Chargement…</div>
+      </div>
+    </section>
+
+    <section class="card panel" id="consultations" hidden>
+      <div class="card__head"><h2>Consultations</h2></div>
+      <div id="appointments">Chargement…</div>
+    </section>
+
+    <section class="card panel" id="agenda" hidden>
+      <div class="card__head"><h2>Agenda</h2></div>
+      <div class="split">
+        <div>
+          <h3>Publier un créneau</h3>
+          <form id="slotForm" class="form">
+            <label>Début<input id="startsAt" type="datetime-local" required></label>
+            <label>Fin<input id="endsAt" type="datetime-local" required></label>
+            <button class="btn primary" type="submit">Publier le créneau</button>
+          </form>
+        </div>
+        <div>
+          <h3>Créneaux actifs</h3>
+          <div id="slots">Chargement…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel" id="patients" hidden>
+      <div class="card__head"><h2>Patients suivis</h2></div>
+      <div id="patientsList">Chargement…</div>
+    </section>
+
+    <section class="card panel" id="wallet" hidden>
+      <div class="card__head"><h2>Revenus</h2></div>
+      <p class="muted">Les revenus sont crédités uniquement après démarrage effectif de la consultation.</p>
+      <div id="walletSummary"></div>
+    </section>
+
+    <section class="card panel" id="profile" hidden>
+      <div class="card__head"><h2>Profil professionnel</h2></div>
+      <div id="profileSummary">Chargement…</div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import SmartCutHealthHeader from './health-header.js';
+new SmartCutHealthHeader('health-header-root');
+import './health-doctor.js';
+</script>
+</body>
+</html>
