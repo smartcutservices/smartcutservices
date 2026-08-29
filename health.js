@@ -48,13 +48,11 @@ class SmartCutHealth {
       return;
     }
     this.root.innerHTML = `<div class="health-shell">
-      <section class="health-hero"><div class="health-wrap">
-        <span class="health-eyebrow"><i class="fas fa-shield-heart"></i> Smart Cut Health</span>
+      <section class="health-hero"><div class="health-wrap health-hero-layout"><div class="health-hero-copy">
         <h1>Votre santé, plus accessible.</h1>
-        <p>Un espace clair pour accéder aux pharmacies, transmettre une ordonnance privée et organiser vos rendez-vous auprès de partenaires vérifiés.</p>
+        <p>Pharmacies, ordonnances et consultations vérifiées. <span class="health-privacy-inline"><i class="fas fa-lock"></i> Données privées et protégées.</span></p>
         <div class="health-hero-actions"><a class="health-btn health-btn-link primary" href="./health-teleconsultation.html">Consulter un médecin</a><a class="health-btn health-btn-link health-btn-ghost" href="./health-pharmacie.html">Trouver un médicament</a><a class="health-btn health-btn-link health-btn-ghost" href="./health-ordonnance.html">Envoyer une ordonnance</a></div>
-        <div class="health-privacy"><i class="fas fa-lock"></i> Les ordonnances et résultats ne sont jamais publiés dans le catalogue.</div>
-      </div></section>
+      </div><div class="health-hero-visual health-art-home"><img src="./assets/health/home-health-visual-v2.png" alt="Espace santé sécurisé" loading="eager"></div></div></section>
       <section class="health-home-statement"><div class="health-wrap"><span>Parcours confidentiel</span><h2>Chaque besoin possède désormais son propre espace.</h2><p>Utilisez la navigation pour accéder directement au service recherché, sans parcourir une page surchargée.</p></div></section>
       <div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation et les opérations. Il ne fournit aucun diagnostic automatique et ne remplace pas un avis médical. En cas d’urgence, contactez les services d’urgence disponibles dans votre zone.</div></div>
     </div>`;
@@ -62,14 +60,50 @@ class SmartCutHealth {
 
   renderStandalone() {
     const views = {
-      pharmacy: { icon:'fa-prescription-bottle-medical', eyebrow:'Pharmacie', title:'Trouvez ce dont vous avez besoin.', copy:'Recherchez un médicament dans les stocks déclarés par les pharmacies partenaires vérifiées.' },
-      prescription: { icon:'fa-file-shield', eyebrow:'Ordonnance privée', title:'Transmettez votre ordonnance en sécurité.', copy:'Une photo ou un PDF suffit. Votre document reste privé et son accès est strictement contrôlé.' },
-      doctors: { icon:'fa-user-doctor', eyebrow:'Médecins', title:'Choisissez un professionnel vérifié.', copy:'Consultez les spécialités et réservez uniquement parmi les créneaux réellement publiés.' },
-      labs: { icon:'fa-flask-vial', eyebrow:'Laboratoires', title:'Examens et laboratoires partenaires.', copy:'Comparez les examens publiés, leur tarif et les créneaux disponibles sans information inventée.' },
-      space: { icon:'fa-heart-pulse', eyebrow:'Espace personnel', title:'Votre parcours santé, au même endroit.', copy:'Suivez vos ordonnances, commandes, rendez-vous et résultats depuis un espace protégé.' },
-      professional: { icon:'fa-user-shield', eyebrow:'Espace professionnel', title:'Gérez votre activité Santé.', copy:'Candidature, disponibilité et opérations sont accessibles selon votre rôle vérifié.' }
+      pharmacy: { icon:'fa-prescription-bottle-medical', art:'pharmacy', eyebrow:'Pharmacie', title:'Vos soins, simplement.', copy:'Médicaments vérifiés, près de vous.' },
+      prescription: { icon:'fa-file-shield', art:'prescription', eyebrow:'Ordonnance privée', title:'Votre ordonnance, protégée.', copy:'Transmettez-la en quelques secondes.' },
+      doctors: { icon:'fa-user-doctor', art:'doctor', eyebrow:'Médecins', title:'Un médecin, quand vous en avez besoin.', copy:'Choisissez une spécialité et un créneau.' },
+      labs: { icon:'fa-flask-vial', art:'lab', eyebrow:'Laboratoires', title:'Vos examens, en confiance.', copy:'Trouvez un laboratoire vérifié.' },
+      space: { icon:'fa-heart-pulse', art:'space', eyebrow:'Espace personnel', title:'Tout votre parcours santé.', copy:'Vos documents et rendez-vous au même endroit.' },
+      professional: { icon:'fa-user-shield', art:'professional', eyebrow:'Espace professionnel', title:'Votre activité santé, structurée.', copy:'Un espace sécurisé pour vos opérations.' }
     };
     const page = views[this.view] || views.space;
+
+    if (this.view === 'pharmacy') {
+      this.root.innerHTML = `<div class="health-shell health-route health-route--pharmacy health-pharmacy">
+        <section class="pharmacy-head">
+          <div class="health-wrap pharmacy-head__inner">
+            <div class="pharmacy-head__intro">
+              <span class="health-eyebrow"><i class="fas fa-prescription-bottle-medical"></i> Pharmacie en ligne</span>
+              <h1>Vos médicaments, vérifiés et près de vous.</h1>
+            </div>
+            <a class="pharmacy-head__cta" href="./health-ordonnance.html"><i class="fas fa-file-shield"></i> J’ai une ordonnance</a>
+          </div>
+          <div class="health-wrap">
+            <form class="health-search pharmacy-search" id="health-search-form" role="search">
+              <i class="fas fa-magnifying-glass"></i>
+              <input id="health-search-input" type="search" minlength="2" placeholder="Rechercher un médicament ou un principe actif (ex. paracétamol)" aria-label="Rechercher un médicament">
+              <button type="submit">Rechercher</button>
+            </form>
+            <div class="pharmacy-tags">
+              <span>Recherches fréquentes :</span>
+              <button type="button" data-quick-search="Paracétamol">Paracétamol</button>
+              <button type="button" data-quick-search="Ibuprofène">Ibuprofène</button>
+              <button type="button" data-quick-search="Amoxicilline">Amoxicilline</button>
+              <button type="button" data-quick-search="Vitamine C">Vitamine C</button>
+            </div>
+          </div>
+        </section>
+        <main class="health-route-main pharmacy-body"><div class="health-wrap">
+          <div id="health-medicine-results" class="health-empty"><i class="fas fa-capsules"></i>Saisissez au moins deux caractères pour rechercher dans les stocks publiés par les pharmacies vérifiées.</div>
+          <div class="health-subheading"><div><span>Partenaires vérifiés</span><h2>Pharmacies disponibles</h2></div><a href="./health-ordonnance.html">Envoyer une ordonnance <i class="fas fa-arrow-right"></i></a></div>
+          <div id="health-pharmacies" class="health-grid"></div>
+        </div></main>
+        <div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation. Il ne remplace pas un avis médical. La disponibilité affichée provient des stocks publiés par les pharmacies.</div></div>
+      </div>${this.renderUtilityDialogs()}`;
+      return;
+    }
+
     let content = '';
     if (this.view === 'pharmacy') content = `<form class="health-search health-search--page" id="health-search-form"><i class="fas fa-magnifying-glass"></i><input id="health-search-input" type="search" minlength="2" placeholder="Nom du médicament ou principe actif" aria-label="Rechercher un médicament"><button type="submit">Rechercher</button></form><div id="health-medicine-results" class="health-empty"><i class="fas fa-magnifying-glass"></i>Saisissez au moins deux caractères pour rechercher dans les stocks publiés.</div><div class="health-subheading"><div><span>Partenaires vérifiés</span><h2>Pharmacies disponibles</h2></div><a href="./health-ordonnance.html">J’ai une ordonnance <i class="fas fa-arrow-right"></i></a></div><div id="health-pharmacies" class="health-grid"></div>`;
     if (this.view === 'prescription') content = `<div class="health-secure-layout"><div class="health-secure-copy"><span class="health-secure-icon"><i class="fas fa-lock"></i></span><h2>Votre document reste confidentiel.</h2><p>Il est accessible uniquement à vous, aux pharmacies partenaires concernées et aux administrateurs autorisés.</p><ul><li>Image ou PDF</li><li>15 Mo maximum</li><li>Accès journalisé</li></ul></div><form id="health-prescription-form" class="health-form health-card health-upload-card"><div class="health-field"><label for="health-prescription-file">Choisir l’ordonnance</label><input id="health-prescription-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required></div><div class="health-field"><label for="health-prescription-notes">Note facultative</label><textarea id="health-prescription-notes" maxlength="500" placeholder="Ajoutez uniquement une précision utile."></textarea></div><button class="health-btn primary" type="submit">Transmettre en sécurité</button><div class="health-status" id="health-prescription-status"></div></form></div>`;
@@ -78,7 +112,7 @@ class SmartCutHealth {
     if (this.view === 'space') content = `<div class="health-account-bar"><div><strong>Accès confidentiel</strong><span>Connectez-vous avec votre compte Smart Cut.</span></div><button class="health-btn primary" id="health-login-btn">Se connecter</button></div><div id="health-space-auth"><div class="health-empty"><i class="fas fa-lock"></i>Connectez-vous pour consulter vos informations de santé.</div></div>`;
     if (this.view === 'professional') content = `<div class="health-account-bar"><div><strong>Compte professionnel</strong><span>L’accès dépend de la vérification de votre profil.</span></div><button class="health-btn primary" id="health-login-btn">Se connecter</button></div><div id="health-professional-content"><div class="health-empty"><i class="fas fa-lock"></i>Connectez-vous pour déposer ou gérer une candidature professionnelle.</div></div>`;
 
-    this.root.innerHTML = `<div class="health-shell health-route health-route--${esc(this.view)}"><section class="health-page-hero"><div class="health-wrap"><span class="health-eyebrow"><i class="fas ${page.icon}"></i> ${page.eyebrow}</span><h1>${page.title}</h1><p>${page.copy}</p></div></section><main class="health-route-main"><div class="health-wrap">${content}</div></main><div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation. Il ne remplace pas un avis médical.</div></div></div>${this.renderUtilityDialogs()}`;
+    this.root.innerHTML = `<div class="health-shell health-route health-route--${esc(this.view)}"><section class="health-page-hero"><div class="health-wrap health-hero-layout"><div class="health-hero-copy"><span class="health-eyebrow"><i class="fas ${page.icon}"></i> ${page.eyebrow}</span><h1>${page.title}</h1><p>${page.copy}</p></div><div class="health-hero-visual health-art-${esc(page.art || this.view)}" role="img" aria-label="Illustration ${esc(page.eyebrow)}"><i class="fas ${page.icon}"></i><span class="health-art-orb"></span><span class="health-art-card"></span></div></div></section><main class="health-route-main"><div class="health-wrap">${content}</div></main><div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation. Il ne remplace pas un avis médical.</div></div></div>${this.renderUtilityDialogs()}`;
   }
 
   renderUtilityDialogs() {
@@ -91,6 +125,7 @@ class SmartCutHealth {
     this.root.querySelectorAll('[data-dialog="prescription"]').forEach((b) => b.addEventListener('click', () => this.openPrescription()));
     this.root.querySelectorAll('.health-tab').forEach((b) => b.addEventListener('click', () => this.selectTab(b.dataset.tab)));
     document.getElementById('health-search-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.search(document.getElementById('health-search-input').value); });
+    this.root.querySelectorAll('[data-quick-search]').forEach((b) => b.addEventListener('click', () => { const input = document.getElementById('health-search-input'); if (input) input.value = b.dataset.quickSearch; this.search(b.dataset.quickSearch); }));
     document.getElementById('health-login-btn')?.addEventListener('click', () => this.requireUser());
     document.getElementById('health-professional-btn')?.addEventListener('click', () => { document.getElementById('health-professional').hidden = false; document.getElementById('health-professional').scrollIntoView(); this.renderProfessional(); });
     document.getElementById('health-prescription-form')?.addEventListener('submit', (e) => this.submitPrescription(e));
@@ -159,7 +194,7 @@ class SmartCutHealth {
     if (document.querySelector('.health-tab[data-tab]')) this.selectTab(this.searchResults.length ? 'pharmacy' : 'doctors');
     if (this.searchResults.length) {
       box.className = 'health-grid';
-      box.innerHTML = this.searchResults.map((p) => `<article class="health-card"><span class="health-badge ${p.prescriptionRequired?'warn':''}">${p.prescriptionRequired?'Ordonnance requise':'Sans ordonnance'}</span><h3>${esc(p.name)}</h3><p>${esc([p.dci,p.dosage,p.pharmaceuticalForm].filter(Boolean).join(' · '))}</p><p>${esc(p.pharmacyName)}</p><div class="price">${money(p.price)}</div><p>${p.stock > 0 ? `Stock déclaré : ${p.stock} · mis à jour par la pharmacie` : 'Rupture déclarée'}</p><div class="health-card-actions">${p.prescriptionRequired ? '<button class="health-btn secondary" data-dialog="prescription">Envoyer une ordonnance</button>' : `<button class="health-btn primary" data-add-product="${esc(p.id)}" ${p.stock<=0?'disabled':''}>Ajouter</button>`}</div></article>`).join('');
+      box.innerHTML = this.searchResults.map((p) => `<article class="health-card health-medicine-card"><div class="health-medicine-card-head"><span class="health-medicine-icon"><i class="fas fa-prescription-bottle-medical"></i></span><span class="health-badge ${p.prescriptionRequired?'warn':''}">${p.prescriptionRequired?'Ordonnance requise':'Sans ordonnance'}</span></div><h3>${esc(p.name)}</h3><p class="health-medicine-meta">${esc([p.dci,p.dosage,p.pharmaceuticalForm].filter(Boolean).join(' · '))}</p><div class="health-medicine-info"><span><small>Pharmacie</small><strong>${esc(p.pharmacyName)}</strong></span><span><small>Disponibilité</small><strong>${p.stock > 0 ? `${p.stock} en stock` : 'Rupture'}</strong></span></div><div class="health-medicine-footer"><div class="price">${money(p.price)}</div><div class="health-card-actions">${p.prescriptionRequired ? '<button class="health-btn secondary" data-dialog="prescription">Envoyer une ordonnance</button>' : `<button class="health-btn primary" data-add-product="${esc(p.id)}" ${p.stock<=0?'disabled':''}>Ajouter</button>`}</div></div></article>`).join('');
       box.querySelectorAll('[data-add-product]').forEach((b) => b.addEventListener('click', () => this.addToCart(b.dataset.addProduct)));
       box.querySelectorAll('[data-dialog="prescription"]').forEach((b) => b.addEventListener('click', () => this.openPrescription()));
     } else {
@@ -276,7 +311,7 @@ class SmartCutHealth {
     if(!this.user){root.innerHTML='<div class="health-empty"><i class="fas fa-lock"></i>Connectez-vous pour déposer ou gérer une candidature professionnelle.</div>';return;}
     const role=this.profile?.role;const verified=(role==='pharmacy'&&this.profile?.pharmacyStatus==='verified')||(role==='doctor'&&this.profile?.doctorStatus==='verified')||(role==='laboratory'&&this.profile?.labStatus==='verified');
     if(!verified){const status=this.profile?.doctorStatus||this.profile?.pharmacyStatus||this.profile?.labStatus||'';root.innerHTML=`<div class="health-professional-onboarding"><span class="health-secure-icon"><i class="fas fa-shield-heart"></i></span><div><span class="health-eyebrow">Candidature professionnelle</span><h2>${status==='submitted'||status==='pending'?'Votre dossier est en vérification.':'Présentez votre activité à Smart Cut Health.'}</h2><p>${status==='submitted'||status==='pending'?'La publication restera bloquée jusqu’à la décision humaine de l’équipe Smart Cut.':'Un parcours distinct est prévu pour les médecins, pharmacies et laboratoires, avec brouillon et contrôle documentaire.'}</p></div><a class="health-btn health-btn-link primary" href="./health-candidature.html">${status==='submitted'||status==='pending'?'Suivre mon dossier':'Commencer ma candidature'}</a></div>`;return;}
-    root.innerHTML=`<div class="health-notice"><i class="fas fa-circle-check"></i> Compte ${esc(role)} vérifié. Les actions ci-dessous sont contrôlées à nouveau par le serveur.</div><div id="health-pro-tools" style="margin-top:1rem"></div>`;this.renderProfessionalTools(role);
+    root.innerHTML=`<div class="health-notice"><i class="fas fa-circle-check"></i> Compte ${esc(role)} vérifié.</div>${role==='doctor'?'<a class="health-btn primary" href="./health-doctor.html" style="display:inline-flex;margin-top:1rem">Ouvrir mon espace médecin</a>':''}<div id="health-pro-tools" style="margin-top:1rem"></div>`;this.renderProfessionalTools(role);
   }
 
   async applyProfessional(e){e.preventDefault();const status=document.getElementById('health-application-status');try{const data=Object.fromEntries(new FormData(e.target));delete data.documents;data.professionalName=data.businessName;const files=[...e.target.documents.files];const allowed=['image/jpeg','image/png','image/webp','application/pdf'];if(files.some(f=>!allowed.includes(f.type)||f.size>10*1024*1024))throw new Error('Chaque document doit être une image ou un PDF de 10 Mo maximum.');const folder={pharmacy:'health-pharmacy-docs',doctor:'health-doctor-docs',laboratory:'health-lab-docs'}[data.type];data.documentPaths=[];for(let i=0;i<files.length;i+=1){status.textContent=`Envoi privé du document ${i+1}/${files.length}…`;const f=files[i],ext=f.type==='application/pdf'?'pdf':(f.type.split('/')[1]||'jpg').replace('jpeg','jpg'),path=`${folder}/${this.user.uid}/verification-${Date.now()}-${i}.${ext}`;await uploadBytes(ref(storage,path),f,{contentType:f.type,cacheControl:'private,no-store,max-age=0'});data.documentPaths.push(path)}await callHealth('healthApplyProfessional',{method:'POST',requireAuth:true,body:data});status.className='health-status success';status.textContent='Candidature enregistrée avec le statut En attente.';}catch(error){status.className='health-status error';status.textContent=error.message;}}

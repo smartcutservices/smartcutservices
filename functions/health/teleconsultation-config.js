@@ -41,7 +41,7 @@ function resolveConsultationSelection(specialtyCode, planCode) {
 }
 
 function publicConsultationCatalog() {
-  return { currency: 'HTG', commissionRate: COMMISSION_RATE, plans: Object.values(CONSULTATION_PLANS), specialties: SPECIALTIES };
+  return { currency: 'HTG', commissionRate: COMMISSION_RATE, plans: Object.values(CONSULTATION_PLANS).map((plan) => ({ ...plan })), specialties: SPECIALTIES.map((specialty) => ({ ...specialty, prices: { ...specialty.prices } })) };
 }
 
 module.exports = { COMMISSION_RATE, CONSULTATION_PLANS, SPECIALTIES, resolveConsultationSelection, publicConsultationCatalog };

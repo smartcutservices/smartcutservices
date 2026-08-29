@@ -86,6 +86,7 @@ function buildClinical(sstInternals) {
       department: sanitizeText(body.department, 100),
       commune: sanitizeText(body.commune, 100),
       phone: sanitizeText(body.phone, 40),
+      phones: Array.isArray(body.phones) ? body.phones.map((v) => sanitizeText(v, 40)).filter(Boolean).slice(0, 4) : [],
       email: sanitizeText(body.email, 180),
       nif: sanitizeText(body.nif, 80),
       licenseNumber: sanitizeText(body.licenseNumber, 120),
@@ -149,7 +150,36 @@ function buildClinical(sstInternals) {
 
   const healthGetConsultationCatalog = onRequest({ region }, withErrorHandling(async (req, res) => {
     if (req.method !== 'GET') throw new HttpError(405, 'method-not-allowed', 'GET requis.');
-    res.status(200).json({ ok: true, ...publicConsultationCatalog() });
+    const catalog = publicConsultationCatalog();
+    const pricing = await db.collection('healthConsultationPricing').where('active', '==', true).get();
+    pricing.docs.forEach((doc) => {
+      const item = catalog.specialties.find((specialty) => specialty.code === doc.id);
+      const prices = doc.data()?.prices || {};
+      if (item && Number.isFinite(Number(prices.essential)) && Number.isFinite(Number(prices.advanced))) {
+        item.prices = { essential: Math.max(0, Number(prices.essential)), advanced: Math.max(0, Number(prices.advanced)) };
+      }
+    });
+    res.status(200).json({ ok: true, ...catalog });
+  }));
+
+  const healthAdminSaveConsultationPricing = onRequest({ region }, withErrorHandling(async (req, res) => {
+    if (req.method !== 'POST') throw new HttpError(405, 'method-not-allowed', 'POST requis.');
+    const user = await requireBearerUser(req, { verifyBearerUser: verifyBearer });
+    if (!(await isAdmin(user.uid))) throw new HttpError(403, 'admin-required', 'Accès administrateur requis.');
+    const body = parseBody(req);
+    const specialtyCode = sanitizeText(body.specialtyCode, 80);
+    const essential = Number(body.essential);
+    const advanced = Number(body.advanced);
+    const commissionRate = body.commissionRate === undefined ? 15 : Number(body.commissionRate);
+    const source = publicConsultationCatalog().specialties.find((item) => item.code === specialtyCode);
+    if (!source || !Number.isFinite(essential) || !Number.isFinite(advanced) || essential < 0 || advanced < 0 || !Number.isFinite(commissionRate) || commissionRate < 0 || commissionRate > 100) {
+      throw new HttpError(400, 'invalid-consultation-pricing', 'Spécialité ou tarifs invalides.');
+    }
+    const now = nowIso();
+    await db.collection('healthConsultationPricing').doc(specialtyCode).set({ specialtyCode, prices: { essential, advanced }, commissionRate, effectiveFrom: body.effectiveFrom ? new Date(body.effectiveFrom).toISOString() : now, active: body.active !== false, updatedAt: now, updatedBy: user.uid }, { merge: true });
+    await db.collection('healthConsultationPriceVersions').add({ specialtyCode, prices: { essential, advanced }, commissionRate, effectiveFrom: body.effectiveFrom ? new Date(body.effectiveFrom).toISOString() : now, createdAt: now, createdBy: user.uid });
+    await audit(user.uid, 'health_consultation_pricing_updated', `healthConsultationPricing/${specialtyCode}`, { specialtyCode });
+    res.status(200).json({ ok: true, specialtyCode, prices: { essential, advanced }, commissionRate });
   }));
 
   const healthListDoctors = onRequest({ region }, withErrorHandling(async (req, res) => {
@@ -292,6 +322,35 @@ function buildClinical(sstInternals) {
     await batch.commit();
     await audit(user.uid, 'appointment_status_updated', `healthAppointments/${appointmentId}`, { nextStatus: next });
     res.status(200).json({ ok: true });
+  }));
+
+  // Doctor workspace: explicit accept/refuse/start/complete actions.
+  const healthDoctorUpdateConsultation = onRequest({ region }, withErrorHandling(async (req, res) => {
+    if (req.method !== 'POST') throw new HttpError(405, 'method-not-allowed', 'POST requis.');
+    const user = await requireBearerUser(req, { verifyBearerUser: verifyBearer });
+    const body = parseBody(req);
+    const appointmentId = sanitizeText(body.appointmentId, 200);
+    const nextStatus = sanitizeText(body.status, 40).toUpperCase();
+    const ref = db.collection('healthAppointments').doc(appointmentId);
+    const snap = await ref.get();
+    if (!snap.exists) throw new HttpError(404, 'appointment-not-found', 'Consultation introuvable.');
+    const item = snap.data() || {};
+    if (item.providerUid !== user.uid || item.providerType !== 'doctor') throw new HttpError(403, 'doctor-only', 'Cette consultation ne vous est pas attribuée.');
+    const transitions = {
+      CONFIRMED: ['DOCTOR_ACCEPTED', 'DOCTOR_REFUSED'],
+      DOCTOR_ACCEPTED: ['IN_PROGRESS', 'PATIENT_NO_SHOW'],
+      IN_PROGRESS: ['COMPLETED']
+    };
+    if (!transitions[item.status]?.includes(nextStatus)) throw new HttpError(409, 'invalid-transition', `Action impossible depuis ${item.status}.`);
+    const now = nowIso();
+    const patch = { status: nextStatus, updatedAt: now };
+    if (nextStatus === 'DOCTOR_ACCEPTED') patch.acceptedAt = now;
+    if (nextStatus === 'DOCTOR_REFUSED') { patch.refusedAt = now; patch.refusalReason = sanitizeText(body.reason, 300); }
+    if (nextStatus === 'IN_PROGRESS') patch.startedAt = now;
+    if (nextStatus === 'COMPLETED') patch.completedAt = now;
+    await ref.set(patch, { merge: true });
+    await audit(user.uid, 'doctor_consultation_status_updated', `healthAppointments/${appointmentId}`, { nextStatus });
+    res.status(200).json({ ok: true, status: nextStatus });
   }));
 
   const healthSaveLabExam = onRequest({ region }, withErrorHandling(async (req, res) => {
@@ -441,7 +500,7 @@ function buildClinical(sstInternals) {
     })));
   });
 
-  return { healthApplyProfessional, healthGetProfessionalApplication, healthGetConsultationCatalog, healthListDoctors, healthListLaboratories, healthSaveAvailability, healthListAvailability, healthBookAppointment, healthCreateAppointmentPayment, healthUpdateAppointment, healthSaveLabExam, healthListLabExams, healthUploadLabResult, healthGetPrivateDocument, healthAdminReviewProfessional, healthAdminSaveCommissionRule, healthReleaseExpiredAppointments };
+  return { healthApplyProfessional, healthGetProfessionalApplication, healthGetConsultationCatalog, healthAdminSaveConsultationPricing, healthListDoctors, healthListLaboratories, healthSaveAvailability, healthListAvailability, healthBookAppointment, healthCreateAppointmentPayment, healthUpdateAppointment, healthDoctorUpdateConsultation, healthSaveLabExam, healthListLabExams, healthUploadLabResult, healthGetPrivateDocument, healthAdminReviewProfessional, healthAdminSaveCommissionRule, healthReleaseExpiredAppointments };
 }
 
 module.exports = buildClinical;
