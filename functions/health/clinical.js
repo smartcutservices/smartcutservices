@@ -81,6 +81,8 @@ function buildClinical(sstInternals) {
       responsibleName: sanitizeText(body.responsibleName, 180),
       professionalName: sanitizeText(body.professionalName, 180),
       specialty: sanitizeText(body.specialty, 120),
+      specialties: Array.isArray(body.specialties) ? body.specialties.map((v) => sanitizeText(v, 120)).filter(Boolean).slice(0, 6) : [],
+      photoPath: sanitizeText(body.photoPath, 500),
       facility: sanitizeText(body.facility, 180),
       address: sanitizeText(body.address, 300),
       department: sanitizeText(body.department, 100),

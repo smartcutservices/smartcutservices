@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
 <title>Espace médecin · Smart Cut Health</title>
-<link rel="stylesheet" href="./site-foundation.css">
+<link rel="stylesheet" href="./site-foundation.css?v=20260829-16">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+body:not(.doctor-ready) main{display:none}body.doctor-blocked{background:#eef3f2}body.doctor-blocked:after{content:'Connectez-vous avec un compte médecin vérifié pour accéder à cet espace.';display:grid;place-items:center;min-height:45vh;padding:24px;text-align:center;color:#17322f;font-size:18px;font-weight:700}
 :root{
   --g:#0d7665;--g-dark:#0f2d29;--ink:#12302d;--muted:#5f7d77;
   --bg:#eef3f2;--surface:#fff;--line:#e2ece9;
@@ -106,6 +107,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
 .btn.danger{color:#a33a32;border-color:#e5c8c4}
 .btn.danger:hover{border-color:#a33a32;color:#a33a32}
 .split{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.professional-summary{display:grid;gap:16px;margin-top:18px}.professional-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.professional-grid>div{display:grid;gap:5px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fbfdfc}.professional-grid strong{font-size:14px;overflow-wrap:anywhere}.professional-note{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:10px;color:#216458;background:#edf7f3;font-size:13px}.professional-note i{color:var(--g)}.professional-actions{justify-content:start;margin-top:18px}.professional-actions a{text-decoration:none}
 .form{display:grid;gap:12px}
 .form label{display:grid;gap:5px;font-size:13px;font-weight:700}
 .form input,.form textarea{width:100%;padding:10px 12px;border:1px solid #cbdcd8;border-radius:9px;font:inherit;background:#fff}
@@ -124,6 +126,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
   .toast{top:auto;bottom:16px;right:12px;left:12px;max-width:none}
   .stats{grid-template-columns:repeat(2,1fr)}
   .split{grid-template-columns:1fr}
+  .professional-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -140,6 +143,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
       <button data-tab="patients"><span class="nav__ico">♟</span>Patients</button>
       <button data-tab="wallet"><span class="nav__ico">◈</span>Revenus</button>
       <button data-tab="profile"><span class="nav__ico">◎</span>Profil</button>
+      <button data-tab="professional"><span class="nav__ico">✦</span>Profil professionnel</button>
     </nav>
     <div class="account">
       <div class="account__id">
@@ -227,13 +231,23 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
       <div class="card__head"><h2>Profil professionnel</h2></div>
       <div id="profileSummary">Chargement…</div>
     </section>
+
+    <section class="card panel" id="professional" hidden>
+      <div class="card__head"><h2>Profil professionnel</h2><span id="professionalStatus" class="badge">Vérification…</span></div>
+      <p class="muted">Les informations visibles par les patients et utilisées pour vos consultations.</p>
+      <div id="professionalSummary" class="professional-summary">Chargement…</div>
+      <div class="actions professional-actions">
+        <a class="btn" href="./health-candidature.html">Gérer mon dossier</a>
+        <a class="btn primary" href="./health-teleconsultation.html">Voir les consultations</a>
+      </div>
+    </section>
   </main>
 </div>
 
 <script type="module">
 import SmartCutHealthHeader from './health-header.js';
 new SmartCutHealthHeader('health-header-root');
-import './health-doctor.js';
+import './health-doctor.js?v=20260829-16';
 </script>
 </body>
 </html>

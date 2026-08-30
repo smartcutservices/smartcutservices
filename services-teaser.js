@@ -1,5 +1,5 @@
 import { marketplaceApi, money, escapeHtml as esc } from './marketplace-api.js';
-import { loadPublicProducts } from './catalog-products.js?v=20260711-1';
+import { loadPublicProducts } from './catalog-products.js?v=20260829-16';
 import { getResolvedProductImages, getFallbackProductImage } from './image-fallbacks.js';
 import { buildProductPageUrl } from './product-links.js';
 import { formatPriceDual } from './currency-utils.js';

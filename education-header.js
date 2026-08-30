@@ -30,7 +30,7 @@ export default class SmartCutEducationHeader {
         .education-header {
           height: 100%;
           border-bottom: 1px solid rgba(255, 255, 255, .1);
-          background: #131921;
+          background: var(--sc-navy, #131921);
           color: #fff;
           box-shadow: 0 4px 16px rgba(12, 18, 28, .12);
         }
@@ -120,7 +120,7 @@ export default class SmartCutEducationHeader {
           min-height: 42px;
           padding: 0 1rem;
           border-radius: 7px;
-          background: #c93a24;
+          background: var(--sc-education, #c93a24);
           color: #fff;
           font-size: .86rem;
           font-weight: 800;
@@ -131,7 +131,7 @@ export default class SmartCutEducationHeader {
 
         .education-header__cta:hover,
         .education-header__cta:focus-visible {
-          background: #a82e1b;
+          background: var(--sc-education-hover, #a82e1b);
           transform: translateY(-1px);
           outline: none;
         }

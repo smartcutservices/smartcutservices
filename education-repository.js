@@ -22,7 +22,7 @@ import {
   query,
   where
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { normalizeCategory, normalizeProgram, normalizeSchool, normalizeSlug } from './education-normalize.js?v=20260827-2';
+import { normalizeCategory, normalizeProgram, normalizeSchool, normalizeSlug } from './education-normalize.js?v=20260829-16';
 
 const CATEGORIES_COLLECTION = 'educationCategories';
 const SCHOOLS_COLLECTION = 'educationSchools';

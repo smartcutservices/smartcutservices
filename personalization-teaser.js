@@ -197,8 +197,8 @@ class PersonalizationTeaser {
           <div class="pz-teaser-visual">
             <img
               class="pz-teaser-product"
-              src="./assets/personalization/studio-hero-v3.png"
-              alt="T-shirt et tasse personnalisés en aperçu 3D"
+              src="./assets/personalization/studio-mug-teaser-v2.png"
+              alt="Tasse personnalisée en aperçu 3D"
               loading="lazy"
               decoding="async"
             >

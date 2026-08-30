@@ -7,8 +7,8 @@
   <title>Téléconsultation | Smart Cut Health</title>
   <meta name="description" content="Choisissez une spécialité, un plan et un médecin vérifié pour votre téléconsultation Smart Cut Health.">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260825-1">
-  <link rel="stylesheet" href="./health.css?v=20260827-3">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260829-16">
+  <link rel="stylesheet" href="./health.css?v=20260829-16">
 </head>
 <body>
   <div id="health-header-root"></div>
@@ -17,8 +17,8 @@
   <script type="module">
     import './firebase-init.js';
     const mount=async(id,loader,options={})=>{const root=document.getElementById(id);if(!root)return;try{const mod=await loader();new mod.default(id,options)}catch(error){console.error(`Erreur ${id}:`,error);root.innerHTML='<div class="health-empty">Chargement impossible.</div>'}};
-    mount('health-header-root',()=>import('./health-header.js?v=20260828-1'));
-    mount('health-teleconsultation-root',()=>import('./health-teleconsultation.js?v=20260828-1'));
+    mount('health-header-root',()=>import('./health-header.js?v=20260829-16'));
+    mount('health-teleconsultation-root',()=>import('./health-teleconsultation.js?v=20260829-16'));
     mount('sierra-footer-root',()=>import('./footer.js'),{imageBasePath:'./',showSocial:true,showContact:true,showInfos:true,showPayments:true,showCopyright:true});
   </script>
 </body>

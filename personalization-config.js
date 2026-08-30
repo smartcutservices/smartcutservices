@@ -49,7 +49,8 @@ export const PERSONALIZATION_PRODUCTS = [
     id: 'tshirt-classic',
     name: 'T-shirt personnalise',
     category: 'tshirt',
-    active: true,
+    // Masqué du parcours public tant que l'impression textile n'est pas disponible.
+    active: false,
     description: 'T-shirt 100% coton, impression recto et/ou verso.',
     thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
@@ -95,10 +96,8 @@ export const PERSONALIZATION_PRODUCTS = [
     id: 'mug-classic',
     name: 'Tasse personnalisee',
     category: 'mug',
-    // Ne pas publier tant que le véritable GLB UV-mappé n'est pas livré.
-    // Le moteur procédural reste uniquement un secours de développement.
-    active: false,
-    availabilityNote: 'Modèle 3D professionnel en préparation',
+    // La tasse est le premier support disponible dans le parcours public.
+    active: true,
     description: 'Tasse ceramique 11oz, impression sur toute la zone enveloppante.',
     thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
@@ -121,7 +120,10 @@ export const PERSONALIZATION_PRODUCTS = [
     },
     colors: [
       { id: 'white', label: 'Blanc', hex: '#ffffff' },
-      { id: 'black', label: 'Noir', hex: '#0f1111' }
+      { id: 'black', label: 'Noir', hex: '#171a1f' },
+      { id: 'navy', label: 'Bleu marine', hex: '#1c2b4a' },
+      { id: 'red', label: 'Rouge', hex: '#b3211e' },
+      { id: 'sand', label: 'Sable', hex: '#c7b9a5' }
     ],
     sizes: [
       { id: 'one-size', label: '11oz', priceDelta: 0 }
@@ -132,6 +134,39 @@ export const PERSONALIZATION_PRODUCTS = [
       extraFacePrice: 0,
       currency: 'HTG'
     }
+  },
+  {
+    id: 'tumbler-classic',
+    name: 'Tumbler personnalise',
+    category: 'tumbler',
+    active: true,
+    description: 'Tumbler isotherme, impression enveloppante et format nomade.',
+    thumbnail: 'data:image/svg+xml;utf8,' + encodeURIComponent(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+        <rect width="160" height="160" rx="20" fill="#F2E9DA"/>
+        <path d="M55 38h50l-5 92H60z" fill="#FFFFFF" stroke="#0F1111" stroke-width="4"/>
+        <rect x="50" y="28" width="60" height="14" rx="5" fill="#1C2B4A" stroke="#0F1111" stroke-width="4"/>
+        <path d="M70 22h20v10H70z" fill="#FFFFFF" stroke="#0F1111" stroke-width="4"/>
+      </svg>
+    `),
+    model3d: { url: null, materialName: '', placeholderShape: 'tumbler' },
+    canvasSize: 2000,
+    printDpiTarget: 150,
+    faces: ['wrap'],
+    printAreas: [
+      { id: 'tumbler-wrap', face: 'wrap', label: 'Tout autour', shortLabel: 'Enveloppante', bounds: { x: .10, y: .18, width: .80, height: .64 }, physicalWidthInches: 8.5, physicalHeightInches: 5.2, priceDelta: 0 }
+    ].map(withProductionMetadata),
+    zones: { wrap: { x: .10, y: .18, width: .80, height: .64, label: 'Impression enveloppante' } },
+    colors: [
+      { id: 'black', label: 'Noir mat', hex: '#171a1f' },
+      { id: 'white', label: 'Blanc', hex: '#ffffff' },
+      { id: 'navy', label: 'Bleu marine', hex: '#1c2b4a' },
+      { id: 'red', label: 'Rouge', hex: '#b3211e' },
+      { id: 'sand', label: 'Sable', hex: '#c7b9a5' }
+    ],
+    sizes: [{ id: '20oz', label: '20 oz', priceDelta: 0 }],
+    quantity: { min: 1, max: 200, step: 1, default: 1 },
+    pricing: { basePrice: 1800, extraFacePrice: 0, currency: 'HTG' }
   }
 ];
 

@@ -1,0 +1,20 @@
+{
+  "name": "Smart Cut Services",
+  "short_name": "Smart Cut",
+  "description": "Marketplace, santé, formations, pièces auto, imprimerie et services professionnels vérifiés en Haïti.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f7f4",
+  "theme_color": "#131921",
+  "lang": "fr-HT",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

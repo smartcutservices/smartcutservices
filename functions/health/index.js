@@ -195,6 +195,34 @@ function buildHealth(sstInternals) {
     res.status(200).json({ ok: true, results });
   }));
 
+  const healthListAvailableMedicines = onRequest({ region }, withErrorHandling(async (req, res) => {
+    if (req.method !== 'GET') throw new HttpError(405, 'method-not-allowed', 'GET requis.');
+    const snap = await db.collection('healthPharmacyProducts').limit(60).get();
+    const pharmacyIds = Array.from(new Set(snap.docs.map((doc) => doc.data().pharmacyId).filter(Boolean)));
+    const pharmacySnaps = await Promise.all(pharmacyIds.map((id) => db.collection('clients').doc(id).get()));
+    const verifiedPharmacies = new Map();
+    pharmacySnaps.forEach((pSnap) => {
+      if (!pSnap.exists) return;
+      const data = pSnap.data() || {};
+      if (String(data.role || '') === 'pharmacy' && String(data.pharmacyStatus || '') === 'verified') {
+        verifiedPharmacies.set(pSnap.id, data.pharmacyProfile?.businessName || 'Pharmacie');
+      }
+    });
+    const medicines = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((product) => verifiedPharmacies.has(product.pharmacyId) && Number(product.stock) > 0)
+      .slice(0, 6)
+      .map((product) => ({
+        id: product.id,
+        name: product.name,
+        dosage: product.dosage || '',
+        pharmaceuticalForm: product.pharmaceuticalForm || '',
+        price: Number(product.price) || 0,
+        pharmacyName: verifiedPharmacies.get(product.pharmacyId)
+      }));
+    res.status(200).json({ ok: true, medicines });
+  }));
+
   // ---------- pharmacy: catalog management ----------
 
   const healthSaveMedicine = onRequest({ region }, withErrorHandling(async (req, res) => {
@@ -772,6 +800,7 @@ function buildHealth(sstInternals) {
   return {
     healthListVerifiedPharmacies,
     healthSearchMedicines,
+    healthListAvailableMedicines,
     healthSaveMedicine,
     healthDeleteMedicine,
     healthSubmitPrescription,

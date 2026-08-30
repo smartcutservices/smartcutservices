@@ -5,7 +5,7 @@ import theme from './theme-root.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
-import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js?v=20260711-1';
+import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js?v=20260829-16';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 // Import Firebase
@@ -2034,11 +2034,11 @@ class CategoriesSection {
         card.innerHTML = `
             <div class="product-image-container-${this.uniqueId}">
                 ${mainImage ? `
-                    <img 
-                        class="product-main-image-${this.uniqueId}" 
-                        src="${this.getImagePath(mainImage)}" 
+                    <img
+                        class="product-main-image-${this.uniqueId}"
+                        src="${this.getImagePath(mainImage)}"
                         alt="${product.name}"
-                        loading="lazy"
+                        loading="lazy" decoding="async"
                         data-product-id="${product.id}"
                         data-image-index="${currentIndex}"
                         onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-subtitle, #7A746B);&quot;><i class=&quot;fas fa-image&quot;></i></div>';"

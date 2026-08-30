@@ -13,7 +13,6 @@ const NAV_LINKS = [
   { href: './health-laboratoires.html', label: 'Laboratoires', match: ['health-laboratoires.html'] },
   { href: './health-espace.html', label: 'Mon espace', match: ['health-espace.html'] },
   { href: './health-doctor.html', label: 'Espace médecin', icon: 'fa-user-doctor', match: ['health-doctor.html'] },
-  { href: './health-professionnel.html', label: 'Professionnels', match: ['health-professionnel.html', 'health-candidature.html'] },
 ];
 
 export default class SmartCutHealthHeader {

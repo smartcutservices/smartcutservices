@@ -154,7 +154,7 @@ export class NotificationComponent {
   async registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      this.swRegistration = await navigator.serviceWorker.register('./notification-sw.js?v=20260520-1', {
+      this.swRegistration = await navigator.serviceWorker.register('./notification-sw.js?v=20260829-16', {
         updateViaCache: 'none'
       });
       await this.swRegistration.update();

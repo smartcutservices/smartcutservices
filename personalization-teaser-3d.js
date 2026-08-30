@@ -46,7 +46,7 @@ export default class PersonalizationTeaser3D {
       this.DecalGeometry = modules.DecalGeometry;
       if (this.disposed) return false;
       this.setupScene();
-      await this.loadTshirt();
+      await this.loadMug();
       if (this.disposed) return false;
       this.bindInteraction();
       this.observeSizeAndVisibility();
@@ -81,7 +81,7 @@ export default class PersonalizationTeaser3D {
     this.renderer.toneMappingExposure = 1.08;
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.domElement.setAttribute('role', 'img');
-    this.renderer.domElement.setAttribute('aria-label', 'T-shirt personnalisé tournant à 360 degrés');
+    this.renderer.domElement.setAttribute('aria-label', 'Tasse personnalisée tournant à 360 degrés');
     this.renderer.domElement.tabIndex = 0;
     this.stage.appendChild(this.renderer.domElement);
 
@@ -103,80 +103,33 @@ export default class PersonalizationTeaser3D {
     this.clock = new THREE.Clock();
   }
 
-  async loadTshirt() {
+  async loadMug() {
     const THREE = this.THREE;
-    const gltf = await new this.GLTFLoader().loadAsync('./assets/models/shirt-realistic.glb');
     this.product = new THREE.Group();
-    const shirtModel = gltf.scene;
-
-    const sourceBox = new THREE.Box3().setFromObject(shirtModel);
-    const sourceSize = sourceBox.getSize(new THREE.Vector3());
-    const sourceCenter = sourceBox.getCenter(new THREE.Vector3());
-    const targetHeight = 2.55;
-    const uniformScale = targetHeight / Math.max(sourceSize.y, .001);
-    shirtModel.scale.setScalar(uniformScale);
-    shirtModel.position.set(
-      -sourceCenter.x * uniformScale,
-      -sourceCenter.y * uniformScale,
-      -sourceCenter.z * uniformScale
+    const ceramic = new THREE.MeshPhysicalMaterial({ color: 0xf8f7f2, roughness: .3, metalness: 0, clearcoat: .3 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(.9, .82, 1.7, 64, 1, false), ceramic);
+    body.castShadow = true; body.receiveShadow = true;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(.9, .07, 16, 64), ceramic);
+    rim.rotation.x = Math.PI / 2; rim.position.y = .85;
+    const base = new THREE.Mesh(new THREE.TorusGeometry(.82, .05, 14, 64), ceramic);
+    base.rotation.x = Math.PI / 2; base.position.y = -.85;
+    // Anse en forme de C dans le plan de la tasse (et non tournée vers la caméra).
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(.62, .13, 20, 64, Math.PI * 1.62), ceramic);
+    // Le vide du C doit regarder la tasse afin que les deux extrémités
+    // s’attachent au flanc sans passer devant la face imprimable.
+    handle.rotation.z = Math.PI;
+    handle.position.set(.86, .03, 0);
+    [body, rim, base, handle].forEach((m) => { m.castShadow = true; m.receiveShadow = true; this.product.add(m); });
+    const logoTexture = await new THREE.TextureLoader().loadAsync('./logo.png');
+    logoTexture.colorSpace = THREE.SRGBColorSpace;
+    const logo = new THREE.Mesh(
+      new THREE.PlaneGeometry(.58, .58),
+      new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, depthWrite: false, toneMapped: false })
     );
-
-    let decalTarget = null;
-    let largestSurface = 0;
-    shirtModel.traverse((node) => {
-      if (!node.isMesh) return;
-      node.castShadow = true;
-      node.receiveShadow = true;
-      node.geometry.computeVertexNormals();
-      node.geometry.computeBoundingSphere();
-      node.material = new THREE.MeshPhysicalMaterial({
-        color: 0x17263d,
-        roughness: .86,
-        metalness: 0,
-        sheen: 1,
-        sheenColor: new THREE.Color(0x35557e),
-        sheenRoughness: .72,
-        side: THREE.DoubleSide
-      });
-      const surface = node.geometry.boundingSphere?.radius || 0;
-      if (surface >= largestSurface) {
-        largestSurface = surface;
-        decalTarget = node;
-      }
-    });
-
-    this.product.add(shirtModel);
+    logo.position.set(0, .04, .91);
+    this.product.add(logo);
     this.scene.add(this.product);
-    shirtModel.updateMatrixWorld(true);
-
-    const normalizedBox = new THREE.Box3().setFromObject(shirtModel);
-    const normalizedSize = normalizedBox.getSize(new THREE.Vector3());
-    if (decalTarget) {
-      const logoTexture = await new THREE.TextureLoader().loadAsync('./logo.png');
-      logoTexture.colorSpace = THREE.SRGBColorSpace;
-      logoTexture.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-      const logoMaterial = new THREE.MeshBasicMaterial({
-        map: logoTexture,
-        transparent: true,
-        alphaTest: .04,
-        depthTest: true,
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -4,
-        toneMapped: false
-      });
-      const chestPosition = new THREE.Vector3(
-        0,
-        normalizedBox.min.y + normalizedSize.y * .55,
-        normalizedBox.max.z + .02
-      );
-      const logoSize = new THREE.Vector3(normalizedSize.x * .36, normalizedSize.y * .36, normalizedSize.z * .55);
-      const logoDecal = new THREE.Mesh(
-        new this.DecalGeometry(decalTarget, chestPosition, new THREE.Euler(0, 0, 0), logoSize),
-        logoMaterial
-      );
-      this.product.add(logoDecal);
-    }
+    const normalizedBox = new THREE.Box3().setFromObject(this.product);
 
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(1, 64),
@@ -187,7 +140,7 @@ export default class PersonalizationTeaser3D {
     shadow.position.set(0, normalizedBox.min.y - .14, -.12);
     this.scene.add(shadow);
 
-    this.product.rotation.set(-.04, -.18, 0);
+    this.product.rotation.set(-.04, -.35, 0);
   }
 
   bindInteraction() {

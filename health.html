@@ -6,9 +6,24 @@
   <meta name="theme-color" content="#0f493f">
   <title>Smart Cut Health | Santé & Pharmacie</title>
   <meta name="description" content="Recherchez une pharmacie vérifiée, envoyez une ordonnance et réservez auprès de professionnels de santé partenaires.">
+  <link rel="canonical" href="https://smartcutservices.com/health.html">
+  <meta property="og:site_name" content="Smart Cut Services">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Smart Cut Health — Santé & Pharmacie">
+  <meta property="og:description" content="Pharmacies, ordonnances et consultations vérifiées, près de chez vous.">
+  <meta property="og:url" content="https://smartcutservices.com/health.html">
+  <meta property="og:image" content="https://smartcutservices.com/logo.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Smart Cut Health — Santé & Pharmacie">
+  <meta name="twitter:description" content="Pharmacies, ordonnances et consultations vérifiées, près de chez vous.">
+  <meta name="twitter:image" content="https://smartcutservices.com/logo.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260825-1">
-  <link rel="stylesheet" href="./health.css?v=20260828-1">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260829-16">
+  <link rel="stylesheet" href="./health.css?v=20260829-16">
 </head>
 <body>
   <div id="health-header-root"></div>
@@ -22,8 +37,8 @@
       try { const mod = await loader(); new mod.default(id, options); }
       catch (error) { console.error(`Erreur ${id}:`, error); }
     };
-    mount('health-header-root', () => import('./health-header.js?v=20260828-1'));
-    mount('health-root', () => import('./health.js?v=20260828-1'), { view: 'home' });
+    mount('health-header-root', () => import('./health-header.js?v=20260829-16'));
+    mount('health-root', () => import('./health.js?v=20260829-16'), { view: 'home' });
     mount('sierra-footer-root', () => import('./footer.js'), { imageBasePath: './', showSocial: true, showContact: true, showInfos: true, showPayments: true, showCopyright: true });
   </script>
 </body>

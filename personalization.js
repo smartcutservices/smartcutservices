@@ -4,8 +4,8 @@
 // personalization-storage.js (upload + controle qualite), personalization-illustrations.js
 // (bibliotheque integree) et reutilise le panier / la livraison impression existants.
 
-import { getCartManager } from './cart.js?v=20260714-1';
-import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260604-1';
+import { getCartManager } from './cart.js?v=20260829-16';
+import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260829-16';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import {
   getActivePersonalizationProducts,
@@ -15,7 +15,7 @@ import {
   getProductPrintAreas,
   getProductPrintArea,
   computePersonalizationPrice
-} from './personalization-config.js';
+} from './personalization-config.js?v=20260829-16';
 import { PersonalizationEditor, FONT_OPTIONS } from './personalization-editor.js';
 import { ILLUSTRATION_LIBRARY } from './personalization-illustrations.js';
 import {
@@ -27,7 +27,7 @@ import {
   generateDesignId
 } from './personalization-storage.js';
 
-const FACE_LABELS = { front: 'Recto', back: 'Verso', wrap: 'Tasse' };
+const FACE_LABELS = { front: 'Recto', back: 'Verso', wrap: 'Surface' };
 const QUALITY_LABELS = {
   excellente: { label: 'Excellente qualite', className: 'is-good' },
   acceptable: { label: 'Qualite acceptable', className: 'is-mid' },
@@ -202,6 +202,10 @@ class PersonalizationStudio {
 
   getColor() { return getProductColor(this.product, this.colorId); }
   getSize() { return getProductSize(this.product, this.sizeId); }
+  getFaceLabel(face) {
+    if (face === 'wrap') return this.product?.category === 'tumbler' ? 'Tumbler' : 'Tasse';
+    return FACE_LABELS[face] || face || '';
+  }
 
   getFacesUsed() {
     const withContent = this.editor.facesWithContent();
@@ -229,6 +233,10 @@ class PersonalizationStudio {
       <div class="pz-app">
         <header class="pz-workbar">
           <div class="pz-workbar-main">
+            <a class="pz-studio-brand" href="./index.html" aria-label="Retour à l'accueil Smart Cut Services">
+              <img src="./logo.png" alt="Smart Cut Services">
+              <span>Smart Cut</span>
+            </a>
             <a class="pz-icon-action" href="./printing-hub.html" aria-label="Retour à l'imprimerie"><i class="fas fa-arrow-left" aria-hidden="true"></i></a>
             <div><span>Studio d'impression</span><strong id="pzWorkbarTitle">${this.escape(this.product?.name || '')}</strong></div>
           </div>
@@ -294,7 +302,6 @@ class PersonalizationStudio {
           <div class="pz-tool-tabs" role="tablist" aria-label="Outils">
             <button type="button" class="pz-tool-tab" data-tool="image" role="tab"><i class="fas fa-image" aria-hidden="true"></i> Image</button>
             <button type="button" class="pz-tool-tab" data-tool="text" role="tab"><i class="fas fa-font" aria-hidden="true"></i> Texte</button>
-            <button type="button" class="pz-tool-tab" data-tool="library" role="tab"><i class="fas fa-shapes" aria-hidden="true"></i> Bibliotheque</button>
             <button type="button" class="pz-tool-tab" data-tool="layers" role="tab"><i class="fas fa-layer-group" aria-hidden="true"></i> Calques</button>
           </div>
           <div id="pzToolPanel" class="pz-tool-panel"></div>
@@ -389,7 +396,7 @@ class PersonalizationStudio {
     const workbarTitle = this.container.querySelector('#pzWorkbarTitle');
     if (workbarTitle) workbarTitle.textContent = this.product?.name || '';
     const kicker = this.container.querySelector('#pzActiveAreaKicker');
-    if (kicker) kicker.textContent = `${FACE_LABELS[this.editor.getFace()] || ''} · emplacement actif`;
+    if (kicker) kicker.textContent = `${this.getFaceLabel(this.editor.getFace())} · emplacement actif`;
     const label = this.container.querySelector('#pzEditStageLabel');
     if (label) label.textContent = area?.label || 'Zone d’édition';
     const undo = this.container.querySelector('#pzUndoBtn');
@@ -421,7 +428,7 @@ class PersonalizationStudio {
         </div>
         <div class="pz-compact-options">
           <div><span class="pz-control-label">Couleur · ${this.escape(color?.label || '')}</span><div class="pz-swatches">
-            ${(this.product.colors || []).map((c) => `<button type="button" class="pz-swatch ${c.id === this.colorId ? 'is-active' : ''}" data-select-color="${this.escape(c.id)}" style="--swatch:${c.hex}" title="${this.escape(c.label)}" aria-label="${this.escape(c.label)}"></button>`).join('')}
+            ${(this.product.colors || []).map((c) => `<button type="button" class="pz-swatch ${c.id === this.colorId ? 'is-active' : ''}" data-select-color="${this.escape(c.id)}" style="--swatch:${c.hex};background-color:${c.hex}" title="${this.escape(c.label)}" aria-label="${this.escape(c.label)}"></button>`).join('')}
           </div></div>
           <div><span class="pz-control-label">Format</span><div class="pz-pill-group">
             ${(this.product.sizes || []).map((s) => `<button type="button" class="pz-pill ${s.id === this.sizeId ? 'is-active' : ''}" data-select-size="${this.escape(s.id)}">${this.escape(s.label)}${s.priceDelta ? ` +${this.formatPrice(s.priceDelta)}` : ''}</button>`).join('')}
@@ -434,7 +441,7 @@ class PersonalizationStudio {
           ${areas.map((area) => {
             const count = this.editor.getLayersForArea(area.id).length;
             return `<button type="button" class="pz-area-option ${area.id === currentAreaId ? 'is-active' : ''}" data-select-area="${this.escape(area.id)}">
-              <span><b>${this.escape(area.shortLabel || area.label)}</b><small>${this.escape(FACE_LABELS[area.face] || area.face)}</small></span>
+              <span><b>${this.escape(area.shortLabel || area.label)}</b><small>${this.escape(this.getFaceLabel(area.face))}</small></span>
               ${count ? `<em>${count}</em>` : '<i class="fas fa-plus" aria-hidden="true"></i>'}
             </button>`;
           }).join('')}

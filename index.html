@@ -5,14 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#131921">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <title>Smart Cut Services</title>
+  <meta name="description" content="L'écosystème Smart Cut : marketplace, santé et pharmacie, formations, pièces auto, imprimerie et services professionnels vérifiés. Un seul compte, paiement et livraison locale en Haïti.">
+  <link rel="canonical" href="https://smartcutservices.com/">
+  <meta property="og:site_name" content="Smart Cut Services">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Smart Cut Services — tout au même endroit">
+  <meta property="og:description" content="Marketplace, santé, formations, pièces auto, imprimerie et services pro vérifiés. Un seul compte pour tout l'écosystème.">
+  <meta property="og:url" content="https://smartcutservices.com/">
+  <meta property="og:image" content="https://smartcutservices.com/logo.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Smart Cut Services">
+  <meta name="twitter:description" content="Marketplace, santé, formations, pièces auto, imprimerie et services pro vérifiés en Haïti.">
+  <meta name="twitter:image" content="https://smartcutservices.com/logo.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://smartcutservices.com/#organization",
+        "name": "Smart Cut Services",
+        "url": "https://smartcutservices.com/",
+        "logo": "https://smartcutservices.com/logo.png",
+        "email": "administration@smartcutservices.com",
+        "telephone": "+509 3491 3898",
+        "areaServed": "HT"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://smartcutservices.com/#website",
+        "url": "https://smartcutservices.com/",
+        "name": "Smart Cut Services",
+        "publisher": { "@id": "https://smartcutservices.com/#organization" },
+        "inLanguage": "fr-HT",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://smartcutservices.com/catalogue.html?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    ]
+  }
+  </script>
   <!-- Pas de webfont custom : Arial/Amazon Ember systeme, comme amazon.com -->
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="./tailwind-site.css?v=20260816-1">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260827-4">
-  <link rel="stylesheet" href="./health-teaser.css?v=20260827-2">
-  <link rel="stylesheet" href="./services-teaser.css?v=20260827-3">
+  <link rel="stylesheet" href="./tailwind-site.css?v=20260829-16">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260829-16">
+  <link rel="stylesheet" href="./health-teaser.css?v=20260829-16">
+  <link rel="stylesheet" href="./services-teaser.css?v=20260829-16">
   
   <!-- Import Map Firebase -->
   <script type="importmap">
@@ -231,7 +281,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260828-1';
+    const ASSET_VERSION = '20260829-16';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -378,7 +428,7 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260523-6')
+      import('./notification.js?v=20260829-16')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
@@ -390,7 +440,7 @@
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260523-6')
+      import('./musique.js?v=20260829-16')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',

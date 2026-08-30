@@ -1,13 +1,47 @@
 // ============= SEARCH COMPONENT - AVEC NOUVELLE STRUCTURE THÈME =============
 import { db } from './firebase-init.js';
-import { isPublicProductVisible } from './catalog-products.js?v=20260711-1';
+import { isPublicProductVisible, loadPublicProducts } from './catalog-products.js?v=20260829-16';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
-import { 
-  collection, query, where, getDocs, orderBy, limit 
+import {
+  collection, query, where, getDocs, orderBy, limit
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { marketplaceApi } from './marketplace-api.js?v=20260829-16';
 import theme from './theme-root.js';
 
 const SMARTCUT_SEARCH_HISTORY_KEY = 'smartcut_search_history';
+const HEALTH_FN_BASE = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
+const SEARCH_SOURCE_TTL = 5 * 60 * 1000; // une source n'est retéléchargée qu'une fois par tranche de 5 min
+
+// Recherche tolérante aux accents : "medecin" trouve "médecin".
+function scNormalize(value) {
+  return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function scTokenize(value) {
+  return scNormalize(value).split(/[^a-z0-9]+/).filter((token) => token.length >= 2);
+}
+// Tous les mots de la requête doivent apparaître dans le texte indexé.
+function scMatchesAll(haystack, queryTokens) {
+  const normalized = scNormalize(haystack);
+  return queryTokens.length > 0 && queryTokens.every((token) => normalized.includes(token));
+}
+
+// Cache de session par source : un seul téléchargement, réutilisé pour toutes les
+// frappes / recherches suivantes au lieu d'un getDocs de collection entière à chaque fois.
+const _searchSourceCache = new Map();
+function cachedSearchSource(key, loader) {
+  const hit = _searchSourceCache.get(key);
+  const now = Date.now();
+  if (hit) {
+    if (hit.data && now - hit.at < SEARCH_SOURCE_TTL) return Promise.resolve(hit.data);
+    if (hit.promise) return hit.promise;
+  }
+  const promise = Promise.resolve()
+    .then(loader)
+    .then((data) => { _searchSourceCache.set(key, { at: Date.now(), data }); return data; })
+    .catch((error) => { _searchSourceCache.delete(key); throw error; });
+  _searchSourceCache.set(key, { at: now, promise });
+  return promise;
+}
 
 function saveSmartcutSearchTerm(term) {
   const cleanTerm = String(term || '').trim();
@@ -46,7 +80,10 @@ class SearchComponent {
     this.searchTimeout = null;
     this.currentResults = {
       products: [],
-      presentations: []
+      presentations: [],
+      health: [],
+      services: [],
+      formations: []
     };
     
     this.theme = theme;
@@ -700,12 +737,15 @@ class SearchComponent {
       saveSmartcutSearchTerm(searchTerm);
       const searchLower = searchTerm.toLowerCase();
       
-      const [products, presentations] = await Promise.all([
-        this.searchProducts(searchLower),
-        this.searchPresentations(searchLower)
+      const [products, presentations, health, services, formations] = await Promise.all([
+        this.searchProducts(searchTerm),
+        this.searchPresentations(searchTerm),
+        this.searchHealth(searchTerm),
+        this.searchServices(searchTerm),
+        this.searchFormations(searchTerm)
       ]);
-      
-      this.currentResults = { products, presentations };
+
+      this.currentResults = { products, presentations, health, services, formations };
       this.renderResults(contentDiv, searchTerm);
       
     } catch (error) {
@@ -713,44 +753,35 @@ class SearchComponent {
       contentDiv.innerHTML = `
         <div class="search-empty-${this.uniqueId}">
           <i class="fas fa-exclamation-triangle" style="color: #7F1D1D;"></i>
-          <p>Une erreur est survenue</p>
+          <p>La recherche n'a pas abouti. Vérifiez votre connexion et réessayez.</p>
         </div>
       `;
     }
   }
   
   async searchProducts(searchTerm) {
-    const collectionsToTry = ['products', 'vendorProducts'];
-    const mergedResults = [];
-    const seen = new Set();
+    const tokens = scTokenize(searchTerm);
+    if (!tokens.length) return [];
 
-    for (const collectionName of collectionsToTry) {
-      try {
-        const snapshot = await getDocs(collection(db, collectionName));
-        snapshot.forEach(docSnap => {
-          const product = { id: docSnap.id, sourceCollection: collectionName, ...docSnap.data() };
-
-          const nameMatch = product.name?.toLowerCase().includes(searchTerm);
-          const descMatch = product.shortDescription?.toLowerCase().includes(searchTerm);
-          const fullDescMatch = product.description?.toLowerCase().includes(searchTerm);
-          const skuMatch = product.sku?.toLowerCase().includes(searchTerm);
-          const categoryMatch = product.categoryName?.toLowerCase().includes(searchTerm);
-
-          if ((nameMatch || descMatch || fullDescMatch || skuMatch || categoryMatch) && isPublicProductVisible(product)) {
-            const key = `${collectionName}:${product.id}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              mergedResults.push(product);
-            }
-          }
-        });
-      } catch (error) {
-        console.warn(`⚠️ Recherche produits ignorée sur ${collectionName}:`, error);
-      }
+    let products = [];
+    try {
+      // Un seul chargement (produits + vendeurs, visibilité déjà appliquée), mis en cache
+      // pour toute la session au lieu d'un getDocs de collection entière à chaque frappe.
+      products = await cachedSearchSource('products', () => loadPublicProducts({ maxPerCollection: 500 }));
+    } catch (error) {
+      console.warn('⚠️ Chargement du catalogue pour la recherche impossible:', error);
+      return [];
     }
 
-    return mergedResults
-      .sort((a, b) => this.getSearchPriority(b) - this.getSearchPriority(a) || String(a.name || '').localeCompare(String(b.name || '')))
+    return products
+      .filter((product) => isPublicProductVisible(product) && scMatchesAll(
+        [product.name, product.shortDescription, product.description, product.sku,
+         product.categoryName, product.vendorName, product.shopName]
+          .filter(Boolean).join(' '),
+        tokens
+      ))
+      .sort((a, b) => this.getSearchPriority(b) - this.getSearchPriority(a)
+        || String(a.name || '').localeCompare(String(b.name || '')))
       .slice(0, this.options.maxResults);
   }
 
@@ -766,38 +797,150 @@ class SearchComponent {
   }
   
   async searchPresentations(searchTerm) {
-    const collectionsToTry = ['presentations', 'articles'];
-    const mergedResults = [];
-    const seen = new Set();
+    const tokens = scTokenize(searchTerm);
+    if (!tokens.length) return [];
 
-    for (const collectionName of collectionsToTry) {
-      try {
-        const snapshot = await getDocs(collection(db, collectionName));
-        snapshot.forEach(docSnap => {
-          const entry = { id: docSnap.id, ...docSnap.data() };
-
-          const titleMatch = entry.title?.toLowerCase().includes(searchTerm);
-          const subtitleMatch = entry.subtitle?.toLowerCase().includes(searchTerm);
-          const contentMatch = entry.content?.toLowerCase().includes(searchTerm);
-
-          if (titleMatch || subtitleMatch || contentMatch) {
-            const normalized = {
-              ...entry,
-              articleId: entry.articleId || entry.id
-            };
-            const key = `${collectionName}:${normalized.articleId}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              mergedResults.push(normalized);
-            }
+    let entries = [];
+    try {
+      entries = await cachedSearchSource('presentations', async () => {
+        const collectionsToTry = ['presentations', 'articles'];
+        const merged = [];
+        const seen = new Set();
+        for (const collectionName of collectionsToTry) {
+          try {
+            const snapshot = await getDocs(query(collection(db, collectionName), limit(300)));
+            snapshot.forEach((docSnap) => {
+              const entry = { id: docSnap.id, ...docSnap.data() };
+              entry.articleId = entry.articleId || entry.id;
+              const key = `${collectionName}:${entry.articleId}`;
+              if (!seen.has(key)) { seen.add(key); merged.push(entry); }
+            });
+          } catch (error) {
+            console.warn(`⚠️ Source articles ignorée (${collectionName}):`, error);
           }
-        });
-      } catch (error) {
-        console.warn(`⚠️ Recherche articles ignorée sur ${collectionName}:`, error);
-      }
+        }
+        return merged;
+      });
+    } catch (error) {
+      console.warn('⚠️ Chargement des articles pour la recherche impossible:', error);
+      return [];
     }
 
-    return mergedResults.slice(0, this.options.presentationsPerPage);
+    return entries
+      .filter((entry) => scMatchesAll(
+        [entry.title, entry.subtitle, entry.content].filter(Boolean).join(' '),
+        tokens
+      ))
+      .slice(0, this.options.presentationsPerPage);
+  }
+
+  async searchHealth(searchTerm) {
+    const tokens = scTokenize(searchTerm);
+    if (!tokens.length) return [];
+
+    let data;
+    try {
+      data = await cachedSearchSource('health', async () => {
+        const get = async (fn, key) => {
+          try {
+            const response = await fetch(`${HEALTH_FN_BASE}/${fn}`);
+            const payload = await response.json().catch(() => ({}));
+            return Array.isArray(payload?.[key]) ? payload[key] : [];
+          } catch (_) {
+            return [];
+          }
+        };
+        const [doctors, laboratories, exams] = await Promise.all([
+          get('healthListDoctors', 'doctors'),
+          get('healthListLaboratories', 'laboratories'),
+          get('healthListLabExams', 'exams')
+        ]);
+        return { doctors, laboratories, exams };
+      });
+    } catch (_) {
+      return [];
+    }
+
+    const rows = [];
+    (data.doctors || []).forEach((d) => {
+      if (scMatchesAll([d.name, d.specialty, d.facility, d.commune, d.department].filter(Boolean).join(' '), tokens)) {
+        rows.push({ kind: 'doctor', id: d.id, title: d.name || 'Médecin',
+          subtitle: [d.specialty, d.commune].filter(Boolean).join(' · '), href: './health-medecins.html' });
+      }
+    });
+    (data.laboratories || []).forEach((l) => {
+      if (scMatchesAll([l.name, l.commune, l.department, l.address].filter(Boolean).join(' '), tokens)) {
+        rows.push({ kind: 'lab', id: l.id, title: l.name || 'Laboratoire',
+          subtitle: [l.commune, l.department].filter(Boolean).join(' · '), href: './health-laboratoires.html' });
+      }
+    });
+    (data.exams || []).forEach((e) => {
+      if (scMatchesAll([e.name, e.description, e.specimen].filter(Boolean).join(' '), tokens)) {
+        rows.push({ kind: 'exam', id: e.id, title: e.name || 'Examen',
+          subtitle: e.description ? String(e.description).slice(0, 60) : 'Examen de laboratoire',
+          href: './health-laboratoires.html' });
+      }
+    });
+    return rows.slice(0, this.options.maxResults);
+  }
+
+  async searchServices(searchTerm) {
+    const tokens = scTokenize(searchTerm);
+    if (!tokens.length) return [];
+
+    let services = [];
+    try {
+      services = await cachedSearchSource('services', async () => {
+        const response = await marketplaceApi('PublicServices', { query: { limit: 60 } });
+        return Array.isArray(response?.services) ? response.services : [];
+      });
+    } catch (_) {
+      return [];
+    }
+
+    return services
+      .filter((s) => scMatchesAll(
+        [s.name, s.title, s.summary, s.shortDescription, s.description, s.categoryId].filter(Boolean).join(' '),
+        tokens
+      ))
+      .slice(0, this.options.maxResults)
+      .map((s) => ({
+        icon: 'fa-briefcase',
+        badge: 'Service',
+        title: s.name || s.title || 'Service professionnel',
+        subtitle: String(s.summary || s.shortDescription || s.description || 'Prestation professionnelle vérifiée').slice(0, 60),
+        href: s.slug ? `./service.html?slug=${encodeURIComponent(s.slug)}` : './services.html'
+      }));
+  }
+
+  async searchFormations(searchTerm) {
+    const tokens = scTokenize(searchTerm);
+    if (!tokens.length) return [];
+
+    let programs = [];
+    try {
+      programs = await cachedSearchSource('formations', async () => {
+        const mod = await import('./education-repository.js?v=20260829-16');
+        const list = await mod.listPublishedPrograms({ limit: 200 });
+        return Array.isArray(list) ? list : [];
+      });
+    } catch (_) {
+      return [];
+    }
+
+    return programs
+      .filter((p) => scMatchesAll(
+        [p.title, p.shortDescription, p.fullDescription, p.level, p.commune, p.department].filter(Boolean).join(' '),
+        tokens
+      ))
+      .slice(0, this.options.maxResults)
+      .map((p) => ({
+        icon: 'fa-graduation-cap',
+        badge: 'Formation',
+        title: p.title || 'Formation',
+        subtitle: String(p.shortDescription || [p.level, p.commune].filter(Boolean).join(' · ') || 'Formation professionnelle').slice(0, 60),
+        href: p.slug ? `./education-programme.html?slug=${encodeURIComponent(p.slug)}` : `./education-programme.html?id=${encodeURIComponent(p.id || '')}`
+      }));
   }
   
   getImagePath(filename) {
@@ -805,14 +948,18 @@ class SearchComponent {
   }
   
   renderResults(container, searchTerm) {
-    const { products, presentations } = this.currentResults;
-    const totalResults = products.length + presentations.length;
+    const { products, presentations, health, services, formations } = this.currentResults;
+    const healthRows = Array.isArray(health) ? health : [];
+    const serviceRows = Array.isArray(services) ? services : [];
+    const formationRows = Array.isArray(formations) ? formations : [];
+    const totalResults = products.length + presentations.length + healthRows.length
+      + serviceRows.length + formationRows.length;
     
     if (totalResults === 0) {
       container.innerHTML = `
         <div class="search-empty-${this.uniqueId}">
           <i class="fas fa-search"></i>
-          <p>Aucun résultat pour "${searchTerm}"</p>
+          <p>Aucun résultat pour « ${String(searchTerm).replace(/[<>]/g, '')} ». Essayez un autre mot ou vérifiez l'orthographe.</p>
         </div>
       `;
       return;
@@ -833,6 +980,45 @@ class SearchComponent {
       `;
     }
     
+    if (healthRows.length > 0) {
+      html += `
+        <div class="search-section-${this.uniqueId}">
+          <h3 class="search-section-title-${this.uniqueId}">
+            Santé (${healthRows.length})
+          </h3>
+          <div class="search-grid-${this.uniqueId}">
+            ${healthRows.map(row => this.renderHealthCard(row)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    if (serviceRows.length > 0) {
+      html += `
+        <div class="search-section-${this.uniqueId}">
+          <h3 class="search-section-title-${this.uniqueId}">
+            Services professionnels (${serviceRows.length})
+          </h3>
+          <div class="search-grid-${this.uniqueId}">
+            ${serviceRows.map(row => this.renderLinkCard(row)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    if (formationRows.length > 0) {
+      html += `
+        <div class="search-section-${this.uniqueId}">
+          <h3 class="search-section-title-${this.uniqueId}">
+            Formations (${formationRows.length})
+          </h3>
+          <div class="search-grid-${this.uniqueId}">
+            ${formationRows.map(row => this.renderLinkCard(row)).join('')}
+          </div>
+        </div>
+      `;
+    }
+
     if (presentations.length > 0) {
       html += `
         <div class="search-section-${this.uniqueId}">
@@ -845,7 +1031,7 @@ class SearchComponent {
         </div>
       `;
     }
-    
+
     container.innerHTML = html;
     this.attachResultClickEvents();
   }
@@ -900,6 +1086,34 @@ class SearchComponent {
     `;
   }
   
+  renderHealthCard(row) {
+    const icons = { doctor: 'fa-user-doctor', lab: 'fa-flask-vial', exam: 'fa-vial' };
+    const badges = { doctor: 'Médecin', lab: 'Laboratoire', exam: 'Examen' };
+    return this.renderLinkCard({
+      icon: icons[row.kind] || 'fa-heart-pulse',
+      badge: badges[row.kind] || 'Santé',
+      title: row.title,
+      subtitle: row.subtitle,
+      href: row.href
+    });
+  }
+
+  renderLinkCard(row) {
+    const safe = (v) => String(v || '').replace(/[<>]/g, '');
+    return `
+      <div class="search-card-${this.uniqueId}" data-type="link" data-href="${safe(row.href)}">
+        <div class="search-card-image-${this.uniqueId}">
+          <i class="fas ${row.icon || 'fa-arrow-right'}"></i>
+        </div>
+        <div class="search-card-content-${this.uniqueId}">
+          <div class="search-card-title-${this.uniqueId}">${safe(row.title)}</div>
+          ${row.subtitle ? `<div class="search-card-subtitle-${this.uniqueId}">${safe(row.subtitle)}</div>` : ''}
+          <span class="search-card-badge-${this.uniqueId}">${safe(row.badge || 'Lien')}</span>
+        </div>
+      </div>
+    `;
+  }
+
   attachResultClickEvents() {
     const cards = this.modal.querySelectorAll(`.search-card-${this.uniqueId}`);
     
@@ -917,7 +1131,7 @@ class SearchComponent {
         
         if (type === 'product') {
           try {
-            const module = await import('./product-modal.js?v=20260821-1');
+            const module = await import('./product-modal.js?v=20260829-16');
             const ProductModal = module.default;
             
             new ProductModal({
@@ -928,10 +1142,12 @@ class SearchComponent {
             console.error('❌ Erreur ouverture produit:', error);
           }
         } else if (type === 'presentation' && articleId) {
-          const event = new CustomEvent('openArticle', { 
+          const event = new CustomEvent('openArticle', {
             detail: { articleId: articleId }
           });
           document.dispatchEvent(event);
+        } else if ((type === 'health' || type === 'link') && card.dataset.href) {
+          window.location.href = card.dataset.href;
         }
       });
     });

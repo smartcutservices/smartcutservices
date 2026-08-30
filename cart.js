@@ -1,6 +1,6 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js?v=20260523-6';
-import { getAuthManager } from './auth.js?v=20260523-6';
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260829-16';
+import { getAuthManager } from './auth.js?v=20260829-16';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -821,7 +821,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260816-1');
+      const module = await import('./checkout.js?v=20260829-16');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -1954,9 +1954,13 @@ class CartManager {
               <span style="font-weight: bold;">${this.formatPrice(totalPrice)}</span>
             </div>
 
-            <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin:-.2rem 0 .85rem;color:#6b655d;font-size:.78rem;text-align:center;">
+            <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin:-.2rem 0 .3rem;color:#6b655d;font-size:.78rem;text-align:center;">
               <i class="fas fa-shield-halved" aria-hidden="true" style="color:#9a782b;"></i>
-              <span>Paiement sécurisé · Total final confirmé avant la transaction</span>
+              <span>Paiement sécurisé MonCash · Total final confirmé avant la transaction</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:.5rem;margin:0 0 .85rem;color:#6b655d;font-size:.78rem;text-align:center;">
+              <i class="fas fa-rotate-left" aria-hidden="true" style="color:#9a782b;"></i>
+              <span>Litige ou remboursement pris en charge par Smart Cut Services</span>
             </div>
             
             <button class="checkout-btn" style="
@@ -2094,7 +2098,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js?v=20260821-1')
+    import('./product-modal.js?v=20260829-16')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {

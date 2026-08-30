@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard createur - SmartSolutionTek</title>
-<link rel="stylesheet" href="./styles.css?v=20260827-2">
+<link rel="stylesheet" href="./styles.css?v=20260829-13">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -26,7 +26,7 @@
     import {
       applyShopTheme, renderAnnouncementBar, renderClosedBanner, renderShopNav, renderShopHero,
       renderSectionsInOrder, renderShopFooter, contrastRatio, DESIGN_PRESETS
-    } from './shop-renderer.js?v=20260827-2';
+    } from './shop-renderer.js?v=20260829-13';
     import { buildCourseSaveBody, courseStatusLabel } from './dashboard/courses/course-model.js';
     import { createCourseApi } from './dashboard/courses/course-api.js';
     import { mountCourseStudio } from './dashboard/courses/app.js';
@@ -1153,12 +1153,13 @@
       preparing: 'En préparation', ready_for_pickup: 'Prête pour retrait', shipped: 'Expédiée', delivered: 'Livrée', cancelled: 'Annulée'
     };
     const SHOP_WS_TABS = [
-      { id: 'apercu', label: 'Aperçu', icon: 'fa-eye' },
-      { id: 'design', label: 'Design', icon: 'fa-palette' },
-      { id: 'produits', label: 'Produits', icon: 'fa-boxes-stacked' },
-      { id: 'commandes', label: 'Commandes', icon: 'fa-receipt' },
-      { id: 'livraison', label: 'Livraison', icon: 'fa-truck' },
-      { id: 'parametres', label: 'Paramètres', icon: 'fa-gear' }
+      { id: 'apercu', label: 'Tableau de bord', description: 'Pilotage & aperçu', icon: 'fa-chart-pie' },
+      { id: 'design', label: 'Apparence', description: 'Identité & couleurs', icon: 'fa-wand-magic-sparkles' },
+      { id: 'produits', label: 'Catalogue', description: 'Produits & stocks', icon: 'fa-boxes-stacked' },
+      { id: 'commandes', label: 'Commandes', description: 'Ventes & traitement', icon: 'fa-bag-shopping' },
+      { id: 'livraison', label: 'Livraison', description: 'Retrait & zones', icon: 'fa-truck-fast' },
+      { id: 'marketing', label: 'Croissance', description: 'SEO & réseaux', icon: 'fa-bullhorn' },
+      { id: 'parametres', label: 'Paramètres', description: 'Contact & conformité', icon: 'fa-sliders' }
     ];
     const REORDERABLE_SECTIONS = ['featured', 'collection', 'trust', 'delivery', 'contact'];
     const SECTION_LABELS = { hero: 'Hero', featured: 'Produits vedettes', collection: 'Collection', trust: 'Arguments de confiance', delivery: 'Livraison & retrait', contact: 'Contact' };
@@ -1286,11 +1287,11 @@
     // ---------- Workspace lifecycle ----------
 
     function normalizeCatalog(raw) {
-      return {
+      const defaults = {
         name: '', description: '', logoUrl: null, bannerUrl: null,
         contactInfo: { phone: '', email: '' },
         heroTitle: '', heroSubtitle: '', heroAlign: 'left', heroHeight: 'normal',
-        design: { colors: {}, textColor: null, font: 'system', radius: 12, density: 'normal', buttonStyle: 'pill', cardStyle: 'flat' },
+        design: { colors: { primary: '#0F172A', accent: '#F59E0B', buttonColor: '#F59E0B', backgroundColor: '#F8FAFC' }, textColor: '#0F172A', font: 'system', radius: 14, density: 'normal', buttonStyle: 'rounded', cardStyle: 'shadow' },
         layout: 'minimal',
         sections: { order: ['hero', 'featured', 'collection', 'trust', 'delivery', 'contact'], visibility: { hero: true, featured: true, collection: true, trust: true, delivery: true, contact: true }, announcement: null },
         delivery: { pickupEnabled: true, pickupAddress: null, pickupHours: null, deliveryEnabled: false, zones: [], freeDeliveryThreshold: null, minOrderAmount: 0, instructions: null, phoneRequired: false },
@@ -1299,12 +1300,29 @@
         legal: { deliveryPolicy: null, returnPolicy: null, terms: null },
         closedTemporarily: false, closedMessage: null,
         status: 'draft',
-        ...raw
       };
+      const catalog = { ...defaults, ...(raw || {}) };
+      catalog.design = {
+        ...defaults.design,
+        ...(raw?.design || {}),
+        colors: { ...defaults.design.colors, ...(raw?.design?.colors || {}) }
+      };
+      catalog.contactInfo = { ...defaults.contactInfo, ...(raw?.contactInfo || {}) };
+      catalog.sections = { ...defaults.sections, ...(raw?.sections || {}), visibility: { ...defaults.sections.visibility, ...(raw?.sections?.visibility || {}) } };
+      catalog.delivery = { ...defaults.delivery, ...(raw?.delivery || {}) };
+      catalog.seo = { ...defaults.seo, ...(raw?.seo || {}) };
+      catalog.socialLinks = { ...defaults.socialLinks, ...(raw?.socialLinks || {}) };
+      catalog.legal = { ...defaults.legal, ...(raw?.legal || {}) };
+      return catalog;
     }
 
     function isShopWsDirty() {
       return !!shopWs && JSON.stringify(shopWs.catalog) !== shopWs.savedJson;
+    }
+    function isShopWsHttpUrl(value) {
+      if (!String(value || '').trim()) return true;
+      try { return ['https:', 'http:'].includes(new URL(value).protocol); }
+      catch (_) { return false; }
     }
     function shopWsBeforeUnload(e) {
       if (shopWs && isShopWsDirty()) { e.preventDefault(); e.returnValue = ''; }
@@ -1316,6 +1334,7 @@
     }
     function markShopWsDirty() {
       renderShopWsHeader();
+      renderShopWsTabs();
     }
     function setShopWsField(path, value) {
       const parts = path.split('.');
@@ -1353,12 +1372,14 @@
       shopWs.unsubProducts = onSnapshot(productsQuery, (snap) => {
         if (!shopWs) return;
         shopWs.products = snap.docs.filter((d) => d.data().status !== 'archived').map((d) => ({ id: d.id, ...d.data() }));
+        renderShopWsTabs();
         if (['apercu', 'produits'].includes(shopWs.activeTab)) renderShopWsTabContent();
       });
       const ordersQuery = query(collection(db, 'shopOrders'), where('catalogId', '==', shopWs.catalogId));
       shopWs.unsubOrders = onSnapshot(ordersQuery, (snap) => {
         if (!shopWs) return;
         shopWs.orders = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        renderShopWsTabs();
         if (['apercu', 'commandes'].includes(shopWs.activeTab)) renderShopWsTabContent();
       });
     }
@@ -1383,14 +1404,49 @@
       overlay.setAttribute('aria-modal', 'true');
       overlay.innerHTML = `
         <div class="sst-modal-full">
-          <div class="sst-shop-ws-header" id="shopWsHeader"></div>
-          <div class="sst-shop-ws-tabs" id="shopWsTabs"></div>
-          <div class="sst-shop-ws-body" id="shopWsBody"></div>
+          <div class="sst-shop-ws-shell" id="shopWsShell">
+            <aside class="sst-shop-ws-sidebar" aria-label="Navigation de la mini boutique">
+              <div class="sst-shop-ws-sidebar-brand" id="shopWsSidebarBrand"></div>
+              <nav class="sst-shop-ws-tabs" id="shopWsTabs"></nav>
+              <div class="sst-shop-ws-sidebar-footer" id="shopWsSidebarFooter"></div>
+            </aside>
+            <button class="sst-shop-ws-nav-backdrop" id="shopWsNavBackdrop" aria-label="Fermer la navigation"></button>
+            <section class="sst-shop-ws-stage">
+              <div class="sst-shop-ws-header" id="shopWsHeader"></div>
+              <div class="sst-shop-ws-body" id="shopWsBody"></div>
+            </section>
+          </div>
         </div>
       `;
       document.body.appendChild(overlay);
       shopWs.overlay = overlay;
       renderShopWsHeader();
+      renderShopWsTabs();
+      renderShopWsTabContent();
+      overlay.querySelector('#shopWsNavBackdrop').addEventListener('click', () => toggleShopWsMobileNav(false));
+    }
+
+    function applyShopWsChromeTheme() {
+      if (!shopWs?.overlay) return;
+      const colors = shopWs.catalog.design?.colors || {};
+      const primary = /^#[0-9a-f]{6}$/i.test(colors.primary) ? colors.primary : '#0F2747';
+      const accent = /^#[0-9a-f]{6}$/i.test(colors.buttonColor || colors.accent) ? (colors.buttonColor || colors.accent) : '#F59E0B';
+      const onBrand = (contrastRatio(primary, '#FFFFFF') || 0) >= 4.5 ? '#FFFFFF' : '#101828';
+      const onAccent = (contrastRatio(accent, '#FFFFFF') || 0) >= (contrastRatio(accent, '#111827') || 0) ? '#FFFFFF' : '#111827';
+      shopWs.overlay.style.setProperty('--shop-ws-brand', primary);
+      shopWs.overlay.style.setProperty('--shop-ws-accent', accent);
+      shopWs.overlay.style.setProperty('--shop-ws-on-brand', onBrand);
+      shopWs.overlay.style.setProperty('--shop-ws-on-accent', onAccent);
+    }
+
+    function toggleShopWsMobileNav(open) {
+      document.getElementById('shopWsShell')?.classList.toggle('nav-open', open);
+    }
+
+    function switchShopWsTab(tabId) {
+      if (!SHOP_WS_TABS.some((tab) => tab.id === tabId)) return;
+      shopWs.activeTab = tabId;
+      toggleShopWsMobileNav(false);
       renderShopWsTabs();
       renderShopWsTabContent();
     }
@@ -1402,22 +1458,23 @@
       const c = shopWs.catalog;
       const statusLabel = c.status === 'published' ? 'Publiée' : c.status === 'suspended' ? 'Suspendue' : c.status === 'archived' ? 'Archivée' : 'Brouillon';
       const dirty = isShopWsDirty();
+      const activeTab = SHOP_WS_TABS.find((tab) => tab.id === shopWs.activeTab) || SHOP_WS_TABS[0];
+      applyShopWsChromeTheme();
       el.innerHTML = `
         <div class="sst-shop-ws-identity">
-          <button class="sst-shop-ws-back" id="wsClose"><i class="fas fa-arrow-left"></i> Boutiques</button>
-          <h3>${escapeHtml(c.name || 'Nouvelle boutique')}</h3>
-          <span class="sst-badge ${c.status}">${statusLabel}</span>
-          ${dirty ? '<span class="sst-shop-ws-dirty-dot" title="Modifications non enregistrées"></span>' : ''}
+          <button class="sst-shop-ws-mobile-nav" id="wsMobileNav" aria-label="Ouvrir la navigation"><i class="fas fa-bars"></i></button>
+          <div><span>Mini boutique</span><h3>${escapeHtml(activeTab.label)}</h3><p>${escapeHtml(activeTab.description)}</p></div>
         </div>
         <div class="sst-shop-ws-actions">
           ${c.status === 'published' ? `<a class="sst-btn sst-btn-secondary" href="./page.html?app=shops&catalogId=${shopWs.catalogId}&org=${shopWs.org.id}" target="_blank" rel="noopener"><i class="fas fa-arrow-up-right-from-square"></i> Voir en ligne</a>` : ''}
-          <button class="sst-btn sst-btn-secondary" id="wsSave">Enregistrer</button>
+          <span class="sst-shop-ws-save-state ${dirty ? 'dirty' : 'saved'}"><i class="fas ${dirty ? 'fa-circle' : 'fa-circle-check'}"></i> ${dirty ? 'Modifications à enregistrer' : 'Tout est enregistré'}</span>
+          <button class="sst-btn sst-btn-secondary" id="wsSave"><i class="fas fa-floppy-disk"></i> Enregistrer</button>
           ${c.status === 'published'
             ? `<button class="sst-btn sst-btn-secondary sst-btn-quiet" id="wsUnpublish">Dépublier</button>`
-            : `<button class="sst-btn sst-btn-primary" id="wsPublish">Publier</button>`}
+            : `<button class="sst-btn sst-btn-primary" id="wsPublish"><i class="fas fa-rocket"></i> Publier</button>`}
         </div>
       `;
-      el.querySelector('#wsClose').addEventListener('click', () => closeShopWorkspace(false));
+      el.querySelector('#wsMobileNav').addEventListener('click', () => toggleShopWsMobileNav(true));
       el.querySelector('#wsSave').addEventListener('click', () => saveShopWorkspace({}));
       el.querySelector('#wsPublish')?.addEventListener('click', () => publishShopWorkspace());
       el.querySelector('#wsUnpublish')?.addEventListener('click', () => unpublishShopWorkspace());
@@ -1427,12 +1484,31 @@
       if (!shopWs) return;
       const el = document.getElementById('shopWsTabs');
       if (!el) return;
-      el.innerHTML = SHOP_WS_TABS.map((t) => `<button class="sst-shop-ws-tab ${shopWs.activeTab === t.id ? 'active' : ''}" data-ws-tab="${t.id}"><i class="fas ${t.icon}"></i> ${t.label}</button>`).join('');
+      applyShopWsChromeTheme();
+      const c = shopWs.catalog;
+      const statusLabel = c.status === 'published' ? 'En ligne' : c.status === 'suspended' ? 'Suspendue' : 'Brouillon';
+      const checklist = computeShopChecklist(c, shopWs.products);
+      const completeCount = checklist.filter((item) => item.ok).length;
+      const progress = Math.round((completeCount / checklist.length) * 100);
+      const openOrders = shopWs.orders.filter((order) => !['delivered', 'cancelled'].includes(order.status)).length;
+      const counts = { produits: shopWs.products.length || '', commandes: openOrders || '' };
+      const brand = document.getElementById('shopWsSidebarBrand');
+      if (brand) brand.innerHTML = `
+        <button class="sst-shop-ws-back" id="wsClose"><i class="fas fa-arrow-left"></i><span>Toutes les boutiques</span></button>
+        <div class="sst-shop-ws-brand-card">
+          <span class="sst-shop-ws-brand-mark">${c.logoUrl ? `<img src="${escapeHtml(c.logoUrl)}" alt="">` : `<i class="fas fa-store"></i>`}</span>
+          <div><strong>${escapeHtml(c.name || 'Nouvelle boutique')}</strong><span><i></i>${statusLabel}</span></div>
+        </div>`;
+      brand?.querySelector('#wsClose')?.addEventListener('click', () => closeShopWorkspace(false));
+      el.innerHTML = SHOP_WS_TABS.map((t) => `<button class="sst-shop-ws-tab ${shopWs.activeTab === t.id ? 'active' : ''}" data-ws-tab="${t.id}"><span class="sst-shop-ws-tab-icon"><i class="fas ${t.icon}"></i></span><span class="sst-shop-ws-tab-copy"><strong>${t.label}</strong><small>${t.description}</small></span>${counts[t.id] ? `<b>${counts[t.id]}</b>` : ''}</button>`).join('');
       el.querySelectorAll('[data-ws-tab]').forEach((btn) => btn.addEventListener('click', () => {
-        shopWs.activeTab = btn.dataset.wsTab;
-        renderShopWsTabs();
-        renderShopWsTabContent();
+        switchShopWsTab(btn.dataset.wsTab);
       }));
+      const footer = document.getElementById('shopWsSidebarFooter');
+      if (footer) footer.innerHTML = `
+        <div class="sst-shop-ws-readiness"><div><span>Prête à vendre</span><strong>${progress}%</strong></div><div class="sst-shop-ws-progress"><i style="width:${progress}%"></i></div><small>${completeCount}/${checklist.length} éléments essentiels complétés</small></div>
+        <button class="sst-shop-ws-help" data-ws-tab="apercu"><i class="fas fa-lightbulb"></i><span><strong>Conseils boutique</strong><small>Voir les priorités du jour</small></span></button>`;
+      footer?.querySelector('[data-ws-tab]')?.addEventListener('click', () => switchShopWsTab('apercu'));
     }
 
     function renderShopWsTabContent() {
@@ -1440,7 +1516,7 @@
       const el = document.getElementById('shopWsBody');
       if (!el) return;
       renderShopWsHeader();
-      const renderers = { apercu: renderShopWsApercu, design: renderShopWsDesign, produits: renderShopWsProduits, commandes: renderShopWsCommandes, livraison: renderShopWsLivraison, parametres: renderShopWsParametres };
+      const renderers = { apercu: renderShopWsApercu, design: renderShopWsDesign, produits: renderShopWsProduits, commandes: renderShopWsCommandes, livraison: renderShopWsLivraison, marketing: renderShopWsMarketing, parametres: renderShopWsParametres };
       el.innerHTML = '';
       renderers[shopWs.activeTab](el);
     }
@@ -1448,6 +1524,12 @@
     async function saveShopWorkspace({ silent } = {}) {
       const c = shopWs.catalog;
       if (!String(c.name || '').trim()) { showToast('Le nom de la boutique est requis.', 'error'); return false; }
+      const publicUrls = [c.seo?.shareImageUrl, c.socialLinks?.instagram, c.socialLinks?.facebook, c.socialLinks?.tiktok, c.socialLinks?.whatsapp];
+      if (publicUrls.some((value) => !isShopWsHttpUrl(value))) {
+        showToast('Les liens publics doivent commencer par https:// ou http://.', 'error');
+        switchShopWsTab('marketing');
+        return false;
+      }
       try {
         await callSst('SaveShopCatalog', {
           method: 'POST', auth: currentUser,
@@ -1472,10 +1554,10 @@
 
     function computeShopChecklist(catalog, products) {
       return [
-        { label: 'Nom de la boutique renseigné', ok: !!String(catalog.name || '').trim() },
-        { label: 'Au moins un produit publié', ok: products.some((p) => p.status === 'published') },
-        { label: 'Coordonnées de contact renseignées', ok: !!(catalog.contactInfo?.phone || catalog.contactInfo?.email) },
-        { label: 'Un mode de retrait ou de livraison est activé', ok: !!(catalog.delivery?.pickupEnabled || catalog.delivery?.deliveryEnabled) }
+        { label: 'Nom de la boutique renseigné', ok: !!String(catalog.name || '').trim(), tab: 'design' },
+        { label: 'Au moins un produit publié', ok: products.some((p) => p.status === 'published'), tab: 'produits' },
+        { label: 'Coordonnées de contact renseignées', ok: !!(catalog.contactInfo?.phone || catalog.contactInfo?.email), tab: 'parametres' },
+        { label: 'Un mode de retrait ou de livraison est activé', ok: !!(catalog.delivery?.pickupEnabled || catalog.delivery?.deliveryEnabled), tab: 'livraison' }
       ];
     }
 
@@ -1514,28 +1596,49 @@
       const publishedProducts = products.filter((p) => p.status === 'published');
       const checklist = computeShopChecklist(c, products);
       const orders = shopWs.orders;
-      const confirmedOrders = orders.filter((o) => o.status !== 'pending_payment');
+      const confirmedOrders = orders.filter((o) => !['pending_payment', 'cancelled'].includes(o.status));
       const revenue = confirmedOrders.reduce((s, o) => s + Number(o.amountDue || 0), 0);
       const avgBasket = confirmedOrders.length ? revenue / confirmedOrders.length : 0;
       const outOfStock = products.filter((p) => p.type !== 'digital' && Number(p.stock || 0) <= 0).length;
+      const lowStockProducts = products.filter((p) => p.type !== 'digital' && Number(p.stock || 0) > 0 && Number(p.stock || 0) <= Number(p.lowStockThreshold || 3));
+      const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status));
+      const completed = checklist.filter((item) => item.ok).length;
+      const progress = Math.round((completed / checklist.length) * 100);
+      const recentOrders = orders.slice(0, 5);
 
       el.innerHTML = `
         <div class="sst-shop-ws-panel sst-shop-ws-panel-wide">
-          ${checklist.some((i) => !i.ok) ? `
-            <div class="sst-shop-ws-section">
-              <h4>Avant de publier</h4><p class="sst-hint">Complétez ces étapes pour publier votre boutique.</p>
-              <ul class="sst-shop-ws-checklist">${checklist.map((i) => `<li class="${i.ok ? 'ok' : 'missing'}"><i class="fas ${i.ok ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${escapeHtml(i.label)}</li>`).join('')}</ul>
-            </div>` : ''}
+          <section class="sst-shop-ws-welcome">
+            <div><span>Centre de pilotage</span><h2>Bonjour, votre boutique est ${c.status === 'published' ? 'en ligne' : 'presque prête'}.</h2><p>Suivez les ventes, traitez les urgences et améliorez votre vitrine depuis un seul endroit.</p></div>
+            <div class="sst-shop-ws-quick-actions">
+              <button data-dashboard-action="product"><i class="fas fa-plus"></i><span><strong>Ajouter un produit</strong><small>Enrichir le catalogue</small></span></button>
+              <button data-dashboard-action="orders"><i class="fas fa-bag-shopping"></i><span><strong>Traiter les commandes</strong><small>${activeOrders.length} en cours</small></span></button>
+              <button data-dashboard-action="design"><i class="fas fa-wand-magic-sparkles"></i><span><strong>Personnaliser</strong><small>Couleurs et vitrine</small></span></button>
+            </div>
+          </section>
           <div class="sst-shop-ws-stat-grid">
-            <div class="sst-shop-ws-stat-card"><span>Ventes</span><strong>${formatCurrency(revenue)}</strong></div>
-            <div class="sst-shop-ws-stat-card"><span>Commandes</span><strong>${orders.length}</strong></div>
-            <div class="sst-shop-ws-stat-card"><span>Panier moyen</span><strong>${formatCurrency(avgBasket)}</strong></div>
-            <div class="sst-shop-ws-stat-card"><span>Produits actifs</span><strong>${publishedProducts.length}</strong></div>
-            <div class="sst-shop-ws-stat-card"><span>En rupture</span><strong>${outOfStock}</strong></div>
+            <div class="sst-shop-ws-stat-card accent"><span><i class="fas fa-chart-line"></i> Chiffre d’affaires</span><strong>${formatCurrency(revenue)}</strong><small>${confirmedOrders.length} commande${confirmedOrders.length > 1 ? 's' : ''} confirmée${confirmedOrders.length > 1 ? 's' : ''}</small></div>
+            <div class="sst-shop-ws-stat-card"><span><i class="fas fa-bag-shopping"></i> À traiter</span><strong>${activeOrders.length}</strong><small>sur ${orders.length} commande${orders.length > 1 ? 's' : ''}</small></div>
+            <div class="sst-shop-ws-stat-card"><span><i class="fas fa-basket-shopping"></i> Panier moyen</span><strong>${formatCurrency(avgBasket)}</strong><small>Valeur moyenne confirmée</small></div>
+            <div class="sst-shop-ws-stat-card"><span><i class="fas fa-boxes-stacked"></i> Catalogue actif</span><strong>${publishedProducts.length}</strong><small>${products.length} produit${products.length > 1 ? 's' : ''} au total</small></div>
           </div>
+          <div class="sst-shop-ws-dashboard-grid">
+            <section class="sst-shop-ws-section sst-shop-ws-priorities">
+              <div class="sst-shop-ws-section-title"><div><span>À faire maintenant</span><h4>Priorités de la boutique</h4></div><b>${progress}% prête</b></div>
+              <div class="sst-shop-ws-progress large"><i style="width:${progress}%"></i></div>
+              <ul class="sst-shop-ws-checklist">${checklist.map((item) => `<li class="${item.ok ? 'ok' : 'missing'}"><i class="fas ${item.ok ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i><span>${escapeHtml(item.label)}</span>${item.ok ? '' : `<button data-dashboard-fix-tab="${item.tab}">Corriger</button>`}</li>`).join('')}</ul>
+              ${(outOfStock || lowStockProducts.length) ? `<div class="sst-shop-ws-alert"><i class="fas fa-box-open"></i><div><strong>${outOfStock} rupture${outOfStock > 1 ? 's' : ''}, ${lowStockProducts.length} stock${lowStockProducts.length > 1 ? 's' : ''} faible${lowStockProducts.length > 1 ? 's' : ''}</strong><span>Vérifiez les quantités pour éviter les ventes impossibles.</span></div><button data-dashboard-action="products">Gérer</button></div>` : `<div class="sst-shop-ws-success"><i class="fas fa-circle-check"></i> Aucun problème de stock détecté.</div>`}
+            </section>
+            <section class="sst-shop-ws-section">
+              <div class="sst-shop-ws-section-title"><div><span>Activité récente</span><h4>Dernières commandes</h4></div><button data-dashboard-action="orders">Tout voir</button></div>
+              ${recentOrders.length ? `<div class="sst-shop-ws-recent-orders">${recentOrders.map((order) => `<button data-dashboard-order="${order.id}"><span class="sst-shop-ws-order-icon"><i class="fas fa-bag-shopping"></i></span><span><strong>${escapeHtml(order.customerName || 'Client')}</strong><small>${formatSubmissionDate(order.createdAt)} · ${SHOP_ORDER_STATUS_LABELS[order.status] || order.status}</small></span><b>${formatCurrency(order.amountDue)}</b></button>`).join('')}</div>` : '<div class="sst-shop-ws-mini-empty"><i class="fas fa-receipt"></i><span><strong>Aucune commande reçue</strong><small>Les nouvelles ventes apparaîtront ici.</small></span></div>'}
+            </section>
+          </div>
+          <div class="sst-shop-ws-preview-heading"><div><span>Aperçu en direct</span><h3>Ce que voient vos clients</h3></div>
           <div class="sst-shop-ws-preview-toolbar">
             <button class="sst-shop-ws-device-btn ${shopWs.previewDevice === 'desktop' ? 'active' : ''}" data-preview-device="desktop" aria-label="Aperçu bureau"><i class="fas fa-desktop"></i></button>
             <button class="sst-shop-ws-device-btn ${shopWs.previewDevice === 'mobile' ? 'active' : ''}" data-preview-device="mobile" aria-label="Aperçu mobile"><i class="fas fa-mobile-screen"></i></button>
+          </div>
           </div>
           <div class="sst-shop-ws-preview-viewport">
             <div class="sst-shop-preview-frame ${shopWs.previewDevice === 'mobile' ? 'mobile' : ''}" id="shopWsPreviewFrame"></div>
@@ -1545,6 +1648,18 @@
       el.querySelectorAll('[data-preview-device]').forEach((btn) => btn.addEventListener('click', () => {
         shopWs.previewDevice = btn.dataset.previewDevice;
         renderShopWsApercu(el);
+      }));
+      el.querySelectorAll('[data-dashboard-action]').forEach((btn) => btn.addEventListener('click', () => {
+        const action = btn.dataset.dashboardAction;
+        if (action === 'product') { switchShopWsTab('produits'); openProductDrawer(null); return; }
+        if (action === 'orders') { switchShopWsTab('commandes'); return; }
+        if (action === 'design') { switchShopWsTab('design'); return; }
+        if (action === 'products') { shopWsProductFilter.sort = 'stock'; switchShopWsTab('produits'); return; }
+      }));
+      el.querySelectorAll('[data-dashboard-fix-tab]').forEach((btn) => btn.addEventListener('click', () => switchShopWsTab(btn.dataset.dashboardFixTab)));
+      el.querySelectorAll('[data-dashboard-order]').forEach((btn) => btn.addEventListener('click', () => {
+        const order = orders.find((item) => item.id === btn.dataset.dashboardOrder);
+        if (order) openOrderDrawer(order);
       }));
       renderShopWsPreviewFrame();
     }
@@ -1617,10 +1732,16 @@
 
     function renderShopWsDesign(el) {
       const c = shopWs.catalog;
-      const primary = /^#[0-9a-f]{6}$/i.test(c.design.colors?.primary) ? c.design.colors.primary : '#1C1C1C';
-      const accent = /^#[0-9a-f]{6}$/i.test(c.design.colors?.buttonColor || c.design.colors?.accent) ? (c.design.colors.buttonColor || c.design.colors.accent) : '#C2410C';
-      const background = /^#[0-9a-f]{6}$/i.test(c.design.colors?.backgroundColor) ? c.design.colors.backgroundColor : '#F5F5F7';
-      const contrast = contrastRatio(primary, '#FFFFFF');
+      const primary = /^#[0-9a-f]{6}$/i.test(c.design.colors?.primary) ? c.design.colors.primary : '#0F172A';
+      const accent = /^#[0-9a-f]{6}$/i.test(c.design.colors?.buttonColor || c.design.colors?.accent) ? (c.design.colors.buttonColor || c.design.colors.accent) : '#F59E0B';
+      const background = /^#[0-9a-f]{6}$/i.test(c.design.colors?.backgroundColor) ? c.design.colors.backgroundColor : '#F8FAFC';
+      const text = /^#[0-9a-f]{6}$/i.test(c.design.textColor) ? c.design.textColor : '#0F172A';
+      const primaryContrast = contrastRatio(primary, '#FFFFFF');
+      const primaryDarkContrast = contrastRatio(primary, '#111827');
+      const accentWhiteContrast = contrastRatio(accent, '#FFFFFF');
+      const accentDarkContrast = contrastRatio(accent, '#111827');
+      const primaryText = primaryContrast >= primaryDarkContrast ? '#FFFFFF' : '#111827';
+      const accentText = accentWhiteContrast >= accentDarkContrast ? '#FFFFFF' : '#111827';
       const preview = (url, icon) => (url ? `<img src="${escapeHtml(url)}" alt="Aperçu">` : `<i class="fas fa-${icon}" aria-hidden="true"></i>`);
 
       el.innerHTML = `
@@ -1651,7 +1772,7 @@
 
           <section class="sst-shop-ws-section">
             <h4>Hero</h4><p class="sst-hint">La première chose que voit un visiteur.</p>
-            <div class="sst-grid cols-2">
+            <div class="sst-grid cols-2" id="wHeroContentFields" style="${c.layout === 'image' ? 'display:none;' : ''}">
               <div class="sst-field"><label class="sst-label" for="wHeroTitle">Titre</label><input class="sst-input" id="wHeroTitle" value="${escapeHtml(c.heroTitle || '')}" placeholder="Par défaut : nom de la boutique"></div>
               <div class="sst-field"><label class="sst-label" for="wHeroSubtitle">Sous-titre</label><input class="sst-input" id="wHeroSubtitle" value="${escapeHtml(c.heroSubtitle || '')}"></div>
             </div>
@@ -1660,8 +1781,9 @@
                 <option value="minimal" ${c.layout === 'minimal' ? 'selected' : ''}>Sans image</option>
                 <option value="hero" ${c.layout === 'hero' ? 'selected' : ''}>Image à droite</option>
                 <option value="cover" ${c.layout === 'cover' ? 'selected' : ''}>Texte sur l'image</option>
+                <option value="image" ${c.layout === 'image' ? 'selected' : ''}>Image uniquement (sans texte)</option>
               </select></div>
-              <div class="sst-field"><label class="sst-label" for="wHeroAlign">Alignement</label><select class="sst-select" id="wHeroAlign">
+              <div class="sst-field" id="wHeroAlignField" style="${c.layout === 'image' ? 'display:none;' : ''}"><label class="sst-label" for="wHeroAlign">Alignement</label><select class="sst-select" id="wHeroAlign">
                 <option value="left" ${c.heroAlign === 'left' ? 'selected' : ''}>Gauche</option>
                 <option value="center" ${c.heroAlign === 'center' ? 'selected' : ''}>Centré</option>
               </select></div>
@@ -1671,6 +1793,7 @@
                 <option value="immersive" ${c.heroHeight === 'immersive' ? 'selected' : ''}>Immersive</option>
               </select></div>
             </div>
+            <div class="sst-shop-ws-image-only-note" id="wHeroImageOnlyNote" style="${c.layout === 'image' ? '' : 'display:none;'}"><i class="fas fa-image"></i><span><strong>Hero 100 % visuel</strong><small>${c.bannerUrl ? 'Seule l’image de couverture sera affichée. Le logo, le titre, le sous-titre et le bouton seront masqués.' : 'Ajoutez une image de couverture ci-dessus. Tant qu’aucune image n’est disponible, aucun hero ne sera affiché.'}</small></span></div>
           </section>
 
           <section class="sst-shop-ws-section">
@@ -1679,11 +1802,18 @@
           </section>
 
           <section class="sst-shop-ws-section">
-            <h4>Couleurs</h4><p class="sst-hint">Une couleur principale, une couleur d'accent, un fond.</p>
-            ${renderColorControl('primary', 'Couleur principale', primary, ['#1C1C1C', '#0F2747', '#064E3B', '#581C87', '#7C2D12'])}
-            ${renderColorControl('button', 'Couleur d’accent', accent, ['#C2410C', '#0071E3', '#059669', '#EA580C', '#DC2626'])}
-            ${renderColorControl('bg', 'Arrière-plan', background, ['#F5F5F7', '#FFFFFF', '#FBF6F1', '#F4F4F5', '#F0FDF4'])}
-            ${contrast !== null && contrast < 3 ? `<div class="sst-shop-ws-contrast-warning"><i class="fas fa-triangle-exclamation"></i> Le contraste entre la couleur principale et un texte clair est faible (${contrast}:1). Préférez une couleur plus sombre.</div>` : ''}
+            <h4>Palette de marque</h4><p class="sst-hint">Chaque couleur a un rôle précis. Le header et l’aside de ce dashboard reflètent instantanément votre couleur principale.</p>
+            <div class="sst-shop-ws-palette-preview" style="--preview-primary:${primary};--preview-primary-text:${primaryText};--preview-accent:${accent};--preview-bg:${background};--preview-text:${text};--preview-accent-text:${accentText}">
+              <div class="sst-shop-ws-palette-nav"><i class="fas fa-store"></i><span>${escapeHtml(c.name || 'Votre boutique')}</span><button>Voir la boutique</button></div>
+              <div class="sst-shop-ws-palette-page"><span>Nouveau produit</span><strong>Une palette cohérente sur toute l’expérience</strong><button>Ajouter au panier</button></div>
+            </div>
+            <div class="sst-shop-ws-color-grid">
+              <div><strong>Navigation &amp; identité</strong><small>Header, aside, pied de page</small>${renderColorControl('primary', 'Couleur principale', primary, ['#111827', '#0F2747', '#064E3B', '#581C87', '#7C2D12'])}</div>
+              <div><strong>Actions commerciales</strong><small>Boutons, liens et promotions</small>${renderColorControl('button', 'Couleur d’accent', accent, ['#C2410C', '#0071E3', '#059669', '#EA580C', '#DC2626'])}</div>
+              <div><strong>Surface de la boutique</strong><small>Fond général de vos pages</small>${renderColorControl('bg', 'Arrière-plan', background, ['#F5F5F7', '#FFFFFF', '#FBF6F1', '#F4F4F5', '#F0FDF4'])}</div>
+              <div><strong>Contenu principal</strong><small>Titres et textes importants</small>${renderColorControl('text', 'Couleur du texte', text, ['#111827', '#1F2937', '#334155', '#3F3F46', '#292524'])}</div>
+            </div>
+            ${primaryContrast !== null && primaryContrast < 4.5 ? `<div class="sst-shop-ws-contrast-warning"><i class="fas fa-triangle-exclamation"></i> La couleur de navigation manque de contraste avec un texte clair (${primaryContrast}:1). Le dashboard adapte automatiquement le texte, mais choisissez une teinte plus sombre pour une identité plus forte.</div>` : ''}
           </section>
 
           <section class="sst-shop-ws-section">
@@ -1709,24 +1839,15 @@
                 <option value="bordered" ${c.design.cardStyle === 'bordered' ? 'selected' : ''}>Bordées</option>
                 <option value="shadow" ${c.design.cardStyle === 'shadow' ? 'selected' : ''}>Ombre portée</option>
               </select></div>
+              <div class="sst-field sst-shop-ws-radius-field"><label class="sst-label" for="wRadius">Arrondi des cartes <span id="wRadiusValue">${Number(c.design.radius ?? 14)} px</span></label><input type="range" id="wRadius" min="0" max="24" step="2" value="${Number(c.design.radius ?? 14)}"></div>
             </div>
           </section>
 
           <section class="sst-shop-ws-section">
             <h4>Sections de la page</h4><p class="sst-hint">Activez et réordonnez les sections de votre boutique (le hero reste toujours en premier).</p>
             <div id="wSectionsList">${renderShopWsSectionsList()}</div>
-            <div class="sst-field" style="margin-top:1rem;"><label class="sst-label" for="wAnnouncement">Bandeau d’annonce (optionnel)</label><input class="sst-input" id="wAnnouncement" maxlength="140" value="${escapeHtml(c.sections.announcement || '')}" placeholder="Ex. Livraison gratuite dès 2000 HTG"></div>
           </section>
 
-          <section class="sst-shop-ws-section">
-            <h4>Réseaux sociaux</h4>
-            <div class="sst-grid cols-2">
-              <div class="sst-field"><label class="sst-label" for="wInstagram">Instagram</label><input class="sst-input" id="wInstagram" value="${escapeHtml(c.socialLinks.instagram || '')}" placeholder="https://instagram.com/…"></div>
-              <div class="sst-field"><label class="sst-label" for="wFacebook">Facebook</label><input class="sst-input" id="wFacebook" value="${escapeHtml(c.socialLinks.facebook || '')}" placeholder="https://facebook.com/…"></div>
-              <div class="sst-field"><label class="sst-label" for="wTiktok">TikTok</label><input class="sst-input" id="wTiktok" value="${escapeHtml(c.socialLinks.tiktok || '')}" placeholder="https://tiktok.com/@…"></div>
-              <div class="sst-field"><label class="sst-label" for="wWhatsapp">WhatsApp</label><input class="sst-input" id="wWhatsapp" value="${escapeHtml(c.socialLinks.whatsapp || '')}" placeholder="https://wa.me/…"></div>
-            </div>
-          </section>
         </div>
       `;
       bindShopWsDesignEvents(el);
@@ -1737,18 +1858,24 @@
       el.querySelector('#wDesc').addEventListener('input', (e) => setShopWsField('description', e.target.value));
       el.querySelector('#wHeroTitle').addEventListener('input', (e) => setShopWsField('heroTitle', e.target.value));
       el.querySelector('#wHeroSubtitle').addEventListener('input', (e) => setShopWsField('heroSubtitle', e.target.value));
-      el.querySelector('#wLayout').addEventListener('change', (e) => setShopWsField('layout', e.target.value));
+      el.querySelector('#wLayout').addEventListener('change', (e) => {
+        const imageOnly = e.target.value === 'image';
+        setShopWsField('layout', e.target.value);
+        el.querySelector('#wHeroContentFields').style.display = imageOnly ? 'none' : '';
+        el.querySelector('#wHeroAlignField').style.display = imageOnly ? 'none' : '';
+        el.querySelector('#wHeroImageOnlyNote').style.display = imageOnly ? '' : 'none';
+      });
       el.querySelector('#wHeroAlign').addEventListener('change', (e) => setShopWsField('heroAlign', e.target.value));
       el.querySelector('#wHeroHeight').addEventListener('change', (e) => setShopWsField('heroHeight', e.target.value));
       el.querySelector('#wFont').addEventListener('change', (e) => setShopWsField('design.font', e.target.value));
       el.querySelector('#wDensity').addEventListener('change', (e) => setShopWsField('design.density', e.target.value));
       el.querySelector('#wButtonStyle').addEventListener('change', (e) => setShopWsField('design.buttonStyle', e.target.value));
       el.querySelector('#wCardStyle').addEventListener('change', (e) => setShopWsField('design.cardStyle', e.target.value));
-      el.querySelector('#wAnnouncement').addEventListener('input', (e) => setShopWsField('sections.announcement', e.target.value));
-      el.querySelector('#wInstagram').addEventListener('input', (e) => setShopWsField('socialLinks.instagram', e.target.value));
-      el.querySelector('#wFacebook').addEventListener('input', (e) => setShopWsField('socialLinks.facebook', e.target.value));
-      el.querySelector('#wTiktok').addEventListener('input', (e) => setShopWsField('socialLinks.tiktok', e.target.value));
-      el.querySelector('#wWhatsapp').addEventListener('input', (e) => setShopWsField('socialLinks.whatsapp', e.target.value));
+      el.querySelector('#wRadius').addEventListener('input', (e) => {
+        const radius = Number(e.target.value);
+        el.querySelector('#wRadiusValue').textContent = `${radius} px`;
+        setShopWsField('design.radius', radius);
+      });
 
       el.querySelectorAll('[data-design-preset]').forEach((btn) => btn.addEventListener('click', () => {
         const preset = DESIGN_PRESETS.find((p) => p.id === btn.dataset.designPreset);
@@ -1785,7 +1912,7 @@
       });
       el.querySelectorAll('[data-remove-shop-image]').forEach((btn) => btn.addEventListener('click', () => {
         if (btn.dataset.removeShopImage === 'logo') setShopWsField('logoUrl', null);
-        if (btn.dataset.removeShopImage === 'banner') { setShopWsField('bannerUrl', null); setShopWsField('layout', 'minimal'); }
+        if (btn.dataset.removeShopImage === 'banner') setShopWsField('bannerUrl', null);
         renderShopWsDesign(el);
       }));
 
@@ -1795,12 +1922,30 @@
         if (key === 'primary') setShopWsField('design.colors.primary', value);
         if (key === 'button') { setShopWsField('design.colors.buttonColor', value); setShopWsField('design.colors.accent', value); }
         if (key === 'bg') setShopWsField('design.colors.backgroundColor', value);
+        if (key === 'text') setShopWsField('design.textColor', value);
         const picker = el.querySelector(`[data-color-picker="${key}"]`);
         const hex = el.querySelector(`[data-color-hex="${key}"]`);
         const label = picker?.closest('.sst-color-control')?.querySelector('.sst-color-control-label span');
+        const palettePreview = el.querySelector('.sst-shop-ws-palette-preview');
         if (picker) picker.value = value;
         if (hex) hex.value = value.toUpperCase();
         if (label) label.textContent = value.toUpperCase();
+        if (palettePreview) {
+          if (key === 'primary') {
+            palettePreview.style.setProperty('--preview-primary', value);
+            const whiteRatio = contrastRatio(value, '#FFFFFF') || 0;
+            const darkRatio = contrastRatio(value, '#111827') || 0;
+            palettePreview.style.setProperty('--preview-primary-text', whiteRatio >= darkRatio ? '#FFFFFF' : '#111827');
+          }
+          if (key === 'button') {
+            palettePreview.style.setProperty('--preview-accent', value);
+            const whiteRatio = contrastRatio(value, '#FFFFFF') || 0;
+            const darkRatio = contrastRatio(value, '#111827') || 0;
+            palettePreview.style.setProperty('--preview-accent-text', whiteRatio >= darkRatio ? '#FFFFFF' : '#111827');
+          }
+          if (key === 'bg') palettePreview.style.setProperty('--preview-bg', value);
+          if (key === 'text') palettePreview.style.setProperty('--preview-text', value);
+        }
         return true;
       };
       el.querySelectorAll('[data-color-picker]').forEach((input) => input.addEventListener('input', (e) => applyColor(e.target.dataset.colorPicker, e.target.value)));
@@ -2447,6 +2592,75 @@
       });
     }
 
+    // ---------- Croissance tab ----------
+
+    function renderShopWsMarketing(el) {
+      const c = shopWs.catalog;
+      const publicUrl = `${window.location.origin}${window.location.pathname.replace(/dashboard\.html$/, 'page.html')}?app=shops&catalogId=${encodeURIComponent(shopWs.catalogId)}&org=${encodeURIComponent(shopWs.org.id)}`;
+      const marketingScore = [c.sections.announcement, c.seo.pageTitle, c.seo.description, c.socialLinks.instagram || c.socialLinks.facebook || c.socialLinks.tiktok || c.socialLinks.whatsapp].filter(Boolean).length;
+      el.innerHTML = `
+        <div class="sst-shop-ws-panel">
+          <section class="sst-shop-ws-marketing-hero">
+            <div><span>Visibilité & acquisition</span><h2>Faites connaître votre boutique.</h2><p>Préparez le partage, le référencement et vos points de contact sans quitter le dashboard.</p></div>
+            <div class="sst-shop-ws-score"><strong>${marketingScore}/4</strong><span>fondamentaux activés</span></div>
+          </section>
+
+          <section class="sst-shop-ws-section">
+            <div class="sst-shop-ws-section-title"><div><span>Promotion</span><h4>Bandeau d’annonce</h4></div><i class="fas fa-bullhorn"></i></div>
+            <p class="sst-hint">Mettez en avant une livraison gratuite, une nouveauté ou une offre limitée en haut de la boutique.</p>
+            <div class="sst-field"><label class="sst-label" for="wMarketingAnnouncement">Message public</label><input class="sst-input" id="wMarketingAnnouncement" maxlength="140" value="${escapeHtml(c.sections.announcement || '')}" placeholder="Ex. Livraison gratuite dès 2 000 HTG"></div>
+            <div class="sst-shop-ws-character-count"><span id="wAnnouncementCount">${String(c.sections.announcement || '').length}</span>/140 caractères</div>
+          </section>
+
+          <section class="sst-shop-ws-section">
+            <div class="sst-shop-ws-section-title"><div><span>Référencement</span><h4>Google & partage social</h4></div><i class="fas fa-magnifying-glass-chart"></i></div>
+            <div class="sst-field"><label class="sst-label" for="wMarketingSeoTitle">Titre de la page</label><input class="sst-input" id="wMarketingSeoTitle" maxlength="70" value="${escapeHtml(c.seo.pageTitle || '')}" placeholder="${escapeHtml(c.name || 'Boutique')} — Boutique en ligne"></div>
+            <div class="sst-field"><label class="sst-label" for="wMarketingSeoDesc">Description</label><textarea class="sst-textarea" id="wMarketingSeoDesc" maxlength="160" rows="3" placeholder="Expliquez en une phrase ce que vos clients trouveront dans votre boutique.">${escapeHtml(c.seo.description || '')}</textarea></div>
+            <div class="sst-field"><label class="sst-label" for="wShareImage">Image de partage (URL)</label><input class="sst-input" id="wShareImage" type="url" value="${escapeHtml(c.seo.shareImageUrl || '')}" placeholder="https://…"></div>
+            <div class="sst-shop-ws-search-preview"><small>Aperçu du résultat</small><strong id="wSeoPreviewTitle">${escapeHtml(c.seo.pageTitle || c.name || 'Votre boutique')}</strong><span>${escapeHtml(publicUrl)}</span><p id="wSeoPreviewDesc">${escapeHtml(c.seo.description || c.description || 'Découvrez nos produits et commandez en ligne.')}</p></div>
+          </section>
+
+          <section class="sst-shop-ws-section">
+            <div class="sst-shop-ws-section-title"><div><span>Communauté</span><h4>Réseaux sociaux & WhatsApp</h4></div><i class="fas fa-share-nodes"></i></div>
+            <div class="sst-grid cols-2">
+              <div class="sst-field"><label class="sst-label" for="wInstagram"><i class="fa-brands fa-instagram"></i> Instagram</label><input class="sst-input" id="wInstagram" type="url" value="${escapeHtml(c.socialLinks.instagram || '')}" placeholder="https://instagram.com/…"></div>
+              <div class="sst-field"><label class="sst-label" for="wFacebook"><i class="fa-brands fa-facebook"></i> Facebook</label><input class="sst-input" id="wFacebook" type="url" value="${escapeHtml(c.socialLinks.facebook || '')}" placeholder="https://facebook.com/…"></div>
+              <div class="sst-field"><label class="sst-label" for="wTiktok"><i class="fa-brands fa-tiktok"></i> TikTok</label><input class="sst-input" id="wTiktok" type="url" value="${escapeHtml(c.socialLinks.tiktok || '')}" placeholder="https://tiktok.com/@…"></div>
+              <div class="sst-field"><label class="sst-label" for="wWhatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</label><input class="sst-input" id="wWhatsapp" type="url" value="${escapeHtml(c.socialLinks.whatsapp || '')}" placeholder="https://wa.me/509…"></div>
+            </div>
+          </section>
+
+          <section class="sst-shop-ws-section">
+            <div class="sst-shop-ws-section-title"><div><span>Diffusion</span><h4>Lien de la boutique</h4></div><i class="fas fa-link"></i></div>
+            <p class="sst-hint">Copiez ce lien pour vos bios, messages WhatsApp et campagnes.</p>
+            ${publicLinkHtml('shops', 'catalogId', shopWs.catalogId, shopWs.org)}
+          </section>
+        </div>`;
+      bindShopWsMarketingEvents(el);
+    }
+
+    function bindShopWsMarketingEvents(el) {
+      const announcement = el.querySelector('#wMarketingAnnouncement');
+      announcement.addEventListener('input', (e) => {
+        setShopWsField('sections.announcement', e.target.value);
+        el.querySelector('#wAnnouncementCount').textContent = e.target.value.length;
+      });
+      el.querySelector('#wMarketingSeoTitle').addEventListener('input', (e) => {
+        setShopWsField('seo.pageTitle', e.target.value);
+        el.querySelector('#wSeoPreviewTitle').textContent = e.target.value || shopWs.catalog.name || 'Votre boutique';
+      });
+      el.querySelector('#wMarketingSeoDesc').addEventListener('input', (e) => {
+        setShopWsField('seo.description', e.target.value);
+        el.querySelector('#wSeoPreviewDesc').textContent = e.target.value || shopWs.catalog.description || 'Découvrez nos produits et commandez en ligne.';
+      });
+      el.querySelector('#wShareImage').addEventListener('input', (e) => setShopWsField('seo.shareImageUrl', e.target.value));
+      el.querySelector('#wInstagram').addEventListener('input', (e) => setShopWsField('socialLinks.instagram', e.target.value));
+      el.querySelector('#wFacebook').addEventListener('input', (e) => setShopWsField('socialLinks.facebook', e.target.value));
+      el.querySelector('#wTiktok').addEventListener('input', (e) => setShopWsField('socialLinks.tiktok', e.target.value));
+      el.querySelector('#wWhatsapp').addEventListener('input', (e) => setShopWsField('socialLinks.whatsapp', e.target.value));
+      bindCopyLinkButtons(el);
+    }
+
     // ---------- Paramètres tab ----------
 
     function renderShopWsParametres(el) {
@@ -2460,12 +2674,6 @@
               <div class="sst-field"><label class="sst-label" for="wEmail">Email</label><input class="sst-input" type="email" id="wEmail" value="${escapeHtml(c.contactInfo.email || '')}"></div>
             </div>
             <p class="sst-hint">Devise : HTG (gourde haïtienne).</p>
-          </section>
-
-          <section class="sst-shop-ws-section">
-            <h4>Référencement (SEO)</h4>
-            <div class="sst-field"><label class="sst-label" for="wSeoTitle">Titre de la page</label><input class="sst-input" id="wSeoTitle" maxlength="70" value="${escapeHtml(c.seo.pageTitle || '')}" placeholder="${escapeHtml(c.name || 'Boutique')}"></div>
-            <div class="sst-field"><label class="sst-label" for="wSeoDesc">Description</label><textarea class="sst-textarea" id="wSeoDesc" maxlength="160" rows="2">${escapeHtml(c.seo.description || '')}</textarea></div>
           </section>
 
           <section class="sst-shop-ws-section">
@@ -2499,8 +2707,6 @@
     function bindShopWsParametresEvents(el) {
       el.querySelector('#wPhone').addEventListener('input', (e) => setShopWsField('contactInfo.phone', e.target.value));
       el.querySelector('#wEmail').addEventListener('input', (e) => setShopWsField('contactInfo.email', e.target.value));
-      el.querySelector('#wSeoTitle').addEventListener('input', (e) => setShopWsField('seo.pageTitle', e.target.value));
-      el.querySelector('#wSeoDesc').addEventListener('input', (e) => setShopWsField('seo.description', e.target.value));
       el.querySelector('#wDeliveryPolicy').addEventListener('input', (e) => setShopWsField('legal.deliveryPolicy', e.target.value));
       el.querySelector('#wReturnPolicy').addEventListener('input', (e) => setShopWsField('legal.returnPolicy', e.target.value));
       el.querySelector('#wTerms').addEventListener('input', (e) => setShopWsField('legal.terms', e.target.value));

@@ -1,5 +1,5 @@
 import { billingApi, money, esc } from './logiciel proformat/api-v2.js';
-import { auth, authReadyPromise } from './firebase-init.js?v=20260523-6';
+import { auth, authReadyPromise } from './firebase-init.js?v=20260829-16';
 
 const root = document.getElementById('publicDocument'); const token = new URLSearchParams(location.search).get('t') || ''; let proforma;
 const notify = (message) => { const el=document.getElementById('publicNotice'); el.textContent=message; el.hidden=false; setTimeout(()=>el.hidden=true,3500); };

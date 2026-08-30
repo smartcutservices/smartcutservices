@@ -35,7 +35,7 @@ export default class HealthTeleconsultation {
         <span class="health-eyebrow"><i class="fas fa-video"></i> Téléconsultation</span>
         <h1>Un médecin vérifié, au bon format.</h1>
         <p>Une spécialité. Un plan. Un créneau.</p>
-      </div><div class="health-hero-visual health-art-teleconsultation" role="img" aria-label="Illustration téléconsultation"><i class="fas fa-video"></i><span class="health-art-orb"></span><span class="health-art-card"></span></div></div></section>
+      </div><div class="health-hero-visual health-hero-visual--photo" role="img" aria-label="Illustration téléconsultation"><img src="./assets/health/heroes/doctor-hero-v1.png" alt="Médecin en téléconsultation" loading="eager"></div></div></section>
       <main class="health-route-main"><div class="health-wrap">
         <aside class="health-emergency"><i class="fas fa-triangle-exclamation"></i><div><strong>Ce service ne traite pas les urgences.</strong><span>En présence de symptômes graves ou d’une détresse, recherchez immédiatement une prise en charge d’urgence.</span></div></aside>
         <section class="telehealth-picker"><label for="telehealth-specialty">Spécialité médicale</label><select id="telehealth-specialty"><option value="">Chargement…</option></select></section>

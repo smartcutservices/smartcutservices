@@ -33,6 +33,15 @@ function stockBadge(product) {
   return '';
 }
 
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : '';
+  } catch (_) {
+    return '';
+  }
+}
+
 // ---------- Theme application ----------
 
 /** Applies every design token from `catalog.design` (+ legacy `catalog.colors`) as CSS custom
@@ -41,15 +50,19 @@ function stockBadge(product) {
 export function applyShopTheme(rootEl, catalog) {
   const design = catalog.design || {};
   const colors = design.colors || catalog.colors || {};
-  const primary = HEX_COLOR_PATTERN.test(colors.primary) ? colors.primary : '#1C1C1C';
+  const primary = HEX_COLOR_PATTERN.test(colors.primary) ? colors.primary : '#0F172A';
   const accent = HEX_COLOR_PATTERN.test(colors.buttonColor) ? colors.buttonColor
-    : (HEX_COLOR_PATTERN.test(colors.accent) ? colors.accent : '#C2410C');
-  const background = HEX_COLOR_PATTERN.test(colors.backgroundColor) ? colors.backgroundColor : '#F5F5F7';
+    : (HEX_COLOR_PATTERN.test(colors.accent) ? colors.accent : '#F59E0B');
+  const background = HEX_COLOR_PATTERN.test(colors.backgroundColor) ? colors.backgroundColor : '#F8FAFC';
   const text = HEX_COLOR_PATTERN.test(design.textColor) ? design.textColor : null;
+  const onPrimary = (contrastRatio(primary, '#FFFFFF') || 0) >= (contrastRatio(primary, '#111827') || 0) ? '#FFFFFF' : '#111827';
+  const onAccent = (contrastRatio(accent, '#FFFFFF') || 0) >= (contrastRatio(accent, '#111827') || 0) ? '#FFFFFF' : '#111827';
 
   rootEl.style.setProperty('--shop-primary', primary);
   rootEl.style.setProperty('--shop-accent', accent);
   rootEl.style.setProperty('--shop-bg', background);
+  rootEl.style.setProperty('--shop-on-primary', onPrimary);
+  rootEl.style.setProperty('--shop-on-accent', onAccent);
   if (text) rootEl.style.setProperty('--shop-text', text);
   rootEl.style.setProperty('--shop-font', FONT_STACKS[design.font] || FONT_STACKS.system);
   rootEl.style.setProperty('--shop-radius', `${Number.isFinite(design.radius) ? design.radius : 12}px`);
@@ -139,6 +152,10 @@ export function renderShopHero(catalog) {
   const cta = catalog.sections?.visibility?.collection !== false
     ? `<a class="sst-shop-hero-cta" href="#shopProducts">Voir la collection</a>` : '';
 
+  if (layout === 'image') {
+    if (!catalog.bannerUrl) return '';
+    return `<header class="sst-shop-hero sst-shop-hero-image-only${height}"><img src="${escapeHtml(catalog.bannerUrl)}" alt="Bannière de ${escapeHtml(catalog.name || 'la boutique')}"></header>`;
+  }
   if (layout === 'cover' && catalog.bannerUrl) {
     return `
       <header class="sst-shop-hero sst-shop-hero-cover${align}${height}" style="background-image:url('${escapeHtml(catalog.bannerUrl)}')">
@@ -319,14 +336,30 @@ export function renderShopFooter(catalog) {
     legal.returnPolicy ? { key: 'returns', label: 'Politique de retour' } : null,
     legal.terms ? { key: 'terms', label: 'Conditions de vente' } : null
   ].filter(Boolean);
+  const logo = catalog.logoUrl
+    ? `<img class="sst-shop-footer-logo" src="${escapeHtml(catalog.logoUrl)}" alt="${escapeHtml(catalog.name || 'Boutique')}">`
+    : `<span class="sst-shop-footer-mark" aria-hidden="true">${escapeHtml((catalog.name || 'B').trim().charAt(0).toUpperCase())}</span>`;
+  const social = catalog.socialLinks || {};
+  const socialLinks = Object.entries({ instagram: 'fa-instagram', facebook: 'fa-facebook', tiktok: 'fa-tiktok', whatsapp: 'fa-whatsapp' })
+    .map(([key, icon]) => ({ key, icon, url: safeExternalUrl(social[key]) }))
+    .filter((item) => item.url)
+    .map(({ key, icon, url }) => `<a class="sst-shop-footer-social" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="${key}"><i class="fa-brands ${icon}" aria-hidden="true"></i></a>`)
+    .join('');
   return `
     <footer class="sst-shop-footer">
-      <div><strong>${escapeHtml(catalog.name || 'Boutique')}</strong>${catalog.description ? `<span>${escapeHtml(catalog.description)}</span>` : ''}</div>
-      <div class="sst-shop-footer-contact">
-        ${catalog.contactInfo?.phone ? `<a href="tel:${escapeHtml(catalog.contactInfo.phone)}">${escapeHtml(catalog.contactInfo.phone)}</a>` : ''}
-        ${catalog.contactInfo?.email ? `<a href="mailto:${escapeHtml(catalog.contactInfo.email)}">${escapeHtml(catalog.contactInfo.email)}</a>` : ''}
+      <div class="sst-shop-footer-main">
+        <div class="sst-shop-footer-brand">
+          <a href="#" class="sst-shop-footer-brand-link" aria-label="Retour à l’accueil de ${escapeHtml(catalog.name || 'la boutique')}">${logo}<span><strong>${escapeHtml(catalog.name || 'Boutique')}</strong><small>Boutique en ligne</small></span></a>
+          ${catalog.description ? `<p>${escapeHtml(catalog.description)}</p>` : '<p>Une sélection pensée pour vous.</p>'}
+          ${socialLinks ? `<div class="sst-shop-footer-socials">${socialLinks}</div>` : ''}
+        </div>
+        <div class="sst-shop-footer-column"><h3>Boutique</h3><a href="#shopProducts">Produits</a><a href="#shopContact">Contact</a><a href="#shopProducts">Rechercher</a></div>
+        <div class="sst-shop-footer-column"><h3>Nous joindre</h3>
+          ${catalog.contactInfo?.phone ? `<a href="tel:${escapeHtml(catalog.contactInfo.phone)}">${escapeHtml(catalog.contactInfo.phone)}</a>` : '<span>À votre écoute</span>'}
+          ${catalog.contactInfo?.email ? `<a href="mailto:${escapeHtml(catalog.contactInfo.email)}">${escapeHtml(catalog.contactInfo.email)}</a>` : ''}
+        </div>
       </div>
-      ${legalLinks.length ? `<div class="sst-shop-footer-legal">${legalLinks.map((l) => `<button type="button" data-shop-legal="${l.key}">${l.label}</button>`).join('')}</div>` : ''}
+      <div class="sst-shop-footer-bottom"><span>© ${new Date().getFullYear()} ${escapeHtml(catalog.name || 'Boutique')}</span><span class="sst-shop-footer-legal">${legalLinks.length ? legalLinks.map((l) => `<button type="button" data-shop-legal="${l.key}">${l.label}</button>`).join('') : ''}</span><span>Propulsé par SmartSolutionTek</span></div>
     </footer>
   `;
 }

@@ -4,8 +4,8 @@
 // donnees locales de demonstration. Aucune admission, aucun paiement,
 // aucune ecriture Firestore a ce stade.
 
-import { getEducationSource, EducationRepositoryError } from './education-source.js?v=20260827-2';
-import { resolveBySlugThenId } from './education-normalize.js?v=20260827-2';
+import { getEducationSource, EducationRepositoryError } from './education-source.js?v=20260829-16';
+import { resolveBySlugThenId } from './education-normalize.js?v=20260829-16';
 import { renderCourseCard, renderDemoPill, getCourseMedia, renderLoadingBlock, renderErrorBlock } from './education-components.js';
 import {
   escapeHtml,

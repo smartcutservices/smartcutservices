@@ -39,7 +39,7 @@ class SmartCutHealth {
     this.render();
     this.bind();
     authReadyPromise.finally(() => onAuthStateChanged(auth, (user) => this.onAuth(user)));
-    if (['pharmacy', 'doctors', 'labs'].includes(this.view)) this.loadDirectory();
+    if (['home', 'pharmacy', 'doctors', 'labs'].includes(this.view)) this.loadDirectory();
   }
 
   render() {
@@ -53,30 +53,58 @@ class SmartCutHealth {
         <p>Pharmacies, ordonnances et consultations vérifiées. <span class="health-privacy-inline"><i class="fas fa-lock"></i> Données privées et protégées.</span></p>
         <div class="health-hero-actions"><a class="health-btn health-btn-link primary" href="./health-teleconsultation.html">Consulter un médecin</a><a class="health-btn health-btn-link health-btn-ghost" href="./health-pharmacie.html">Trouver un médicament</a><a class="health-btn health-btn-link health-btn-ghost" href="./health-ordonnance.html">Envoyer une ordonnance</a></div>
       </div><div class="health-hero-visual health-art-home"><img src="./assets/health/home-health-visual-v2.png" alt="Espace santé sécurisé" loading="eager"></div></div></section>
-      <section class="health-home-statement"><div class="health-wrap"><span>Parcours confidentiel</span><h2>Chaque besoin possède désormais son propre espace.</h2><p>Utilisez la navigation pour accéder directement au service recherché, sans parcourir une page surchargée.</p></div></section>
-      <div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation et les opérations. Il ne fournit aucun diagnostic automatique et ne remplace pas un avis médical. En cas d’urgence, contactez les services d’urgence disponibles dans votre zone.</div></div>
+      <main class="health-home-directory"><div class="health-wrap">
+        <div class="health-subheading"><div><span>Pharmacies partenaires</span><h2>Médicaments disponibles</h2></div><a href="./health-pharmacie.html">Voir la pharmacie <i class="fas fa-arrow-right"></i></a></div>
+        <div id="health-home-medicines" class="health-grid"><div class="health-empty"><i class="fas fa-circle-notch fa-spin"></i>Chargement des médicaments…</div></div>
+        <div class="health-subheading health-subheading--spaced"><div><span>Professionnels vérifiés</span><h2>Médecins disponibles</h2></div><a href="./health-medecins.html">Voir les médecins <i class="fas fa-arrow-right"></i></a></div>
+        <div id="health-home-doctors" class="health-grid"><div class="health-empty"><i class="fas fa-circle-notch fa-spin"></i>Chargement des médecins…</div></div>
+      </div></main>
     </div>`;
   }
 
   renderStandalone() {
     const views = {
-      pharmacy: { icon:'fa-prescription-bottle-medical', art:'pharmacy', eyebrow:'Pharmacie', title:'Vos soins, simplement.', copy:'Médicaments vérifiés, près de vous.' },
-      prescription: { icon:'fa-file-shield', art:'prescription', eyebrow:'Ordonnance privée', title:'Votre ordonnance, protégée.', copy:'Transmettez-la en quelques secondes.' },
-      doctors: { icon:'fa-user-doctor', art:'doctor', eyebrow:'Médecins', title:'Un médecin, quand vous en avez besoin.', copy:'Choisissez une spécialité et un créneau.' },
-      labs: { icon:'fa-flask-vial', art:'lab', eyebrow:'Laboratoires', title:'Vos examens, en confiance.', copy:'Trouvez un laboratoire vérifié.' },
+      pharmacy: { icon:'fa-prescription-bottle-medical', art:'pharmacy', heroImage:'./assets/health/heroes/pharmacy-hero-v1.png', eyebrow:'Pharmacie', title:'Vos soins, simplement.', copy:'Médicaments vérifiés, près de vous.' },
+      prescription: { icon:'fa-file-shield', art:'prescription', heroImage:'./assets/health/heroes/prescription-hero-v1.png', eyebrow:'Ordonnance privée', title:'Votre ordonnance, protégée.', copy:'Transmettez-la en quelques secondes.' },
+      doctors: { icon:'fa-user-doctor', art:'doctor', heroImage:'./assets/health/heroes/doctor-hero-v1.png', eyebrow:'Médecins', title:'Un médecin, quand vous en avez besoin.', copy:'Choisissez une spécialité et un créneau.' },
+      labs: { icon:'fa-flask-vial', art:'lab', heroImage:'./assets/health/heroes/lab-hero-v1.png', eyebrow:'Laboratoires', title:'Vos examens, en confiance.', copy:'Trouvez un laboratoire vérifié.' },
       space: { icon:'fa-heart-pulse', art:'space', eyebrow:'Espace personnel', title:'Tout votre parcours santé.', copy:'Vos documents et rendez-vous au même endroit.' },
-      professional: { icon:'fa-user-shield', art:'professional', eyebrow:'Espace professionnel', title:'Votre activité santé, structurée.', copy:'Un espace sécurisé pour vos opérations.' }
+      professional: { icon:'fa-user-shield', art:'professional', heroImage:'./assets/health/heroes/professional-hero-v1.png', eyebrow:'Espace professionnel', title:'Votre activité santé, structurée.', copy:'Un espace sécurisé pour vos opérations.' }
     };
     const page = views[this.view] || views.space;
+
+    if (this.view === 'space') {
+      this.root.innerHTML = `<div class="health-dashboard">
+        <aside class="health-dashboard__aside" aria-label="Navigation de votre espace santé">
+          <div class="health-dashboard__brand"><span class="health-dashboard__brand-mark"><i class="fas fa-heart-pulse"></i></span><div><strong>Smart Cut Health</strong><small>Espace personnel</small></div></div>
+          <nav class="health-dashboard__nav">
+            <button type="button" class="is-active" data-space-nav="overview"><i class="fas fa-grid-2"></i> Vue d’ensemble</button>
+            <button type="button" data-space-nav="appointments"><i class="fas fa-calendar-check"></i> Rendez-vous</button>
+            <button type="button" data-space-nav="rx"><i class="fas fa-file-prescription"></i> Ordonnances</button>
+            <button type="button" data-space-nav="orders"><i class="fas fa-pills"></i> Commandes pharmacie</button>
+            <button type="button" data-space-nav="results"><i class="fas fa-flask"></i> Résultats</button>
+          </nav>
+          <div class="health-dashboard__aside-bottom"><a href="./health-doctors.html"><i class="fas fa-user-doctor"></i> Trouver un médecin</a><a href="./health-pharmacie.html"><i class="fas fa-prescription-bottle-medical"></i> Trouver une pharmacie</a></div>
+        </aside>
+        <section class="health-dashboard__main">
+          <header class="health-dashboard__header"><div><span class="health-eyebrow">Espace personnel</span><h1>Bonjour, <strong id="health-dashboard-name">vous</strong></h1><p>Votre suivi santé, au même endroit.</p></div><button class="health-btn health-btn-ghost" id="health-dashboard-refresh" type="button"><i class="fas fa-rotate-right"></i> Actualiser</button></header>
+          <div class="health-dashboard__quick-actions"><a href="./health-teleconsultation.html"><i class="fas fa-video"></i><span>Consulter un médecin</span><i class="fas fa-arrow-right"></i></a><a href="./health-ordonnance.html"><i class="fas fa-file-shield"></i><span>Envoyer une ordonnance</span><i class="fas fa-arrow-right"></i></a><a href="./health-pharmacie.html"><i class="fas fa-capsules"></i><span>Trouver un médicament</span><i class="fas fa-arrow-right"></i></a></div>
+          <div class="health-dashboard__metrics"><article><span>Rendez-vous à venir</span><strong id="health-metric-appointments">—</strong></article><article><span>Ordonnances</span><strong id="health-metric-rx">—</strong></article><article><span>Commandes</span><strong id="health-metric-orders">—</strong></article><article><span>Résultats disponibles</span><strong id="health-metric-results">—</strong></article></div>
+          <div id="health-space-auth"><div class="health-empty"><i class="fas fa-lock"></i>Connectez-vous pour consulter vos informations de santé.</div></div>
+        </section>
+      </div>${this.renderUtilityDialogs()}`;
+      return;
+    }
 
     if (this.view === 'pharmacy') {
       this.root.innerHTML = `<div class="health-shell health-route health-route--pharmacy health-pharmacy">
         <section class="pharmacy-head">
           <div class="health-wrap pharmacy-head__inner">
-            <div class="pharmacy-head__intro">
+              <div class="pharmacy-head__intro">
               <span class="health-eyebrow"><i class="fas fa-prescription-bottle-medical"></i> Pharmacie en ligne</span>
               <h1>Vos médicaments, vérifiés et près de vous.</h1>
-            </div>
+              </div>
+            <div class="pharmacy-head__visual"><img src="./assets/health/heroes/pharmacy-hero-v1.png" alt="Pharmacien préparant une commande" loading="eager"></div>
             <a class="pharmacy-head__cta" href="./health-ordonnance.html"><i class="fas fa-file-shield"></i> J’ai une ordonnance</a>
           </div>
           <div class="health-wrap">
@@ -112,7 +140,10 @@ class SmartCutHealth {
     if (this.view === 'space') content = `<div class="health-account-bar"><div><strong>Accès confidentiel</strong><span>Connectez-vous avec votre compte Smart Cut.</span></div><button class="health-btn primary" id="health-login-btn">Se connecter</button></div><div id="health-space-auth"><div class="health-empty"><i class="fas fa-lock"></i>Connectez-vous pour consulter vos informations de santé.</div></div>`;
     if (this.view === 'professional') content = `<div class="health-account-bar"><div><strong>Compte professionnel</strong><span>L’accès dépend de la vérification de votre profil.</span></div><button class="health-btn primary" id="health-login-btn">Se connecter</button></div><div id="health-professional-content"><div class="health-empty"><i class="fas fa-lock"></i>Connectez-vous pour déposer ou gérer une candidature professionnelle.</div></div>`;
 
-    this.root.innerHTML = `<div class="health-shell health-route health-route--${esc(this.view)}"><section class="health-page-hero"><div class="health-wrap health-hero-layout"><div class="health-hero-copy"><span class="health-eyebrow"><i class="fas ${page.icon}"></i> ${page.eyebrow}</span><h1>${page.title}</h1><p>${page.copy}</p></div><div class="health-hero-visual health-art-${esc(page.art || this.view)}" role="img" aria-label="Illustration ${esc(page.eyebrow)}"><i class="fas ${page.icon}"></i><span class="health-art-orb"></span><span class="health-art-card"></span></div></div></section><main class="health-route-main"><div class="health-wrap">${content}</div></main><div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation. Il ne remplace pas un avis médical.</div></div></div>${this.renderUtilityDialogs()}`;
+    const heroVisual = page.heroImage
+      ? `<div class="health-hero-visual health-hero-visual--photo" role="img" aria-label="Illustration ${esc(page.eyebrow)}"><img src="${page.heroImage}" alt="" loading="eager"></div>`
+      : `<div class="health-hero-visual health-art-${esc(page.art || this.view)}" role="img" aria-label="Illustration ${esc(page.eyebrow)}"><i class="fas ${page.icon}"></i><span class="health-art-orb"></span><span class="health-art-card"></span></div>`;
+    this.root.innerHTML = `<div class="health-shell health-route health-route--${esc(this.view)}"><section class="health-page-hero"><div class="health-wrap health-hero-layout"><div class="health-hero-copy"><span class="health-eyebrow"><i class="fas ${page.icon}"></i> ${page.eyebrow}</span><h1>${page.title}</h1><p>${page.copy}</p></div>${heroVisual}</div></section><main class="health-route-main"><div class="health-wrap">${content}</div></main><div class="health-disclaimer"><div class="health-wrap"><strong>Information importante.</strong> Smart Cut Health facilite la mise en relation. Il ne remplace pas un avis médical.</div></div></div>${this.renderUtilityDialogs()}`;
   }
 
   renderUtilityDialogs() {
@@ -127,6 +158,7 @@ class SmartCutHealth {
     document.getElementById('health-search-form')?.addEventListener('submit', (e) => { e.preventDefault(); this.search(document.getElementById('health-search-input').value); });
     this.root.querySelectorAll('[data-quick-search]').forEach((b) => b.addEventListener('click', () => { const input = document.getElementById('health-search-input'); if (input) input.value = b.dataset.quickSearch; this.search(b.dataset.quickSearch); }));
     document.getElementById('health-login-btn')?.addEventListener('click', () => this.requireUser());
+    document.getElementById('health-dashboard-refresh')?.addEventListener('click', () => this.user ? this.renderSpace() : this.requireUser());
     document.getElementById('health-professional-btn')?.addEventListener('click', () => { document.getElementById('health-professional').hidden = false; document.getElementById('health-professional').scrollIntoView(); this.renderProfessional(); });
     document.getElementById('health-prescription-form')?.addEventListener('submit', (e) => this.submitPrescription(e));
     document.getElementById('health-prescription-dialog-form')?.addEventListener('submit', (e) => this.submitPrescription(e, true));
@@ -164,25 +196,32 @@ class SmartCutHealth {
   }
 
   async loadDirectory() {
-    const [pharmacies, doctors, labs, exams] = await Promise.all([
-      callHealth('healthListVerifiedPharmacies').catch(() => ({ pharmacies:[] })), callHealth('healthListDoctors').catch(() => ({ doctors:[] })), callHealth('healthListLaboratories').catch(() => ({ laboratories:[] })), callHealth('healthListLabExams').catch(() => ({ exams:[] }))
+    const [pharmacies, doctors, labs, exams, medicines] = await Promise.all([
+      callHealth('healthListVerifiedPharmacies').catch(() => ({ pharmacies:[] })), callHealth('healthListDoctors').catch(() => ({ doctors:[] })), callHealth('healthListLaboratories').catch(() => ({ laboratories:[] })), callHealth('healthListLabExams').catch(() => ({ exams:[] })), callHealth('healthListAvailableMedicines').catch(() => ({ medicines:[] }))
     ]);
     this.pharmacies = pharmacies.pharmacies || [];
     this.doctors = doctors.doctors || [];
     this.labs = labs.laboratories || [];
     this.exams = exams.exams || [];
+    this.medicines = medicines.medicines || [];
     const pharmaciesRoot = document.getElementById('health-pharmacies');
     const doctorsRoot = document.getElementById('health-doctors');
     const labsRoot = document.getElementById('health-labs');
     const examsRoot = document.getElementById('health-exams');
+    const homeMedicinesRoot = document.getElementById('health-home-medicines');
+    const homeDoctorsRoot = document.getElementById('health-home-doctors');
     if (pharmaciesRoot) pharmaciesRoot.innerHTML = this.cards(this.pharmacies, (p) => `<span class="health-badge"><i class="fas fa-circle-check"></i> Vérifiée</span><h3>${esc(p.businessName)}</h3><p>${esc([p.commune,p.department].filter(Boolean).join(', ') || p.address)}</p><p>${esc(p.phone)}</p>`);
     if (doctorsRoot) doctorsRoot.innerHTML = this.cards(this.doctors, (p) => `<span class="health-badge"><i class="fas fa-circle-check"></i> Vérifié</span><h3>${esc(p.name)}</h3><p><strong>${esc(p.specialty)}</strong></p><p>${esc([p.facility,p.commune].filter(Boolean).join(' · '))}</p>${p.indicativeFee ? `<div class="price">${money(p.indicativeFee)}</div>`:''}<div class="health-card-actions"><button class="health-btn primary" data-book-provider="${esc(p.id)}" data-provider-name="${esc(p.name)}">Prendre rendez-vous</button></div>`);
     if (labsRoot) labsRoot.innerHTML = this.cards(this.labs, (p) => `<span class="health-badge"><i class="fas fa-circle-check"></i> Vérifié</span><h3>${esc(p.name)}</h3><p>${esc([p.address,p.commune,p.department].filter(Boolean).join(' · '))}</p><p>Choisissez un examen publié ci-dessous pour réserver.</p>`);
     if (examsRoot) examsRoot.innerHTML = this.cards(this.exams, (p) => `<span class="health-badge">Examen</span><h3>${esc(p.name)}</h3><p>${esc(p.description || p.specimen || '')}</p><div class="price">${money(p.price)}</div><div class="health-card-actions"><button class="health-btn primary" data-book-provider="${esc(p.laboratoryId)}" data-provider-name="Laboratoire" data-exam-id="${esc(p.id)}">Choisir un créneau</button></div>`);
+    if (homeMedicinesRoot) homeMedicinesRoot.innerHTML = this.homeCards(this.medicines, 'fa-capsules', 'Aucun médicament publié pour le moment.', (p) => `<span class="health-badge"><i class="fas fa-circle-check"></i> En stock</span><h3>${esc(p.name)}</h3><p>${esc([p.dosage, p.pharmaceuticalForm].filter(Boolean).join(' · ') || p.pharmacyName)}</p><div class="health-card-footer"><strong>${money(p.price)}</strong><a href="./health-pharmacie.html?search=${encodeURIComponent(p.name)}">Voir <i class="fas fa-arrow-right"></i></a></div>`);
+    if (homeDoctorsRoot) homeDoctorsRoot.innerHTML = this.homeCards(this.doctors, 'fa-user-doctor', 'Aucun médecin disponible pour le moment.', (p) => `<span class="health-badge"><i class="fas fa-circle-check"></i> Vérifié</span><h3>${esc(p.name)}</h3><p><strong>${esc(p.specialty)}</strong></p><p>${esc([p.facility, p.commune].filter(Boolean).join(' · ') || 'Smart Cut Health')}</p><div class="health-card-footer">${p.indicativeFee ? `<strong>${money(p.indicativeFee)}</strong>` : '<span></span>'}<a href="./health-medecins.html">Consulter <i class="fas fa-arrow-right"></i></a></div>`);
     document.querySelectorAll('[data-book-provider]').forEach((b) => b.addEventListener('click', () => this.openBooking(b.dataset.bookProvider, b.dataset.providerName, b.dataset.examId || '')));
   }
 
   cards(items, render) { return items.length ? items.map((item) => `<article class="health-card">${render(item)}</article>`).join('') : '<div class="health-empty"><i class="fas fa-inbox"></i>Aucun partenaire publié pour le moment.</div>'; }
+
+  homeCards(items, icon, emptyMessage, render) { return items.length ? items.slice(0, 6).map((item) => `<article class="health-card health-home-card">${render(item)}</article>`).join('') : `<div class="health-empty"><i class="fas ${icon}"></i>${emptyMessage}</div>`; }
 
   async search(raw) {
     const q = String(raw || '').trim();
@@ -281,6 +320,10 @@ class SmartCutHealth {
         getDocs(query(collection(db,'healthLabResults'),where('patientUid','==',this.user.uid),limit(50)))
       ]);
       const prescriptions=rxSnap.docs.map(d=>({id:d.id,...d.data()}));const orders=orderSnap.docs.map(d=>({id:d.id,...d.data()}));const appointments=apptSnap.docs.map(d=>({id:d.id,...d.data()}));const results=resultSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const upcomingAppointments = appointments.filter((item) => item.status !== 'CANCELLED' && (!item.startsAt || new Date(item.startsAt) >= new Date())).length;
+      [['health-metric-appointments', upcomingAppointments],['health-metric-rx', prescriptions.length],['health-metric-orders', orders.length],['health-metric-results', results.length]].forEach(([id,value]) => { const node=document.getElementById(id); if(node) node.textContent=String(value); });
+      const name = this.profile?.displayName || this.profile?.businessName || this.user?.displayName || this.user?.email?.split('@')[0] || 'vous';
+      const nameNode = document.getElementById('health-dashboard-name'); if (nameNode) nameNode.textContent = name;
       root.innerHTML=`<div class="health-tabs"><button class="health-tab active" data-space-tab="rx">Ordonnances (${prescriptions.length})</button><button class="health-tab" data-space-tab="orders">Commandes (${orders.length})</button><button class="health-tab" data-space-tab="appointments">Rendez-vous (${appointments.length})</button><button class="health-tab" data-space-tab="results">Résultats (${results.length})</button></div>
       <div data-space-panel="rx" class="health-grid">${this.cards(prescriptions,p=>`<span class="health-badge">${esc(statusLabel(p.status))}</span><h3>Ordonnance ${esc(p.id.slice(0,8))}</h3><p>${esc(p.rejectionReason||p.notes||'Suivi sécurisé')}</p><div class="health-card-actions"><button class="health-btn secondary" data-open-private="prescription" data-private-id="${esc(p.id)}">Voir le fichier</button><button class="health-btn primary" data-view-offers="${esc(p.id)}">Comparer les offres</button></div>`)}</div>
       <div data-space-panel="orders" class="health-grid" hidden>${this.cards(orders,p=>`<span class="health-badge">${esc(statusLabel(p.status))}</span><h3>Commande ${esc(p.id.slice(0,8))}</h3><div class="price">${money(p.total)}</div><p>${esc(p.deliveryMethod==='home'?'Livraison':'Retrait pharmacie')}</p>`)}</div>
@@ -290,6 +333,14 @@ class SmartCutHealth {
       root.querySelectorAll('[data-open-private]').forEach(b=>b.addEventListener('click',()=>this.openPrivate(b.dataset.openPrivate,b.dataset.privateId)));
       root.querySelectorAll('[data-view-offers]').forEach(b=>b.addEventListener('click',()=>this.showOffers(b.dataset.viewOffers)));
       root.querySelectorAll('[data-cancel-appt]').forEach(b=>b.addEventListener('click',()=>this.cancelAppointment(b.dataset.cancelAppt)));
+      document.querySelectorAll('[data-space-nav]').forEach((button)=>button.addEventListener('click',()=>{
+        const target=button.dataset.spaceNav;
+        document.querySelectorAll('[data-space-nav]').forEach((item)=>item.classList.toggle('is-active', item===button));
+        if(target==='overview'){root.querySelectorAll('[data-space-panel]').forEach(panel=>{panel.hidden=panel.dataset.spacePanel!=='rx';});return;}
+        root.querySelectorAll('[data-space-tab]').forEach(tab=>{tab.classList.toggle('active',tab.dataset.spaceTab===target);});
+        root.querySelectorAll('[data-space-panel]').forEach(panel=>{panel.hidden=panel.dataset.spacePanel!==target;});
+        root.scrollIntoView({behavior:'smooth',block:'start'});
+      }));
     } catch(error){root.innerHTML=`<div class="health-empty"><i class="fas fa-triangle-exclamation"></i>${esc(error.message)}</div>`;}
   }
 

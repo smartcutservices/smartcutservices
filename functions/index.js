@@ -22,8 +22,11 @@ const db = admin.firestore();
 const PROJECT_ID = 'smartcutservices-9ce54';
 const REGION = process.env.FUNCTION_REGION || 'us-central1';
 const SITE_BASE_URL = normalizeBaseUrl(process.env.PUBLIC_SITE_URL || 'https://smartcutservices.com');
+// Base pour résoudre les images produit stockées en chemin relatif (beaucoup
+// d'images vivent dans le dépôt GitHub servi par GitHub Pages, pas dans Firebase
+// Storage). On les résout donc contre le site public lui-même.
 const REPO_CDN_BASE_URL = normalizeBaseUrl(
-  process.env.PRODUCT_ASSET_CDN_BASE || 'https://cdn.jsdelivr.net/gh/smartcutservices/smartcutservices@main'
+  process.env.PRODUCT_ASSET_CDN_BASE || SITE_BASE_URL
 );
 const MONCASH_API_BASE = normalizeBaseUrl(
   process.env.MONCASH_API_BASE || 'https://moncashbutton.digicelgroup.com/Api'
@@ -1693,7 +1696,24 @@ function buildProductShareHtml(product = {}, productUrl = '') {
   <meta name="twitter:title" content="${safeTitle}">
   <meta name="twitter:description" content="${safeDescription}">
   <meta name="twitter:image" content="${safeImageUrl}">
-  <meta http-equiv="refresh" content="0;url=${safeProductUrl}">
+  <script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: title,
+    description,
+    image: imageUrl ? [imageUrl] : undefined,
+    category: category || undefined,
+    brand: { '@type': 'Brand', name: vendorName || 'Smart Cut Services' },
+    ...(Number.isFinite(Number(product.price)) && Number(product.price) > 0 ? {
+      offers: {
+        '@type': 'Offer',
+        price: String(Number(product.price)),
+        priceCurrency: 'HTG',
+        availability: 'https://schema.org/InStock',
+        url: productUrl,
+      },
+    } : {}),
+  }).replace(/</g, '\\u003c')}</script>
   <style>
     body {
       margin: 0;
@@ -1764,10 +1784,13 @@ function buildProductShareHtml(product = {}, productUrl = '') {
     }
   </style>
   <script>
-    window.location.replace(${JSON.stringify(productUrl)});
+    /* Redirection des humains uniquement : les robots d'aperçu (WhatsApp, Facebook)
+       n'exécutent pas le JS et lisent donc les balises Open Graph ci-dessus. */
+    setTimeout(function () { window.location.replace(${JSON.stringify(productUrl)}); }, 900);
   </script>
 </head>
 <body>
+  <noscript><meta http-equiv="refresh" content="1;url=${safeProductUrl}"></noscript>
   <main class="card">
     <div class="eyebrow">Smart Cut Services</div>
     <img class="media" src="${safeImageUrl}" alt="${safeTitle}">

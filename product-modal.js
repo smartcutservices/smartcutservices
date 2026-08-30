@@ -1,9 +1,9 @@
 // ============= PRODUCT MODAL COMPONENT =============
 import { db } from './firebase-init.js';
-import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260711-1';
+import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260829-16';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
-import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260621-4';
+import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260829-16';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
@@ -174,6 +174,30 @@ class ProductModal {
     const images = this.getProductImages(product);
     return images[0] || '';
   }
+
+  /**
+   * Images belonging to the currently selected variation. Variation images
+   * must take precedence over the product gallery so the preview always
+   * matches the option the customer just chose.
+   */
+  getVariationImages(variation) {
+    if (!variation || typeof variation !== 'object') return [];
+    const candidates = [
+      ...(Array.isArray(variation.images) ? variation.images : []),
+      variation.image,
+      variation.imageUrl,
+      variation.thumbnail
+    ];
+    const seen = new Set();
+    return candidates
+      .filter((value) => typeof value === 'string' && value.trim())
+      .map((value) => this.getImagePath(value))
+      .filter((value) => {
+        if (!value || seen.has(value)) return false;
+        seen.add(value);
+        return true;
+      });
+  }
   
   getProductDisplayPrice(product = this.product) {
     const variations = Array.isArray(product?.variations) ? product.variations : [];
@@ -211,7 +235,14 @@ class ProductModal {
   }
   
   getCurrentDisplayImages() {
-    return this.getProductImages(this.product);
+    const variations = Array.isArray(this.product?.variations) ? this.product.variations : [];
+    const selectedVariation = variations[this.currentVariationIndex];
+    const hasExplicitVariation = this.selectedOptions?.get('variation')
+      || this.variationQuantities?.has(this.currentVariationIndex);
+    const variationImages = hasExplicitVariation
+      ? this.getVariationImages(selectedVariation)
+      : [];
+    return variationImages.length ? variationImages : this.getProductImages(this.product);
   }
 
   getProductShareUrl() {
@@ -783,7 +814,7 @@ class ProductModal {
       <div class="desktop-image-grid">
         ${images.map((img, index) => `
           <div class="desktop-image-item" data-index="${index}">
-            <img src="${this.getImagePath(img)}" alt="" loading="lazy" onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
+            <img src="${this.getImagePath(img)}" alt="" decoding="async" loading="${index === 0 ? 'eager' : 'lazy'}"${index === 0 ? ' fetchpriority="high"' : ''} onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
           </div>
         `).join('')}
       </div>
@@ -801,7 +832,7 @@ class ProductModal {
         <div class="mobile-image-container">
           ${images.map((img, index) => `
             <div class="mobile-image-slide" data-index="${index}">
-              <img src="${this.getImagePath(img)}" alt="" loading="lazy" onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
+              <img src="${this.getImagePath(img)}" alt="" decoding="async" loading="${index === 0 ? 'eager' : 'lazy'}"${index === 0 ? ' fetchpriority="high"' : ''} onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
             </div>
           `).join('')}
         </div>
@@ -1189,6 +1220,8 @@ class ProductModal {
 
         <div class="product-trust-strip" aria-label="Informations avant achat">
           <div class="product-trust-item"><i class="fas fa-shield-halved" aria-hidden="true"></i><span>Paiement sécurisé avec MonCash</span></div>
+          <div class="product-trust-item"><i class="fas fa-circle-check" aria-hidden="true"></i><span>${product.vendorId ? `Vendu par <strong>${String(product.vendorName || product.shopName || 'un partenaire').replace(/[<>]/g, '')}</strong> · vendeur vérifié` : 'Vendu et expédié par <strong>Smart Cut Services</strong>'}</span></div>
+          <div class="product-trust-item"><i class="fas fa-rotate-left" aria-hidden="true"></i><span>Litige ou remboursement pris en charge par Smart Cut Services</span></div>
           <div class="product-trust-item"><i class="fas fa-truck" aria-hidden="true"></i><span>${product.isDigitalProduct ? 'Accès numérique après confirmation' : (product.deliveryDelay ? `Livraison: ${product.deliveryDelay}` : 'Livraison confirmée au checkout')}</span></div>
           <a class="product-trust-item product-whatsapp-support" href="${whatsappSupportUrl}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" aria-label="Contacter Smart Cut Services sur WhatsApp au +509 3491-3988" style="color:inherit;text-decoration:none;cursor:pointer;">
             <i class="fab fa-whatsapp" aria-hidden="true"></i>
@@ -1541,6 +1574,12 @@ class ProductModal {
         if (!Number.isInteger(idx)) return;
         this.currentVariationIndex = idx;
         const variation = this.product?.variations?.[idx];
+        this.selectedOptions.set('variation', {
+          type: 'variation',
+          value: item.dataset.value || this.getVariationLabel(variation),
+          image: this.getVariationImages(variation)[0] || '',
+          variationIndex: idx
+        });
         const priceEl = this.modalElement.querySelector('.product-current-price');
         if (priceEl && variation) {
           priceEl.textContent = this.formatPrice(this.getVariationEffectivePrice(variation, this.product));
@@ -1564,6 +1603,18 @@ class ProductModal {
         if (next <= 0) this.variationQuantities.delete(idx);
         else this.variationQuantities.set(idx, next);
         this.currentVariationIndex = idx;
+        const variation = this.product?.variations?.[idx];
+        if (variation) {
+          this.selectedOptions.set('variation', {
+            type: 'variation',
+            value: this.getVariationLabel(variation),
+            image: this.getVariationImages(variation)[0] || '',
+            variationIndex: idx
+          });
+          const priceEl = this.modalElement.querySelector('.product-current-price');
+          if (priceEl) priceEl.textContent = this.formatPrice(this.getVariationEffectivePrice(variation, this.product));
+          this.refreshDisplayedImages();
+        }
         this.updateVariationQuantityUI(idx);
         this.refreshAddToCartButtons();
         this.saveToLocalStorage();
@@ -1909,7 +1960,7 @@ class ProductModal {
 
  addToCart() {
   // Récupérer l'instance du panier
-  import('./cart.js?v=20260816-1').then(({ getCartManager }) => {
+  import('./cart.js?v=20260829-16').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     

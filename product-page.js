@@ -1,4 +1,5 @@
-import ProductModal from './product-modal.js?v=20260826-1';
+import ProductModal from './product-modal.js?v=20260829-16';
+import { applySeoMeta } from './seo-meta.js?v=20260829-16';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {
@@ -496,6 +497,44 @@ class ProductPage extends ProductModal {
 
     this.modalElement = target.querySelector(`.product-page-shell-${this.uniqueId}`);
     this.fullscreenViewer = target.querySelector(`.fullscreen-viewer-${this.uniqueId}`);
+
+    this.applySeo();
+  }
+
+  applySeo() {
+    const p = this.product;
+    if (!p) return;
+    const images = this.getProductImages(p).map((src) => {
+      try { return new URL(src, location.href).href; } catch (_) { return null; }
+    }).filter(Boolean);
+    const price = Number(p.price);
+    const description = String(p.longDescription || p.shortDescription || p.description
+      || `${p.name || 'Produit'} — disponible sur Smart Cut Services.`).replace(/\s+/g, ' ').trim();
+    applySeoMeta({
+      title: p.name || 'Produit',
+      description,
+      image: images[0] || '',
+      type: 'product',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: p.name || 'Produit',
+        description: description.slice(0, 500),
+        image: images.slice(0, 6),
+        category: p.categoryName || p.category || undefined,
+        sku: p.sku || p.id || undefined,
+        brand: { '@type': 'Brand', name: p.vendorName || p.shopName || 'Smart Cut Services' },
+        ...(Number.isFinite(price) && price > 0 ? {
+          offers: {
+            '@type': 'Offer',
+            price: String(price),
+            priceCurrency: 'HTG',
+            availability: 'https://schema.org/InStock',
+            url: location.href.split('#')[0],
+          },
+        } : {}),
+      },
+    });
   }
 
   attachEvents() {

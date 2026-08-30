@@ -235,28 +235,48 @@ export class Personalization3DViewer {
     const group = new THREE.Group();
     this._bodyMaterials = [];
 
-    if (shape === 'mug') {
-      const bodyMat = new THREE.MeshStandardMaterial({ color: this.color, roughness: 0.35, metalness: 0.05 });
-      this._bodyMaterials.push(bodyMat);
-      const cylinder = new THREE.CylinderGeometry(1, 1, 1.6, 48, 1, true);
+    if (shape === 'mug' || shape === 'tumbler') {
       const wrapTexture = this._getTexture('wrap');
-      const wrapMat = new THREE.MeshStandardMaterial({ map: wrapTexture, roughness: 0.5 });
-      const body = new THREE.Mesh(cylinder, wrapMat);
+      const isTumbler = shape === 'tumbler';
+      const bodyMat = new THREE.MeshPhysicalMaterial({ color: this.color, map: wrapTexture, roughness: isTumbler ? .42 : .3, metalness: 0, clearcoat: .3 });
+      this._bodyMaterials.push(bodyMat);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(isTumbler ? .78 : .9, isTumbler ? .68 : .82, isTumbler ? 1.95 : 1.7, 64, 1, false), bodyMat);
+      body.castShadow = true; body.receiveShadow = true;
       group.add(body);
 
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 12, 40), bodyMat);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(isTumbler ? .78 : .9, .06, 16, 64), bodyMat);
       rim.rotation.x = Math.PI / 2;
-      rim.position.y = 0.8;
+      rim.position.y = isTumbler ? .98 : .85;
       group.add(rim);
 
-      const handleCurve = new THREE.TorusGeometry(0.42, 0.09, 10, 24, Math.PI * 1.3);
-      const handle = new THREE.Mesh(handleCurve, bodyMat);
-      handle.position.set(1.15, 0, 0);
-      handle.rotation.z = Math.PI / 2;
-      handle.rotation.y = Math.PI / 2.4;
-      group.add(handle);
+      const base = new THREE.Mesh(new THREE.TorusGeometry(isTumbler ? .68 : .82, .05, 14, 64), bodyMat);
+      base.rotation.x = Math.PI / 2;
+      base.position.y = isTumbler ? -.98 : -.85;
+      group.add(base);
+
+      if (!isTumbler) {
+        // Même anse latérale que dans l'aperçu 3D de la page d'accueil.
+        const handle = new THREE.Mesh(new THREE.TorusGeometry(.62, .13, 20, 64, Math.PI * 1.62), bodyMat);
+        handle.rotation.z = Math.PI;
+        handle.position.set(.86, .03, 0);
+        handle.castShadow = true; handle.receiveShadow = true;
+        group.add(handle);
+      } else {
+        const lidMat = new THREE.MeshPhysicalMaterial({ color: 0x202631, roughness: .28, metalness: .08, clearcoat: .35 });
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(.76, .76, .10, 64), lidMat);
+        lid.position.y = 1.02;
+        group.add(lid);
+        const lidBand = new THREE.Mesh(new THREE.TorusGeometry(.70, .035, 12, 48), lidMat);
+        lidBand.rotation.x = Math.PI / 2;
+        lidBand.position.y = .98;
+        group.add(lidBand);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .08, 32), lidMat);
+        cap.position.set(.22, 1.10, 0);
+        group.add(cap);
+      }
 
       group.scale.setScalar(0.85);
+      group.rotation.y = -.35;
       return group;
     }
 

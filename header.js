@@ -1,13 +1,13 @@
-import { db } from './firebase-init.js?v=20260523-6';
+import { db } from './firebase-init.js?v=20260829-16';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js?v=20260816-4';
-import Navbar from './navbar.js?v=20260816-1';
-import { getCartManager } from './cart.js?v=20260816-1';
-import { getAuthManager } from './auth.js?v=20260523-6';
-import { getProfilePanel } from './profile-panel.js?v=20260525-6';
+import './search.js?v=20260829-16';
+import Navbar from './navbar.js?v=20260829-16';
+import { getCartManager } from './cart.js?v=20260829-16';
+import { getAuthManager } from './auth.js?v=20260829-16';
+import { getProfilePanel } from './profile-panel.js?v=20260829-16';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
-import { applyNavPreference } from './nav-preference.js?v=20260828-1';
+import { applyNavPreference } from './nav-preference.js?v=20260829-16';
 
 // Rangée de navlinks personnalisable : le dernier lien ouvert repasse en tête.
 const MAIN_NAV_PREF_KEY = 'sc:navOrder:main:v1';
@@ -36,9 +36,9 @@ class SierraHeaderNebula {
     style.id = styleId;
     style.textContent = `
       :root {
-        --primary-color: #3a4e3f;
-        --secondary-color: #b89b7b;
-        --accent-color: #7c3e3e;
+        --primary-color: var(--sc-brand, #3a4e3f);
+        --secondary-color: var(--sc-brand-2, #b89b7b);
+        --accent-color: var(--sc-brand-accent, #7c3e3e);
         --primary-font: 'Amazon Ember', Arial, sans-serif;
         --brand-font: 'Playfair Display', 'Amazon Ember', Arial, sans-serif;
         --secondary-font: 'Amazon Ember', sans-serif;

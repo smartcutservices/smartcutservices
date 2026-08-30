@@ -1,4 +1,11 @@
+/* =========================================================================
+   Smart Cut — jetons de design partagés (source de vérité unique).
+   Toute couleur / espacement / typo réutilisé sur plusieurs pages passe ici.
+   Les modules (health.css, header.js, …) consomment ces --sc-* au lieu de
+   redéfinir leurs propres variables. Voir la feuille de route « Cap 10/10 » #3.
+   ========================================================================= */
 :root {
+  /* — Neutres & marque marketplace (Amazon-like) — */
   --sc-ink: #0f1111;
   --sc-muted: #565959;
   --sc-link: #007185;
@@ -14,9 +21,58 @@
   --sc-navy-soft: #232f3e;
   --sc-success: #007600;
   --sc-danger: #b12704;
-  --sc-radius: 8px;
+
+  /* — Rayons — */
   --sc-radius-sm: 4px;
+  --sc-radius: 8px;
+  --sc-radius-lg: 16px;
+  --sc-radius-pill: 999px;
+
+  /* — Ombres — */
+  --sc-shadow-sm: 0 1px 2px rgba(15, 17, 17, .08);
   --sc-shadow: 0 2px 5px rgba(15, 17, 17, .15);
+  --sc-shadow-lg: 0 12px 32px rgba(15, 17, 17, .12);
+
+  /* — Typographie — */
+  --sc-font-sans: 'Amazon Ember', Arial, Helvetica, sans-serif;
+  --sc-font-brand: 'Playfair Display', 'Amazon Ember', Arial, serif;
+  --sc-text-xs: .75rem;
+  --sc-text-sm: .875rem;
+  --sc-text-base: 1rem;
+  --sc-text-md: 1.125rem;
+  --sc-text-lg: 1.375rem;
+  --sc-text-xl: 1.75rem;
+  --sc-text-2xl: 2.25rem;
+  --sc-text-3xl: 3rem;
+
+  /* — Échelle d'espacement (base 4px) — */
+  --sc-space-1: .25rem;
+  --sc-space-2: .5rem;
+  --sc-space-3: .75rem;
+  --sc-space-4: 1rem;
+  --sc-space-5: 1.5rem;
+  --sc-space-6: 2rem;
+  --sc-space-8: 3rem;
+  --sc-space-10: 4rem;
+
+  /* — Accents par service (une seule définition canonique) — */
+  --sc-brand: #3a4e3f;          /* en-tête / vitrine marketplace */
+  --sc-brand-2: #b89b7b;
+  --sc-brand-accent: #7c3e3e;
+  --sc-health: #0f6958;         /* Smart Cut Health */
+  --sc-health-deep: #0c453b;
+  --sc-health-ink: #17211f;
+  --sc-health-muted: #62706c;
+  --sc-health-soft: #eaf6f2;
+  --sc-health-line: #dbe7e3;
+  --sc-health-warm: #f5b848;
+  --sc-education: #c93a24;      /* Smart Academi */
+  --sc-education-hover: #a82e1b;
+  --sc-content-max: 1380px;
+  --sc-content-gutter: clamp(1rem, 3vw, 2rem);
+  --sc-control-height: 44px;
+  /* Auto & Parts : --sc-orange ci-dessus */
+
   --sc-footer-bg: #131921;
   --sc-footer-heading: #ffffff;
   --sc-footer-text: rgba(255, 255, 255, .72);
@@ -24,7 +80,25 @@
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--sc-canvas); color: var(--sc-ink); }
+body { background: var(--sc-canvas); color: var(--sc-ink); overflow-x: hidden; }
+
+/* Shared layout primitives: predictable page rhythm on desktop and mobile. */
+.sc-page-width,
+.page-width,
+.container { width: min(calc(100% - (var(--sc-content-gutter) * 2)), var(--sc-content-max)); margin-inline: auto; }
+
+button,
+input,
+select,
+textarea { font: inherit; }
+
+button,
+[role="button"] { min-height: var(--sc-control-height); }
+
+img { max-width: 100%; }
+
+/* Keep fixed headers from hiding anchors and first content. */
+[id] { scroll-margin-top: calc(var(--header-height, 0px) + 1rem); }
 
 .auto-parts-teaser {
   width: min(100% - 2rem, 1380px);
@@ -55,12 +129,25 @@ body { background: var(--sc-canvas); color: var(--sc-ink); }
 }
 
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid #e77600 !important;
+  outline: 3px solid var(--sc-orange-border, #e77600) !important;
   outline-offset: 1px !important;
 }
 
 button, a, input, select { -webkit-tap-highlight-color: transparent; }
 button:disabled { cursor: not-allowed !important; }
+
+/* Titres : meilleure répartition des lignes sur les retours à la ligne. */
+:where(h1, h2, h3) { text-wrap: balance; }
+
+/* Accessibilité : respecter la préférence système « réduire les animations ». */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
 
 .cart-container { border-radius: 0 !important; }
 
