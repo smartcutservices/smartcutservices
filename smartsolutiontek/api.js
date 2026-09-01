@@ -17,7 +17,9 @@ export async function callSst(name, { method = 'GET', body, query, auth } = {}) 
     });
   }
 
-  const headers = { 'Content-Type': 'application/json' };
+  // Keep public GET calls as simple CORS requests. JSON is needed only for
+  // mutating calls; adding it to GET causes an unnecessary OPTIONS preflight.
+  const headers = method === 'GET' ? {} : { 'Content-Type': 'application/json' };
   if (auth) {
     try {
       const token = await auth.getIdToken();

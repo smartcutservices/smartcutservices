@@ -44,4 +44,51 @@ function publicConsultationCatalog() {
   return { currency: 'HTG', commissionRate: COMMISSION_RATE, plans: Object.values(CONSULTATION_PLANS).map((plan) => ({ ...plan })), specialties: SPECIALTIES.map((specialty) => ({ ...specialty, prices: { ...specialty.prices } })) };
 }
 
-module.exports = { COMMISSION_RATE, CONSULTATION_PLANS, SPECIALTIES, resolveConsultationSelection, publicConsultationCatalog };
+// ---------- RENDEZ-VOUS (distinct from TELECONSULTATION above) ----------
+//
+// A doctor-initiated, targeted appointment for one specific patient (picked from the
+// doctor's own AGENDA, not a self-service slot any patient can book) — a single flat
+// price per specialty, never the Essentielle/Advanced two-tier pricing used by
+// TELECONSULTATION. Duration is always 10 minutes.
+const RENDEZVOUS_DURATION_MINUTES = 10;
+
+const RENDEZVOUS_SPECIALTY_PRICES = Object.freeze([
+  ['general-medicine', 'Médecine générale', 1500],
+  ['internal-medicine', 'Médecine interne', 2500],
+  ['pediatrics', 'Pédiatrie', 2500],
+  ['gynecology', 'Gynécologie', 2500],
+  ['orthopedics', 'Orthopédie', 2500],
+  ['surgery', 'Chirurgie', 2700],
+  ['cardiology', 'Cardiologie', 3000],
+  ['neurology', 'Neurologie', 2700],
+  ['gastroenterology', 'Gastro-entérologie', 3000],
+  ['dermatology', 'Dermatologie', 2000],
+  ['psychology', 'Psychologie', 2500],
+  ['ent', 'ORL (Oto-rhino-laryngologie)', 2500],
+  ['pulmonology', 'Pneumologie', 2000],
+  ['nephrology', 'Néphrologie', 3000],
+  ['nutrition', 'Nutrition / Diététique', 2000],
+  ['neurosurgery', 'Neurochirurgie', 3500],
+  ['psychiatry', 'Psychiatrie', 3000],
+  ['family-medicine', 'Médecine familiale', 2000],
+  ['hematology', 'Hématologie', 2500],
+  ['geriatrics', 'Gériatrie', 2500]
+  // Ophtalmologie volontairement absente : aucun tarif Rendez-vous fourni pour l'instant.
+].map(([code, name, price]) => Object.freeze({ code, name, price })));
+
+function resolveRendezvousSpecialty(specialtyCode) {
+  return RENDEZVOUS_SPECIALTY_PRICES.find((item) => item.code === specialtyCode) || null;
+}
+
+function publicRendezvousCatalog() {
+  return {
+    currency: 'HTG',
+    durationMinutes: RENDEZVOUS_DURATION_MINUTES,
+    specialties: RENDEZVOUS_SPECIALTY_PRICES.map((item) => ({ ...item }))
+  };
+}
+
+module.exports = {
+  COMMISSION_RATE, CONSULTATION_PLANS, SPECIALTIES, resolveConsultationSelection, publicConsultationCatalog,
+  RENDEZVOUS_DURATION_MINUTES, RENDEZVOUS_SPECIALTY_PRICES, resolveRendezvousSpecialty, publicRendezvousCatalog
+};

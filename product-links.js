@@ -20,7 +20,10 @@ export function buildProductPageUrl(productId) {
 // Firebase Hosting réécrit /p/** vers la Cloud Function productSharePage, qui rend
 // l'aperçu Open Graph (titre + image du produit) pour WhatsApp / Facebook puis
 // redirige la personne vers product.html.
-export function buildProductShareUrl(productId, sourceCollection = '') {
+// `variantKey` (optionnel) : SKU ou index de la variante à mettre en avant dans
+// l'aperçu de partage (son image + son prix). La fonction productSharePage le
+// résout par SKU puis par index.
+export function buildProductShareUrl(productId, sourceCollection = '', variantKey = '') {
   const id = String(productId || '').trim();
   const base = SHARE_BASE_URL.replace(/\/+$/, '');
   // Sous-domaine dédié -> chemin lisible /p/<id>.
@@ -29,6 +32,8 @@ export function buildProductShareUrl(productId, sourceCollection = '') {
     ? new URL(`${base}?product=${encodeURIComponent(id)}`)
     : new URL(`${base}/p/${encodeURIComponent(id)}`);
   if (sourceCollection) url.searchParams.set('source', sourceCollection);
+  const variant = String(variantKey ?? '').trim();
+  if (variant) url.searchParams.set('variant', variant);
   return url.toString();
 }
 

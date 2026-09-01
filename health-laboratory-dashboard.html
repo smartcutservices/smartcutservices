@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b3d35">
+<title>Espace laboratoire · Smart Cut Health</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
+<link rel="stylesheet" href="./health.css?v=20260831-4">
+<style>
+  body:not(.provider-ready) main.health-dashboard{display:none}
+  body.provider-blocked{background:#eef3f2}
+  body.provider-blocked:after{content:'Connectez-vous avec un compte laboratoire vérifié pour accéder à cet espace.';display:grid;place-items:center;min-height:45vh;padding:24px;text-align:center;color:#17322f;font-size:18px;font-weight:700}
+  .ph-sales-month{padding:1rem;border:1px solid var(--health-line);border-radius:14px;background:#fff;margin-bottom:.7rem}
+  .ph-sales-month h4{margin:0 0 .5rem;display:flex;justify-content:space-between;color:var(--health-ink)}
+</style>
+</head>
+<body>
+<div id="health-header-root"></div>
+<main class="health-dashboard">
+  <aside class="health-dashboard__aside">
+    <div class="health-dashboard__brand">
+      <span class="health-dashboard__brand-mark"><i class="fas fa-flask-vial"></i></span>
+      <span><strong>Espace laboratoire</strong><small>Smart Cut Health</small></span>
+    </div>
+    <nav class="health-dashboard__nav" aria-label="Navigation laboratoire">
+      <button class="is-active" data-tab="overview"><i class="fas fa-gauge"></i> Vue d’ensemble</button>
+      <button data-tab="catalog"><i class="fas fa-vials"></i> Catalogue d’examens</button>
+      <button data-tab="slots"><i class="fas fa-calendar-plus"></i> Créneaux</button>
+      <button data-tab="appointments"><i class="fas fa-inbox"></i> Nouvelles commandes</button>
+      <button data-tab="accepted"><i class="fas fa-circle-check"></i> Commandes acceptées</button>
+      <button data-tab="refused"><i class="fas fa-circle-xmark"></i> Refusées / annulées</button>
+      <button data-tab="results"><i class="fas fa-file-medical"></i> Résultats</button>
+      <button data-tab="patients"><i class="fas fa-user-injured"></i> Patients</button>
+      <button data-tab="reports"><i class="fas fa-chart-line"></i> Rapports</button>
+      <button data-tab="wallet"><i class="fas fa-wallet"></i> Revenus</button>
+      <button data-tab="withdrawals"><i class="fas fa-right-left"></i> Décaissements</button>
+      <button data-tab="profile"><i class="fas fa-building"></i> Profil</button>
+    </nav>
+    <div class="health-dashboard__aside-bottom">
+      <a href="./health-professionnel.html"><i class="fas fa-arrow-left"></i> Espace professionnel</a>
+      <a href="#" id="providerLogout"><i class="fas fa-right-from-bracket"></i> Se déconnecter</a>
+    </div>
+  </aside>
+
+  <div class="health-dashboard__main">
+    <div class="health-dashboard__header">
+      <div><span class="health-eyebrow">Laboratoire vérifié</span><h1 id="providerName">Chargement…</h1><p>Examens, rendez-vous et résultats, au même endroit.</p></div>
+    </div>
+    <div id="notice" class="health-status" style="max-width:1180px;margin:0 auto 1rem;"></div>
+
+    <section class="health-panel" id="panel-overview">
+      <div class="health-dashboard__metrics">
+        <article><span>Examens réalisés aujourd’hui</span><strong id="statToday">—</strong></article>
+        <article><span>Examens publiés</span><strong id="statExams">—</strong></article>
+        <article><span>Résultats à transmettre</span><strong id="statPendingResults">—</strong></article>
+        <article><span>Revenus (total)</span><strong id="statRevenue">—</strong></article>
+      </div>
+      <div class="health-card"><h3 style="margin-top:0;">Prochains rendez-vous</h3><div id="overviewList">Chargement…</div></div>
+    </section>
+
+    <section class="health-panel" id="panel-catalog" hidden>
+      <div class="health-provider-section__head"><div><span class="health-eyebrow">Catalogue</span><h3>Examens disponibles</h3></div></div>
+      <div id="examsList" class="health-provider-list">Chargement…</div>
+      <div class="health-card" style="margin-top:1rem;">
+        <h3 id="examFormTitle" style="margin-top:0;">Ajouter un examen</h3>
+        <form id="examForm" class="health-form">
+          <input type="hidden" id="examId">
+          <div class="health-form-grid">
+            <div class="health-field"><label for="examCategory">Catégorie *</label><select id="examCategory" required><option value="">Choisir une catégorie…</option></select></div>
+            <div class="health-field" id="examSubcategoryField" hidden><label for="examSubcategory">Sous-catégorie</label><select id="examSubcategory"><option value="">Toutes les sous-catégories</option></select></div>
+            <div class="health-field"><label for="examSelect">Examen *</label><select id="examSelect" required disabled><option value="">Choisir d’abord une catégorie…</option></select></div>
+            <div class="health-field"><label for="examName">Nom affiché</label><input id="examName" readonly placeholder="Sélectionnez un examen"></div>
+            <div class="health-field"><label for="examPrice">Prix (HTG) *</label><input id="examPrice" type="number" min="0" required></div>
+            <div class="health-field"><label for="examSpecimen">Type de prélèvement / préparation</label><input id="examSpecimen" placeholder="Ex. Sang veineux, à jeun"></div>
+            <div class="health-field"><label for="examDelay">Délai de résultat</label><input id="examDelay" placeholder="Ex. 24-48h"></div>
+          </div>
+          <div class="health-field"><label for="examDescription">Description</label><textarea id="examDescription" rows="2"></textarea></div>
+          <label style="display:flex;align-items:center;gap:.5rem;"><input type="checkbox" id="examActive" checked> Examen actif (visible des patients)</label>
+          <div style="display:flex;gap:.6rem;">
+            <button class="health-btn primary" type="submit" id="examSubmitBtn">Publier l’examen</button>
+            <button class="health-btn secondary" type="button" id="cancelExamEdit" hidden>Annuler</button>
+          </div>
+          <div class="health-status" id="examFormStatus"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="health-panel" id="panel-slots" hidden>
+      <div class="health-card">
+        <h3 style="margin-top:0;">Publier un créneau de prélèvement</h3>
+        <form id="slotForm" class="health-form" style="max-width:420px;">
+          <div class="health-field"><label for="slotStartsAt">Début</label><input id="slotStartsAt" type="datetime-local" required></div>
+          <div class="health-field"><label for="slotEndsAt">Fin</label><input id="slotEndsAt" type="datetime-local" required></div>
+          <button class="health-btn primary" type="submit">Publier</button>
+          <div class="health-status" id="slotFormStatus"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="health-panel" id="panel-appointments" hidden><div id="appointmentsList" class="health-provider-list">Chargement…</div></section>
+    <section class="health-panel" id="panel-accepted" hidden><div id="acceptedAppointmentsList" class="health-provider-list">Chargement…</div></section>
+    <section class="health-panel" id="panel-refused" hidden><div id="refusedAppointmentsList" class="health-provider-list">Chargement…</div></section>
+
+    <section class="health-panel" id="panel-results" hidden>
+      <div class="health-provider-section__head"><div><span class="health-eyebrow">À transmettre</span><h3>Résultats en attente</h3></div></div>
+      <div id="resultsPending" class="health-provider-list">Chargement…</div>
+      <div class="health-card" style="margin-top:1rem;">
+        <h3 style="margin-top:0;">Transmettre un résultat</h3>
+        <form id="resultForm" class="health-form">
+          <div class="health-field"><label for="resultAppointment">Rendez-vous concerné</label><select id="resultAppointment" required><option value="">Chargement…</option></select></div>
+          <div class="health-field"><label for="resultFile">Résultat PDF, 15 Mo maximum</label><input id="resultFile" type="file" accept="application/pdf" required></div>
+          <button class="health-btn primary" type="submit">Transmettre au patient</button>
+          <div class="health-status" id="resultFormStatus"></div>
+        </form>
+      </div>
+      <div class="health-provider-section__head" style="margin-top:1.5rem;"><div><span class="health-eyebrow">Historique</span><h3>Résultats transmis</h3></div></div>
+      <div id="resultsSent" class="health-provider-list">Chargement…</div>
+    </section>
+
+    <section class="health-panel" id="panel-patients" hidden><div id="patientsList" class="health-provider-list">Chargement…</div></section>
+
+    <section class="health-panel" id="panel-reports" hidden>
+      <div class="health-card-actions" style="margin-bottom:1rem;"><button class="health-btn secondary" id="printReportsBtn"><i class="fas fa-print"></i> Imprimer</button></div>
+      <div id="reportsMonthly"></div>
+    </section>
+
+    <section class="health-panel" id="panel-wallet" hidden>
+      <div class="health-provider-metrics">
+        <article><span>Solde disponible</span><strong id="walletAvailable">—</strong></article>
+        <article><span>Revenus générés (total)</span><strong id="walletLifetime">—</strong></article>
+      </div>
+      <div id="walletMonthly"></div>
+    </section>
+
+    <section class="health-panel" id="panel-withdrawals" hidden><div id="withdrawalsHistory" class="health-provider-list">Chargement…</div></section>
+
+    <section class="health-panel" id="panel-profile" hidden><div id="providerProfilePhoto" class="health-card" style="margin-bottom:1rem;"></div><div id="providerProfileSummary" class="health-card">Chargement…</div></section>
+  </div>
+</main>
+
+<script type="module">
+import SmartCutHealthHeader from './health-header.js';
+new SmartCutHealthHeader('health-header-root');
+import './health-laboratory-dashboard.js?v=20260831-5';
+</script>
+</body>
+</html>

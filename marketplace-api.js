@@ -1,4 +1,4 @@
-import { auth } from './firebase-init.js?v=20260829-16';
+import { auth } from './firebase-init.js?v=20260831-4';
 
 function functionBase() {
   const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;

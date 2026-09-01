@@ -1,26 +1,134 @@
 // Header autonome de Smart Cut Health.
 // Il ne dépend pas du header marketplace utilisé sur la page d'accueil.
 
-const NAV_ORDER_KEY = 'sch:navOrder:v1';
+import { auth, db, storage } from './firebase-init.js';
+import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { ref, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
+import { getAuthManager } from './auth.js';
 
-// Liens du sous-menu santé. L'ordre d'affichage s'adapte aux préférences de
-// l'utilisateur : le dernier lien ouvert repasse en tête, l'ordre étant mémorisé
-// dans localStorage et conservé d'une page à l'autre.
+// Liens de découverte affichés dans la nav du haut — uniquement des pages de
+// catalogue public. Les pages de compte personnel (commandes, notifications,
+// messagerie, ordonnances) et les espaces prestataires ne sont plus listés à
+// plat ici : ils vivent tous derrière l'icône de profil (voir spaceHref /
+// paintAvatar), qui emmène directement chacun dans SON espace.
+// `audience` :
+//   'user'     -> visible par tout le monde ;
+//   'doctor' / autre rôle -> uniquement pour ce rôle vérifié (et les admins) ;
+//   'prospect' -> visible uniquement pour qui n'est PAS déjà prestataire vérifié
+//                 (visiteur, simple utilisateur, candidature en cours) : c'est
+//                 le point d'entrée pour rejoindre la plateforme comme médecin,
+//                 pharmacie ou laboratoire. Il disparaît une fois le compte
+//                 vérifié, remplacé par l'icône de profil -> dashboard dédié.
 const NAV_LINKS = [
-  { href: './health-teleconsultation.html', label: 'Téléconsultation', match: ['health-teleconsultation.html'] },
-  { href: './health-pharmacie.html', label: 'Pharmacie', match: ['health-pharmacie.html'] },
-  { href: './health-medecins.html', label: 'Médecins', match: ['health-medecins.html'] },
-  { href: './health-laboratoires.html', label: 'Laboratoires', match: ['health-laboratoires.html'] },
-  { href: './health-espace.html', label: 'Mon espace', match: ['health-espace.html'] },
-  { href: './health-doctor.html', label: 'Espace médecin', icon: 'fa-user-doctor', match: ['health-doctor.html'] },
+  { href: './health-pharmacie.html', label: 'Pharmacie', match: ['health-pharmacie.html'], audience: 'user' },
+  { href: './health-teleconsultation.html', label: 'Téléconsultation', icon: 'fa-user-doctor', match: ['health-teleconsultation.html'], audience: 'user' },
+  { href: './health-imagerie.html', label: 'Imagerie', icon: 'fa-x-ray', match: ['health-imagerie.html'], audience: 'user' },
+  { href: './health-laboratoires.html', label: 'Laboratoires', match: ['health-laboratoires.html'], audience: 'user' },
+  { href: './health-medecins.html', label: 'Médecins', match: ['health-medecins.html'], audience: 'doctor' },
+  { href: './health-candidature.html', label: 'Devenir prestataire', icon: 'fa-user-plus', match: ['health-candidature.html'], audience: 'prospect' },
 ];
+
+// Même correspondance rôle -> champ de profil que functions/health/clinical.js
+// (PROFILE_FIELDS) — dupliquée ici volontairement, ce fichier tourne côté
+// client et ne peut pas importer le module serveur.
+const PROFILE_FIELD_BY_ROLE = { doctor: 'doctorProfile', pharmacy: 'pharmacyProfile', laboratory: 'labProfile', imaging: 'imagingProfile' };
+
+// Espace « propriétaire » de chaque rôle vérifié : c'est là que l'icône de
+// profil emmène directement un compte prestataire vérifié, plutôt que dans
+// l'espace patient générique — chaque prestataire garde un accès à son espace
+// patient depuis l'aside de son propre dashboard, les deux espaces coexistent
+// toujours, ils ne sont simplement jamais mélangés dans une seule interface.
+const DASHBOARD_HREF_BY_ROLE = {
+  doctor: './health-doctor.html', pharmacy: './health-pharmacy-dashboard.html',
+  laboratory: './health-laboratory-dashboard.html', imaging: './health-imaging-dashboard.html'
+};
+
+const AVATAR_COLORS = ['#0f6958', '#1f7a63', '#2c8f74', '#0b5a4a', '#146856'];
 
 export default class SmartCutHealthHeader {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
     if (!this.container) return;
+    this.role = null;      // null | 'doctor' | 'pharmacy' | 'laboratory' | 'imaging'
+    this.isAdmin = false;
+    this.signedIn = false;
+    this.userLabel = '';
+    this.photoUrl = null;
     this.render();
     this.bindEvents();
+    this.paintAvatar();
+    this.initRole();
+  }
+
+  // Détermine le rôle du compte connecté, résout sa photo d'affichage (photo
+  // professionnelle vérifiée > photo du compte > initiales) puis révèle les
+  // liens réservés aux prestataires. Un simple utilisateur ne voit jamais
+  // « Médecins », qui n'a de sens que pour un confrère.
+  initRole() {
+    try {
+      onAuthStateChanged(auth, async (user) => {
+        this.signedIn = Boolean(user);
+        this.userLabel = user ? (user.displayName || user.email || '') : '';
+        let role = null;
+        let isAdmin = false;
+        let photoUrl = user?.photoURL || null;
+        if (user) {
+          try {
+            const snap = await getDoc(doc(db, 'clients', user.uid));
+            const data = snap.exists() ? (snap.data() || {}) : {};
+            role = String(data.role || '').toLowerCase() || null;
+            isAdmin = data.isAdmin === true || role === 'admin';
+            const profileField = PROFILE_FIELD_BY_ROLE[role];
+            const photoPath = profileField ? data[profileField]?.photoPath : null;
+            if (photoPath) {
+              try { photoUrl = await getDownloadURL(ref(storage, photoPath)); }
+              catch (_) { /* photo pas encore disponible (émulateur, propagation) : on retombe sur celle du compte */ }
+            }
+          } catch (_) { /* lecture impossible : on reste sur la vue utilisateur */ }
+        }
+        const roleChanged = role !== this.role || isAdmin !== this.isAdmin;
+        this.role = role;
+        this.isAdmin = isAdmin;
+        this.photoUrl = photoUrl;
+        if (roleChanged) this.refreshNav();
+        this.paintAvatar();
+      });
+    } catch (_) { /* pas d'auth disponible : vue utilisateur uniquement */ }
+  }
+
+  // La page où mène l'icône de profil : le dashboard dédié d'un prestataire
+  // vérifié, sinon l'espace patient (Mon espace, auto-provisionné pour tout
+  // compte Smart Cut).
+  spaceHref() {
+    return DASHBOARD_HREF_BY_ROLE[this.role] || './health-espace.html';
+  }
+
+  // Un compte est « prestataire vérifié » dès qu'il a un rôle avec dashboard dédié.
+  isVerifiedProvider() {
+    return Boolean(DASHBOARD_HREF_BY_ROLE[this.role]);
+  }
+
+  // Liens visibles selon le rôle courant.
+  visibleNavLinks() {
+    return NAV_LINKS.filter((link) => {
+      const audience = link.audience || 'user';
+      if (audience === 'user') return true;
+      // « Devenir prestataire » : caché pour un prestataire déjà vérifié et pour
+      // l'admin (ils ont leur propre espace), visible pour tous les autres.
+      if (audience === 'prospect') return !this.isVerifiedProvider() && !this.isAdmin;
+      if (this.isAdmin) return true;
+      return audience === this.role;
+    });
+  }
+
+  // Reconstruit le contenu du menu après un changement de rôle.
+  refreshNav() {
+    const menu = this.container.querySelector('[data-health-menu]');
+    const header = this.container.querySelector('[data-health-header]');
+    if (!menu) return;
+    menu.innerHTML = this.renderNavLinks();
+    menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', () => header?.classList.remove('is-menu-open')));
   }
 
   render() {
@@ -108,7 +216,29 @@ export default class SmartCutHealthHeader {
           outline: none;
         }
 
-        .health-site-header__link--back { margin-left: .35rem; color: #bdd9d2; }
+        .health-site-header__link.is-active {
+          background: rgba(255, 255, 255, .14);
+        }
+
+        .health-site-header__link--cta {
+          border: 1px solid rgba(255, 255, 255, .34);
+          color: #fff;
+        }
+        .health-site-header__link--cta:hover,
+        .health-site-header__link--cta:focus-visible {
+          background: #fff;
+          color: #0b3d35;
+        }
+
+        .health-site-header__avatar {
+          flex: 0 0 auto; margin-left: .85rem;
+          width: 40px; height: 40px; display: grid; place-items: center;
+          border: 1px solid rgba(255, 255, 255, .28); border-radius: 999px;
+          background: #fff; color: #0b3d35; cursor: pointer; font-size: .95rem;
+          font-weight: 800; text-decoration: none; overflow: hidden;
+        }
+        .health-site-header__avatar:hover, .health-site-header__avatar:focus-visible { background: #eaf6f2; outline: none; }
+        .health-site-header__avatar img { width: 100%; height: 100%; object-fit: cover; }
 
         .health-site-header__menu {
           display: none;
@@ -149,8 +279,7 @@ export default class SmartCutHealthHeader {
           }
 
           .health-site-header.is-menu-open .health-site-header__nav { display: flex; }
-          .health-site-header__link,
-          .health-site-header__link--back {
+          .health-site-header__link {
             width: 100%;
             margin: 0;
             justify-content: flex-start;
@@ -159,6 +288,9 @@ export default class SmartCutHealthHeader {
           .health-site-header__link:hover,
           .health-site-header__link:focus-visible,
           .health-site-header__link.is-active { color: #0b3d35; background: #eef7f4; }
+          .health-site-header__link--cta { border-color: #b9d8d0; color: #0b3d35; }
+          .health-site-header__link--cta:hover,
+          .health-site-header__link--cta:focus-visible { background: #0b3d35; color: #fff; }
         }
       </style>
 
@@ -178,11 +310,57 @@ export default class SmartCutHealthHeader {
 
           <nav class="health-site-header__nav" aria-label="Navigation Smart Cut Health" data-health-menu>
             ${this.renderNavLinks()}
-            <a class="health-site-header__link health-site-header__link--back" href="./index.html"><i class="fas fa-arrow-left" aria-hidden="true"></i> Smart Cut Services</a>
           </nav>
+
+          <a class="health-site-header__avatar" href="./health-espace.html" data-health-avatar aria-label="Mon espace">
+            <i class="fas fa-user" aria-hidden="true"></i>
+          </a>
         </div>
       </header>
     `;
+  }
+
+  escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[<>&"']/g, '');
+  }
+
+  initials(label) {
+    const parts = String(label || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '';
+    const first = parts[0][0] || '';
+    const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+    return (first + last).toUpperCase();
+  }
+
+  hashColor(label) {
+    let hash = 0;
+    const text = String(label || '');
+    for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+  }
+
+  // Icône de profil : photo (professionnelle vérifiée ou celle du compte) si
+  // disponible, sinon initiales sur fond coloré stable, sinon l'icône
+  // générique par défaut pour un visiteur non connecté. Un seul clic emmène
+  // directement dans l'espace propre au compte (voir spaceHref) ; pour un
+  // visiteur non connecté, il ouvre la connexion sans quitter la page.
+  paintAvatar() {
+    const avatar = this.container.querySelector('[data-health-avatar]');
+    if (!avatar) return;
+    avatar.href = this.spaceHref();
+    avatar.setAttribute('aria-label', this.signedIn ? 'Mon espace' : 'Se connecter');
+    if (this.photoUrl) {
+      avatar.innerHTML = `<img src="${this.escapeHtml(this.photoUrl)}" alt="" loading="lazy">`;
+      avatar.style.background = '#fff';
+    } else if (this.signedIn && this.userLabel) {
+      avatar.innerHTML = this.escapeHtml(this.initials(this.userLabel)) || '<i class="fas fa-user" aria-hidden="true"></i>';
+      avatar.style.background = this.hashColor(this.userLabel);
+      avatar.style.color = '#fff';
+    } else {
+      avatar.innerHTML = '<i class="fas fa-user" aria-hidden="true"></i>';
+      avatar.style.background = '#fff';
+      avatar.style.color = '#0b3d35';
+    }
   }
 
   bindEvents() {
@@ -212,9 +390,14 @@ export default class SmartCutHealthHeader {
 
     menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeMenu));
 
-    // Mémoire des préférences : le lien ouvert repasse en tête du sous-menu.
-    menu.querySelectorAll('[data-health-nav-link]').forEach((link) => {
-      link.addEventListener('click', () => this.rememberNavClick(link.dataset.healthNavLink));
+    // Icône de profil : connecté -> navigation normale (spaceHref, déjà posé
+    // comme href) ; non connecté -> on intercepte pour ouvrir la connexion
+    // sans quitter la page plutôt que d'atterrir sur Mon espace verrouillé.
+    const avatar = this.container.querySelector('[data-health-avatar]');
+    avatar?.addEventListener('click', (event) => {
+      if (this.signedIn) return;
+      event.preventDefault();
+      try { getAuthManager().openAuthModal('login'); } catch (_) { /* pas de modale dispo */ }
     });
 
     window.addEventListener('resize', () => {
@@ -226,44 +409,12 @@ export default class SmartCutHealthHeader {
     return window.location.pathname.split('/').pop() === fileName;
   }
 
-  // Rendu des liens du sous-menu dans l'ordre préféré de l'utilisateur.
   renderNavLinks() {
-    return this.orderedNavLinks().map((link) => {
+    return this.visibleNavLinks().map((link) => {
       const active = link.match.some((file) => this.isCurrentPage(file));
       const icon = link.icon ? `<i class="fas ${link.icon}" aria-hidden="true"></i> ` : '';
-      return `<a class="health-site-header__link ${active ? 'is-active' : ''}" href="${link.href}" data-health-nav-link="${link.href}">${icon}${link.label}</a>`;
+      const cta = link.audience === 'prospect' ? ' health-site-header__link--cta' : '';
+      return `<a class="health-site-header__link${cta} ${active ? 'is-active' : ''}" href="${link.href}">${icon}${link.label}</a>`;
     }).join('');
-  }
-
-  // Liens préférés (déjà cliqués) en premier, dans l'ordre du plus récent au
-  // plus ancien, puis les liens restants dans leur ordre d'origine.
-  orderedNavLinks() {
-    const saved = this.readNavOrder();
-    const preferred = saved
-      .map((href) => NAV_LINKS.find((link) => link.href === href))
-      .filter(Boolean);
-    const rest = NAV_LINKS.filter((link) => !saved.includes(link.href));
-    return [...preferred, ...rest];
-  }
-
-  readNavOrder() {
-    try {
-      const raw = JSON.parse(window.localStorage.getItem(NAV_ORDER_KEY) || '[]');
-      if (!Array.isArray(raw)) return [];
-      const known = new Set(NAV_LINKS.map((link) => link.href));
-      return raw.filter((href) => known.has(href));
-    } catch (_) {
-      return [];
-    }
-  }
-
-  rememberNavClick(href) {
-    if (!NAV_LINKS.some((link) => link.href === href)) return;
-    try {
-      const next = [href, ...this.readNavOrder().filter((item) => item !== href)].slice(0, NAV_LINKS.length);
-      window.localStorage.setItem(NAV_ORDER_KEY, JSON.stringify(next));
-    } catch (_) {
-      /* localStorage indisponible : la préférence n'est pas mémorisée, sans erreur. */
-    }
   }
 }

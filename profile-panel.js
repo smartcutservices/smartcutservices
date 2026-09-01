@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=20260829-16';
+import { auth, db } from './firebase-init.js?v=20260831-4';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js?v=20260829-16';
-import { getCartManager } from './cart.js?v=20260829-16';
+import { getAuthManager } from './auth.js?v=20260831-4';
+import { getCartManager } from './cart.js?v=20260831-4';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
@@ -830,26 +830,32 @@ class ProfilePanel {
     const orders = this.getVisibleOrders();
     const paidOrders = orders.filter((order) => ['approved', 'paid'].includes(order.status));
 
+    const totalSales = orders.filter((order) => ['approved', 'paid'].includes(order.status)).reduce((sum, order) => sum + Number(order.total || order.amount || order.totalAmount || 0), 0);
     const cards = [
-      { label: 'Favoris', value: likes.length, icon: 'fa-heart' },
-      { label: 'Commandes', value: orders.length, icon: 'fa-receipt' },
-      { label: 'Confirmées', value: paidOrders.length, icon: 'fa-circle-check' }
+      { label: 'Favoris', value: likes.length, icon: 'fa-heart', note: 'Produits enregistrés' },
+      { label: 'Commandes', value: orders.length, icon: 'fa-receipt', note: 'Commandes passées' },
+      { label: 'Confirmées', value: paidOrders.length, icon: 'fa-circle-check', note: 'Commandes confirmées' },
+      { label: 'Ventes totales', value: `${new Intl.NumberFormat('fr-HT').format(totalSales)} Gdes`, icon: 'fa-wallet', note: 'Montant total gagné', static: true }
     ];
 
     return `
       <div style="
         display:grid;
-        grid-template-columns:repeat(3, minmax(0, 1fr));
+        grid-template-columns:repeat(4, minmax(0, 1fr));
         gap:0.65rem;
         margin-bottom:1.2rem;
       ">
         ${cards.map((card) => `
-          <div style="
+          <button type="button" class="profile-summary-card" data-profile-summary="${card.label === 'Favoris' ? 'likes' : 'orders'}" aria-label="Afficher ${card.label.toLowerCase()}" style="
             background:${colors.background.card};
             border:1px solid #D5D9D9;
             border-radius:8px;
             padding:0.85rem;
             min-width:0;
+            width:100%;
+            text-align:left;
+            cursor:pointer;
+            transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;
           ">
             <div style="
               width:2rem;
@@ -867,7 +873,8 @@ class ProfilePanel {
             </div>
             <div style="font-size:1.05rem;font-weight:800;color:${colors.text.title};">${card.value}</div>
             <div style="font-size:0.74rem;color:#565959;">${card.label}</div>
-          </div>
+            <div style="font-size:0.68rem;color:#89939c;margin-top:0.25rem;">${card.note}</div>
+          </button>
         `).join('')}
       </div>
     `;
@@ -1033,6 +1040,7 @@ class ProfilePanel {
         ">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
             <div style="min-width:0;">
+              <div class="profile-avatar" aria-hidden="true">${user?.photoURL ? `<img src="${this.escape(user.photoURL)}" alt="">` : `<span>${this.escape((this.getUserLabel(user) || 'U').charAt(0).toUpperCase())}</span>`}</div>
               ${isPersonalView ? `
                 <button class="profile-back-account-btn" style="
                   border:none;
@@ -1079,6 +1087,7 @@ class ProfilePanel {
             </div>
 
             <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+              <a class="profile-home-btn" href="./index.html" aria-label="Retour à l’accueil"><i class="fas fa-house"></i><span>Accueil</span></a>
               ${isAuthenticated ? `
                 <button class="profile-logout-btn" style="
                   border:1px solid rgba(255,255,255,0.4);
@@ -1110,7 +1119,20 @@ class ProfilePanel {
           </div>
         </div>
 
-        <div style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
+        <div class="profile-workspace">
+          ${isAuthenticated ? `
+            <aside class="profile-sidebar" aria-label="Navigation du profil">
+              <p class="profile-sidebar-label">Votre espace</p>
+              <button type="button" class="profile-sidebar-link is-active" data-profile-nav="overview"><i class="fas fa-grid-2"></i><span>Vue d’ensemble</span></button>
+              <button type="button" class="profile-sidebar-link" data-profile-nav="personal"><i class="fas fa-id-card"></i><span>Informations personnelles</span></button>
+              <button type="button" class="profile-sidebar-link" data-profile-nav="likes"><i class="fas fa-heart"></i><span>Favoris</span></button>
+              <button type="button" class="profile-sidebar-link" data-profile-nav="orders"><i class="fas fa-receipt"></i><span>Commandes</span></button>
+              ${this.vendorAccess?.approved ? `<a class="profile-sidebar-link" href="${VENDOR_DASHBOARD_URL}"><i class="fas fa-store"></i><span>Espace vendeur</span></a>` : ''}
+              <div class="profile-sidebar-help"><i class="fas fa-headset"></i><strong>Besoin d’aide ?</strong><p>Notre équipe est là pour vous aider.</p><a href="mailto:contact@smartcutservices.com">Nous contacter</a></div>
+            </aside>
+          ` : ''}
+          <main class="profile-content" style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
+          ${isAuthenticated && !isPersonalView ? `<div class="profile-greeting"><h1>Bonjour ${this.escape(this.getUserLabel(user))} <span aria-hidden="true">👋</span></h1><p>Voici un aperçu de votre activité sur Smart Cut Services.</p></div>` : ''}
           ${isAuthResolving ? `
             <div style="
               border:1px solid #D5D9D9;
@@ -1162,6 +1184,7 @@ class ProfilePanel {
             ${this.cartManager.renderLikedSection(colors, fonts)}
             ${this.cartManager.renderOrdersSection(colors, fonts)}
           ` : this.renderLoggedOutState(colors)}
+          </main>
         </div>
       </aside>
     `;
@@ -1187,6 +1210,37 @@ class ProfilePanel {
     const communeSelect = this.modal.querySelector('#profileEditCommune');
     const ordersHeader = this.modal.querySelector('.orders-header');
     const likesHeader = this.modal.querySelector('.likes-header');
+
+    this.modal.querySelectorAll('[data-profile-summary]').forEach((card) => {
+      card.addEventListener('click', (event) => {
+        event.preventDefault();
+        const section = card.dataset.profileSummary;
+        if (section === 'likes') {
+          this.likeManager.likesVisible = true;
+          this.cartManager.likesVisible = true;
+          this.updateSectionVisibility('likes');
+          this.modal.querySelector('.likes-header')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+        this.cartManager.ordersVisible = true;
+        this.updateSectionVisibility('orders');
+        this.modal.querySelector('.orders-header')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      card.addEventListener('mouseenter', () => { card.style.transform = 'translateY(-2px)'; card.style.boxShadow = '0 8px 20px rgba(15,25,35,.08)'; card.style.borderColor = '#b89b7b'; });
+      card.addEventListener('mouseleave', () => { card.style.transform = ''; card.style.boxShadow = ''; card.style.borderColor = '#D5D9D9'; });
+    });
+
+    this.modal.querySelectorAll('[data-profile-nav]').forEach((link) => {
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        this.modal.querySelectorAll('[data-profile-nav]').forEach((item) => item.classList.toggle('is-active', item === link));
+        const target = link.dataset.profileNav;
+        if (target === 'personal') personalInfoBtn?.click();
+        if (target === 'likes') this.modal.querySelector('[data-profile-summary="likes"]')?.click();
+        if (target === 'orders') this.modal.querySelector('[data-profile-summary="orders"]')?.click();
+        if (target === 'overview') this.modal.querySelector('.profile-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
 
     closeBtn?.addEventListener('click', (event) => {
       event.preventDefault();
@@ -1389,8 +1443,3 @@ export function getProfilePanel() {
 }
 
 export default ProfilePanel;
-
-
-
-
-

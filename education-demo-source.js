@@ -7,7 +7,7 @@
 // que les composants de rendu n'aient jamais a savoir d'ou vient la donnee.
 
 import { RAW_CATEGORIES, RAW_SCHOOLS, RAW_PROGRAMS } from './education-data.js';
-import { normalizeCategory, normalizeProgram, normalizeSchool, isPublished, isArchived } from './education-normalize.js?v=20260829-16';
+import { normalizeCategory, normalizeProgram, normalizeSchool, isPublished, isArchived } from './education-normalize.js?v=20260831-4';
 
 const CATEGORIES = RAW_CATEGORIES.map((raw) => normalizeCategory(raw, raw.id)).filter((item) => item.isActive);
 const SCHOOLS = RAW_SCHOOLS.map((raw) => normalizeSchool(raw, raw.id)).filter((item) => isPublished(item) && !isArchived(item));

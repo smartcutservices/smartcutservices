@@ -59,10 +59,10 @@
   <!-- Pas de webfont custom : Arial/Amazon Ember systeme, comme amazon.com -->
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="./tailwind-site.css?v=20260829-16">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260829-16">
-  <link rel="stylesheet" href="./health-teaser.css?v=20260829-16">
-  <link rel="stylesheet" href="./services-teaser.css?v=20260829-16">
+  <link rel="stylesheet" href="./tailwind-site.css?v=20260831-4">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
+  <link rel="stylesheet" href="./health-teaser.css?v=20260831-4">
+  <link rel="stylesheet" href="./services-teaser.css?v=20260831-4">
   
   <!-- Import Map Firebase -->
   <script type="importmap">
@@ -259,9 +259,6 @@
 
   <div id="sierra-services-teaser-root"></div>
 
-  <!-- 4a. Studio de personnalisation: t-shirt, tasse... -->
-  <div id="sierra-personalization-teaser-root"></div>
-
   <div id="sierra-auto-parts-teaser-root"></div>
 
   <!-- 4a-bis. Teaser Smart Cut Education -->
@@ -281,7 +278,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260829-16';
+    const ASSET_VERSION = '20260831-4';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -382,8 +379,6 @@
 
     mountOnVisible('services-teaser', 'sierra-services-teaser-root', () => import(`./services-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
 
-    mountOnVisible('personalization-teaser', 'sierra-personalization-teaser-root', () => import(`./personalization-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
-
     mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
 
     mountOnVisible('education-teaser', 'sierra-education-teaser-root', () => import(`./education-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
@@ -428,7 +423,7 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260829-16')
+      import('./notification.js?v=20260831-4')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
@@ -440,7 +435,7 @@
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260829-16')
+      import('./musique.js?v=20260831-4')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',

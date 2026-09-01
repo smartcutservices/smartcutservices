@@ -342,14 +342,16 @@ service cloud.firestore {
     function keepsHealthStatusFields() {
       return (!('pharmacyStatus' in request.resource.data) || request.resource.data.pharmacyStatus == resource.data.pharmacyStatus) &&
         (!('doctorStatus' in request.resource.data) || request.resource.data.doctorStatus == resource.data.doctorStatus) &&
-        (!('labStatus' in request.resource.data) || request.resource.data.labStatus == resource.data.labStatus);
+        (!('labStatus' in request.resource.data) || request.resource.data.labStatus == resource.data.labStatus) &&
+        (!('imagingStatus' in request.resource.data) || request.resource.data.imagingStatus == resource.data.imagingStatus);
     }
 
     function isVerifiedHealthProfessional(uid) {
       return signedIn() && request.auth.uid == uid && exists(/databases/$(database)/documents/clients/$(uid)) && (
         get(/databases/$(database)/documents/clients/$(uid)).data.pharmacyStatus == 'verified' ||
         get(/databases/$(database)/documents/clients/$(uid)).data.doctorStatus == 'verified' ||
-        get(/databases/$(database)/documents/clients/$(uid)).data.labStatus == 'verified'
+        get(/databases/$(database)/documents/clients/$(uid)).data.labStatus == 'verified' ||
+        get(/databases/$(database)/documents/clients/$(uid)).data.imagingStatus == 'verified'
       );
     }
 
@@ -503,12 +505,6 @@ service cloud.firestore {
     // bypasses these rules entirely (same pattern as vendorPayouts above).
     // ============================================================
 
-    function sstPlatformRole() {
-      return exists(/databases/$(database)/documents/platformRoles/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/platformRoles/$(request.auth.uid)).data
-        : null;
-    }
-
     function isSstPlatformStaff(roles) {
       return signedIn() &&
         exists(/databases/$(database)/documents/platformRoles/$(request.auth.uid)) &&
@@ -595,15 +591,19 @@ service cloud.firestore {
 
     match /payoutRequests/{requestId} {
       allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
-        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]) ||
+        isVerifiedHealthProfessional(resource.data.organizationId);
       // Creation, approval and payout are all Admin-SDK only (server validates balance,
-      // cooldown and KYC status) — see sstCreatePayoutRequest / sstReviewPayoutRequest / sstMarkPayoutPaid.
+      // cooldown and KYC status) — see sstCreatePayoutRequest / sstReviewPayoutRequest / sstMarkPayoutPaid
+      // and healthRequestPayout for the Smart Cut Health equivalent (organizationId == the
+      // professional's own uid there, never an sstOrganizations doc).
       allow write: if false;
     }
 
     match /payouts/{payoutId} {
       allow read: if isSstOrgMember(resource.data.organizationId, ["creator_owner", "creator_manager"]) ||
-        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+        isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]) ||
+        isVerifiedHealthProfessional(resource.data.organizationId);
       allow write: if false;
     }
 
@@ -936,6 +936,12 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /healthImagingApplications/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.status == 'pending';
+      allow update, delete: if isAdmin();
+    }
+
     // Medicine listings: public read (non-sensitive catalog data — the search page
     // needs it), but every write is Admin-SDK only (healthSaveMedicine / healthDeleteMedicine)
     // so stock/price can never be edited by anything except the verified owning pharmacy,
@@ -972,7 +978,11 @@ service cloud.firestore {
     match /healthOrders/{orderId} {
       allow read: if isAdmin() ||
         (signedIn() && resource.data.patientUid == request.auth.uid) ||
-        (signedIn() && resource.data.pharmacyId == request.auth.uid);
+        (signedIn() && resource.data.pharmacyId == request.auth.uid) ||
+        // Appointment orders (doctor, laboratory, imaging) are visible to the
+        // assigned provider through the same providerUid field.  Pharmacy
+        // orders keep using pharmacyId above.
+        (signedIn() && resource.data.providerUid == request.auth.uid);
       allow write: if false; // Admin-SDK only — price/stock/status always server-computed.
     }
 
@@ -1005,6 +1015,67 @@ service cloud.firestore {
         resource.data.patientUid == request.auth.uid || resource.data.laboratoryId == request.auth.uid
       ));
       allow write: if false;
+    }
+
+    // Imaging (Application "Imagerie") mirrors laboratory exactly: a public catalog and
+    // provider-scoped results, both Admin-SDK write only — see healthSaveImagingExam /
+    // healthUploadImagingResult in functions/health/clinical.js.
+    match /healthImagingExams/{examId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /healthImagingResults/{resultId} {
+      allow read: if isAdmin() || (signedIn() && (
+        resource.data.patientUid == request.auth.uid || resource.data.imagingCenterId == request.auth.uid
+      ));
+      allow write: if false;
+    }
+
+    // Doctor-issued e-prescriptions (medications / lab exam requests / imaging requests),
+    // written only during or after a teleconsultation the doctor conducted — see
+    // healthDoctorIssuePrescription. Distinct from healthPrescriptions (a scanned paper
+    // prescription the patient uploads and routes to pharmacies).
+    match /healthClinicalPrescriptions/{prescriptionId} {
+      allow read: if isAdmin() || (signedIn() && (
+        resource.data.patientUid == request.auth.uid || resource.data.providerUid == request.auth.uid
+      ));
+      allow write: if false;
+    }
+
+    // Teleconsultation session chat (text/photo/voice). Both patientUid and providerUid
+    // are copied onto every message at write time (see healthSendSessionMessage) so this
+    // rule never needs a cross-collection get() — cheap, and matches the pattern already
+    // used by healthOrders. Never a direct client write: counts (max 2 photos / 2 voice
+    // per patient) and the storage-path check are enforced server-side only.
+    match /healthMessages/{messageId} {
+      allow read: if isAdmin() || (signedIn() && (
+        resource.data.patientUid == request.auth.uid || resource.data.providerUid == request.auth.uid
+      ));
+      allow write: if false;
+    }
+
+    // Patient wallet: credited automatically when a doctor refuses a paid consultation or
+    // a pharmacy/lab/imaging order is cancelled after payment — never by a direct client
+    // write. See creditPatientWallet() in functions/health/clinical.js and index.js.
+    match /healthPatientWallets/{uid} {
+      allow read: if isAdmin() || isOwner(uid);
+      allow write: if false;
+    }
+
+    match /healthPatientWalletTransactions/{txId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.patientUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // In-app notification inbox (distinct from the generic, push-oriented
+    // notificationBroadcasts collection). A signed-in user may only ever mark their own
+    // notification read — never change its content — everything else is Admin-SDK only.
+    match /healthNotifications/{notificationId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if signedIn() && resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      allow create, delete: if false;
     }
 
     match /healthRateLimits/{limitId} { allow read, write: if false; }

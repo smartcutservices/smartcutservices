@@ -3,8 +3,8 @@ import { db } from './firebase-init.js';
 import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import MegaMenu from './mega-menu.js';
-import MobileMenu from './mobile-menu.js?v=20260829-16';
-import { getSearchManager } from './search.js?v=20260829-16';
+import MobileMenu from './mobile-menu.js?v=20260831-4';
+import { getSearchManager } from './search.js?v=20260831-4';
 
 class Navbar {
   constructor(options = {}) {

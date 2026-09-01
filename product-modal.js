@@ -1,9 +1,9 @@
 // ============= PRODUCT MODAL COMPONENT =============
 import { db } from './firebase-init.js';
-import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260829-16';
+import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260831-4';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
-import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260829-16';
+import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260831-4';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
@@ -248,8 +248,24 @@ class ProductModal {
   getProductShareUrl() {
     return buildProductShareUrl(
       this.product?.id || this.options.productId || '',
-      this.product?.sourceCollection || this.options.collectionName || ''
+      this.product?.sourceCollection || this.options.collectionName || '',
+      this.getShareVariantKey()
     );
+  }
+
+  // Clé de la variante à mettre en avant dans le lien de partage : uniquement
+  // quand une variante a été explicitement choisie. SKU si disponible (stable
+  // même si la liste est réordonnée), sinon l'index.
+  getShareVariantKey() {
+    const variations = Array.isArray(this.product?.variations) ? this.product.variations : [];
+    if (!variations.length) return '';
+    const hasExplicitVariation = this.selectedOptions?.get('variation')
+      || this.variationQuantities?.has(this.currentVariationIndex);
+    if (!hasExplicitVariation) return '';
+    const idx = Number(this.currentVariationIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= variations.length) return '';
+    const sku = String(variations[idx]?.sku || '').trim();
+    return sku || String(idx);
   }
 
   getProductPageUrl(productId = this.product?.id || this.options.productId || '') {
@@ -1128,8 +1144,11 @@ class ProductModal {
             <span style="font-weight: 500; color: #0F1111;">Quantité</span>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <button type="button" class="qty-decrease-btn" aria-label="Diminuer la quantité" style="
-                width: 44px;
-                height: 44px;
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                min-height: 36px;
+                padding: 0;
                 border: 1px solid rgba(198, 167, 94, 0.4);
                 background: #EAEDED;
                 border-radius: 50%;
@@ -1143,8 +1162,11 @@ class ProductModal {
                 padding: 0.35rem;
               ">
               <button type="button" class="qty-increase-btn" aria-label="Augmenter la quantité" style="
-                width: 44px;
-                height: 44px;
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                min-height: 36px;
+                padding: 0;
                 border: 1px solid rgba(198, 167, 94, 0.4);
                 background: #EAEDED;
                 border-radius: 50%;
@@ -1270,12 +1292,12 @@ class ProductModal {
                   ` : ''}
                   <span style="font-size: 0.8rem; font-weight: 600; color: #0F1111;">${label}</span>
                   <span class="variation-stock-meta" data-variation-index="${index}" style="font-size: 0.75rem; color: #565959;">${this.formatPrice(price)}${variation?.stock !== undefined ? ` - Stock: ${variation.stock}` : ''}</span>
-                  <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.25rem;">
-                    <button type="button" class="variation-qty-dec" data-variation-index="${index}" aria-label="Diminuer la quantité de cette variante" style="width:44px; height:44px; border:1px solid rgba(198,167,94,0.4); background:#EAEDED; border-radius:50%; cursor:pointer;">
+                  <div style="display:flex; align-items:center; gap:0.3rem; margin-top:0.2rem;">
+                    <button type="button" class="variation-qty-dec" data-variation-index="${index}" aria-label="Diminuer la quantité de cette variante" style="width:34px; height:34px; min-width:34px; min-height:34px; padding:0; border:1px solid rgba(198,167,94,0.4); background:#F3F4F4; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-minus" style="font-size:0.7rem;"></i>
                     </button>
                     <span class="variation-qty" data-variation-index="${index}" style="min-width:22px; text-align:center; font-size:0.85rem; font-weight:600;">${qty}</span>
-                    <button type="button" class="variation-qty-inc" data-variation-index="${index}" aria-label="Augmenter la quantité de cette variante" style="width:44px; height:44px; border:1px solid rgba(198,167,94,0.4); background:#EAEDED; border-radius:50%; cursor:pointer;">
+                    <button type="button" class="variation-qty-inc" data-variation-index="${index}" aria-label="Augmenter la quantité de cette variante" style="width:34px; height:34px; min-width:34px; min-height:34px; padding:0; border:1px solid rgba(198,167,94,0.4); background:#F3F4F4; border-radius:50%; cursor:pointer;">
                       <i class="fas fa-plus" style="font-size:0.7rem;"></i>
                     </button>
                   </div>
@@ -1960,7 +1982,7 @@ class ProductModal {
 
  addToCart() {
   // Récupérer l'instance du panier
-  import('./cart.js?v=20260829-16').then(({ getCartManager }) => {
+  import('./cart.js?v=20260831-4').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     

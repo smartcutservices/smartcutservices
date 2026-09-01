@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b3d35">
+<title>Espace pharmacie · Smart Cut Health</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
+<link rel="stylesheet" href="./health.css?v=20260831-4">
+<style>
+  body:not(.pharmacy-ready) main.health-dashboard{display:none}
+  body.pharmacy-blocked{background:#eef3f2}
+  body.pharmacy-blocked:after{content:'Connectez-vous avec un compte pharmacie vérifié pour accéder à cet espace.';display:grid;place-items:center;min-height:45vh;padding:24px;text-align:center;color:#17322f;font-size:18px;font-weight:700}
+  .ph-photo-grid{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.6rem}
+  .ph-photo-item{position:relative;width:84px;height:84px}
+  .ph-photo-item img{width:100%;height:100%;object-fit:cover;border-radius:10px;border:1px solid var(--health-line)}
+  .ph-photo-item button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:2px solid #fff;border-radius:50%;background:#c0392b;color:#fff;font-size:.6rem;cursor:pointer}
+  .ph-sales-month{padding:1rem;border:1px solid var(--health-line);border-radius:14px;background:#fff;margin-bottom:.7rem}
+  .ph-sales-month h4{margin:0 0 .5rem;display:flex;justify-content:space-between;color:var(--health-ink)}
+</style>
+</head>
+<body>
+<div id="health-header-root"></div>
+<main class="health-dashboard">
+  <aside class="health-dashboard__aside">
+    <div class="health-dashboard__brand">
+      <span class="health-dashboard__brand-mark"><i class="fas fa-prescription-bottle-medical"></i></span>
+      <span><strong>Espace pharmacie</strong><small>Smart Cut Health</small></span>
+    </div>
+    <nav class="health-dashboard__nav" aria-label="Navigation pharmacie">
+      <button class="is-active" data-tab="overview"><i class="fas fa-gauge"></i> Vue d’ensemble</button>
+      <button data-tab="products"><i class="fas fa-pills"></i> Mes produits</button>
+      <button data-tab="add-product"><i class="fas fa-plus"></i> Ajouter un produit</button>
+      <button data-tab="prescriptions"><i class="fas fa-file-prescription"></i> Ordonnances reçues</button>
+      <button data-tab="new-orders"><i class="fas fa-inbox"></i> Nouvelles commandes</button>
+      <button data-tab="accepted-orders"><i class="fas fa-box"></i> Commandes acceptées</button>
+      <button data-tab="completed-orders"><i class="fas fa-check-double"></i> Commandes terminées</button>
+      <button data-tab="cancelled-orders"><i class="fas fa-ban"></i> Refusées / Annulées</button>
+      <button data-tab="sales"><i class="fas fa-chart-line"></i> Ventes</button>
+      <button data-tab="stock-alerts"><i class="fas fa-triangle-exclamation"></i> Stock faible / rupture</button>
+      <button data-tab="wallet"><i class="fas fa-wallet"></i> Solde disponible</button>
+      <button data-tab="withdrawals"><i class="fas fa-right-left"></i> Décaissements</button>
+      <button data-tab="profile"><i class="fas fa-store"></i> Profil pharmacie</button>
+    </nav>
+    <div class="health-dashboard__aside-bottom">
+      <a href="./health-professionnel.html"><i class="fas fa-arrow-left"></i> Espace professionnel</a>
+      <a href="#" id="pharmacyLogout"><i class="fas fa-right-from-bracket"></i> Se déconnecter</a>
+    </div>
+  </aside>
+
+  <div class="health-dashboard__main">
+    <div class="health-dashboard__header">
+      <div><span class="health-eyebrow">Pharmacie vérifiée</span><h1 id="pharmacyName">Chargement…</h1><p>Catalogue, commandes et revenus, au même endroit.</p></div>
+    </div>
+    <div id="notice" class="health-status" style="max-width:1180px;margin:0 auto 1rem;"></div>
+
+    <section class="health-panel" id="panel-overview">
+      <div class="health-dashboard__metrics">
+        <article><span>Nouvelles commandes</span><strong id="statNewOrders">—</strong></article>
+        <article><span>Produits actifs</span><strong id="statProducts">—</strong></article>
+        <article><span>Stock faible / rupture</span><strong id="statLowStock">—</strong></article>
+        <article><span>Ventes du jour</span><strong id="statTodaySales">—</strong></article>
+      </div>
+      <div class="health-card"><h3 style="margin-top:0;">Dernières commandes</h3><div id="overviewOrders">Chargement…</div></div>
+    </section>
+
+    <section class="health-panel" id="panel-products" hidden>
+      <div class="health-provider-section__head"><div><span class="health-eyebrow">Catalogue</span><h3>Mes produits</h3></div><button class="health-btn primary" id="goAddProduct"><i class="fas fa-plus"></i> Nouveau produit</button></div>
+      <div id="productsList" class="health-provider-list">Chargement…</div>
+    </section>
+
+    <section class="health-panel" id="panel-add-product" hidden>
+      <div class="health-provider-section__head"><div><span class="health-eyebrow">Catalogue</span><h3 id="productFormTitle">Ajouter un produit</h3></div><button class="health-btn secondary" id="cancelProductEdit" hidden>Annuler la modification</button></div>
+      <form id="productForm" class="health-form health-card">
+        <input type="hidden" id="pId">
+        <div class="health-form-grid">
+          <div class="health-field"><label for="pName">Nom du produit *</label><input id="pName" required></div>
+          <div class="health-field"><label for="pDci">DCI</label><input id="pDci"></div>
+          <div class="health-field"><label for="pDosage">Dosage</label><input id="pDosage" placeholder="Ex. 500 mg"></div>
+          <div class="health-field"><label for="pForm">Forme pharmaceutique</label><select id="pForm"><option value="">Chargement…</option></select></div>
+          <div class="health-field"><label for="pClass">Classe thérapeutique</label><select id="pClass"><option value="">Chargement…</option></select></div>
+          <div class="health-field"><label for="pSubclass">Sous-classe thérapeutique</label><input id="pSubclass"></div>
+          <div class="health-field" style="grid-column:1/-1;"><label for="pIngredients">Ingrédients actifs</label><input id="pIngredients"></div>
+          <div class="health-field"><label for="pPresentation">Présentation</label><input id="pPresentation" placeholder="Ex. Boîte de 12 comprimés"></div>
+          <div class="health-field"><label for="pManufacturer">Fabricant (optionnel)</label><input id="pManufacturer"></div>
+          <div class="health-field"><label for="pPrice">Prix (HTG) *</label><input id="pPrice" type="number" min="0" required></div>
+          <div class="health-field"><label for="pStock">Stock *</label><input id="pStock" type="number" min="0" required></div>
+        </div>
+        <div class="health-field"><label for="pNotes">Notes (optionnel)</label><textarea id="pNotes" maxlength="500"></textarea></div>
+        <div class="health-choice-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+          <label><input type="checkbox" id="pPrescriptionRequired"> Ordonnance obligatoire</label>
+          <label><input type="checkbox" id="pColdChain"> Chaîne du froid</label>
+          <label><input type="checkbox" id="pActive" checked> Produit actif (visible des patients)</label>
+        </div>
+        <div class="health-field">
+          <label>Photos (jusqu’à 6)</label>
+          <div class="ph-photo-grid" id="pPhotoGrid"></div>
+          <input type="file" id="pPhotoInput" accept="image/jpeg,image/png,image/webp" multiple>
+          <div class="health-status" id="pPhotoStatus"></div>
+        </div>
+        <button class="health-btn primary" type="submit" id="pSubmitBtn">Ajouter au catalogue</button>
+        <div class="health-status" id="productFormStatus"></div>
+      </form>
+    </section>
+
+    <section class="health-panel" id="panel-prescriptions" hidden>
+      <div class="health-provider-section__head"><div><span class="health-eyebrow">Ordonnances scannées</span><h3>Transmises par des patients</h3></div></div>
+      <p class="muted">Sélectionnez uniquement les médicaments réellement lus sur l’ordonnance. Les prix proviennent de votre catalogue, jamais saisis manuellement.</p>
+      <div id="prescriptionsList" class="health-provider-list">Chargement…</div>
+    </section>
+
+    <section class="health-panel" id="panel-new-orders" hidden><div id="newOrdersList" class="health-provider-list">Chargement…</div></section>
+    <section class="health-panel" id="panel-accepted-orders" hidden><div id="acceptedOrdersList" class="health-provider-list">Chargement…</div></section>
+    <section class="health-panel" id="panel-completed-orders" hidden><div id="completedOrdersList" class="health-provider-list">Chargement…</div></section>
+    <section class="health-panel" id="panel-cancelled-orders" hidden><div id="cancelledOrdersList" class="health-provider-list">Chargement…</div></section>
+
+    <section class="health-panel" id="panel-sales" hidden>
+      <div class="health-provider-metrics">
+        <article><span>Aujourd’hui</span><strong id="salesToday">—</strong></article>
+        <article><span>Ce mois</span><strong id="salesMonth">—</strong></article>
+        <article><span>Cette année</span><strong id="salesYear">—</strong></article>
+      </div>
+      <div class="health-card-actions" style="margin-bottom:1rem;"><button class="health-btn secondary" id="printSalesBtn"><i class="fas fa-print"></i> Imprimer</button></div>
+      <div id="salesMonthly"></div>
+    </section>
+
+    <section class="health-panel" id="panel-stock-alerts" hidden><div id="stockAlertsList" class="health-provider-list">Chargement…</div></section>
+
+    <section class="health-panel" id="panel-wallet" hidden>
+      <div class="health-provider-metrics">
+        <article><span>Solde disponible</span><strong id="pharmWalletAvailable">—</strong></article>
+        <article><span>Revenus générés (total)</span><strong id="pharmWalletLifetime">—</strong></article>
+      </div>
+      <div id="pharmWalletMonthly"></div>
+    </section>
+
+    <section class="health-panel" id="panel-withdrawals" hidden><div id="pharmWithdrawals" class="health-provider-list">Chargement…</div></section>
+
+    <section class="health-panel" id="panel-profile" hidden><div id="pharmacyProfilePhoto" class="health-card" style="margin-bottom:1rem;"></div><div id="pharmacyProfileSummary" class="health-card">Chargement…</div></section>
+  </div>
+</main>
+
+<dialog class="health-dialog" id="offerDialog"><div class="health-dialog-head"><strong>Répondre à l’ordonnance</strong><button class="health-icon-btn" id="offerDialogClose" aria-label="Fermer"><i class="fas fa-times"></i></button></div><div class="health-dialog-body" id="offerDialogBody"></div></dialog>
+
+<script type="module">
+import SmartCutHealthHeader from './health-header.js';
+new SmartCutHealthHeader('health-header-root');
+import './health-pharmacy-dashboard.js?v=20260831-4';
+</script>
+</body>
+</html>

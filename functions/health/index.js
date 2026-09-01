@@ -45,10 +45,13 @@ const {
   computeOfferTotal,
   sanitizeMedicinePayload,
   tokenizeSearchName,
-  sanitizeText
+  sanitizeText,
+  PHARMACEUTICAL_FORMS,
+  THERAPEUTIC_CLASSES
 } = require('./lib/validation');
-const { resolveActiveRuleFromFirestore } = require('../smartsolutiontek/commissions');
-const { applyPaymentToLedger } = require('../smartsolutiontek/lib/ledger');
+const { applyHealthLedger } = require('./lib/healthLedger');
+const { notifyUser } = require('./lib/healthNotify');
+const { creditPatientWallet } = require('./lib/healthWallet');
 
 const HEALTH_CURRENCY = 'HTG';
 
@@ -99,24 +102,17 @@ function buildHealth(sstInternals) {
     return req.body && typeof req.body === 'object' ? req.body : {};
   }
 
-  async function applyHealthLedger(orderId, order) {
-    const professionalUid = order?.pharmacyId || order?.providerUid;
-    if (!professionalUid || Number(order?.total) <= 0) return;
-    const applicationId = order.kind === 'appointment'
-      ? (order.providerType === 'laboratory' ? 'health-laboratory' : 'health-doctor')
-      : 'health-pharmacy';
-    const snapshotRate = Number(order?.commissionRate);
-    const rule = Number.isFinite(snapshotRate) && snapshotRate >= 0
-      ? { id: `health-snapshot-${orderId}`, scope: 'transaction', type: 'percentage', value: snapshotRate, partnerShare: 0 }
-      : await resolveActiveRuleFromFirestore(db, { organizationId: professionalUid, applicationId });
-    await applyPaymentToLedger(db, {
-      paymentIntentId: `health_${orderId}`,
-      organizationId: professionalUid,
-      applicationId,
-      grossAmount: Number(order.total),
-      rule,
-      providerFee: 0
-    });
+  // Doctor appointments are the one exception: crediting is deferred to the moment the
+  // consultation actually starts (healthDoctorUpdateConsultation's IN_PROGRESS
+  // transition, in clinical.js) rather than raw payment — matching what the doctor
+  // dashboard already tells doctors ("crédités uniquement après démarrage effectif")
+  // and what makes the "patient absent = 0 HTG médecin" rule trivially correct (the
+  // credit simply never happens if the session never starts). Pharmacy/lab/imaging
+  // orders keep the original at-payment timing — nothing in the spec asks otherwise
+  // there, and changing it would be a materially bigger, riskier change to those flows.
+  async function creditHealthLedgerIfApplicable(orderId, order) {
+    if (order?.kind === 'appointment' && order?.providerType === 'doctor') return;
+    await applyHealthLedger(db, sstInternals, orderId, order);
   }
 
   async function enforceRateLimit(uid, action, { limit = 10, windowMs = 60_000 } = {}) {
@@ -178,7 +174,7 @@ function buildHealth(sstInternals) {
     });
     const results = snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((product) => verifiedPharmacies.has(product.pharmacyId))
+      .filter((product) => verifiedPharmacies.has(product.pharmacyId) && product.active !== false)
       .map((product) => ({
         id: product.id,
         pharmacyId: product.pharmacyId,
@@ -210,7 +206,7 @@ function buildHealth(sstInternals) {
     });
     const medicines = snap.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((product) => verifiedPharmacies.has(product.pharmacyId) && Number(product.stock) > 0)
+      .filter((product) => verifiedPharmacies.has(product.pharmacyId) && product.active !== false && Number(product.stock) > 0)
       .slice(0, 6)
       .map((product) => ({
         id: product.id,
@@ -224,6 +220,12 @@ function buildHealth(sstInternals) {
   }));
 
   // ---------- pharmacy: catalog management ----------
+
+  /** Public — the reference lists a pharmacy's product form needs (forms + therapeutic classes). */
+  const healthGetMedicineFormOptions = onRequest({ region }, withErrorHandling(async (req, res) => {
+    if (req.method !== 'GET') throw new HttpError(405, 'method-not-allowed', 'GET requis.');
+    res.status(200).json({ ok: true, pharmaceuticalForms: PHARMACEUTICAL_FORMS, therapeuticClasses: THERAPEUTIC_CLASSES });
+  }));
 
   const healthSaveMedicine = onRequest({ region }, withErrorHandling(async (req, res) => {
     if (req.method !== 'POST') throw new HttpError(405, 'method-not-allowed', 'POST requis.');
@@ -697,7 +699,7 @@ function buildHealth(sstInternals) {
     }
     if (session.status === 'paid') {
       const orderSnap = await db.collection('healthOrders').doc(session.orderId).get();
-      if (orderSnap.exists) await applyHealthLedger(orderSnap.id, orderSnap.data());
+      if (orderSnap.exists) await creditHealthLedgerIfApplicable(orderSnap.id, orderSnap.data());
       res.status(200).json({ ok: true, status: 'paid', amount: session.amount, orderId: session.orderId, order: orderSnap.exists ? { id: orderSnap.id, ...orderSnap.data() } : null });
       return;
     }
@@ -716,20 +718,39 @@ function buildHealth(sstInternals) {
       });
       const orderSnap = await orderRef.get();
       const order = orderSnap.data();
-      await applyHealthLedger(orderSnap.id, order);
+      await creditHealthLedgerIfApplicable(orderSnap.id, order);
       if (order?.prescriptionId) {
         await db.collection('healthPrescriptions').doc(order.prescriptionId).set({ status: 'PAID', updatedAt: now }, { merge: true });
       }
       if (order?.appointmentId) {
-        await db.collection('healthAppointments').doc(order.appointmentId).set({ status: 'CONFIRMED', paidAt: now, updatedAt: now }, { merge: true });
+    await db.collection('healthAppointments').doc(order.appointmentId).set({ status: 'CONFIRMED', paymentStatus: 'PAYÉ', paidAt: now, updatedAt: now }, { merge: true });
       }
+      const professionalUid = order?.pharmacyId || order?.providerUid;
+      // Real-time desktop push (existing generic notificationBroadcasts consumer in
+      // notification.js expects target/targetUid — earlier code here wrote
+      // audience/pharmacyId/providerUid instead, which that consumer never recognizes;
+      // this is the fix) plus a persistent in-app notification for the professional.
       await db.collection('notificationBroadcasts').add({
-        audience: order?.appointmentId ? 'health_professional' : 'health_pharmacy',
-        pharmacyId: order?.pharmacyId || null,
-        providerUid: order?.providerUid || null,
-        title: 'Nouvelle commande Smart Cut Health',
-        message: 'Une commande pharmacie vient d’être payée et attend préparation.',
+        title: order?.appointmentId ? 'Nouvelle consultation payée' : 'Nouvelle commande Smart Cut Health',
+        body: order?.appointmentId ? 'Un patient a payé son rendez-vous.' : 'Une commande pharmacie vient d’être payée et attend préparation.',
+        type: 'health_payment',
+        target: 'user',
+        targetUid: professionalUid || null,
+        url: order?.appointmentId ? './health-doctor.html' : './health-professionnel.html',
+        createdBy: 'health',
         createdAt: now
+      });
+      await notifyUser(db, professionalUid, order?.appointmentId ? 'new_teleconsultation' : 'pharmacy_order', {
+        title: order?.appointmentId ? 'Nouvelle demande de consultation' : 'Nouvelle commande reçue',
+        body: order?.appointmentId ? 'Un patient a payé son rendez-vous et attend votre réponse.' : 'Une commande vient d’être payée et attend préparation.',
+        url: order?.appointmentId ? './health-doctor.html' : './health-professionnel.html',
+        context: { orderId: session.orderId }
+      });
+      await notifyUser(db, order?.patientUid, 'payment_confirmed', {
+        title: 'Paiement confirmé',
+        body: order?.appointmentId ? 'Votre rendez-vous est confirmé.' : 'Votre commande a été payée avec succès.',
+        url: order?.appointmentId ? './health-espace.html' : './health-espace.html?tab=orders',
+        context: { orderId: session.orderId }
       });
       await logAudit(order?.patientUid || 'unknown', 'health_order_paid', `healthOrders/${session.orderId}`, {});
       res.status(200).json({ ok: true, status: 'paid', amount: session.amount, orderId: session.orderId, order: { id: orderSnap.id, ...order } });
@@ -780,14 +801,30 @@ function buildHealth(sstInternals) {
       throw new HttpError(409, 'invalid-transition', `Impossible de passer de ${order.status} à ${nextStatus}.`);
     }
 
-    await ref.set({ status: nextStatus, updatedAt: new Date().toISOString(), ...deliveryProof }, { merge: true });
-    if (order.prescriptionId && canTransitionPrescription(order.status, nextStatus)) {
+    const now = new Date().toISOString();
+    // A pharmacy always *requests* CANCELLED (one button either way) — but the status
+    // actually stored is REFUNDED whenever payment had already been captured
+    // (order.status past PAYMENT_PENDING), keeping "Annulée" (never charged) and
+    // "Remboursée" (charged, then refunded) as the distinct terminal states the
+    // pharmacy dashboard needs to show separately.
+    const isRefusalAfterPayment = nextStatus === 'CANCELLED' && order.status !== 'PAYMENT_PENDING';
+    const storedStatus = isRefusalAfterPayment ? 'REFUNDED' : nextStatus;
+    await ref.set({ status: storedStatus, updatedAt: now, ...deliveryProof }, { merge: true });
+    if (order.prescriptionId && canTransitionPrescription(order.status, storedStatus)) {
       // Mirror the same status onto the prescription when it's meaningful there too
       // (PREPARING/READY/DELIVERING/DELIVERED all exist on both enums with the same name).
-      await db.collection('healthPrescriptions').doc(order.prescriptionId).set({ status: nextStatus, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+      await db.collection('healthPrescriptions').doc(order.prescriptionId).set({ status: storedStatus, updatedAt: now }, { merge: true }).catch(() => {});
     }
-    await logAudit(decoded.uid, 'health_order_fulfillment_updated', `healthOrders/${orderId}`, { nextStatus });
-    res.status(200).json({ ok: true });
+    if (isRefusalAfterPayment) {
+      await creditPatientWallet(db, order.patientUid, Number(order.total) || 0, 'order_cancelled', { orderId });
+    }
+    await notifyUser(db, order.patientUid, isRefusalAfterPayment ? 'order_cancelled' : 'order_status_changed', {
+      title: isRefusalAfterPayment ? 'Commande annulée' : 'Commande mise à jour',
+      body: isRefusalAfterPayment ? 'Votre commande a été annulée et remboursée dans votre portefeuille.' : `Votre commande est maintenant : ${storedStatus.toLowerCase()}.`,
+      url: './health-espace.html?tab=orders', context: { orderId }
+    });
+    await logAudit(decoded.uid, 'health_order_fulfillment_updated', `healthOrders/${orderId}`, { nextStatus: storedStatus });
+    res.status(200).json({ ok: true, status: storedStatus });
   }));
 
   const healthReleaseExpiredReservations = onSchedule({ region, schedule: 'every 15 minutes', timeZone: 'America/Port-au-Prince' }, async () => {
@@ -801,6 +838,7 @@ function buildHealth(sstInternals) {
     healthListVerifiedPharmacies,
     healthSearchMedicines,
     healthListAvailableMedicines,
+    healthGetMedicineFormOptions,
     healthSaveMedicine,
     healthDeleteMedicine,
     healthSubmitPrescription,
@@ -812,7 +850,8 @@ function buildHealth(sstInternals) {
     healthCheckPaymentStatus,
     healthUpdateOrderFulfillment,
     healthReleaseExpiredReservations,
-    ...require('./clinical')(sstInternals)
+    ...require('./clinical')(sstInternals),
+    ...require('./profile')(sstInternals)
   };
 }
 

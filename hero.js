@@ -63,8 +63,11 @@ function normalizeSlide(slide = {}, index = 0) {
 }
 
 function getSlidesFromData(data = {}) {
-  const explicitSlides = Array.isArray(data.posterSlides)
-    ? data.posterSlides.map((slide, index) => normalizeSlide(slide, index))
+  const rawSlides = Array.isArray(data.posterSlides)
+    ? data.posterSlides
+    : (Array.isArray(data.heroImages) ? data.heroImages : (Array.isArray(data.images) ? data.images : []));
+  const explicitSlides = Array.isArray(rawSlides)
+    ? rawSlides.map((slide, index) => normalizeSlide(typeof slide === 'string' ? { fileName: slide } : slide, index))
     : [];
   const filteredExplicit = explicitSlides.filter((slide) => slide.isActive !== false && (slide.desktopFileName || slide.mobileFileName || slide.fileName));
   if (filteredExplicit.length) return filteredExplicit;
@@ -206,9 +209,9 @@ class SierraHero {
 
       .posterHeroFooter913 {
         position: absolute;
-        left: 1.25rem;
-        right: 1.25rem;
-        bottom: 1.25rem;
+        left: .8rem;
+        right: .8rem;
+        bottom: .8rem;
         z-index: 3;
         display: flex;
         align-items: center;
@@ -220,29 +223,33 @@ class SierraHero {
       .posterHeroDots913 {
         display: flex;
         align-items: center;
-        gap: .45rem;
-        padding: .65rem .75rem;
+        gap: .3rem;
+        padding: .38rem .48rem;
         border-radius: 999px;
-        background: rgba(19,25,33,0.55);
-        border: 1px solid var(--poster-hero-border);
-        backdrop-filter: blur(12px);
+        background: rgba(19,25,33,0.42);
+        border: 1px solid rgba(255,255,255,.28);
+        backdrop-filter: blur(10px);
         pointer-events: auto;
       }
 
       .posterHeroDot913 {
-        width: .7rem;
-        height: .7rem;
+        width: .42rem;
+        height: .42rem;
+        min-width: .42rem;
+        min-height: .42rem;
+        aspect-ratio: 1 / 1;
+        flex: 0 0 .42rem;
         border-radius: 999px;
         border: none;
         padding: 0;
-        background: rgba(255,255,255,0.28);
+        background: rgba(255,255,255,0.5);
         cursor: pointer;
         transition: transform .25s ease, background-color .25s ease;
       }
 
       .posterHeroDot913.is-active {
         background: var(--poster-hero-accent);
-        transform: scale(1.16);
+        transform: scale(1.12);
       }
 
       .posterHeroArrows913 {
@@ -465,9 +472,6 @@ class SierraHero {
     this.prevBtn?.addEventListener('click', () => this.goTo(this.currentIndex - 1, true));
     this.nextBtn?.addEventListener('click', () => this.goTo(this.currentIndex + 1, true));
 
-    this.container.addEventListener('mouseenter', () => this.stopAutoplay());
-    this.container.addEventListener('mouseleave', () => this.startAutoplay());
-
     let pointerStartX = 0;
     let pointerActive = false;
 
@@ -491,6 +495,11 @@ class SierraHero {
       } else {
         this.startAutoplay();
       }
+    });
+
+    this.trackEl?.addEventListener('pointercancel', () => {
+      pointerActive = false;
+      this.startAutoplay();
     });
 
     this.trackEl?.addEventListener('pointerleave', () => {

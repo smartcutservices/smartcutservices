@@ -1,6 +1,6 @@
 import { db } from './firebase-init.js';
 import { uploadPdfFile } from './firebase-storage.js';
-import { getCartManager } from './cart.js?v=20260829-16';
+import { getCartManager } from './cart.js?v=20260831-4';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import {
   normalizePrintingConfig,
@@ -11,7 +11,7 @@ import {
   ensureValidPaperSelection,
   ensureValidDimensionSelection
 } from './printing-config-utils.js';
-import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260829-16';
+import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260831-4';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 const CAD_DIMENSIONS = [

@@ -5,7 +5,7 @@ import theme from './theme-root.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
-import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js?v=20260829-16';
+import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js?v=20260831-4';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
 // Import Firebase

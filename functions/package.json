@@ -3,7 +3,7 @@
   "private": true,
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "test": "node --test --test-concurrency=1 *.test.js invoicing/*.test.js marketplace/*.test.js auto-parts/*.test.js",
@@ -12,7 +12,7 @@
     "test:storage-rules": "node --test smartsolutiontek/storage.rules.test.js",
     "test:education": "node --test education/lib/*.test.js",
     "test:education-rules": "node --test education/rules.test.js",
-    "test:health": "node --test health/lib/*.test.js",
+    "test:health": "node --test health/lib/*.test.js health/teleconsultation-config.test.js",
     "test:health-rules": "node --test health/rules.test.js",
     "test:health-storage-rules": "node --test health/storage.rules.test.js",
     "test:auto-rules": "node --test auto-parts/rules.test.js",

@@ -190,3 +190,90 @@ test('an unrelated laboratory cannot upload a result for another lab appointment
   const path = `health-lab-results/patientLab2__${appointmentId}/result.pdf`;
   await assertFails(uploadBytes(ref(testEnv.authenticatedContext('labOther2').storage(), path), smallPdf, { contentType: 'application/pdf' }));
 });
+
+// ---------- Teleconsultation session media (chat photos / voice notes) ----------
+
+test('the patient of a session can upload a photo attachment', async () => {
+  const appointmentId = `appt-session-${RUN_ID}`;
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(docRef(context.firestore(), 'healthAppointments', appointmentId), {
+      patientUid: 'sessionPatient', providerUid: 'sessionDoctor', providerType: 'doctor', status: 'IN_PROGRESS'
+    });
+  });
+  const path = `health-session-media/sessionPatient__${appointmentId}/photo-1.jpg`;
+  await assertSucceeds(uploadBytes(ref(testEnv.authenticatedContext('sessionPatient').storage(), path), smallImage, { contentType: 'image/jpeg' }));
+});
+
+test('the doctor of a session can upload a photo attachment too', async () => {
+  const appointmentId = `appt-session-doc-${RUN_ID}`;
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(docRef(context.firestore(), 'healthAppointments', appointmentId), {
+      patientUid: 'sessionPatient2', providerUid: 'sessionDoctor2', providerType: 'doctor', status: 'IN_PROGRESS'
+    });
+  });
+  const path = `health-session-media/sessionPatient2__${appointmentId}/photo-1.jpg`;
+  await assertSucceeds(uploadBytes(ref(testEnv.authenticatedContext('sessionDoctor2').storage(), path), smallImage, { contentType: 'image/jpeg' }));
+});
+
+test('someone outside the session cannot upload or read its media', async () => {
+  const appointmentId = `appt-session-outsider-${RUN_ID}`;
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(docRef(context.firestore(), 'healthAppointments', appointmentId), {
+      patientUid: 'sessionPatient3', providerUid: 'sessionDoctor3', providerType: 'doctor', status: 'IN_PROGRESS'
+    });
+  });
+  const path = `health-session-media/sessionPatient3__${appointmentId}/photo-1.jpg`;
+  await assertFails(uploadBytes(ref(testEnv.authenticatedContext('outsider').storage(), path), smallImage, { contentType: 'image/jpeg' }));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await uploadBytes(ref(context.storage(), path), smallImage, { contentType: 'image/jpeg' });
+  });
+  await assertFails(getBytes(ref(testEnv.authenticatedContext('outsider').storage(), path)));
+});
+
+test('a voice note (audio content type) is accepted for a session', async () => {
+  const appointmentId = `appt-session-audio-${RUN_ID}`;
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(docRef(context.firestore(), 'healthAppointments', appointmentId), {
+      patientUid: 'sessionPatient4', providerUid: 'sessionDoctor4', providerType: 'doctor', status: 'IN_PROGRESS'
+    });
+  });
+  const path = `health-session-media/sessionPatient4__${appointmentId}/voice-1.webm`;
+  await assertSucceeds(uploadBytes(ref(testEnv.authenticatedContext('sessionPatient4').storage(), path), smallImage, { contentType: 'audio/webm' }));
+});
+
+// ---------- profile photo (public read, owner-only write, unlike everything above) ----------
+
+test('an unauthenticated user cannot upload a profile photo', async () => {
+  const storage = testEnv.unauthenticatedContext().storage();
+  await assertFails(uploadBytes(ref(storage, `health-profile-photos/photoOwner-${RUN_ID}/photo`), smallImage, { contentType: 'image/jpeg' }));
+});
+
+test('the owner can upload their own profile photo', async () => {
+  const storage = testEnv.authenticatedContext(`photoOwner-${RUN_ID}`).storage();
+  await assertSucceeds(uploadBytes(ref(storage, `health-profile-photos/photoOwner-${RUN_ID}/photo`), smallImage, { contentType: 'image/jpeg' }));
+});
+
+test('the owner can overwrite their own profile photo (unlike compliance documents)', async () => {
+  const storage = testEnv.authenticatedContext(`photoOwner2-${RUN_ID}`).storage();
+  const fileRef = ref(storage, `health-profile-photos/photoOwner2-${RUN_ID}/photo`);
+  await assertSucceeds(uploadBytes(fileRef, smallImage, { contentType: 'image/jpeg' }));
+  await assertSucceeds(uploadBytes(fileRef, smallImage, { contentType: 'image/jpeg' }));
+});
+
+test('someone else cannot upload into another account\'s profile photo path', async () => {
+  const storage = testEnv.authenticatedContext(`photoIntruder-${RUN_ID}`).storage();
+  await assertFails(uploadBytes(ref(storage, `health-profile-photos/photoOwner-${RUN_ID}/photo`), smallImage, { contentType: 'image/jpeg' }));
+});
+
+test('a non-image content type is rejected for a profile photo', async () => {
+  const storage = testEnv.authenticatedContext(`photoOwner3-${RUN_ID}`).storage();
+  await assertFails(uploadBytes(ref(storage, `health-profile-photos/photoOwner3-${RUN_ID}/photo`), smallPdf, { contentType: 'application/pdf' }));
+});
+
+test('an unauthenticated (or any) user can read a profile photo — it is public by design', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await uploadBytes(ref(context.storage(), `health-profile-photos/photoReadable-${RUN_ID}/photo`), smallImage, { contentType: 'image/jpeg' });
+  });
+  const storage = testEnv.unauthenticatedContext().storage();
+  await assertSucceeds(getBytes(ref(storage, `health-profile-photos/photoReadable-${RUN_ID}/photo`)));
+});

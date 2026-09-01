@@ -1,5 +1,5 @@
 // ============= AUTH COMPONENT - GESTIONNAIRE D'AUTHENTIFICATION =============
-import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260829-16';
+import { auth, googleProvider, db, authReadyPromise } from './firebase-init.js?v=20260831-4';
 import { 
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,

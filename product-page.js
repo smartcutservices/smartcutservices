@@ -1,5 +1,5 @@
-import ProductModal from './product-modal.js?v=20260829-16';
-import { applySeoMeta } from './seo-meta.js?v=20260829-16';
+import ProductModal from './product-modal.js?v=20260831-4';
+import { applySeoMeta } from './seo-meta.js?v=20260831-4';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {

@@ -1,6 +1,6 @@
 // ============= CART COMPONENT - GESTIONNAIRE DE PANIER AVEC THÈME =============
-import { auth, authReadyPromise, db } from './firebase-init.js?v=20260829-16';
-import { getAuthManager } from './auth.js?v=20260829-16';
+import { auth, authReadyPromise, db } from './firebase-init.js?v=20260831-4';
+import { getAuthManager } from './auth.js?v=20260831-4';
 import { getLikeManager } from './like.js';
 import theme from './theme-root.js';
 import { resolveMediaUrl } from './media-utils.js';
@@ -821,7 +821,7 @@ class CartManager {
     });
     
     try {
-      const module = await import('./checkout.js?v=20260829-16');
+      const module = await import('./checkout.js?v=20260831-4');
       const CheckoutModal = module.default;
       
       if (this.modal) {
@@ -2098,7 +2098,7 @@ class CartManager {
   openLikedProduct(productId) {
     if (!productId) return;
     this.closeCartModal();
-    import('./product-modal.js?v=20260829-16')
+    import('./product-modal.js?v=20260831-4')
       .then((module) => {
         const ProductModal = module.default;
         if (this.likedPreviewModal) {

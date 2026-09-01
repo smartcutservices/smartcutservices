@@ -1,16 +1,23 @@
-import { db } from './firebase-init.js?v=20260829-16';
+import { db } from './firebase-init.js?v=20260831-4';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js?v=20260829-16';
-import Navbar from './navbar.js?v=20260829-16';
-import { getCartManager } from './cart.js?v=20260829-16';
-import { getAuthManager } from './auth.js?v=20260829-16';
-import { getProfilePanel } from './profile-panel.js?v=20260829-16';
+import './search.js?v=20260831-4';
+import Navbar from './navbar.js?v=20260831-4';
+import { getCartManager } from './cart.js?v=20260831-4';
+import { getAuthManager } from './auth.js?v=20260831-4';
+import { getProfilePanel } from './profile-panel.js?v=20260831-4';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
-import { applyNavPreference } from './nav-preference.js?v=20260829-16';
+import { applyNavPreference } from './nav-preference.js?v=20260831-4';
 
 // Rangée de navlinks personnalisable : le dernier lien ouvert repasse en tête.
+// Réservé à la page d'accueil : aucun autre en-tête du site (Health, Éducation,
+// Auto & Parts…) ne doit réordonner ses liens.
 const MAIN_NAV_PREF_KEY = 'sc:navOrder:main:v1';
+
+function isHomePage() {
+  const path = String(window.location.pathname || '').replace(/\/+$/, '');
+  return path === '' || /\/index\.html?$/i.test(path);
+}
 
 class SierraHeaderNebula {
   constructor(containerId = 'sierra-header-root') {
@@ -95,38 +102,27 @@ class SierraHeaderNebula {
       .desktop-nav-row {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        justify-content: center;
+        gap: 0;
         min-width: 0;
+        position: relative;
         padding-top: 0.15rem;
         border-top: 1px solid rgba(184, 155, 123, 0.14);
-        overflow: hidden;
+        overflow: visible;
       }
 
       .desktop-nav-items {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        min-width: 0;
-        flex: 1 1 auto;
-        overflow-x: auto;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
+        justify-content: center;
+        gap: 0.75rem;
+        min-width: max-content;
+        flex: 0 0 auto;
+        overflow: visible;
       }
 
-      .desktop-nav-items .desktop-nav-action,
-      .desktop-home-nav {
+      .desktop-nav-items .desktop-nav-action {
         flex-shrink: 0;
-      }
-
-      .desktop-home-nav {
-        color: #ffffff;
-        background: #111923;
-        box-shadow: inset 0 0 0 1px rgba(198, 167, 94, 0.34);
-      }
-
-      .desktop-home-nav:hover {
-        color: #ffffff;
-        background: #253449;
       }
 
       .desktop-logo-area {
@@ -201,6 +197,8 @@ class SierraHeaderNebula {
       }
 
       .desktop-all-button {
+        position: absolute;
+        left: 0;
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.12);
@@ -208,10 +206,12 @@ class SierraHeaderNebula {
         font-size: 0.9rem;
         font-weight: 700;
         flex-shrink: 0;
+        z-index: 4;
+        box-shadow: 0 6px 16px rgba(16, 25, 35, 0.1);
       }
 
       .desktop-nav-action {
-        padding: 0.65rem 0.95rem;
+        padding: 0.58rem 0.78rem;
         border-radius: 999px;
         color: #0f1111;
         font-size: 0.9rem;
@@ -227,6 +227,35 @@ class SierraHeaderNebula {
         color: #8b6c2f;
         transform: translateY(-1px);
       }
+
+      .smartsolution-menu { position: relative; flex: 0 0 auto; }
+      .smartsolution-menu__trigger {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.58rem 0.25rem;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        color: #fff;
+        background: transparent;
+        cursor: pointer;
+        font: 700 0.9rem var(--secondary-font);
+        white-space: nowrap;
+        transition: color .2s ease, border-color .2s ease;
+      }
+      .smartsolution-menu__trigger:hover,
+      .smartsolution-menu.is-open .smartsolution-menu__trigger,
+      .smartsolution-menu:hover .smartsolution-menu__trigger { color: #fff; border-bottom-color: rgba(255,255,255,.72); }
+      .smartsolution-menu__panel { position: absolute; top: calc(100% + 0.55rem); left: -0.55rem; z-index: 1010; display: grid; min-width: 248px; padding: 0.45rem; border: 1px solid rgba(24, 36, 49, 0.14); border-radius: 8px; background: #fff; box-shadow: 0 18px 40px rgba(25, 25, 25, 0.14); }
+      .smartsolution-menu__panel[hidden] { display: none; }
+      .smartsolution-menu__panel a { display: flex; align-items: center; gap: 0.65rem; padding: 0.68rem 0.75rem; border-radius: 5px; color: #24313d; font-size: 0.84rem; font-weight: 700; text-decoration: none; }
+      .smartsolution-menu__panel a i { width: 17px; color: #8b6c2f; text-align: center; }
+      .smartsolution-menu__panel a:hover { background: #f5f1eb; color: #6f5424; }
+      .mobile-smartsolution-menu { position: relative; flex: 0 0 auto; }
+      .mobile-smartsolution-menu summary { list-style: none; }
+      .mobile-smartsolution-menu summary::-webkit-details-marker { display: none; }
+      .mobile-smartsolution-menu[open] > summary { color: #fff; border-bottom: 2px solid rgba(255,255,255,.72); }
+      .mobile-smartsolution-menu__panel { position: fixed; top: calc(var(--header-height-mobile) - 2px); left: 0.75rem; right: 0.75rem; z-index: 1010; display: grid; max-height: 60vh; overflow-y: auto; min-width: 248px; padding: 0.45rem; border: 1px solid rgba(24, 36, 49, 0.14); border-radius: 8px; background: #fff; box-shadow: 0 18px 40px rgba(25, 25, 25, 0.14); }
+      .mobile-smartsolution-menu__panel a { display: flex; align-items: center; gap: 0.65rem; padding: 0.68rem 0.75rem; border-radius: 5px; color: #24313d; font-size: 0.84rem; font-weight: 700; text-decoration: none; }.mobile-smartsolution-menu__panel a:hover { background: #f5f1eb; color: #6f5424; }.mobile-smartsolution-menu__panel a i { width: 17px; color: #8b6c2f; text-align: center; }
 
       .desktop-icons {
         display: flex;
@@ -458,9 +487,8 @@ class SierraHeaderNebula {
       .mobile-nav-scroll {
         display: flex;
         align-items: center;
-        gap: 0.7rem;
+        gap: 0.55rem;
         overflow: hidden;
-        overflow-y: hidden;
         white-space: nowrap;
         flex-wrap: nowrap;
       }
@@ -490,31 +518,28 @@ class SierraHeaderNebula {
         overflow-x: auto;
         scrollbar-width: none;
         -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
         touch-action: pan-x;
       }
 
       .mobile-nav-item {
-        padding: 0.55rem 0.85rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.78);
-        box-shadow: inset 0 0 0 1px rgba(184, 155, 123, 0.12);
-        color: #2d2a26;
+        padding: 0.55rem 0.62rem;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: #273440;
         font-size: 0.84rem;
-        font-weight: 600;
+        font-weight: 700;
         flex: 0 0 auto;
       }
 
-      .mobile-home-nav {
-        color: #ffffff;
-        background: #111923;
-        box-shadow: inset 0 0 0 1px rgba(198, 167, 94, 0.34);
-        font-weight: 700;
-      }
+      .mobile-nav-all { position: sticky; left: 0; z-index: 4; box-shadow: 0 5px 14px rgba(16, 25, 35, 0.1); }
+      .mobile-nav-arrow { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; padding: 0; border: 1px solid rgba(255,255,255,.34); border-radius: 9px; color: #fff; background: rgba(15,25,37,.78); box-shadow: 0 4px 12px rgba(16,25,35,.2); cursor: pointer; opacity: 1; visibility: visible; transform: translateX(0); transition: opacity .25s ease, visibility .25s ease, transform .25s ease, background-color .2s ease, border-color .2s ease; }
+      .mobile-nav-arrow[hidden] { display: none; }
+      .mobile-nav-arrow:hover { color: #fff; background: #8b6c2f; border-color: rgba(255,255,255,.72); }
+      .mobile-nav-scroll.is-idle .mobile-nav-arrow:not([hidden]) { opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(3px); }
+      .mobile-nav-scroll.is-idle .mobile-nav-arrow#mobileNavScrollLeft:not([hidden]) { transform: translateX(-3px); }
 
-      .mobile-home-nav:hover {
-        color: #ffffff;
-        background: #253449;
-      }
 
       #megaPortalLux21 {
         position: fixed;
@@ -1120,24 +1145,25 @@ class SierraHeaderNebula {
           </div>
         </div>
         <div class="desktop-nav-row">
-          <a class="desktop-nav-action desktop-home-nav" href="${this.getHomepageUrl()}" aria-label="Accueil">
-            <i class="fas fa-home" aria-hidden="true"></i>
-            <span>Accueil</span>
-          </a>
+          <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les catégories">
+            <i class="fas fa-bars"></i>
+            <span>Catégories</span>
+          </button>
           <div class="desktop-nav-items">
-            <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les catégories">
-              <i class="fas fa-bars"></i>
-              <span>Catégories</span>
-            </button>
-            <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
             <a class="desktop-nav-action" href="./printing-hub.html">Imprimerie</a>
-            <a class="desktop-nav-action" href="./personalization.html">Personnalisation</a>
+            <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
             <a class="desktop-nav-action" href="./auto-parts.html">Auto &amp; Parts</a>
-            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=forms">Inscriptions en ligne</a>
-            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=shops">Mini-boutique</a>
-            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=courses">Formation en ligne</a>
-            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=services">Réservations</a>
-            <a class="desktop-nav-action" href="./smartsolutiontek/dashboard.html?app=food">Cuisine &amp; artisanat</a>
+            <div class="smartsolution-menu" data-smartsolution-menu>
+              <button class="smartsolution-menu__trigger" type="button" aria-expanded="false" aria-controls="smartsolution-desktop-panel">SmartSolutionTek</button>
+              <nav id="smartsolution-desktop-panel" class="smartsolution-menu__panel" hidden aria-label="Applications SmartSolutionTek">
+                <a href="./smartsolutiontek/dashboard.html?app=forms"><i class="fas fa-clipboard-list"></i> Inscriptions en ligne</a>
+                <a href="./smartsolutiontek/dashboard.html?app=shops"><i class="fas fa-store"></i> Mini-boutique</a>
+                <a href="./smartsolutiontek/dashboard.html?app=courses"><i class="fas fa-graduation-cap"></i> Formation en ligne</a>
+                <a href="./smartsolutiontek/dashboard.html?app=services"><i class="fas fa-calendar-check"></i> Réservations</a>
+                <a href="./smartsolutiontek/dashboard.html?app=food"><i class="fas fa-utensils"></i> Cuisine &amp; artisanat</a>
+              </nav>
+            </div>
+            <a class="desktop-nav-action" href="./education.html">Smart Akademi</a>
             <a class="desktop-nav-action" href="./logiciel%20proformat/">Freelancer</a>
             <a class="desktop-nav-action" href="./health.html">Santé &amp; Pharmacie</a>
           </div>
@@ -1171,27 +1197,30 @@ class SierraHeaderNebula {
           </div>
           </div>
           <div class="mobile-nav-scroll">
-            <a class="mobile-nav-item mobile-home-nav" href="${this.getHomepageUrl()}" aria-label="Accueil">
-              <i class="fas fa-home" aria-hidden="true"></i>
-              <span>Accueil</span>
-            </a>
             <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Afficher les catégories">
               <i class="fas fa-bars"></i>
               <span>Catégories</span>
             </button>
+            <button id="mobileNavScrollLeft" class="mobile-nav-arrow" type="button" aria-label="Voir les liens précédents" hidden><i class="fas fa-chevron-left"></i></button>
             <div class="mobile-nav-items">
-              <a class="mobile-nav-item" href="./vendor-application.html">Vendre</a>
               <a class="mobile-nav-item" href="./printing-hub.html">Imprimerie</a>
-              <a class="mobile-nav-item" href="./personalization.html">Personnalisation</a>
+              <a class="mobile-nav-item" href="./vendor-application.html">Vendre</a>
               <a class="mobile-nav-item" href="./auto-parts.html">Auto &amp; Parts</a>
-              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=forms">Inscriptions en ligne</a>
-              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=shops">Mini-boutique</a>
-              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=courses">Formation en ligne</a>
-              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=services">Réservations</a>
-              <a class="mobile-nav-item" href="./smartsolutiontek/dashboard.html?app=food">Cuisine &amp; artisanat</a>
+              <details class="mobile-smartsolution-menu">
+                <summary class="mobile-nav-item">SmartSolutionTek</summary>
+                <nav class="mobile-smartsolution-menu__panel" aria-label="Applications SmartSolutionTek">
+                  <a href="./smartsolutiontek/dashboard.html?app=forms"><i class="fas fa-clipboard-list"></i> Inscriptions en ligne</a>
+                  <a href="./smartsolutiontek/dashboard.html?app=shops"><i class="fas fa-store"></i> Mini-boutique</a>
+                  <a href="./smartsolutiontek/dashboard.html?app=courses"><i class="fas fa-graduation-cap"></i> Formation en ligne</a>
+                  <a href="./smartsolutiontek/dashboard.html?app=services"><i class="fas fa-calendar-check"></i> Réservations</a>
+                  <a href="./smartsolutiontek/dashboard.html?app=food"><i class="fas fa-utensils"></i> Cuisine &amp; artisanat</a>
+                </nav>
+              </details>
+              <a class="mobile-nav-item" href="./education.html">Smart Akademi</a>
               <a class="mobile-nav-item" href="./logiciel%20proformat/">Freelancer</a>
               <a class="mobile-nav-item" href="./health.html">Santé &amp; Pharmacie</a>
             </div>
+            <button id="mobileNavScrollRight" class="mobile-nav-arrow" type="button" aria-label="Voir les liens suivants" hidden><i class="fas fa-chevron-right"></i></button>
           </div>
         </div>
       </header>
@@ -1256,17 +1285,19 @@ class SierraHeaderNebula {
       </div>
     `;
 
-    // Réordonne les liens de service (desktop + mobile) selon les préférences
-    // de l'utilisateur. Le bouton « Catégories » et le lien « Accueil » ne sont
-    // pas concernés : ils sont hors des conteneurs ciblés.
-    applyNavPreference(headerRoot.querySelector('.desktop-nav-items'), {
-      key: MAIN_NAV_PREF_KEY,
-      linkSelector: 'a.desktop-nav-action',
-    });
-    applyNavPreference(headerRoot.querySelector('.mobile-nav-items'), {
-      key: MAIN_NAV_PREF_KEY,
-      linkSelector: 'a.mobile-nav-item',
-    });
+    // Réordonne les liens de service (desktop + mobile) selon les préférences.
+    // Le bouton « Catégories » reste fixe : il est hors des conteneurs ciblés.
+    // Uniquement sur la page d'accueil — ailleurs l'ordre des liens est figé.
+    if (isHomePage()) {
+      applyNavPreference(headerRoot.querySelector('.desktop-nav-items'), {
+        key: MAIN_NAV_PREF_KEY,
+        linkSelector: 'a.desktop-nav-action',
+      });
+      applyNavPreference(headerRoot.querySelector('.mobile-nav-items'), {
+        key: MAIN_NAV_PREF_KEY,
+        linkSelector: 'a.mobile-nav-item',
+      });
+    }
   }
 
   async init() {
@@ -1293,6 +1324,8 @@ class SierraHeaderNebula {
     await this.loadMobileFooterLinks();
     this.setupCurrencySelectors();
     this.setupProfileActions();
+    this.setupSmartSolutionMenu();
+    this.setupMobileNavControls();
     this.openRequestedAuthModal();
     this.setupSearchBarInputs();
     this.setupScrollBehavior();
@@ -1333,6 +1366,75 @@ class SierraHeaderNebula {
         window.location.reload();
       });
     });
+  }
+
+  setupSmartSolutionMenu() {
+    const menu = document.querySelector('[data-smartsolution-menu]');
+    if (!menu) return;
+    const trigger = menu.querySelector('.smartsolution-menu__trigger');
+    const panel = menu.querySelector('.smartsolution-menu__panel');
+    let leaveTimer = null;
+    const close = () => { window.clearTimeout(leaveTimer); menu.classList.remove('is-open'); trigger?.setAttribute('aria-expanded', 'false'); if (panel) panel.hidden = true; };
+    const open = () => { window.clearTimeout(leaveTimer); menu.classList.add('is-open'); trigger?.setAttribute('aria-expanded', 'true'); if (panel) panel.hidden = false; };
+    const toggle = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const opening = panel?.hidden;
+      close();
+      if (opening) open();
+    };
+    trigger?.addEventListener('click', toggle);
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+      menu.addEventListener('mouseenter', open);
+      menu.addEventListener('mouseleave', () => { leaveTimer = window.setTimeout(close, 120); });
+    }
+    menu.querySelectorAll('a').forEach((link) => link.addEventListener('click', close));
+    document.addEventListener('click', (event) => { if (!menu.contains(event.target)) close(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); });
+    window.addEventListener('scroll', close, { passive: true });
+  }
+
+  setupMobileNavControls() {
+    const list = document.querySelector('.mobile-nav-items');
+    const left = document.getElementById('mobileNavScrollLeft');
+    const right = document.getElementById('mobileNavScrollRight');
+    if (!list || !left || !right) return;
+    const shell = list.closest('.mobile-nav-scroll');
+    const smartMenu = document.querySelector('.mobile-smartsolution-menu');
+    let idleTimer = null;
+    const showArrows = () => {
+      shell?.classList.remove('is-idle');
+      window.clearTimeout(idleTimer);
+    };
+    const hideArrowsAfterPause = () => {
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => shell?.classList.add('is-idle'), 2000);
+    };
+    const sync = () => {
+      const max = Math.max(0, list.scrollWidth - list.clientWidth);
+      const overflow = max > 4;
+      left.hidden = !overflow || list.scrollLeft <= 4;
+      right.hidden = !overflow || list.scrollLeft >= max - 4;
+      if (!overflow) {
+        shell?.classList.remove('is-idle');
+        window.clearTimeout(idleTimer);
+      }
+    };
+    const move = (direction) => {
+      showArrows();
+      list.scrollBy({ left: direction * Math.max(160, Math.round(list.clientWidth * .72)), behavior: 'smooth' });
+      hideArrowsAfterPause();
+    };
+    left.addEventListener('click', () => move(-1));
+    right.addEventListener('click', () => move(1));
+    list.addEventListener('scroll', () => { showArrows(); sync(); hideArrowsAfterPause(); }, { passive: true });
+    shell?.addEventListener('mouseenter', showArrows);
+    window.addEventListener('scroll', () => {
+      if (smartMenu) smartMenu.open = false;
+    }, { passive: true });
+    window.addEventListener('resize', sync);
+    requestAnimationFrame(sync);
+    window.setTimeout(sync, 180);
   }
 
   setupHeaderLayoutSync() {
@@ -1544,13 +1646,13 @@ class SierraHeaderNebula {
         authReady: authManager?.isAuthReady ?? null,
         isAuthenticated,
         authUid: authManager?.getCurrentUser?.()?.uid || null,
-        route: isAuthenticated ? 'profile-panel' : 'auth-modal'
+        route: isAuthenticated ? 'profile-page' : 'auth-modal'
       });
       if (!isAuthenticated) {
         authManager?.openAuthModal?.('login');
         return;
       }
-      panel.open();
+      window.location.assign('./profil.html');
     };
 
     ['desktopProfileIcon', 'mobileProfileIcon'].forEach((id) => {

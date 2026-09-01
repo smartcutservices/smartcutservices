@@ -1629,7 +1629,7 @@ async function findPublicProductDocument(productId = '', preferredCollection = '
   return null;
 }
 
-function getPrimaryProductImage(product = {}) {
+function getPrimaryProductImage(product = {}, variation = null) {
   const normalizeImageUrl = (value) => {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -1640,17 +1640,27 @@ function getPrimaryProductImage(product = {}) {
     return new URL(`/${normalizedPath}`, `${REPO_CDN_BASE_URL}/`).toString();
   };
 
+  // Une variante partagee explicitement impose sa propre image.
+  if (variation && typeof variation === 'object') {
+    if (Array.isArray(variation.images) && variation.images[0]) {
+      return normalizeImageUrl(variation.images[0]);
+    }
+    for (const key of ['image', 'imageUrl', 'thumbnail']) {
+      if (variation[key]) return normalizeImageUrl(variation[key]);
+    }
+  }
+
   if (Array.isArray(product.images) && product.images[0]) {
     return normalizeImageUrl(product.images[0]);
   }
 
   if (Array.isArray(product.variations)) {
-    for (const variation of product.variations) {
-      if (Array.isArray(variation?.images) && variation.images[0]) {
-        return normalizeImageUrl(variation.images[0]);
+    for (const item of product.variations) {
+      if (Array.isArray(item?.images) && item.images[0]) {
+        return normalizeImageUrl(item.images[0]);
       }
-      if (variation?.image) {
-        return normalizeImageUrl(variation.image);
+      if (item?.image) {
+        return normalizeImageUrl(item.image);
       }
     }
   }
@@ -1658,14 +1668,64 @@ function getPrimaryProductImage(product = {}) {
   return normalizeImageUrl('/logo.png');
 }
 
-function buildProductShareHtml(product = {}, productUrl = '') {
-  const title = truncateText(product.name || 'Produit Smart Cut Services', 90);
-  const description = truncateText(
-    product.shortDescription || product.longDescription || product.description || 'Découvrez ce produit sur Smart Cut Services.',
-    200
+// Etiquette lisible d'une variante : uniquement les attributs compréhensibles par
+// un humain (couleur / taille / volume / options). Pas de repli sur le SKU, qui
+// n'a pas sa place dans un titre de partage public.
+function buildVariationLabel(variation = {}) {
+  const parts = [];
+  if (variation.color) parts.push(String(variation.color).trim());
+  if (variation.size) parts.push(String(variation.size).trim());
+  if (variation.volume) parts.push(String(variation.volume).trim());
+  if (Array.isArray(variation.customOptions)) {
+    variation.customOptions.forEach((opt) => {
+      if (opt && opt.name && opt.value) parts.push(`${opt.name}: ${opt.value}`);
+    });
+  }
+  return parts.filter(Boolean).join(' - ');
+}
+
+// Retrouve la variante ciblee par le lien de partage : par SKU d'abord
+// (stable si la liste est reordonnee), sinon par index numerique.
+function resolveSharedVariation(product = {}, variantKey = '') {
+  const key = String(variantKey || '').trim();
+  const variations = Array.isArray(product.variations) ? product.variations : [];
+  if (!key || !variations.length) return null;
+
+  const bySku = variations.find(
+    (v) => v && String(v.sku || '').trim().toLowerCase() === key.toLowerCase()
   );
-  const imageUrl = getPrimaryProductImage(product);
-  const price = Number.isFinite(Number(product.price)) ? `${Number(product.price)} HTG` : '';
+  if (bySku) return bySku;
+
+  if (/^\d+$/.test(key)) {
+    const idx = Number(key);
+    if (idx >= 0 && idx < variations.length) return variations[idx] || null;
+  }
+  return null;
+}
+
+function buildProductShareHtml(product = {}, productUrl = '', variation = null) {
+  const activeVariation = variation && typeof variation === 'object' ? variation : null;
+  const variationLabel = activeVariation ? buildVariationLabel(activeVariation) : '';
+  const baseName = product.name || 'Produit Smart Cut Services';
+  const title = truncateText(variationLabel ? `${baseName} — ${variationLabel}` : baseName, 90);
+
+  // Prix effectif : celui de la variante partagee s'il est renseigne, sinon le prix produit.
+  const variationPrice = activeVariation ? Number(activeVariation.price) : NaN;
+  const effectivePrice = Number.isFinite(variationPrice) && variationPrice > 0
+    ? variationPrice
+    : Number(product.price);
+  const hasPrice = Number.isFinite(effectivePrice) && effectivePrice > 0;
+  const price = hasPrice ? `${effectivePrice} HTG` : '';
+
+  const baseDescription = truncateText(
+    product.shortDescription || product.longDescription || product.description || 'Découvrez ce produit sur Smart Cut Services.',
+    hasPrice ? 170 : 200
+  );
+  // Le prix est place en tete de la description pour rester visible dans l'apercu
+  // WhatsApp / Facebook (qui n'affichent que titre + description + image).
+  const description = price ? `${price} · ${baseDescription}` : baseDescription;
+
+  const imageUrl = getPrimaryProductImage(product, activeVariation);
   const category = truncateText(product.category || product.categoryName || '', 60);
   const vendorName = truncateText(product.vendorName || product.shopName || '', 60);
   const subtitleParts = [category, vendorName, price].filter(Boolean);
@@ -1695,19 +1755,26 @@ function buildProductShareHtml(product = {}, productUrl = '') {
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${safeTitle}">
   <meta name="twitter:description" content="${safeDescription}">
-  <meta name="twitter:image" content="${safeImageUrl}">
+  <meta name="twitter:image" content="${safeImageUrl}">${hasPrice ? `
+  <meta property="product:price:amount" content="${effectivePrice}">
+  <meta property="product:price:currency" content="HTG">
+  <meta property="og:price:amount" content="${effectivePrice}">
+  <meta property="og:price:currency" content="HTG">
+  <meta name="twitter:label1" content="Prix">
+  <meta name="twitter:data1" content="${escapeHtml(price)}">` : ''}
   <script type="application/ld+json">${JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: title,
-    description,
+    description: baseDescription,
     image: imageUrl ? [imageUrl] : undefined,
     category: category || undefined,
+    sku: (activeVariation && activeVariation.sku) ? String(activeVariation.sku) : undefined,
     brand: { '@type': 'Brand', name: vendorName || 'Smart Cut Services' },
-    ...(Number.isFinite(Number(product.price)) && Number(product.price) > 0 ? {
+    ...(hasPrice ? {
       offers: {
         '@type': 'Offer',
-        price: String(Number(product.price)),
+        price: String(effectivePrice),
         priceCurrency: 'HTG',
         availability: 'https://schema.org/InStock',
         url: productUrl,
@@ -1790,7 +1857,6 @@ function buildProductShareHtml(product = {}, productUrl = '') {
   </script>
 </head>
 <body>
-  <noscript><meta http-equiv="refresh" content="1;url=${safeProductUrl}"></noscript>
   <main class="card">
     <div class="eyebrow">Smart Cut Services</div>
     <img class="media" src="${safeImageUrl}" alt="${safeTitle}">
@@ -7835,6 +7901,7 @@ exports.productSharePage = onRequest(
     try {
       const productId = extractSharedProductId(req);
       const preferredCollection = String(req.query.source || '').trim();
+      const variantKey = String(req.query.variant || '').trim();
       const productUrl = buildProductPageAbsoluteUrl(productId);
 
       if (!productId) {
@@ -7850,9 +7917,11 @@ exports.productSharePage = onRequest(
         return;
       }
 
+      const variation = resolveSharedVariation(product, variantKey);
+
       res.set('Content-Type', 'text/html; charset=utf-8');
       res.set('Cache-Control', 'public, max-age=600');
-      res.status(200).send(buildProductShareHtml(product, productUrl));
+      res.status(200).send(buildProductShareHtml(product, productUrl, variation));
     } catch (error) {
       logger.error('productSharePage failed', error);
       const fallbackUrl = buildProductPageAbsoluteUrl(extractSharedProductId(req));

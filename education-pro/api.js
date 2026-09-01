@@ -3,9 +3,20 @@ const BASE = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
 async function call(name, user, { method = 'GET', body, query } = {}) {
   const url = new URL(`${BASE}/education${name}`);
   Object.entries(query || {}).forEach(([key, value]) => { if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, value); });
-  const headers = { 'Content-Type': 'application/json' };
+  // Avoid an unnecessary CORS preflight on public GET requests. JSON is only
+  // needed for mutating calls; authenticated POSTs still send the same header.
+  const headers = method === 'GET' ? {} : { 'Content-Type': 'application/json' };
   if (user) headers.Authorization = `Bearer ${await user.getIdToken()}`;
-  const response = await fetch(url, { method, headers, body: method === 'GET' ? undefined : JSON.stringify(body || {}) });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let response;
+  try {
+    response = await fetch(url, { method, headers, body: method === 'GET' ? undefined : JSON.stringify(body || {}), signal: controller.signal });
+  } catch (error) {
+    throw new Error(error?.name === 'AbortError' ? 'Le serveur met trop de temps à répondre. Réessayez.' : 'Impossible de contacter le serveur. Vérifiez votre connexion.');
+  } finally {
+    clearTimeout(timeout);
+  }
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.ok) throw new Error(payload?.message || 'Action impossible.');
   return payload;

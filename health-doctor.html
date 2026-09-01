@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
 <title>Espace médecin · Smart Cut Health</title>
-<link rel="stylesheet" href="./site-foundation.css?v=20260829-16">
+<link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -110,8 +110,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
 .professional-summary{display:grid;gap:16px;margin-top:18px}.professional-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.professional-grid>div{display:grid;gap:5px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#fbfdfc}.professional-grid strong{font-size:14px;overflow-wrap:anywhere}.professional-note{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:10px;color:#216458;background:#edf7f3;font-size:13px}.professional-note i{color:var(--g)}.professional-actions{justify-content:start;margin-top:18px}.professional-actions a{text-decoration:none}
 .form{display:grid;gap:12px}
 .form label{display:grid;gap:5px;font-size:13px;font-weight:700}
-.form input,.form textarea{width:100%;padding:10px 12px;border:1px solid #cbdcd8;border-radius:9px;font:inherit;background:#fff}
-.form input:focus,.form textarea:focus{outline:2px solid rgba(13,118,101,.25);border-color:var(--g)}
+.form input,.form textarea,.form select{width:100%;padding:10px 12px;border:1px solid #cbdcd8;border-radius:9px;font:inherit;background:#fff}
+.form input:focus,.form textarea:focus,.form select:focus{outline:2px solid rgba(13,118,101,.25);border-color:var(--g)}
 
 @media(max-width:900px){
   .sidebar{position:static;top:0;width:auto;flex-direction:row;align-items:center;flex-wrap:nowrap;
@@ -140,8 +140,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
       <button class="active" data-tab="overview"><span class="nav__ico">⌂</span>Vue d’ensemble</button>
       <button data-tab="consultations"><span class="nav__ico">◷</span>Consultations</button>
       <button data-tab="agenda"><span class="nav__ico">▦</span>Agenda</button>
+      <button data-tab="rendezvous"><span class="nav__ico">➜</span>Proposer un rendez-vous</button>
       <button data-tab="patients"><span class="nav__ico">♟</span>Patients</button>
+      <button data-tab="history"><span class="nav__ico">✓</span>Terminées & refusées</button>
+      <button data-tab="exams"><span class="nav__ico">⌁</span>Prescriptions & examens</button>
       <button data-tab="wallet"><span class="nav__ico">◈</span>Revenus</button>
+      <button data-tab="withdrawals"><span class="nav__ico">↗</span>Décaissements</button>
+      <button data-tab="messages"><span class="nav__ico">✉</span>Messagerie</button>
       <button data-tab="profile"><span class="nav__ico">◎</span>Profil</button>
       <button data-tab="professional"><span class="nav__ico">✦</span>Profil professionnel</button>
     </nav>
@@ -216,19 +221,68 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
       </div>
     </section>
 
+    <section class="card panel" id="rendezvous" hidden>
+      <div class="card__head"><h2>Proposer un rendez-vous</h2></div>
+      <p class="muted">Choisissez un patient déjà suivi, une spécialité et un horaire précis. Le patient reçoit une notification et doit payer pour confirmer — le tarif est fixe par spécialité (distinct de la Téléconsultation).</p>
+      <form id="rendezvousForm" class="form" style="max-width:480px;">
+        <label>Patient
+          <select id="rvPatient" required><option value="">Choisir un patient…</option></select>
+        </label>
+        <label>Spécialité
+          <select id="rvSpecialty" required><option value="">Chargement…</option></select>
+        </label>
+        <label>Date et heure<input id="rvStartsAt" type="datetime-local" required></label>
+        <label>Message pour le patient (optionnel)<textarea id="rvNote" maxlength="300" rows="2"></textarea></label>
+        <button class="btn primary" type="submit">Envoyer la proposition</button>
+      </form>
+    </section>
+
     <section class="card panel" id="patients" hidden>
       <div class="card__head"><h2>Patients suivis</h2></div>
       <div id="patientsList">Chargement…</div>
     </section>
 
+    <section class="card panel" id="history" hidden>
+      <div class="card__head"><h2>Historique des consultations</h2></div>
+      <div class="split">
+        <div><h3>Consultations terminées</h3><div id="historyCompleted" class="empty">Chargement…</div></div>
+        <div><h3>Consultations refusées</h3><div id="historyRefused" class="empty">Chargement…</div></div>
+      </div>
+    </section>
+
+    <section class="card panel" id="exams" hidden>
+      <div class="card__head"><h2>Prescriptions & examens</h2></div>
+      <div class="split">
+        <div><h3>Prescriptions émises</h3><div id="prescriptionsEmises" class="empty">Chargement…</div></div>
+        <div><h3>Examens prescrits (laboratoire & imagerie)</h3><div id="examensPrescrits" class="empty">Chargement…</div></div>
+      </div>
+    </section>
+
     <section class="card panel" id="wallet" hidden>
       <div class="card__head"><h2>Revenus</h2></div>
-      <p class="muted">Les revenus sont crédités uniquement après démarrage effectif de la consultation.</p>
-      <div id="walletSummary"></div>
+      <p class="muted">Les revenus sont crédités uniquement après démarrage effectif de la consultation. Solde organisé par mois — un décaissement est possible tous les 30 jours.</p>
+      <div class="stats" style="margin-bottom:1rem;">
+        <div class="card stat"><span class="stat__label">Solde disponible</span><strong id="walletAvailable">—</strong><span class="stat__hint">Retirable</span></div>
+        <div class="card stat"><span class="stat__label">Revenus générés (total)</span><strong id="walletLifetime">—</strong><span class="stat__hint">Jamais décaissable directement</span></div>
+      </div>
+      <div id="walletSummary">Chargement…</div>
+    </section>
+
+    <section class="card panel" id="withdrawals" hidden>
+      <div class="card__head"><h2>Décaissements</h2></div>
+      <p class="muted">Un seul décaissement est possible par période de 30 jours.</p>
+      <div id="withdrawalsHistory" class="empty">Chargement…</div>
+    </section>
+
+    <section class="card panel" id="messages" hidden>
+      <div class="card__head"><h2>Messagerie</h2></div>
+      <p class="muted">Vous pouvez rouvrir la messagerie d’une séance à tout moment pour revérifier une information ou prescrire, même après la fin de la téléconsultation.</p>
+      <div id="messagesSessions" class="empty">Chargement…</div>
     </section>
 
     <section class="card panel" id="profile" hidden>
       <div class="card__head"><h2>Profil professionnel</h2></div>
+      <div id="doctorProfilePhoto" style="margin-bottom:1rem;"></div>
       <div id="profileSummary">Chargement…</div>
     </section>
 
@@ -247,7 +301,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Manrope,-apple
 <script type="module">
 import SmartCutHealthHeader from './health-header.js';
 new SmartCutHealthHeader('health-header-root');
-import './health-doctor.js?v=20260829-16';
+import './health-doctor.js?v=20260831-4';
 </script>
 </body>
 </html>
