@@ -1748,7 +1748,6 @@ class SierraHeaderNebula {
     const header = document.getElementById('headerNebulaX92');
     if (!header) return;
 
-    let lastScrollY = window.scrollY;
     let ticking = false;
 
     const onScroll = () => {
@@ -1756,20 +1755,10 @@ class SierraHeaderNebula {
       ticking = true;
 
       window.requestAnimationFrame(() => {
-        const currentScrollY = window.scrollY;
-
         header.classList.remove('header-transparent');
         header.classList.add('header-solid');
-
-        if (currentScrollY > lastScrollY && currentScrollY > 150) {
-          header.style.transform = 'translateY(-100%)';
-          document.documentElement.classList.add('smart-header-hidden');
-        } else {
-          header.style.transform = 'translateY(0)';
-          document.documentElement.classList.remove('smart-header-hidden');
-        }
-
-        lastScrollY = currentScrollY;
+        header.style.transform = 'translateY(0)';
+        document.documentElement.classList.remove('smart-header-hidden');
         ticking = false;
       });
     };

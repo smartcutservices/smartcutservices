@@ -254,10 +254,10 @@
     <div id="sierra-home-categories-root"></div>
   </div>
 
-  <!-- 4. Produits Section -->
+  <!-- 4. Pour toi : section fixe juste après les catégories -->
   <div id="sierra-products-root" class="my-10"></div>
 
-  <!-- 4. Découverte: sponsored, recommandations, top vendeurs -->
+  <!-- 5. Découverte : recommandations et top vendeurs -->
   <div id="sierra-home-discovery-root" class="my-10"></div>
 
   <div id="sierra-services-teaser-root" hidden></div>
@@ -275,13 +275,11 @@
   <!-- 5. Tickets de championnat -->
   <div id="sierra-home-tickets-root" hidden></div>
   
-  <!-- 6. Commentaire Section -->
-  <div id="sierra-commentaire-root" class="my-12 max-w-2xl mx-auto px-4"></div>
 <!-- 7. Footer Section -->
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260901-11';
+    const ASSET_VERSION = '20260902-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -309,7 +307,7 @@
     // « Pour vous » (dans la découverte) et commentaires restent fixes.
     const HOME_SECTION_ORDER_KEY = 'smartcut_home_section_interests_v1';
     const dynamicHomeSections = [
-      'sierra-products-root', 'sierra-auto-parts-teaser-root',
+      'sierra-auto-parts-teaser-root',
       'sierra-education-teaser-root', 'sierra-health-teaser-root',
       'sierra-sst-showcase-root', 'sierra-home-tickets-root'
     ];
@@ -433,10 +431,10 @@
 
     mount('home-tickets', 'sierra-home-tickets-root', () => import(`./homepage-tickets.js?v=${ASSET_VERSION}`));
 
-    mountOnVisible('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
+    mount('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',
-      maxProducts: 6
-    }, '550px');
+      maxProducts: 7
+    });
 
 
     mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
@@ -446,15 +444,6 @@
     mountOnVisible('health-teaser', 'sierra-health-teaser-root', () => import(`./health-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
 
     mountOnVisible('sst-showcase', 'sierra-sst-showcase-root', () => import(`./smartsolutiontek-showcase.js?v=${ASSET_VERSION}`), {}, '550px');
-
-    mountOnVisible('commentaire', 'sierra-commentaire-root', () => import(`./coment.js?v=${ASSET_VERSION}`), {
-      title: 'Avis clients',
-      placeholder: 'Écrivez votre message...',
-      buttonText: 'Envoyer',
-      maxComments: 30,
-      scrollInterval: 3000,
-      visibleMessages: 3
-    });
 
     mountOnVisible('footer', 'sierra-footer-root', () => import(`./footer.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',

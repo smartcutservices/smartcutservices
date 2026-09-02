@@ -277,7 +277,7 @@ export default class HomepageDiscovery {
     this.root = document.getElementById(rootId);
     this.options = {
       imageBasePath: options.imageBasePath || './',
-      maxProducts: options.maxProducts || 6,
+      maxProducts: options.maxProducts || 7,
       maxVendors: options.maxVendors || 6
     };
 
@@ -320,7 +320,7 @@ export default class HomepageDiscovery {
     try {
       await loadCurrencySettings();
       const [products, vendorInsights] = await Promise.all([
-        loadPublicProducts({ maxPerCollection: 160 }),
+        loadPublicProducts({ maxPerCollection: 500 }),
         this.loadVendorProductInsights()
       ]);
 
@@ -371,6 +371,12 @@ export default class HomepageDiscovery {
         return !used.has(identity.key || identity.id);
       });
       selected.push(...shuffle(filler).slice(0, this.options.maxProducts - selected.length));
+    }
+    if (selected.length < this.options.maxProducts) {
+      const used = new Set(selected.map((product) => getProductIdentity(product).key));
+      selected.push(...shuffle(products)
+        .filter((product) => !used.has(getProductIdentity(product).key))
+        .slice(0, this.options.maxProducts - selected.length));
     }
     this.root.querySelector('[data-sponsored-list]').innerHTML = selected.length
       ? selected.map((product) => this.renderProductCard(product, { badge: 'À la une' })).join('')
@@ -428,7 +434,12 @@ export default class HomepageDiscovery {
     });
 
     try {
-      await authReadyPromise;
+      // Ne bloque jamais le rendu de la vitrine si Firebase Auth met du temps
+      // à répondre (fréquent en local ou hors connexion).
+      await Promise.race([
+        authReadyPromise,
+        new Promise((resolve) => setTimeout(resolve, 1200))
+      ]);
       const user = auth?.currentUser || null;
       if (!user?.uid) return signals;
 
@@ -588,6 +599,7 @@ export default class HomepageDiscovery {
       }
 
       .home-discovery__section[data-section="sponsored"] {
+        padding-block: 1rem;
         background:
           radial-gradient(circle at top left, rgba(198, 167, 94, 0.22), transparent 36%),
           linear-gradient(135deg, rgba(255, 250, 235, 0.98), rgba(247, 239, 219, 0.92));
@@ -608,6 +620,9 @@ export default class HomepageDiscovery {
       .home-discovery__section[data-section="sponsored"] .home-discovery__heading h2 {
         color: #7f6220;
       }
+      .home-discovery__section[data-section="sponsored"] .home-discovery__heading { margin-bottom: .8rem; }
+      .home-discovery__section[data-section="sponsored"] .home-discovery-card__body { padding: .75rem; }
+      .home-discovery__section[data-section="sponsored"] .home-discovery-card h3 { font-size: 1rem; }
 
       .home-discovery__section[data-section="recommended"] .home-discovery__heading h2 {
         color: #2b694d;
@@ -995,24 +1010,32 @@ export default class HomepageDiscovery {
       @media (min-width: 769px) {
         .home-discovery__section[data-section="sponsored"] .home-discovery__rail,
         .home-discovery__section[data-section="recommended"] .home-discovery__rail {
-          display: flex !important;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
           flex-wrap: nowrap !important;
           overflow: hidden !important;
           align-items: stretch;
         }
 
-        .home-discovery__section[data-section="sponsored"] .home-discovery__rail > :nth-child(n + 6),
-        .home-discovery__section[data-section="recommended"] .home-discovery__rail > :nth-child(n + 6) {
+        .home-discovery__section[data-section="sponsored"] .home-discovery__rail > :nth-child(n + 7),
+        .home-discovery__section[data-section="recommended"] .home-discovery__rail > :nth-child(n + 7) {
           display: none !important;
         }
 
         .home-discovery__section[data-section="sponsored"] .home-discovery-card,
         .home-discovery__section[data-section="recommended"] .home-discovery-card {
-          flex: 0 0 calc((100% - 3.6rem) / 4) !important;
+          width: auto !important;
+          max-width: none !important;
           min-width: 0 !important;
           width: auto !important;
           display: flex;
           flex-direction: column;
+        }
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card { width:auto !important; max-width:none !important; }
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card:only-child,
+        .home-discovery__section[data-section="recommended"] .home-discovery-card:only-child {
+          flex: 0 0 250px !important;
+          max-width: 250px !important;
         }
 
         .home-discovery__section[data-section="sponsored"] .home-discovery-card__image,
@@ -1032,7 +1055,8 @@ export default class HomepageDiscovery {
       @media (min-width: 769px) and (max-width: 1100px) {
         .home-discovery__section[data-section="sponsored"] .home-discovery-card,
         .home-discovery__section[data-section="recommended"] .home-discovery-card {
-          flex-basis: calc((100% - 2.4rem) / 3) !important;
+          flex-basis: 220px !important;
+          max-width: 220px !important;
         }
       }
 

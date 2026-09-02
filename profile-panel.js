@@ -1176,7 +1176,6 @@ class ProfilePanel {
 
             <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
               <a class="profile-home-btn" href="./index.html" aria-label="Retour à l’accueil"><i class="fas fa-house"></i><span>Accueil</span></a>
-              ${isAuthenticated ? '<button type="button" class="profile-settings-btn" data-profile-nav="personal"><i class="fas fa-gear"></i><span>Paramètres</span></button>' : ''}
               ${isAuthenticated ? `
                 <button class="profile-logout-btn" style="
                   border:1px solid rgba(255,255,255,0.4);
@@ -1211,7 +1210,6 @@ class ProfilePanel {
         <div class="profile-workspace">
           ${isAuthenticated ? `
             <aside class="profile-sidebar" aria-label="Navigation du profil">
-              <p class="profile-sidebar-label">Votre espace</p>
               <button type="button" class="profile-sidebar-link${this.activeView === 'account' ? ' is-active' : ''}" data-profile-nav="overview"><i class="fas fa-table-cells-large"></i><span>Vue d’ensemble</span></button>
               <button type="button" class="profile-sidebar-link${isPersonalView ? ' is-active' : ''}" data-profile-nav="personal"><i class="fas fa-id-card"></i><span>Informations personnelles</span></button>
               <button type="button" class="profile-sidebar-link${this.activeView === 'likes' ? ' is-active' : ''}" data-profile-nav="likes"><i class="fas fa-heart"></i><span>Favoris</span></button>
