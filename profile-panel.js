@@ -867,10 +867,7 @@ class ProfilePanel {
     const orders = this.getVisibleOrders();
     const cards = [
       { label: 'Favoris', value: likes.length, icon: 'fa-heart', note: 'Produits enregistrés' },
-      { label: 'Commandes', value: orders.length, icon: 'fa-receipt', note: 'Commandes passées' },
-      { label: 'Vendre des pièces', icon: 'fa-car', note: 'Smart AutoParts', href: './auto-parts-vendor.html' },
-      { label: 'SmartSolutionTek', icon: 'fa-lightbulb', note: 'Accéder à l’espace', href: './smartsolutiontek/dashboard.html' },
-      { label: 'Devenir affilié', icon: 'fa-user-plus', note: 'Smart Cut Services', href: './vendor-application.html?type=affiliate' }
+      { label: 'Commandes', value: orders.length, icon: 'fa-receipt', note: 'Commandes passées' }
     ];
 
     return `
@@ -940,7 +937,7 @@ class ProfilePanel {
     const content = this.modal?.querySelector('.profile-content');
     if (!content) return;
     content.dataset.activeModule = type;
-    const managed = content.querySelectorAll('.profile-summary-cards,.profile-vendor-dashboard-btn,.profile-personal-info-btn,.likes-header,.likes-content,.orders-header,.orders-content,.profile-summary-module');
+    const managed = content.querySelectorAll('.profile-summary-cards,.profile-vendor-dashboard-btn,.profile-personal-info-btn,.likes-header,.likes-content,.orders-header,.orders-content,.profile-summary-module,.profile-professional-access');
     managed.forEach((node) => { node.hidden = type !== 'overview' && !node.matches(`.${type}-header, .${type}-content, .profile-summary-module`); });
     if (type === 'overview') {
       content.classList.add('profile-overview-view');
@@ -998,7 +995,10 @@ class ProfilePanel {
     const cards = [
       { icon: 'fa-store', title: 'Vendeur', description: 'Présentez vos produits et développez votre boutique.', registered: this.vendorAccess?.registered || this.vendorAccess?.approved, href: this.vendorAccess?.approved ? VENDOR_DASHBOARD_URL : './vendor-application.html', action: (this.vendorAccess?.registered || this.vendorAccess?.approved) ? 'Accéder' : 'Devenir vendeur' },
       { icon: 'fa-heart-pulse', title: 'Prestataire Smart Health', description: 'Rejoignez le réseau de professionnels de santé.', registered: health?.registered, href: health?.active ? './health-professionnel.html' : './health-candidature.html', action: health?.registered ? 'Accéder' : 'Devenir prestataire' },
-      { icon: 'fa-graduation-cap', title: 'Tuteur Smart Akademi', description: 'Proposez vos cours et accompagnez les apprenants.', registered: tutor?.registered, href: './education-tuteur-pro.html', action: tutor?.registered ? 'Accéder' : 'Devenir tuteur' }
+      { icon: 'fa-graduation-cap', title: 'Tuteur Smart Akademi', description: 'Proposez vos cours et accompagnez les apprenants.', registered: tutor?.registered, href: './education-tuteur-pro.html', action: tutor?.registered ? 'Accéder' : 'Devenir tuteur' },
+      { icon: 'fa-car', title: 'Smart AutoParts', description: 'Vendez vos pièces et développez votre activité automobile.', href: './auto-parts-vendor.html', action: 'Vendre des pièces' },
+      { icon: 'fa-lightbulb', title: 'SmartSolutionTek', description: 'Accédez à votre espace pour créer et gérer vos solutions.', href: './smartsolutiontek/dashboard.html', action: 'Accéder à l’espace' },
+      { icon: 'fa-user-plus', title: 'Smart Cut Services', description: 'Rejoignez le programme et développez votre réseau.', href: './vendor-application.html?type=affiliate', action: 'Devenir affilié' }
     ];
     return `<section class="profile-professional-access" aria-label="Écosystèmes professionnels">
       <div class="profile-professional-access-grid">${cards.map((card) => `<a class="profile-professional-access-card" href="${card.href}"><span class="profile-professional-access-icon"><i class="fas ${card.icon}"></i></span><span class="profile-professional-access-copy"><strong>${card.title}</strong><small>${card.description}</small></span><span class="profile-professional-access-action">${card.action}<i class="fas fa-arrow-right"></i></span></a>`).join('')}</div>

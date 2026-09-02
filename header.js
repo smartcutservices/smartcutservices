@@ -4,7 +4,7 @@ import './search.js?v=20260901-1';
 import Navbar from './navbar.js?v=20260901-1';
 import { getCartManager } from './cart.js?v=20260901-1';
 import { getAuthManager } from './auth.js?v=20260901-1';
-import { getProfilePanel } from './profile-panel.js?v=20260901-1';
+import { getProfilePanel } from './profile-panel.js?v=20260901-6';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
 import { applyNavPreference } from './nav-preference.js?v=20260901-1';

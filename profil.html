@@ -76,6 +76,9 @@
     .profile-professional-access-icon { display:grid; place-items:center; width:2.25rem; height:2.25rem; border-radius:10px; background:#fff0d2; color:#d8890b; }
     .profile-professional-access-card:nth-child(2) .profile-professional-access-icon { background:#e7f7f1; color:#11876d; }
     .profile-professional-access-card:nth-child(3) .profile-professional-access-icon { background:#eee9ff; color:#6751ba; }
+    .profile-professional-access-card:nth-child(4) .profile-professional-access-icon { background:#e8f1ff; color:#1769cc; }
+    .profile-professional-access-card:nth-child(5) .profile-professional-access-icon { background:#fff3d9; color:#c37b08; }
+    .profile-professional-access-card:nth-child(6) .profile-professional-access-icon { background:#fce8ef; color:#c03e67; }
     .profile-professional-access-copy { min-width:0; }
     .profile-professional-access-copy strong,.profile-professional-access-copy small { display:block; overflow:hidden; text-overflow:ellipsis; }
     .profile-professional-access-copy strong { font-size:.82rem; white-space:nowrap; }
@@ -151,7 +154,7 @@
   </main>
   <script type="module">
     import { getAuthManager } from './auth.js?v=20260901-1';
-    import { getProfilePanel } from './profile-panel.js?v=20260901-5';
+    import { getProfilePanel } from './profile-panel.js?v=20260901-6';
 
     const authManager = getAuthManager();
     await authManager.waitForAuthReady?.();
