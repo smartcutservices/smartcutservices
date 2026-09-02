@@ -72,7 +72,7 @@ export function applyVendorPublicVisibility(products = []) {
   ));
 }
 
-export async function loadPublicProducts({ maxPerCollection = 500 } = {}) {
+export async function loadPublicProducts({ maxPerCollection = 100 } = {}) {
   const snapshots = await Promise.all(
     PUBLIC_COLLECTIONS.map((name) => getDocs(query(collection(db, name), limit(maxPerCollection))))
   );
@@ -84,11 +84,11 @@ export async function loadPublicProducts({ maxPerCollection = 500 } = {}) {
 }
 
 export async function findPublicProductById(productId) {
-  const products = await loadPublicProducts({ maxPerCollection: 500 });
+  const products = await loadPublicProducts({ maxPerCollection: 100 });
   return products.find((product) => String(product.id) === String(productId)) || null;
 }
 
-export function subscribePublicProducts(callback, { maxPerCollection = 500 } = {}) {
+export function subscribePublicProducts(callback, { maxPerCollection = 100 } = {}) {
   const state = new Map();
   let readyCount = 0;
 

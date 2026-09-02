@@ -1,119 +1,3420 @@
 {
-  "_meta": { "purpose": "Catalogue maître des examens d'imagerie Smart Cut Health", "version": "2026-08-31" },
+  "_meta": {
+    "purpose": "Catalogue maître des examens d'imagerie médicale Smart Cut Health. Référence unique dans laquelle chaque centre d'imagerie sélectionne les examens qu'il réalise et fixe son prix.",
+    "notes": "Le prix, la disponibilité et le délai réel appartiennent à l'offre de chaque centre, PAS à ce catalogue. Aucun résultat d'examen n'est stocké dans Smart Cut Health (le patient récupère son résultat en main propre au centre).",
+    "version": "2026-09-01",
+    "source": "Liste réelle fournie par le propriétaire (remplace la version abrégée précédente). Wording normalisé : « Radiographie … », « Scanner (TDM) … », « Uroscanner … », « Écho-Doppler … ».",
+    "examCount": 273
+  },
   "categories": [
-    { "id": "radiographie-thorax", "label": "Radiographies du thorax", "order": 1 },
-    { "id": "rachis", "label": "Rachis / colonne vertébrale", "order": 2 },
-    { "id": "bassin-hanches", "label": "Bassin et hanches", "order": 3 },
-    { "id": "membres-superieurs", "label": "Membre supérieur", "order": 4 },
-    { "id": "membres-inferieurs", "label": "Membre inférieur", "order": 5 },
-    { "id": "crane-face", "label": "Crâne et face", "order": 6 },
-    { "id": "abdomen", "label": "Abdomen", "order": 7 },
-    { "id": "radiographies-pediatriques", "label": "Radiographies pédiatriques spécifiques", "order": 8 },
-    { "id": "radiographies-contraste", "label": "Radiographies avec contraste", "order": 9 },
-    { "id": "scanner", "label": "TDM / Scanner", "order": 10 },
-    { "id": "angioscanner", "label": "Angioscanner", "order": 11 },
-    { "id": "irm", "label": "IRM", "order": 12 },
-    { "id": "angio-irm", "label": "Angio-IRM", "order": 13 },
-    { "id": "irm-cardiaque", "label": "IRM cardiaque", "order": 14 },
-    { "id": "echographie", "label": "Échographie", "order": 15 },
-    { "id": "doppler", "label": "Doppler / écho-Doppler", "order": 16 },
-    { "id": "mammographie", "label": "Mammographie", "order": 17 },
-    { "id": "cardiologie", "label": "Cardiologie diagnostique", "order": 18 },
-    { "id": "specialises", "label": "Examens spécialisés", "order": 19 }
+    {
+      "id": "radiographie-thorax",
+      "label": "Radiographies du thorax",
+      "order": 1
+    },
+    {
+      "id": "rachis",
+      "label": "Rachis / colonne vertébrale",
+      "order": 2
+    },
+    {
+      "id": "bassin-hanches",
+      "label": "Bassin et hanches",
+      "order": 3
+    },
+    {
+      "id": "membres-superieurs",
+      "label": "Membre supérieur",
+      "order": 4
+    },
+    {
+      "id": "membres-inferieurs",
+      "label": "Membre inférieur",
+      "order": 5
+    },
+    {
+      "id": "crane-face",
+      "label": "Crâne et face",
+      "order": 6
+    },
+    {
+      "id": "abdomen",
+      "label": "Abdomen",
+      "order": 7
+    },
+    {
+      "id": "radiographies-pediatriques",
+      "label": "Radiographies pédiatriques spécifiques",
+      "order": 8
+    },
+    {
+      "id": "radiographies-contraste",
+      "label": "Radiographies avec contraste / examens radiologiques spécialisés",
+      "order": 9
+    },
+    {
+      "id": "scanner",
+      "label": "TDM / Scanner",
+      "order": 10
+    },
+    {
+      "id": "angioscanner",
+      "label": "Angioscanner",
+      "order": 11
+    },
+    {
+      "id": "irm",
+      "label": "IRM",
+      "order": 12
+    },
+    {
+      "id": "angio-irm",
+      "label": "Angio-IRM",
+      "order": 13
+    },
+    {
+      "id": "irm-cardiaque",
+      "label": "IRM cardiaque",
+      "order": 14
+    },
+    {
+      "id": "echographie",
+      "label": "Échographie",
+      "order": 15
+    },
+    {
+      "id": "doppler",
+      "label": "Doppler / écho-Doppler",
+      "order": 16
+    },
+    {
+      "id": "mammographie",
+      "label": "Mammographie",
+      "order": 17
+    },
+    {
+      "id": "cardiologie",
+      "label": "Cardiologie diagnostique",
+      "order": 18
+    },
+    {
+      "id": "specialises",
+      "label": "Examens spécialisés",
+      "order": 19
+    }
   ],
   "exams": [
-    { "id": "rx-thorax-ap", "name": "Radiographie thorax AP", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-thorax-pa", "name": "Radiographie thorax PA", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-thorax-profil", "name": "Radiographie thorax de profil", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-thorax-face-profil", "name": "Radiographie thorax face + profil", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-thorax-decubitus", "name": "Radiographie thorax en décubitus", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-gril-costal", "name": "Radiographie gril costal", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-sternum", "name": "Radiographie sternum", "categories": ["radiographie-thorax"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-rachis-cervical", "name": "Radiographie rachis cervical face + profil", "categories": ["rachis"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-rachis-dorsal", "name": "Radiographie rachis dorsal / thoracique", "categories": ["rachis"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-rachis-lombaire", "name": "Radiographie rachis lombaire face + profil", "categories": ["rachis"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-rachis-entier", "name": "Radiographie rachis entier", "categories": ["rachis"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-rachis-dynamique", "name": "Radiographie rachis cervical dynamique", "categories": ["rachis"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-sacrum-coccyx", "name": "Radiographie sacrum et coccyx", "categories": ["rachis"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-bassin", "name": "Radiographie bassin de face", "categories": ["bassin-hanches"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-hanche-droite", "name": "Radiographie hanche droite", "categories": ["bassin-hanches"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-hanches-bilaterales", "name": "Radiographie hanches bilatérales", "categories": ["bassin-hanches"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-bassin-charge", "name": "Radiographie bassin en charge", "categories": ["bassin-hanches"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-epaule", "name": "Radiographie épaule face + profil", "categories": ["membres-superieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-coude", "name": "Radiographie coude face + profil", "categories": ["membres-superieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-poignet", "name": "Radiographie poignet face + profil", "categories": ["membres-superieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-main", "name": "Radiographie main face + oblique", "categories": ["membres-superieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-clavicule", "name": "Radiographie clavicule", "categories": ["membres-superieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-doigt", "name": "Radiographie doigt / pouce", "categories": ["membres-superieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-genou", "name": "Radiographie genou face + profil", "categories": ["membres-inferieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-cheville", "name": "Radiographie cheville face + profil", "categories": ["membres-inferieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-pied", "name": "Radiographie pied face + profil", "categories": ["membres-inferieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-genou-charge", "name": "Radiographie genou en charge", "categories": ["membres-inferieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-calcaneum", "name": "Radiographie calcanéum", "categories": ["membres-inferieurs"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-crane", "name": "Radiographie crâne face + profil", "categories": ["crane-face"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-sinus", "name": "Radiographie sinus de la face", "categories": ["crane-face"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-abdomen-asp", "name": "Radiographie abdomen sans préparation (ASP)", "categories": ["abdomen"], "preparation": "Selon indication médicale", "active": true },
-    { "id": "rx-abdomen-debout", "name": "Radiographie abdomen debout", "categories": ["abdomen"], "preparation": "Selon indication médicale", "active": true },
-    { "id": "rx-abdomen-decubitus", "name": "Radiographie abdomen couché / décubitus", "categories": ["abdomen"], "preparation": "Selon indication médicale", "active": true },
-    { "id": "rx-age-osseux", "name": "Radiographie âge osseux (main et poignet)", "categories": ["radiographies-pediatriques"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-bassin-nourrisson", "name": "Radiographie bassin du nourrisson", "categories": ["radiographies-pediatriques"], "preparation": "Aucune préparation", "active": true },
-    { "id": "rx-thorax-pediatrique", "name": "Radiographie thorax pédiatrique", "categories": ["radiographies-pediatriques"], "preparation": "Aucune préparation", "active": true },
-    { "id": "hsg", "name": "Hystérosalpingographie (HSG)", "categories": ["radiographies-contraste"], "preparation": "Selon protocole et prescription", "active": true },
-    { "id": "togd", "name": "Transit œso-gastro-duodénal (TOGD)", "categories": ["radiographies-contraste"], "preparation": "Jeûne selon protocole", "active": true },
-    { "id": "cystographie", "name": "Cystographie / urétrocystographie", "categories": ["radiographies-contraste"], "preparation": "Selon protocole du centre", "active": true },
-    { "id": "arthrographie", "name": "Arthrographie", "categories": ["radiographies-contraste"], "preparation": "Selon indication médicale", "active": true },
-    { "id": "scanner-cerebral-sans", "name": "Scanner cérébral sans contraste", "categories": ["scanner"], "preparation": "Retirer les objets métalliques", "active": true },
-    { "id": "scanner-cerebral-contraste", "name": "Scanner cérébral avec contraste", "categories": ["scanner"], "preparation": "Créatinine récente selon protocole", "active": true },
-    { "id": "scanner-thoracique", "name": "Scanner thoracique", "categories": ["scanner"], "preparation": "Selon protocole du centre", "active": true },
-    { "id": "scanner-abdominal", "name": "Scanner abdominal", "categories": ["scanner"], "preparation": "Jeûne selon protocole", "active": true },
-    { "id": "scanner-abdomino-pelvien", "name": "Scanner abdomino-pelvien", "categories": ["scanner"], "preparation": "Jeûne et créatinine selon protocole", "active": true },
-    { "id": "scanner-sinus", "name": "Scanner sinus", "categories": ["scanner"], "preparation": "Retirer les objets métalliques", "active": true },
-    { "id": "scanner-rachis-lombaire", "name": "Scanner rachis lombaire", "categories": ["scanner"], "preparation": "Selon protocole du centre", "active": true },
-    { "id": "scanner-osseux", "name": "Scanner d’un segment osseux", "categories": ["scanner"], "preparation": "Selon protocole du centre", "active": true },
-    { "id": "scanner-thoraco-abdominal", "name": "Scanner thoraco-abdominal", "categories": ["scanner"], "preparation": "Créatinine et jeûne selon protocole", "active": true },
-    { "id": "scanner-uro", "name": "Uroscanner", "categories": ["scanner"], "preparation": "Créatinine récente selon protocole", "active": true },
-    { "id": "angioscanner-cerebral", "name": "Angioscanner cérébral", "categories": ["angioscanner"], "preparation": "Créatinine récente selon protocole", "active": true },
-    { "id": "angioscanner-pulmonaire", "name": "Angioscanner des artères pulmonaires", "categories": ["angioscanner"], "preparation": "Créatinine récente selon protocole", "active": true },
-    { "id": "angioscanner-aortique", "name": "Angioscanner aortique", "categories": ["angioscanner"], "preparation": "Créatinine récente selon protocole", "active": true },
-    { "id": "angioscanner-membres", "name": "Angioscanner des membres inférieurs", "categories": ["angioscanner"], "preparation": "Créatinine récente selon protocole", "active": true },
-    { "id": "irm-cerebrale", "name": "IRM cérébrale", "categories": ["irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "irm-rachis-cervical", "name": "IRM rachis cervical", "categories": ["irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "irm-rachis-lombaire", "name": "IRM rachis lombaire", "categories": ["irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "irm-abdominale", "name": "IRM abdominale", "categories": ["irm"], "preparation": "Jeûne selon protocole", "active": true },
-    { "id": "irm-genou", "name": "IRM genou", "categories": ["irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "irm-prostate", "name": "IRM prostate multiparamétrique", "categories": ["irm"], "preparation": "Préparation selon protocole", "active": true },
-    { "id": "irm-mammaire", "name": "IRM mammaire dynamique", "categories": ["irm"], "preparation": "Selon protocole du centre", "active": true },
-    { "id": "angio-irm-cerebrale", "name": "Angio-IRM cérébrale", "categories": ["angio-irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "angio-irm-cervicale", "name": "Angio-IRM cervicale", "categories": ["angio-irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "angio-irm-renale", "name": "Angio-IRM rénale", "categories": ["angio-irm"], "preparation": "Questionnaire de sécurité IRM", "active": true },
-    { "id": "irm-cardiaque", "name": "IRM cardiaque", "categories": ["irm-cardiaque"], "preparation": "Selon protocole cardiologique", "active": true },
-    { "id": "echo-abdominale", "name": "Échographie abdominale", "categories": ["echographie"], "preparation": "Jeûne de 6 heures recommandé", "active": true },
-    { "id": "echo-pelvienne", "name": "Échographie pelvienne", "categories": ["echographie"], "preparation": "Vessie pleine selon indication", "active": true },
-    { "id": "echo-renale", "name": "Échographie rénale", "categories": ["echographie"], "preparation": "Selon protocole du centre", "active": true },
-    { "id": "echo-thyroidienne", "name": "Échographie thyroïdienne", "categories": ["echographie"], "preparation": "Aucune préparation", "active": true },
-    { "id": "echo-obstetricale", "name": "Échographie obstétricale", "categories": ["echographie"], "preparation": "Selon terme de la grossesse", "active": true },
-    { "id": "echo-transvaginale", "name": "Échographie transvaginale", "categories": ["echographie"], "preparation": "Vessie vide selon protocole", "active": true },
-    { "id": "echo-musculo-tendineuse", "name": "Échographie musculo-tendineuse", "categories": ["echographie"], "preparation": "Aucune préparation", "active": true },
-    { "id": "doppler-carotidien", "name": "Doppler carotidien", "categories": ["doppler"], "preparation": "Aucune préparation", "active": true },
-    { "id": "doppler-membres-inferieurs", "name": "Doppler veineux des membres inférieurs", "categories": ["doppler"], "preparation": "Aucune préparation", "active": true },
-    { "id": "doppler-renal", "name": "Doppler des artères rénales", "categories": ["doppler"], "preparation": "Jeûne selon protocole", "active": true },
-    { "id": "doppler-aortique", "name": "Doppler aortique", "categories": ["doppler"], "preparation": "Jeûne selon protocole", "active": true },
-    { "id": "doppler-membres-superieurs", "name": "Doppler des membres supérieurs", "categories": ["doppler"], "preparation": "Aucune préparation", "active": true },
-    { "id": "doppler-obstetrical", "name": "Doppler obstétrical", "categories": ["doppler"], "preparation": "Selon terme de la grossesse", "active": true },
-    { "id": "mammographie-bilaterale", "name": "Mammographie bilatérale", "categories": ["mammographie"], "preparation": "Éviter déodorant et talc le jour de l'examen", "active": true },
-    { "id": "mammographie-diagnostique", "name": "Mammographie diagnostique", "categories": ["mammographie"], "preparation": "Apporter les examens précédents", "active": true },
-    { "id": "tomosynthese-mammaire", "name": "Tomosynthèse mammaire", "categories": ["mammographie"], "preparation": "Apporter les examens précédents", "active": true },
-    { "id": "mammographie-depistage", "name": "Mammographie de dépistage", "categories": ["mammographie"], "preparation": "Apporter les examens précédents", "active": true },
-    { "id": "ecg-repos", "name": "ECG au repos", "categories": ["cardiologie"], "preparation": "Aucune préparation", "active": true },
-    { "id": "holter-ecg-24h", "name": "Holter ECG 24 h", "categories": ["cardiologie"], "preparation": "Peau propre, sans crème", "active": true },
-    { "id": "echocardiographie", "name": "Échocardiographie transthoracique", "categories": ["cardiologie"], "preparation": "Aucune préparation", "active": true },
-    { "id": "ecg-12-derivations", "name": "ECG 12 dérivations", "categories": ["cardiologie"], "preparation": "Aucune préparation", "active": true },
-    { "id": "mapa", "name": "MAPA / Holter tensionnel", "categories": ["cardiologie"], "preparation": "Aucune préparation", "active": true },
-    { "id": "densitometrie", "name": "Densitométrie osseuse / DEXA", "categories": ["specialises"], "preparation": "Éviter supplément de calcium le jour même", "active": true },
-    { "id": "panoramique-dentaire", "name": "Panoramique dentaire", "categories": ["specialises"], "preparation": "Retirer les objets métalliques", "active": true },
-    { "id": "cone-beam", "name": "Cone Beam CT / CBCT", "categories": ["specialises"], "preparation": "Retirer les objets métalliques", "active": true },
-    { "id": "fibroscan", "name": "FibroScan", "categories": ["specialises"], "preparation": "Jeûne de 3 heures recommandé", "active": true },
-    { "id": "eeg", "name": "Électroencéphalogramme (EEG)", "categories": ["specialises"], "preparation": "Cheveux propres, sans produit", "active": true },
-    { "id": "emg", "name": "Électromyogramme (EMG)", "categories": ["specialises"], "preparation": "Aucune préparation", "active": true }
+    {
+      "id": "radiographie-thorax-ap",
+      "name": "Radiographie thorax AP",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY thorax AP"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-thorax-pa",
+      "name": "Radiographie thorax PA",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Thorax PA"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-thorax-de-profil",
+      "name": "Radiographie thorax de profil",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Thorax de profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-thorax-face-profil",
+      "name": "Radiographie thorax face + profil",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Thorax face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-thorax-en-decubitus",
+      "name": "Radiographie thorax en décubitus",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Thorax en décubitus"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-gril-costal-droit",
+      "name": "Radiographie gril costal droit",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Gril costal droit"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-gril-costal-gauche",
+      "name": "Radiographie gril costal gauche",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Gril costal gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-sternum",
+      "name": "Radiographie sternum",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Sternum"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-articulations-sterno-claviculaires",
+      "name": "Radiographie articulations sterno-claviculaires",
+      "categories": [
+        "radiographie-thorax"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Articulations sterno-claviculaires"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-cervical-face-profil",
+      "name": "Radiographie rachis cervical face + profil",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis cervical face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-cervical-avec-incidences-obliques",
+      "name": "Radiographie rachis cervical avec incidences obliques",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis cervical avec incidences obliques"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-cervical-dynamique-flexion-extension",
+      "name": "Radiographie rachis cervical dynamique : flexion / extension",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis cervical dynamique : flexion / extension"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-dorsal-thoracique-face-profil",
+      "name": "Radiographie rachis dorsal / thoracique face + profil",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis dorsal / thoracique face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-lombaire-face-profil",
+      "name": "Radiographie rachis lombaire face + profil",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis lombaire face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-lombaire-avec-incidences-obliques",
+      "name": "Radiographie rachis lombaire avec incidences obliques",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis lombaire avec incidences obliques"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-lombo-sacre",
+      "name": "Radiographie rachis lombo-sacré",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis lombo-sacré"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-entier",
+      "name": "Radiographie rachis entier",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis entier"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rachis-entier-en-charge",
+      "name": "Radiographie rachis entier en charge",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rachis entier en charge"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-sacrum",
+      "name": "Radiographie sacrum",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Sacrum"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-coccyx",
+      "name": "Radiographie coccyx",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Coccyx"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-charniere-lombo-sacree",
+      "name": "Radiographie charnière lombo-sacrée",
+      "categories": [
+        "rachis"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Charnière lombo-sacrée"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-bassin-de-face",
+      "name": "Radiographie bassin de face",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Bassin de face"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-bassin-en-charge",
+      "name": "Radiographie bassin en charge",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Bassin en charge"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-hanche-droite",
+      "name": "Radiographie hanche droite",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Hanche droite"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-hanche-gauche",
+      "name": "Radiographie hanche gauche",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Hanche gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-hanches-bilaterales",
+      "name": "Radiographie hanches bilatérales",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Hanches bilatérales"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-hanche-face-profil",
+      "name": "Radiographie hanche face + profil",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Hanche face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-articulations-sacro-iliaques",
+      "name": "Radiographie articulations sacro-iliaques",
+      "categories": [
+        "bassin-hanches"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Articulations sacro-iliaques"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-epaule-droite",
+      "name": "Radiographie épaule droite",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Épaule droite"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-epaule-gauche",
+      "name": "Radiographie épaule gauche",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Épaule gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-epaule-face-profil",
+      "name": "Radiographie épaule face + profil",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Épaule face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-articulation-acromio-claviculaire",
+      "name": "Radiographie articulation acromio-claviculaire",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Articulation acromio-claviculaire"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-clavicule",
+      "name": "Radiographie clavicule",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Clavicule"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-omoplate-scapula",
+      "name": "Radiographie omoplate / scapula",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Omoplate / scapula"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-humerus-droit-gauche",
+      "name": "Radiographie humérus droit / gauche",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Humérus droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-coude-droit-gauche",
+      "name": "Radiographie coude droit / gauche",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Coude droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-coude-face-profil",
+      "name": "Radiographie coude face + profil",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Coude face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-avant-bras-droit-gauche",
+      "name": "Radiographie avant-bras droit / gauche",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Avant-bras droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-poignet-droit-gauche",
+      "name": "Radiographie poignet droit / gauche",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Poignet droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-poignet-face-profil",
+      "name": "Radiographie poignet face + profil",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Poignet face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-main-droite-gauche",
+      "name": "Radiographie main droite / gauche",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Main droite / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-main-face-oblique",
+      "name": "Radiographie main face + oblique",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Main face + oblique"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-doigt",
+      "name": "Radiographie doigt",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Doigt"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-pouce",
+      "name": "Radiographie pouce",
+      "categories": [
+        "membres-superieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Pouce"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-femur-droit-gauche",
+      "name": "Radiographie fémur droit / gauche",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Fémur droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-genou-droit-gauche",
+      "name": "Radiographie genou droit / gauche",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Genou droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-genou-face-profil",
+      "name": "Radiographie genou face + profil",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Genou face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-genou-en-charge",
+      "name": "Radiographie genou en charge",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Genou en charge"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-genoux-bilateraux-en-charge",
+      "name": "Radiographie genoux bilatéraux en charge",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Genoux bilatéraux en charge"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-incidence-femoro-patellaire",
+      "name": "Radiographie incidence fémoro-patellaire",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Incidence fémoro-patellaire"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-axiale-de-rotule",
+      "name": "Radiographie axiale de rotule",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Axiale de rotule"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-rotule",
+      "name": "Radiographie rotule",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Rotule"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-tibia-perone-droit",
+      "name": "Radiographie tibia-péroné droit",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Tibia-péroné droit"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-tibia-perone-gauche",
+      "name": "Radiographie tibia-péroné gauche",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Tibia-péroné gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-jambe-face-profil",
+      "name": "Radiographie jambe face + profil",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Jambe face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-cheville-droite-gauche",
+      "name": "Radiographie cheville droite / gauche",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Cheville droite / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-cheville-face-profil",
+      "name": "Radiographie cheville face + profil",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Cheville face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-pied-droit-gauche",
+      "name": "Radiographie pied droit / gauche",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Pied droit / gauche"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-pied-face-profil",
+      "name": "Radiographie pied face + profil",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Pied face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-pied-en-charge",
+      "name": "Radiographie pied en charge",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Pied en charge"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-pieds-bilateraux-en-charge",
+      "name": "Radiographie pieds bilatéraux en charge",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Pieds bilatéraux en charge"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-calcaneum",
+      "name": "Radiographie calcanéum",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Calcanéum"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-orteils",
+      "name": "Radiographie orteils",
+      "categories": [
+        "membres-inferieurs"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Orteils"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-crane-face-profil",
+      "name": "Radiographie crâne face + profil",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Crâne face + profil"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-crane-standard",
+      "name": "Radiographie crâne standard",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Crâne standard"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-os-propres-du-nez",
+      "name": "Radiographie os propres du nez",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Os propres du nez"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-massif-facial",
+      "name": "Radiographie massif facial",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Massif facial"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-orbites",
+      "name": "Radiographie orbites",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Orbites"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-sinus-de-la-face",
+      "name": "Radiographie sinus de la face",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Sinus de la face"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-mandibule",
+      "name": "Radiographie mandibule",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Mandibule"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-articulation-temporo-mandibulaire-atm",
+      "name": "Radiographie articulation temporo-mandibulaire (ATM)",
+      "categories": [
+        "crane-face"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Articulation temporo-mandibulaire (ATM)"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-abdomen-sans-preparation-asp",
+      "name": "Radiographie abdomen sans préparation (ASP)",
+      "categories": [
+        "abdomen"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Abdomen sans préparation (ASP)"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-abdomen-debout",
+      "name": "Radiographie abdomen debout",
+      "categories": [
+        "abdomen"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Abdomen debout"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-abdomen-couche-decubitus",
+      "name": "Radiographie abdomen couché / décubitus",
+      "categories": [
+        "abdomen"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Abdomen couché / décubitus"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-abdomen-face",
+      "name": "Radiographie abdomen face",
+      "categories": [
+        "abdomen"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Abdomen face"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "radiographie-abdomen-avec-niveaux-hydro-aeriques",
+      "name": "Radiographie abdomen avec niveaux hydro-aériques",
+      "categories": [
+        "abdomen"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY Abdomen avec niveaux hydro-aériques"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "rx-ped-age-osseux",
+      "name": "Radiographie âge osseux (main et poignet)",
+      "categories": [
+        "radiographies-pediatriques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY âge osseux (main et poignet)"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "rx-ped-bassin-nourrisson",
+      "name": "Radiographie bassin du nourrisson",
+      "categories": [
+        "radiographies-pediatriques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY bassin du nourrisson"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "rx-ped-membres-inferieurs",
+      "name": "Radiographie membres inférieurs (pédiatrique)",
+      "categories": [
+        "radiographies-pediatriques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY membres inférieurs (pédiatrique)"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "rx-ped-rachis-entier",
+      "name": "Radiographie rachis entier (pédiatrique)",
+      "categories": [
+        "radiographies-pediatriques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY rachis entier (pédiatrique)"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "rx-ped-thorax",
+      "name": "Radiographie thorax pédiatrique",
+      "categories": [
+        "radiographies-pediatriques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY thorax pédiatrique"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "rx-ped-abdomen",
+      "name": "Radiographie abdomen pédiatrique",
+      "categories": [
+        "radiographies-pediatriques"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "X-RAY abdomen pédiatrique"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "hysterosalpingographie-hsg",
+      "name": "Hystérosalpingographie (HSG)",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "HSG"
+      ],
+      "preparation": "Première partie du cycle, hors règles et hors grossesse",
+      "active": true
+    },
+    {
+      "id": "transit-so-gastro-duodenal-togd",
+      "name": "Transit œso-gastro-duodénal (TOGD)",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "TOGD"
+      ],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "transit-du-grele",
+      "name": "Transit du grêle",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Transit intestinal",
+        "Transit du grele"
+      ],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "lavement-opaque",
+      "name": "Lavement opaque",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "uretrographie",
+      "name": "Urétrographie",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "cystographie",
+      "name": "Cystographie",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "uretrocystographie",
+      "name": "Urétrocystographie",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "fistulographie",
+      "name": "Fistulographie",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "arthrographie",
+      "name": "Arthrographie",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "cholangiographie",
+      "name": "Cholangiographie",
+      "categories": [
+        "radiographies-contraste"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Selon protocole du centre",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-cerebrale-sans-contraste",
+      "name": "Scanner (TDM) cérébrale sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM cérébrale sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-cerebrale-avec-contraste",
+      "name": "Scanner (TDM) cérébrale avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM cérébrale avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-cerebrale-sans-et-avec-contraste",
+      "name": "Scanner (TDM) cérébrale sans et avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM cérébrale sans et avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rochers-sans-contraste",
+      "name": "Scanner (TDM) rochers sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rochers sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rochers-avec-contraste",
+      "name": "Scanner (TDM) rochers avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rochers avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-sinus-sans-contraste",
+      "name": "Scanner (TDM) sinus sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM sinus sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-sinus-avec-contraste",
+      "name": "Scanner (TDM) sinus avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM sinus avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-massif-facial-sans-contraste",
+      "name": "Scanner (TDM) massif facial sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM massif facial sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-massif-facial-avec-contraste",
+      "name": "Scanner (TDM) massif facial avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM massif facial avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-orbites-sans-contraste",
+      "name": "Scanner (TDM) orbites sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM orbites sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-orbites-avec-contraste",
+      "name": "Scanner (TDM) orbites avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM orbites avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-cou-sans-contraste",
+      "name": "Scanner (TDM) cou sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM cou sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-cou-avec-contraste",
+      "name": "Scanner (TDM) cou avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM cou avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-thoracique-sans-contraste",
+      "name": "Scanner (TDM) thoracique sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM thoracique sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-thoracique-avec-contraste",
+      "name": "Scanner (TDM) thoracique avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM thoracique avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-thoracique-sans-et-avec-contraste",
+      "name": "Scanner (TDM) thoracique sans et avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM thoracique sans et avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-thoracique-haute-resolution-hrct",
+      "name": "Scanner (TDM) thoracique haute résolution (HRCT)",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM thoracique haute résolution (HRCT)",
+        "HRCT"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-thoraco-abdominale-sans-contraste",
+      "name": "Scanner (TDM) thoraco-abdominale sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM thoraco-abdominale sans contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-thoraco-abdominale-avec-contraste",
+      "name": "Scanner (TDM) thoraco-abdominale avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM thoraco-abdominale avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-abdominale-sans-contraste",
+      "name": "Scanner (TDM) abdominale sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM abdominale sans contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-abdominale-avec-contraste",
+      "name": "Scanner (TDM) abdominale avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM abdominale avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-abdominale-sans-et-avec-contraste",
+      "name": "Scanner (TDM) abdominale sans et avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM abdominale sans et avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-abdomino-pelvienne-sans-contraste",
+      "name": "Scanner (TDM) abdomino-pelvienne sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM abdomino-pelvienne sans contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-abdomino-pelvienne-avec-contraste",
+      "name": "Scanner (TDM) abdomino-pelvienne avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM abdomino-pelvienne avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-abdomino-pelvienne-sans-et-avec-contraste",
+      "name": "Scanner (TDM) abdomino-pelvienne sans et avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM abdomino-pelvienne sans et avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-pelvienne-sans-contraste",
+      "name": "Scanner (TDM) pelvienne sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM pelvienne sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-pelvienne-avec-contraste",
+      "name": "Scanner (TDM) pelvienne avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM pelvienne avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-hepatique-multiphasique-avec-contraste",
+      "name": "Scanner (TDM) hépatique multiphasique avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM hépatique multiphasique avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-pancreatique-avec-contraste",
+      "name": "Scanner (TDM) pancréatique avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM pancréatique avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-surrenalienne-sans-contraste",
+      "name": "Scanner (TDM) surrénalienne sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM surrénalienne sans contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-surrenalienne-avec-contraste",
+      "name": "Scanner (TDM) surrénalienne avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM surrénalienne avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "uroscanner-sans-contraste",
+      "name": "Uroscanner sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/Uroscanner sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "uroscanner-avec-contraste-selon-protocole",
+      "name": "Uroscanner avec contraste selon protocole",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/Uroscanner avec contraste selon protocole"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-renale-sans-contraste",
+      "name": "Scanner (TDM) rénale sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rénale sans contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-renale-avec-contraste",
+      "name": "Scanner (TDM) rénale avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rénale avec contraste"
+      ],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-cervical-sans-contraste",
+      "name": "Scanner (TDM) rachis cervical sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis cervical sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-cervical-avec-contraste",
+      "name": "Scanner (TDM) rachis cervical avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis cervical avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-dorsal-sans-contraste",
+      "name": "Scanner (TDM) rachis dorsal sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis dorsal sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-dorsal-avec-contraste",
+      "name": "Scanner (TDM) rachis dorsal avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis dorsal avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-lombaire-sans-contraste",
+      "name": "Scanner (TDM) rachis lombaire sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis lombaire sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-lombaire-avec-contraste",
+      "name": "Scanner (TDM) rachis lombaire avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis lombaire avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-lombo-sacre-sans-contraste",
+      "name": "Scanner (TDM) rachis lombo-sacré sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis lombo-sacré sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-rachis-lombo-sacre-avec-contraste",
+      "name": "Scanner (TDM) rachis lombo-sacré avec contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM rachis lombo-sacré avec contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-epaule-sans-contraste",
+      "name": "Scanner (TDM) épaule sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM épaule sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-coude-sans-contraste",
+      "name": "Scanner (TDM) coude sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM coude sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-poignet-main-sans-contraste",
+      "name": "Scanner (TDM) poignet/main sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM poignet/main sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-bassin-sans-contraste",
+      "name": "Scanner (TDM) bassin sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM bassin sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-hanche-sans-contraste",
+      "name": "Scanner (TDM) hanche sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM hanche sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-genou-sans-contraste",
+      "name": "Scanner (TDM) genou sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM genou sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-cheville-pied-sans-contraste",
+      "name": "Scanner (TDM) cheville/pied sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM cheville/pied sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "scanner-tdm-d-un-segment-osseux-sans-contraste",
+      "name": "Scanner (TDM) d'un segment osseux sans contraste",
+      "categories": [
+        "scanner"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "SCANNER/TDM d'un segment osseux sans contraste"
+      ],
+      "preparation": "Créatininémie récente ; à jeun 3 h",
+      "active": true
+    },
+    {
+      "id": "angioscanner-cerebral",
+      "name": "Angioscanner cérébral",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-carotidien-cervical",
+      "name": "Angioscanner carotidien/cervical",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-aortique",
+      "name": "Angioscanner aortique",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-thoracique",
+      "name": "Angioscanner thoracique",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-des-arteres-pulmonaires",
+      "name": "Angioscanner des artères pulmonaires",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-abdominal",
+      "name": "Angioscanner abdominal",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-renal",
+      "name": "Angioscanner rénal",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-des-membres-superieurs",
+      "name": "Angioscanner des membres supérieurs",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "angioscanner-des-membres-inferieurs",
+      "name": "Angioscanner des membres inférieurs",
+      "categories": [
+        "angioscanner"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "irm-cerebrale-sans-contraste",
+      "name": "IRM cérébrale sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-cerebrale-avec-contraste",
+      "name": "IRM cérébrale avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-cerebrale-sans-et-avec-contraste",
+      "name": "IRM cérébrale sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-hypophysaire-sans-contraste",
+      "name": "IRM hypophysaire sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-hypophysaire-sans-et-avec-contraste",
+      "name": "IRM hypophysaire sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-orbitaire-sans-contraste",
+      "name": "IRM orbitaire sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-orbitaire-sans-et-avec-contraste",
+      "name": "IRM orbitaire sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-des-conduits-auditifs-internes-sans-contraste",
+      "name": "IRM des conduits auditifs internes sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-des-conduits-auditifs-internes-sans-et-avec-contraste",
+      "name": "IRM des conduits auditifs internes sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-du-massif-facial-sans-contraste",
+      "name": "IRM du massif facial sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-du-cou-sans-contraste",
+      "name": "IRM du cou sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-du-cou-sans-et-avec-contraste",
+      "name": "IRM du cou sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-cervical-sans-contraste",
+      "name": "IRM rachis cervical sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-cervical-sans-et-avec-contraste",
+      "name": "IRM rachis cervical sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-dorsal-sans-contraste",
+      "name": "IRM rachis dorsal sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-dorsal-sans-et-avec-contraste",
+      "name": "IRM rachis dorsal sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-lombaire-sans-contraste",
+      "name": "IRM rachis lombaire sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-lombaire-sans-et-avec-contraste",
+      "name": "IRM rachis lombaire sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-lombo-sacre-sans-contraste",
+      "name": "IRM rachis lombo-sacré sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-lombo-sacre-sans-et-avec-contraste",
+      "name": "IRM rachis lombo-sacré sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-entier-sans-contraste",
+      "name": "IRM rachis entier sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rachis-entier-sans-et-avec-contraste",
+      "name": "IRM rachis entier sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-thoracique-sans-contraste",
+      "name": "IRM thoracique sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-thoracique-sans-et-avec-contraste",
+      "name": "IRM thoracique sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-mediastinale-sans-contraste",
+      "name": "IRM médiastinale sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-mediastinale-sans-et-avec-contraste",
+      "name": "IRM médiastinale sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-abdominale-sans-contraste",
+      "name": "IRM abdominale sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-abdominale-sans-et-avec-contraste",
+      "name": "IRM abdominale sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-hepatique-sans-contraste",
+      "name": "IRM hépatique sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-hepatique-sans-et-avec-contraste",
+      "name": "IRM hépatique sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-pancreatique-sans-contraste",
+      "name": "IRM pancréatique sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-pancreatique-sans-et-avec-contraste",
+      "name": "IRM pancréatique sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-renale-sans-contraste",
+      "name": "IRM rénale sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-renale-sans-et-avec-contraste",
+      "name": "IRM rénale sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-surrenalienne-sans-contraste",
+      "name": "IRM surrénalienne sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "irm-surrenalienne-sans-et-avec-contraste",
+      "name": "IRM surrénalienne sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h ; créatininémie récente",
+      "active": true
+    },
+    {
+      "id": "cholangio-irm-mrcp",
+      "name": "Cholangio-IRM / MRCP",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "MRCP",
+        "Cholangio-IRM"
+      ],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "irm-pelvienne-sans-contraste",
+      "name": "IRM pelvienne sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-pelvienne-sans-et-avec-contraste",
+      "name": "IRM pelvienne sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-prostate-sans-contraste",
+      "name": "IRM prostate sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-prostate-multiparametrique-selon-protocole",
+      "name": "IRM prostate multiparamétrique selon protocole",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "irm-uterus-sans-contraste",
+      "name": "IRM utérus sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-uterus-sans-et-avec-contraste",
+      "name": "IRM utérus sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-ovaires-annexes-sans-contraste",
+      "name": "IRM ovaires/annexes sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-ovaires-annexes-sans-et-avec-contraste",
+      "name": "IRM ovaires/annexes sans et avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rectale-sans-contraste",
+      "name": "IRM rectale sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-rectale-avec-contraste",
+      "name": "IRM rectale avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-mammaire-sans-contraste",
+      "name": "IRM mammaire sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-mammaire-avec-injection-dynamique",
+      "name": "IRM mammaire avec injection / dynamique",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "irm-epaule-sans-contraste",
+      "name": "IRM épaule sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-epaule-avec-contraste",
+      "name": "IRM épaule avec contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-bras-sans-contraste",
+      "name": "IRM bras sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-coude-sans-contraste",
+      "name": "IRM coude sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-avant-bras-sans-contraste",
+      "name": "IRM avant-bras sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-poignet-sans-contraste",
+      "name": "IRM poignet sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-main-doigts-sans-contraste",
+      "name": "IRM main/doigts sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-bassin-sans-contraste",
+      "name": "IRM bassin sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-hanche-sans-contraste",
+      "name": "IRM hanche sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-cuisse-sans-contraste",
+      "name": "IRM cuisse sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-genou-sans-contraste",
+      "name": "IRM genou sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-jambe-sans-contraste",
+      "name": "IRM jambe sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-cheville-sans-contraste",
+      "name": "IRM cheville sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-pied-sans-contraste",
+      "name": "IRM pied sans contraste",
+      "categories": [
+        "irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "angio-irm-cerebrale-sans-contraste",
+      "name": "Angio-IRM cérébrale sans contraste",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "angio-irm-cerebrale-avec-contraste",
+      "name": "Angio-IRM cérébrale avec contraste",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "angio-irm-cervicale-sans-contraste",
+      "name": "Angio-IRM cervicale sans contraste",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "angio-irm-cervicale-avec-contraste",
+      "name": "Angio-IRM cervicale avec contraste",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "angio-irm-aortique",
+      "name": "Angio-IRM aortique",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "angio-irm-renale",
+      "name": "Angio-IRM rénale",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "angio-irm-des-membres-inferieurs",
+      "name": "Angio-IRM des membres inférieurs",
+      "categories": [
+        "angio-irm"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "irm-cardiaque-sans-contraste",
+      "name": "IRM cardiaque sans contraste",
+      "categories": [
+        "irm-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-cardiaque-sans-et-avec-contraste",
+      "name": "IRM cardiaque sans et avec contraste",
+      "categories": [
+        "irm-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; créatininémie récente si injection",
+      "active": true
+    },
+    {
+      "id": "irm-cardiaque-avec-etude-de-perfusion-rehaussement-selon-protocole",
+      "name": "IRM cardiaque avec étude de perfusion / rehaussement selon protocole",
+      "categories": [
+        "irm-cardiaque"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer tout objet métallique ; signaler pacemaker / implants",
+      "active": true
+    },
+    {
+      "id": "echographie-abdominale",
+      "name": "Échographie abdominale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h",
+      "active": true
+    },
+    {
+      "id": "echographie-abdomino-pelvienne",
+      "name": "Échographie abdomino-pelvienne",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h",
+      "active": true
+    },
+    {
+      "id": "echographie-pelvienne",
+      "name": "Échographie pelvienne",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Vessie pleine",
+      "active": true
+    },
+    {
+      "id": "echographie-renale",
+      "name": "Échographie rénale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "À jeun 4 à 6 h",
+      "active": true
+    },
+    {
+      "id": "echographie-vesicale",
+      "name": "Échographie vésicale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Vessie pleine",
+      "active": true
+    },
+    {
+      "id": "echographie-prostatique",
+      "name": "Échographie prostatique",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Vessie pleine",
+      "active": true
+    },
+    {
+      "id": "echographie-testiculaire-scrotale",
+      "name": "Échographie testiculaire/scrotale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-thyroidienne",
+      "name": "Échographie thyroïdienne",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-cervicale",
+      "name": "Échographie cervicale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-mammaire",
+      "name": "Échographie mammaire",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-des-parties-molles",
+      "name": "Échographie des parties molles",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-musculo-tendineuse",
+      "name": "Échographie musculo-tendineuse",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-obstetricale",
+      "name": "Échographie obstétricale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Vessie pleine",
+      "active": true
+    },
+    {
+      "id": "echographie-gynecologique",
+      "name": "Échographie gynécologique",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-transvaginale",
+      "name": "Échographie transvaginale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-transrectale",
+      "name": "Échographie transrectale",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echographie-pediatrique",
+      "name": "Échographie pédiatrique",
+      "categories": [
+        "echographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-arteriel-des-membres-inferieurs",
+      "name": "Écho-Doppler artériel des membres inférieurs",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler artériel des membres inférieurs"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-veineux-des-membres-inferieurs",
+      "name": "Écho-Doppler veineux des membres inférieurs",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler veineux des membres inférieurs"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-arteriel-des-membres-superieurs",
+      "name": "Écho-Doppler artériel des membres supérieurs",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler artériel des membres supérieurs"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-veineux-des-membres-superieurs",
+      "name": "Écho-Doppler veineux des membres supérieurs",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler veineux des membres supérieurs"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-carotidien",
+      "name": "Écho-Doppler carotidien",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler carotidien"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-des-arteres-renales",
+      "name": "Écho-Doppler des artères rénales",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler des artères rénales"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-aortique",
+      "name": "Écho-Doppler aortique",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler aortique"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-obstetrical",
+      "name": "Écho-Doppler obstétrical",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler obstétrical"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-penien",
+      "name": "Écho-Doppler pénien",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler pénien"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echo-doppler-testiculaire",
+      "name": "Écho-Doppler testiculaire",
+      "categories": [
+        "doppler"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "Doppler testiculaire"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "mammographie-bilaterale",
+      "name": "Mammographie bilatérale",
+      "categories": [
+        "mammographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "mammographie-unilaterale",
+      "name": "Mammographie unilatérale",
+      "categories": [
+        "mammographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "mammographie-de-depistage",
+      "name": "Mammographie de dépistage",
+      "categories": [
+        "mammographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "mammographie-diagnostique",
+      "name": "Mammographie diagnostique",
+      "categories": [
+        "mammographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "incidences-complementaires-mammographie",
+      "name": "Incidences complémentaires (mammographie)",
+      "categories": [
+        "mammographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "tomosynthese-mammaire",
+      "name": "Tomosynthèse mammaire",
+      "categories": [
+        "mammographie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "ecg-au-repos",
+      "name": "ECG au repos",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "ecg-12-derivations",
+      "name": "ECG 12 dérivations",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "holter-ecg-24-h",
+      "name": "Holter ECG 24 h",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "holter-ecg-48-h-ou-plus",
+      "name": "Holter ECG 48 h ou plus",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "mapa-holter-tensionnel",
+      "name": "MAPA / Holter tensionnel",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "MAPA"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echocardiographie-transthoracique",
+      "name": "Échocardiographie transthoracique",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "echocardiographie-doppler",
+      "name": "Échocardiographie Doppler",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "epreuve-d-effort",
+      "name": "Épreuve d'effort",
+      "categories": [
+        "cardiologie"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "densitometrie-osseuse-dexa",
+      "name": "Densitométrie osseuse / DEXA",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "DEXA",
+        "Ostéodensitométrie"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "panoramique-dentaire",
+      "name": "Panoramique dentaire",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer bijoux et prothèses amovibles",
+      "active": true
+    },
+    {
+      "id": "cephalometrie",
+      "name": "Céphalométrie",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Retirer bijoux et prothèses amovibles",
+      "active": true
+    },
+    {
+      "id": "cone-beam-ct-cbct",
+      "name": "Cone Beam CT / CBCT",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "CBCT",
+        "Cone Beam"
+      ],
+      "preparation": "Retirer bijoux et prothèses amovibles",
+      "active": true
+    },
+    {
+      "id": "fibroscan",
+      "name": "FibroScan",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "electroencephalogramme-eeg",
+      "name": "Électroencéphalogramme (EEG)",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "EEG"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    },
+    {
+      "id": "electromyogramme-emg",
+      "name": "Électromyogramme (EMG)",
+      "categories": [
+        "specialises"
+      ],
+      "subcategory": null,
+      "aliases": [
+        "EMG"
+      ],
+      "preparation": "Aucune préparation particulière",
+      "active": true
+    }
   ]
 }

@@ -1,13 +1,13 @@
-import { db } from './firebase-init.js?v=20260831-4';
+import { db } from './firebase-init.js?v=20260901-1';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js?v=20260831-4';
-import Navbar from './navbar.js?v=20260831-4';
-import { getCartManager } from './cart.js?v=20260831-4';
-import { getAuthManager } from './auth.js?v=20260831-4';
-import { getProfilePanel } from './profile-panel.js?v=20260831-4';
+import './search.js?v=20260901-1';
+import Navbar from './navbar.js?v=20260901-1';
+import { getCartManager } from './cart.js?v=20260901-1';
+import { getAuthManager } from './auth.js?v=20260901-1';
+import { getProfilePanel } from './profile-panel.js?v=20260901-1';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
-import { applyNavPreference } from './nav-preference.js?v=20260831-4';
+import { applyNavPreference } from './nav-preference.js?v=20260901-1';
 
 // Rangée de navlinks personnalisable : le dernier lien ouvert repasse en tête.
 // Réservé à la page d'accueil : aucun autre en-tête du site (Health, Éducation,
@@ -310,6 +310,18 @@ class SierraHeaderNebula {
         color: #1e1e1e;
         cursor: pointer;
         transition: all 0.25s ease;
+      }
+      .smartsolution-menu__chevron { margin-left:.35rem; font-size:.68em; transition:transform .2s ease; }
+      .smartsolution-menu.is-open .smartsolution-menu__chevron,
+      .mobile-smartsolution-menu[open] .smartsolution-menu__chevron { transform:rotate(180deg); }
+
+      .profile-header-avatar {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        object-position: center;
       }
 
       .header-search-trigger {
@@ -1154,7 +1166,7 @@ class SierraHeaderNebula {
             <a class="desktop-nav-action" href="./vendor-application.html">Devenir vendeur</a>
             <a class="desktop-nav-action" href="./auto-parts.html">Auto &amp; Parts</a>
             <div class="smartsolution-menu" data-smartsolution-menu>
-              <button class="smartsolution-menu__trigger" type="button" aria-expanded="false" aria-controls="smartsolution-desktop-panel">SmartSolutionTek</button>
+              <button class="smartsolution-menu__trigger" type="button" aria-expanded="false" aria-controls="smartsolution-desktop-panel">SmartSolutionTek <i class="fas fa-chevron-down smartsolution-menu__chevron" aria-hidden="true"></i></button>
               <nav id="smartsolution-desktop-panel" class="smartsolution-menu__panel" hidden aria-label="Applications SmartSolutionTek">
                 <a href="./smartsolutiontek/dashboard.html?app=forms"><i class="fas fa-clipboard-list"></i> Inscriptions en ligne</a>
                 <a href="./smartsolutiontek/dashboard.html?app=shops"><i class="fas fa-store"></i> Mini-boutique</a>
@@ -1207,7 +1219,7 @@ class SierraHeaderNebula {
               <a class="mobile-nav-item" href="./vendor-application.html">Vendre</a>
               <a class="mobile-nav-item" href="./auto-parts.html">Auto &amp; Parts</a>
               <details class="mobile-smartsolution-menu">
-                <summary class="mobile-nav-item">SmartSolutionTek</summary>
+                <summary class="mobile-nav-item">SmartSolutionTek <i class="fas fa-chevron-down smartsolution-menu__chevron" aria-hidden="true"></i></summary>
                 <nav class="mobile-smartsolution-menu__panel" aria-label="Applications SmartSolutionTek">
                   <a href="./smartsolutiontek/dashboard.html?app=forms"><i class="fas fa-clipboard-list"></i> Inscriptions en ligne</a>
                   <a href="./smartsolutiontek/dashboard.html?app=shops"><i class="fas fa-store"></i> Mini-boutique</a>
@@ -1307,6 +1319,8 @@ class SierraHeaderNebula {
     });
 
     this.authManager = getAuthManager();
+    this.authManager.addAuthChangeListener?.((user) => this.updateProfileAvatars(user));
+    this.updateProfileAvatars(this.authManager.getCurrentUser?.());
     getWebsiteAnalyticsTracker().init();
     await loadCurrencySettings();
 
@@ -1659,6 +1673,33 @@ class SierraHeaderNebula {
       const button = document.getElementById(id);
       if (!button) return;
       this.bindResponsivePress(button, handleProfileClick);
+    });
+  }
+
+  updateProfileAvatars(user) {
+    const buttons = [
+      document.getElementById('desktopProfileIcon'),
+      document.getElementById('mobileProfileIcon')
+    ].filter(Boolean);
+    const photoUrl = String(user?.photoURL || '').trim();
+    buttons.forEach((button) => {
+      const iconClass = button.id === 'mobileProfileIcon' ? 'mobile-icon' : 'desktop-icon';
+      if (photoUrl) {
+        button.innerHTML = '';
+        const image = document.createElement('img');
+        image.className = 'profile-header-avatar';
+        image.src = photoUrl;
+        image.alt = '';
+        image.referrerPolicy = 'no-referrer';
+        image.addEventListener('error', () => {
+          button.innerHTML = `<i class="fas fa-user ${iconClass}"></i>`;
+        }, { once: true });
+        button.append(image);
+        button.setAttribute('aria-label', `Profil${user?.displayName ? ` de ${user.displayName}` : ''}`);
+      } else {
+        button.innerHTML = `<i class="fas fa-user ${iconClass}"></i>`;
+        button.setAttribute('aria-label', 'Profil');
+      }
     });
   }
 

@@ -1,5 +1,5 @@
 import { db } from './firebase-init.js';
-import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { collection, query, onSnapshot, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class CategoriesDisplay {
   constructor(containerId, options = {}) {
@@ -20,6 +20,10 @@ class CategoriesDisplay {
     this.items = [];
     this.rawCategories = [];
     this.firstProductImageByCategoryId = new Map();
+    this.availableCategoryIds = new Set();
+    this.availableCategoryNames = new Set();
+    this.productFallbackItems = [];
+    this.productsLoaded = false;
     this.categoryObserver = null;
     this.isPointerDown = false;
     this.pointerStartX = 0;
@@ -296,9 +300,17 @@ class CategoriesDisplay {
     this.grid.addEventListener('scroll', () => this.updateCarouselButtons(), { passive: true });
 
     this.grid.addEventListener('wheel', (event) => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      this.grid.scrollLeft += event.deltaY;
+      // Ne jamais bloquer le scroll vertical de la page au-dessus du rail.
+      // Le défilement horizontal reste disponible avec un geste horizontal
+      // ou Shift + molette.
+      if (!event.shiftKey && Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      if (Math.abs(event.deltaX) > 0) {
+        event.preventDefault();
+        this.grid.scrollLeft += event.deltaX;
+      } else if (event.shiftKey) {
+        event.preventDefault();
+        this.grid.scrollLeft += event.deltaY;
+      }
     }, { passive: false });
 
     this.grid.addEventListener('mousedown', (event) => {
@@ -362,18 +374,30 @@ class CategoriesDisplay {
       console.error('Erreur Firebase categories :', error);
     });
 
-    onSnapshot(query(productsRef), (snapshot) => {
+    // Le rail n'a besoin que d'un échantillon récent : écouter toute la
+    // collection rendait la page locale très lente lorsque le catalogue est
+    // volumineux.
+    onSnapshot(query(productsRef, limit(200)), (snapshot) => {
       this.firstProductImageByCategoryId.clear();
+      this.availableCategoryIds.clear();
+      this.availableCategoryNames.clear();
+      this.productFallbackItems = [];
 
       snapshot.forEach((doc) => {
         const data = doc.data();
         const firstImage = this.getFirstProductImage(data);
+        const categoryId = String(data?.categoryId || data?.category || '').trim();
+        const categoryName = String(data?.categoryName || data?.category || '').trim().toLowerCase();
+        if (firstImage) this.productFallbackItems.push({ id: doc.id, name: data?.name || 'Produit populaire', image: firstImage, product: true });
+        if (categoryId) this.availableCategoryIds.add(categoryId);
+        if (categoryName) this.availableCategoryNames.add(categoryName);
         if (!firstImage) return;
 
-        if (data?.categoryId && !this.firstProductImageByCategoryId.has(data.categoryId)) {
-          this.firstProductImageByCategoryId.set(data.categoryId, firstImage);
+        if (categoryId && !this.firstProductImageByCategoryId.has(categoryId)) {
+          this.firstProductImageByCategoryId.set(categoryId, firstImage);
         }
       });
+      this.productsLoaded = true;
 
       this.buildItems();
     }, (error) => {
@@ -399,6 +423,10 @@ class CategoriesDisplay {
 
   buildItems() {
     this.items = [];
+    if (!this.productsLoaded) {
+      if (this.grid) this.grid.innerHTML = '<p aria-live="polite">Chargement des catégories…</p>';
+      return;
+    }
 
     const sortedCategories = [...this.rawCategories].sort((a, b) => {
       const aTime = this.getDateMs(a?.updatedAt || a?.createdAt);
@@ -409,9 +437,12 @@ class CategoriesDisplay {
     sortedCategories.forEach((category) => {
       const categoryName = category?.name || '';
       if (!categoryName) return;
+      const categoryId = String(category.id || '').trim();
+      const categoryKey = categoryName.trim().toLowerCase();
+      if (this.availableCategoryIds.size && !this.availableCategoryIds.has(categoryId) && !this.availableCategoryNames.has(categoryKey)) return;
 
       const imageFromCategory = this.resolveImagePath(category?.image || '');
-      const imageFromProducts = this.resolveImagePath(this.firstProductImageByCategoryId.get(category.id) || '');
+      const imageFromProducts = this.resolveImagePath(this.firstProductImageByCategoryId.get(categoryId) || '');
 
       this.items.push({
         id: category.id,
@@ -419,6 +450,18 @@ class CategoriesDisplay {
         image: imageFromCategory || imageFromProducts
       });
     });
+
+    const ecosystems = [
+      { id: 'health', name: 'Smart Health', description: 'Santé, pharmacies et consultations', image: './assets/health/home-health-visual-v2.png', href: './health.html' },
+      { id: 'academy', name: 'Smart Akademi', description: 'Cours en ligne, formations et tuteurs', image: './assets/education/hero-learning-v2.png', href: './education.html' },
+      { id: 'auto', name: 'Auto & Parts', description: 'Pièces, véhicules et équipements auto', image: './assets/auto-parts/hero-auto-parts-v1.png', href: './auto-parts.html' },
+      { id: 'solutions', name: 'SmartSolutionTek', description: 'Outils, inscriptions et mini-boutiques', image: './assets/smartsolutiontek/mini-boutique-premium.jpg', href: './smartsolutiontek/dashboard.html' },
+    ];
+    ecosystems.sort(() => Math.random() - 0.5);
+    this.items.push(...ecosystems.map((item) => ({ ...item, ecosystem: true })));
+    if (this.items.length < 12) this.items.push(...this.productFallbackItems.slice(0, 12 - this.items.length));
+    this.items.sort(() => Math.random() - 0.5);
+    this.items = this.items.slice(0, 12);
 
     this.renderCategories();
   }
@@ -462,6 +505,15 @@ class CategoriesDisplay {
       return;
     }
 
+    if (this.options.groupedCards && this.options.layout === 'carousel') {
+      for (let i = 0; i < this.items.length && i < 12; i += 3) {
+        this.grid.appendChild(this.createGroupedCategoryCard(this.items.slice(i, i + 3), i / 3));
+      }
+      this.setupCategoryScrollAnimation();
+      this.updateCarouselButtons();
+      return;
+    }
+
     this.items.forEach((item, index) => {
       this.grid.appendChild(this.createCategoryCard(item, index));
     });
@@ -476,6 +528,7 @@ class CategoriesDisplay {
     card.style.transitionDelay = `${Math.min(index * 110, 660)}ms`;
     card.dataset.categoryName = item.name;
     card.dataset.categoryId = item.id;
+    if (item.ecosystem) card.dataset.ecosystem = 'true';
 
     const imageHtml = item.image
       ? `<img src="${item.image}" class="category-image" loading="lazy" onerror="this.remove();">`
@@ -486,13 +539,40 @@ class CategoriesDisplay {
         ${imageHtml}
         <div class="category-overlay"></div>
       </div>
-      <div class="category-name">${item.name}</div>
+      <div class="category-name">${item.name}${item.ecosystem && item.description ? `<small class="ecosystem-description">${item.description}</small>` : ''}</div>
     `;
 
-    card.addEventListener('click', () => {
-      this.redirectToCatalogue({ categoryName: item.name });
-    });
+    card.addEventListener('click', () => item.ecosystem ? window.location.assign(item.href) : this.redirectToCatalogue({ categoryName: item.name }));
 
+    return card;
+  }
+
+  createGroupedCategoryCard(items, index) {
+    const card = document.createElement('div');
+    card.className = 'category-card category-card--grouped scroll-hidden';
+    card.style.transitionDelay = `${Math.min(index * 110, 660)}ms`;
+    const image = (item) => item.image
+      ? `<img src="${item.image}" class="category-image" loading="lazy" alt="${item.name}">`
+      : '<div class="category-image category-image--empty"><i class="fas fa-image"></i></div>';
+    const href = (item) => item.ecosystem
+      ? item.href
+      : item.product
+        ? `./product.html?product=${encodeURIComponent(item.id)}`
+        : `./catalogue.html?category=${encodeURIComponent(item.name)}`;
+    const linkImage = (item) => `<a class="category-group-link" href="${href(item)}" aria-label="Voir ${item.name}">${image(item)}</a>`;
+    const names = items.map((item) => item.name).filter(Boolean).join(' · ');
+    card.innerHTML = `
+      <div class="category-group-main">${linkImage(items[0])}</div>
+      ${items.length > 1 ? `<div class="category-group-subgrid">${items.slice(1).map((item) => `<div><a class="category-group-link" href="${href(item)}" aria-label="Voir ${item.name}">${image(item)}</a><span>${item.name}</span></div>`).join('')}</div>` : ''}
+      <div class="category-group-title" title="${names}">${names}</div>
+    `;
+    card.querySelectorAll('.category-group-link').forEach((link) => link.addEventListener('click', (event) => event.stopPropagation()));
+    card.addEventListener('click', () => {
+      const item = items[0];
+      if (item.ecosystem) window.location.assign(item.href);
+      else if (item.product) window.location.assign(`./product.html?product=${encodeURIComponent(item.id)}`);
+      else this.redirectToCatalogue({ categoryName: item.name });
+    });
     return card;
   }
 

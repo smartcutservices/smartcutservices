@@ -1,6 +1,6 @@
 // ============= LIKE COMPONENT - FIREBASE + AUTH =============
-import { db } from './firebase-init.js?v=20260831-4';
-import { getAuthManager } from './auth.js?v=20260831-4';
+import { db } from './firebase-init.js?v=20260901-1';
+import { getAuthManager } from './auth.js?v=20260901-1';
 import {
   collection,
   query,

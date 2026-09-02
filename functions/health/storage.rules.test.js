@@ -166,30 +166,8 @@ test('an admin can read any prescription file', async () => {
   await assertSucceeds(getBytes(adminRef));
 });
 
-test('laboratory result PDF is private to assigned laboratory and patient', async () => {
-  const appointmentId = `appt-lab-${RUN_ID}`;
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(docRef(context.firestore(), 'healthAppointments', appointmentId), {
-      patientUid: 'patientLab', providerUid: 'labAssigned', providerType: 'laboratory', status: 'CONFIRMED'
-    });
-  });
-  const assigned = testEnv.authenticatedContext('labAssigned').storage();
-  const path = `health-lab-results/patientLab__${appointmentId}/result.pdf`;
-  await assertSucceeds(uploadBytes(ref(assigned, path), smallPdf, { contentType: 'application/pdf' }));
-  await assertSucceeds(getBytes(ref(testEnv.authenticatedContext('patientLab').storage(), path)));
-  await assertFails(getBytes(ref(testEnv.authenticatedContext('labOther').storage(), path)));
-});
-
-test('an unrelated laboratory cannot upload a result for another lab appointment', async () => {
-  const appointmentId = `appt-hijack-${RUN_ID}`;
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(docRef(context.firestore(), 'healthAppointments', appointmentId), {
-      patientUid: 'patientLab2', providerUid: 'labAssigned2', providerType: 'laboratory', status: 'CONFIRMED'
-    });
-  });
-  const path = `health-lab-results/patientLab2__${appointmentId}/result.pdf`;
-  await assertFails(uploadBytes(ref(testEnv.authenticatedContext('labOther2').storage(), path), smallPdf, { contentType: 'application/pdf' }));
-});
+// Smart Cut Health ne stocke aucun résultat d'examen (laboratoire ou imagerie) :
+// aucun préfixe health-lab-results/** ni health-imaging-results/**, donc aucun test.
 
 // ---------- Teleconsultation session media (chat photos / voice notes) ----------
 

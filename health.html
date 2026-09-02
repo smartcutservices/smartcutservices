@@ -22,8 +22,8 @@
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
-  <link rel="stylesheet" href="./health.css?v=20260831-4">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260901-1">
+  <link rel="stylesheet" href="./health.css?v=20260901-2">
 </head>
 <body>
   <div id="health-header-root"></div>
@@ -37,8 +37,8 @@
       try { const mod = await loader(); new mod.default(id, options); }
       catch (error) { console.error(`Erreur ${id}:`, error); }
     };
-    mount('health-header-root', () => import('./health-header.js?v=20260831-4'));
-    mount('health-root', () => import('./health.js?v=20260831-4'), { view: 'home' });
+    mount('health-header-root', () => import('./health-header.js?v=20260901-2'));
+    mount('health-root', () => import('./health.js?v=20260901-2'), { view: 'home' });
     mount('sierra-footer-root', () => import('./footer.js'), { imageBasePath: './', showSocial: true, showContact: true, showInfos: true, showPayments: true, showCopyright: true });
   </script>
 </body>

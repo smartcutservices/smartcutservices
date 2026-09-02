@@ -2,13 +2,13 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b3d35">
-  <title>Mon espace santé | Smart Cut Health</title><meta name="description" content="Consultez vos ordonnances, commandes, rendez-vous et résultats dans votre espace protégé.">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><link rel="stylesheet" href="./site-foundation.css?v=20260831-4"><link rel="stylesheet" href="./health.css?v=20260831-4">
+  <title>Mon espace santé | Smart Cut Health</title><meta name="description" content="Consultez vos ordonnances, commandes et rendez-vous dans votre espace protégé.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><link rel="stylesheet" href="./site-foundation.css?v=20260901-1"><link rel="stylesheet" href="./health.css?v=20260901-1">
 </head>
 <!-- Pas de pied de page marketing ici : Mon espace est désormais un vrai dashboard en
      aside (même gabarit que health-pharmacy-dashboard.html / health-doctor.html), pas une
      page de contenu — aucun des autres dashboards prestataires n'affiche ce pied de page
      non plus. -->
 <body data-health-view="space"><div id="health-header-root"></div><main id="health-root"><div class="health-boot"><i class="fas fa-circle-notch fa-spin"></i> Ouverture de votre espace…</div></main>
-<script type="module">import './firebase-init.js'; const mount=async(id,loader,options={})=>{const root=document.getElementById(id);if(!root)return;try{const mod=await loader();new mod.default(id,options)}catch(error){console.error(`Erreur ${id}:`,error)}};mount('health-header-root',()=>import('./health-header.js?v=20260831-4'));mount('health-root',()=>import('./health.js?v=20260831-4'),{view:'space'});</script>
+<script type="module">import './firebase-init.js'; const mount=async(id,loader,options={})=>{const root=document.getElementById(id);if(!root)return;try{const mod=await loader();new mod.default(id,options)}catch(error){console.error(`Erreur ${id}:`,error)}};mount('health-header-root',()=>import('./health-header.js?v=20260901-1'));mount('health-root',()=>import('./health.js?v=20260901-1'),{view:'space'});</script>
 </body></html>

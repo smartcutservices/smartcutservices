@@ -1,4 +1,4 @@
-import { bootClinicalProviderDashboard } from './health-clinical-provider-dashboard.js?v=20260831-5';
+import { bootClinicalProviderDashboard } from './health-clinical-provider-dashboard.js?v=20260901-1';
 
 bootClinicalProviderDashboard({
   providerType: 'imaging',
@@ -6,10 +6,7 @@ bootClinicalProviderDashboard({
   statusField: 'imagingStatus',
   profileField: 'imagingProfile',
   examCollection: 'healthImagingExams',
-  resultCollection: 'healthImagingResults',
   centerIdField: 'imagingCenterId',
   catalogUrl: './health-imaging-catalog.json',
-  saveExamFn: 'healthSaveImagingExam',
-  uploadResultFn: 'healthUploadImagingResult',
-  storagePrefix: 'health-imaging-results'
+  saveExamFn: 'healthSaveImagingExam'
 });

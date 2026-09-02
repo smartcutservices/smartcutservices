@@ -1,5 +1,5 @@
-import ProductModal from './product-modal.js?v=20260831-4';
-import { applySeoMeta } from './seo-meta.js?v=20260831-4';
+import ProductModal from './product-modal.js?v=20260901-1';
+import { applySeoMeta } from './seo-meta.js?v=20260901-1';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {
@@ -44,7 +44,7 @@ class ProductPage extends ProductModal {
     const mobilePrice = this.getProductDisplayPrice(this.product).text;
 
     target.innerHTML = `
-      <section class="product-page-shell-${this.uniqueId}" style="
+      <section class="product-page-shell-${this.uniqueId} ${images.length > 1 ? 'has-multiple-images' : 'has-single-image'}" data-image-count="${images.length}" style="
         width: 100%;
         min-height: 100vh;
         background:
@@ -78,7 +78,7 @@ class ProductPage extends ProductModal {
 
           <div class="product-modal-main-scroll" style="display: block;">
             <div class="hidden md:flex product-page-desktop-layout" style="align-items: flex-start; gap: 0; border-radius: 1rem; overflow: hidden; background: rgba(255, 255, 255, 0.72); border: 1px solid rgba(198, 167, 94, 0.16); box-shadow: 0 12px 32px rgba(31, 30, 28, 0.07);">
-              <div class="product-page-desktop-gallery" style="width: 50%; padding: 1rem; border-right: 1px solid rgba(198, 167, 94, 0.14);">
+              <div class="product-page-desktop-gallery ${images.length > 1 ? 'is-scrollable' : 'is-single'}" style="width: 50%; padding: 1rem; border-right: 1px solid rgba(198, 167, 94, 0.14);">
                 <div class="product-images-desktop-root">
                   ${this.renderDesktopImages()}
                 </div>

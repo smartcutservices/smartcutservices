@@ -3,7 +3,7 @@ import { db } from './firebase-init.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { redirectToProductPage } from './product-links.js';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
-import { loadPublicProducts, isPublicProductVisible } from './catalog-products.js?v=20260831-4';
+import { loadPublicProducts, isPublicProductVisible } from './catalog-products.js?v=20260901-1';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   collection, query, getDocs, limit 
@@ -330,7 +330,7 @@ class SierraProducts {
     if (!item) return;
 
     try {
-      const { getCartManager } = await import('./cart.js?v=20260831-4');
+      const { getCartManager } = await import('./cart.js?v=20260901-1');
       const cart = getCartManager();
       if (cart && typeof cart.addItem === 'function') {
         cart.addItem(item);

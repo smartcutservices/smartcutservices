@@ -1,4 +1,4 @@
-import { marketplaceApi, money, escapeHtml as esc } from './marketplace-api.js?v=20260831-4';
+import { marketplaceApi, money, escapeHtml as esc } from './marketplace-api.js?v=20260901-1';
 
 const grid = document.getElementById('servicesGrid');
 const form = document.getElementById('filters');

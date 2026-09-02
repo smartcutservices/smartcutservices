@@ -4,8 +4,8 @@
 // personalization-storage.js (upload + controle qualite), personalization-illustrations.js
 // (bibliotheque integree) et reutilise le panier / la livraison impression existants.
 
-import { getCartManager } from './cart.js?v=20260831-4';
-import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260831-4';
+import { getCartManager } from './cart.js?v=20260901-1';
+import { PrintingDeliveryController } from './printing-delivery-utils.js?v=20260901-1';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import {
   getActivePersonalizationProducts,
@@ -15,7 +15,7 @@ import {
   getProductPrintAreas,
   getProductPrintArea,
   computePersonalizationPrice
-} from './personalization-config.js?v=20260831-4';
+} from './personalization-config.js?v=20260901-1';
 import { PersonalizationEditor, FONT_OPTIONS } from './personalization-editor.js';
 import { ILLUSTRATION_LIBRARY } from './personalization-illustrations.js';
 import {

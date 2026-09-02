@@ -1,7 +1,9 @@
 import { db } from './firebase-init.js';
 import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getProductPricing } from './product-display-utils.js';
+import { buildProductPageUrl } from './product-links.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
+import { getAuthManager } from './auth.js';
 
 class VendorMarketplacePage {
   constructor(containerId = 'vendor-marketplace-root') {
@@ -16,10 +18,24 @@ class VendorMarketplacePage {
 
   async init() {
     await loadCurrencySettings();
+    this.authManager = getAuthManager();
+    await this.authManager.waitForAuthReady?.();
+    if (!this.authManager.isAuthenticated?.()) {
+      this.renderAuthRequired();
+      this.container.querySelector('[data-vendor-login]')?.addEventListener('click', () => this.authManager.openAuthModal?.('login'));
+      document.addEventListener('authChanged', () => {
+        if (this.authManager.isAuthenticated?.()) this.init();
+      }, { once: true });
+      return;
+    }
     await this.loadData();
     this.filteredProducts = [...this.products];
     this.render();
     this.attachEvents();
+  }
+
+  renderAuthRequired() {
+    this.container.innerHTML = `<section class="vendor-store vendor-store--auth-required"><article class="vendor-store__auth-card"><span class="vendor-store__auth-icon"><i class="fas fa-lock"></i></span><h1>Connectez-vous pour accéder à cette boutique</h1><p>Créez un compte Smart Cut Services ou connectez-vous pour découvrir les produits des vendeurs et les ajouter à votre panier.</p><button type="button" data-vendor-login>Se connecter ou s’inscrire</button><a href="./index.html">Retour à l’accueil</a></article></section>`;
   }
 
   async loadData() {
@@ -70,7 +86,7 @@ class VendorMarketplacePage {
       ? `<img src="${product.images[0]}" alt="${this.escape(product.name || 'Produit vendeur')}" style="width:100%;height:100%;object-fit:cover;">`
       : '<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#ffa41c;font-weight:800;">VENDEUR</div>';
     return `
-      <article class="vendor-store-product">
+      <article class="vendor-store-product" data-open-vendor-product="${this.escape(product.id)}" tabindex="0" role="link" aria-label="Voir ${this.escape(product.name || 'ce produit')}">
         <div class="vendor-store-product__media">
           ${image}
           ${isPro ? `
@@ -126,6 +142,14 @@ class VendorMarketplacePage {
         .vendor-store-product__purchase button { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; min-height:38px; border:0; border-radius:8px; padding:0 .8rem; background:#131921; color:#fff; font:inherit; font-size:.8rem; font-weight:800; cursor:pointer; }
         .vendor-store__empty { margin-top:1.25rem; padding:2rem 1rem; border:1px dashed rgba(31,30,28,.16); border-radius:12px; background:rgba(255,255,255,.72); color:#6e6557; text-align:center; }
         .vendor-store__empty i { display:block; margin-bottom:.65rem; color:#ffa41c; font-size:1.35rem; }
+        .vendor-store--auth-required { min-height:calc(100vh - 170px); display:grid; place-items:center; }
+        .vendor-store__auth-card { width:min(100%,560px); padding:2.5rem 2rem; border:1px solid #e5d4b3; border-radius:18px; background:linear-gradient(145deg,#fffaf0,#fff); box-shadow:0 18px 42px rgba(31,30,28,.1); text-align:center; }
+        .vendor-store__auth-icon { display:grid; place-items:center; width:58px; height:58px; margin:0 auto 1.1rem; border-radius:50%; background:#fff0d2; color:#d8890b; font-size:1.35rem; }
+        .vendor-store__auth-card h1 { margin:0; color:#131921; font-size:clamp(1.35rem,3vw,1.9rem); line-height:1.2; }
+        .vendor-store__auth-card p { margin: .8rem auto 1.3rem; max-width:450px; color:#687581; line-height:1.55; }
+        .vendor-store__auth-card button,.vendor-store__auth-card a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 1rem; border-radius:9px; font:inherit; font-weight:800; text-decoration:none; }
+        .vendor-store__auth-card button { border:0; background:#131921; color:#fff; cursor:pointer; }
+        .vendor-store__auth-card a { margin-left:.5rem; border:1px solid #e1d4bd; color:#8a5f17; background:#fff; }
         @media (max-width:600px) {
           .vendor-store { padding-inline:.75rem; }
           .vendor-store__head { align-items:flex-start; padding-top:.65rem; }
@@ -137,6 +161,9 @@ class VendorMarketplacePage {
           .vendor-store-product__body h3 { font-size:.86rem; }
           .vendor-store-product__purchase { align-items:stretch; flex-direction:column; }
           .vendor-store-product__purchase button { width:100%; }
+          .vendor-store__auth-card { padding:2rem 1.1rem; }
+          .vendor-store__auth-card a { margin:.55rem 0 0; }
+          .vendor-store__auth-card button,.vendor-store__auth-card a { width:100%; }
         }
       </style>
       <section class="vendor-store">
@@ -165,6 +192,19 @@ class VendorMarketplacePage {
   }
 
   attachEvents() {
+    this.container.querySelectorAll('[data-open-vendor-product]').forEach((card) => {
+      const open = () => { if (card.dataset.openVendorProduct) window.location.href = buildProductPageUrl(card.dataset.openVendorProduct); };
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('[data-add-vendor-product]')) return;
+        open();
+      });
+      card.addEventListener('keydown', (event) => {
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('[data-add-vendor-product]')) {
+          event.preventDefault();
+          open();
+        }
+      });
+    });
     this.container.querySelectorAll('[data-add-vendor-product]').forEach((button) => {
       button.addEventListener('click', () => {
         const product = this.products.find((item) => item.id === button.dataset.addVendorProduct);
@@ -202,7 +242,6 @@ class VendorMarketplacePage {
             ]
           }
         }));
-        document.dispatchEvent(new CustomEvent('openCart'));
       });
     });
   }

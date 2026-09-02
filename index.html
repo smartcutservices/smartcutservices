@@ -59,10 +59,10 @@
   <!-- Pas de webfont custom : Arial/Amazon Ember systeme, comme amazon.com -->
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-  <link rel="stylesheet" href="./tailwind-site.css?v=20260831-4">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
-  <link rel="stylesheet" href="./health-teaser.css?v=20260831-4">
-  <link rel="stylesheet" href="./services-teaser.css?v=20260831-4">
+  <link rel="stylesheet" href="./tailwind-site.css?v=20260901-1">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260901-4">
+  <link rel="stylesheet" href="./health-teaser.css?v=20260901-1">
+  <link rel="stylesheet" href="./services-teaser.css?v=20260901-1">
   
   <!-- Import Map Firebase -->
   <script type="importmap">
@@ -248,16 +248,19 @@
   <!-- 1. Header -->
   <div id="sierra-header-root"></div>
   
-  <!-- 2. Hero Section -->
-  <div id="sierra-hero-root"></div>
-  
-  <!-- 3. Produits Section -->
+  <!-- 2–3. Hero et catégories sur un même fond dégradé -->
+  <div id="home-hero-categories-shell">
+    <div id="sierra-hero-root"></div>
+    <div id="sierra-home-categories-root"></div>
+  </div>
+
+  <!-- 4. Produits Section -->
   <div id="sierra-products-root" class="my-10"></div>
 
   <!-- 4. Découverte: sponsored, recommandations, top vendeurs -->
   <div id="sierra-home-discovery-root" class="my-10"></div>
 
-  <div id="sierra-services-teaser-root"></div>
+  <div id="sierra-services-teaser-root" hidden></div>
 
   <div id="sierra-auto-parts-teaser-root"></div>
 
@@ -278,7 +281,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260831-4';
+    const ASSET_VERSION = '20260901-11';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     try {
       const versionKey = 'smartcut_asset_version';
@@ -301,6 +304,58 @@
 
     const loaded = new Set();
     const shouldIdle = window.innerWidth > 900;
+
+    // L’accueil s’adapte aux derniers intérêts de navigation. Les blocs
+    // « Pour vous » (dans la découverte) et commentaires restent fixes.
+    const HOME_SECTION_ORDER_KEY = 'smartcut_home_section_interests_v1';
+    const dynamicHomeSections = [
+      'sierra-products-root', 'sierra-auto-parts-teaser-root',
+      'sierra-education-teaser-root', 'sierra-health-teaser-root',
+      'sierra-sst-showcase-root', 'sierra-home-tickets-root'
+    ];
+    let homeOrderObserver = null;
+    const getHomeSectionHistory = () => {
+      try { const value = JSON.parse(localStorage.getItem(HOME_SECTION_ORDER_KEY) || '[]'); return Array.isArray(value) ? value.filter((id) => dynamicHomeSections.includes(id)) : []; } catch (_) { return []; }
+    };
+    const rememberHomeSection = (id) => {
+      if (!dynamicHomeSections.includes(id)) return;
+      const history = [id, ...getHomeSectionHistory().filter((entry) => entry !== id)].slice(0, dynamicHomeSections.length);
+      try { localStorage.setItem(HOME_SECTION_ORDER_KEY, JSON.stringify(history)); } catch (_) {}
+      reorderHomeSections();
+    };
+    const reorderHomeSections = () => {
+      const discovery = document.getElementById('sierra-home-discovery-root');
+      if (!discovery) return;
+      const history = getHomeSectionHistory();
+      const ordered = [...history, ...dynamicHomeSections.filter((id) => !history.includes(id))];
+      const current = dynamicHomeSections.map((id) => document.getElementById(id)).filter(Boolean).map((node) => node.id);
+      const visibleOrdered = ordered.filter((id) => document.getElementById(id));
+      if (current.join('|') === visibleOrdered.join('|')) return;
+      const footer = document.getElementById('sierra-footer-root');
+      // Déconnecter l'observateur pendant le déplacement des blocs évite une
+      // cascade de mutations lorsque plusieurs sections dynamiques arrivent.
+      homeOrderObserver?.disconnect();
+      ordered.forEach((id) => {
+        const node = document.getElementById(id);
+        if (!node) return;
+        if (footer) footer.before(node);
+        else document.body.append(node);
+      });
+      homeOrderObserver?.observe(document.body, { childList: true });
+    };
+    document.addEventListener('click', (event) => {
+      const link = event.target.closest?.('a,button');
+      if (!link) return;
+      const section = link.closest?.('[id^="sierra-"]');
+      if (section) rememberHomeSection(section.id);
+      const href = String(link.getAttribute('href') || '').toLowerCase();
+      const routeMap = [['auto-parts', 'sierra-auto-parts-teaser-root'], ['education', 'sierra-education-teaser-root'], ['health', 'sierra-health-teaser-root'], ['smartsolutiontek', 'sierra-sst-showcase-root'], ['printing', 'sierra-products-root']];
+      const matchedRoute = routeMap.find(([route]) => href.includes(route));
+      if (matchedRoute) rememberHomeSection(matchedRoute[1]);
+    }, true);
+    homeOrderObserver = new MutationObserver(reorderHomeSections);
+    homeOrderObserver.observe(document.body, { childList: true });
+    reorderHomeSections();
 
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
@@ -353,7 +408,13 @@
     };
 
     mount('header', 'sierra-header-root', () => import(`./header.js?v=${ASSET_VERSION}`));
-    mount('hero', 'sierra-hero-root', () => import(`./hero.js?v=${ASSET_VERSION}`));
+    mount('hero', 'sierra-hero-root', () => import(`./hero.js?v=${ASSET_VERSION}`), { autoplay: false });
+    mount('categories', 'sierra-home-categories-root', () => import(`./categories.js?v=${ASSET_VERSION}`), {
+      layout: 'carousel',
+      sectionTitle: 'Catégories',
+      scrollHint: false,
+      groupedCards: true,
+    });
 
     mount('products', 'sierra-products-root', () => import(`./products.js?v=${ASSET_VERSION}`), {
       collectionName: 'products',
@@ -377,7 +438,6 @@
       maxProducts: 6
     }, '550px');
 
-    mountOnVisible('services-teaser', 'sierra-services-teaser-root', () => import(`./services-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
 
     mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
 
@@ -423,7 +483,7 @@
   <script type="module">
     if (!window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
-      import('./notification.js?v=20260831-4')
+      import('./notification.js?v=20260901-1')
         .then(({ NotificationComponent }) => {
           const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
           center.init();
@@ -435,7 +495,7 @@
   <script type="module">
     if (!window.__vitchMusicBooted) {
       window.__vitchMusicBooted = true;
-      import('./musique.js?v=20260831-4')
+      import('./musique.js?v=20260901-1')
         .then(({ default: MusiqueComponent }) => {
           new MusiqueComponent({
             configCollection: 'siteMusicConfig',

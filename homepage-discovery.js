@@ -1,5 +1,5 @@
 import { auth, authReadyPromise, db } from './firebase-init.js';
-import { loadPublicProducts } from './catalog-products.js?v=20260831-4';
+import { loadPublicProducts } from './catalog-products.js?v=20260901-1';
 import { getResolvedProductImages, getFallbackProductImage } from './image-fallbacks.js';
 import { buildProductPageUrl } from './product-links.js';
 import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
@@ -301,6 +301,7 @@ export default class HomepageDiscovery {
           </div>
           <div class="home-discovery__rail" data-recommended-list>${this.renderSkeletonCards(4)}</div>
         </div>
+        <div id="discovery-services-slot" class="home-discovery__services-slot" aria-label="Services professionnels"></div>
         <div class="home-discovery__section home-discovery__section--vendors" data-section="vendors">
           <div class="home-discovery__heading">
             <h2>Top vendeurs</h2>
@@ -310,6 +311,9 @@ export default class HomepageDiscovery {
       </section>
       <style>${this.styles()}</style>
     `;
+    import(`./services-teaser.js?v=${window.SMART_CUT_ASSET_VERSION || '20260901-76'}`)
+      .then(({ default: ServicesTeaser }) => new ServicesTeaser('discovery-services-slot', { imageBasePath: './' }))
+      .catch((error) => console.warn('Services professionnels indisponibles:', error));
   }
 
   async load() {
@@ -320,7 +324,10 @@ export default class HomepageDiscovery {
         this.loadVendorProductInsights()
       ]);
 
-      const activeProducts = products.filter((product) => getBasePrice(product) > 0);
+      // Les recommandations doivent rester fournies même si un produit n'a
+      // pas encore de prix renseigné (ces articles sont déjà filtrés par la
+      // visibilité publique dans loadPublicProducts).
+      const activeProducts = products.filter((product) => product && (product.name || product.id));
       const personalSignals = await this.loadPersonalRecommendationSignals();
       this.renderSponsored(activeProducts, vendorInsights);
       this.renderRecommended(activeProducts, personalSignals);
@@ -394,7 +401,14 @@ export default class HomepageDiscovery {
       .sort((a, b) => b.score - a.score)
       .map((entry) => entry.product);
 
-    const selected = scored.length ? scored.slice(0, this.options.maxProducts) : shuffle(products).slice(0, this.options.maxProducts);
+    // Toujours remplir la ligne : les produits les plus pertinents passent en
+    // premier, puis des produits complémentaires complètent la sélection.
+    const selected = scored.length ? scored.slice(0, this.options.maxProducts) : [];
+    if (selected.length < this.options.maxProducts) {
+      const selectedKeys = new Set(selected.map((product) => getProductIdentity(product).key));
+      const remainder = shuffle(products).filter((product) => !selectedKeys.has(getProductIdentity(product).key));
+      selected.push(...remainder.slice(0, this.options.maxProducts - selected.length));
+    }
     const badge = scored.length ? 'Pour vous' : 'Tendance';
     this.root.querySelector('[data-recommended-list]').innerHTML = selected.length
       ? selected.map((product) => this.renderProductCard(product, { badge })).join('')
@@ -605,6 +619,12 @@ export default class HomepageDiscovery {
 
       .home-discovery__section:last-child {
         margin-bottom: 0;
+      }
+
+      /* Keep the professional-services block visually distinct from the
+         seller products that follow it. */
+      .home-discovery__section--vendors {
+        margin-top: 2.6rem;
       }
 
       .home-discovery__heading {
@@ -969,6 +989,53 @@ export default class HomepageDiscovery {
         }
       }
 
+      /* Featured and recommended products stay on one desktop/tablet row.
+         Flex sizing keeps every card identical even when product content or
+         image proportions differ. */
+      @media (min-width: 769px) {
+        .home-discovery__section[data-section="sponsored"] .home-discovery__rail,
+        .home-discovery__section[data-section="recommended"] .home-discovery__rail {
+          display: flex !important;
+          flex-wrap: nowrap !important;
+          overflow: hidden !important;
+          align-items: stretch;
+        }
+
+        .home-discovery__section[data-section="sponsored"] .home-discovery__rail > :nth-child(n + 6),
+        .home-discovery__section[data-section="recommended"] .home-discovery__rail > :nth-child(n + 6) {
+          display: none !important;
+        }
+
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card,
+        .home-discovery__section[data-section="recommended"] .home-discovery-card {
+          flex: 0 0 calc((100% - 3.6rem) / 4) !important;
+          min-width: 0 !important;
+          width: auto !important;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card__image,
+        .home-discovery__section[data-section="recommended"] .home-discovery-card__image {
+          flex: 0 0 auto;
+          width: 100%;
+          aspect-ratio: 1 / 1;
+        }
+
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card__body,
+        .home-discovery__section[data-section="recommended"] .home-discovery-card__body {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+      }
+
+      @media (min-width: 769px) and (max-width: 1100px) {
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card,
+        .home-discovery__section[data-section="recommended"] .home-discovery-card {
+          flex-basis: calc((100% - 2.4rem) / 3) !important;
+        }
+      }
+
       @media (max-width: 520px) {
         .home-discovery {
           padding: 0;
@@ -978,6 +1045,10 @@ export default class HomepageDiscovery {
           border-radius: 0;
           margin-bottom: 1rem;
           padding: 1.25rem 0 1.1rem 1rem;
+        }
+
+        .home-discovery__section--vendors {
+          margin-top: 1.4rem;
         }
 
         .home-discovery__heading {

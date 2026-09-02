@@ -223,14 +223,8 @@ test('appointment is readable only by its patient and provider', async () => {
   await assertFails(getDoc(doc(testEnv.authenticatedContext('doctor2').firestore(), 'healthAppointments', 'appt1')));
 });
 
-test('lab result is isolated from unrelated users', async () => {
-  await seed(async (db) => {
-    await setDoc(doc(db, 'healthLabResults', 'result1'), { patientUid: 'patientA', laboratoryId: 'lab1', storagePath: 'private' });
-  });
-  await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('patientA').firestore(), 'healthLabResults', 'result1')));
-  await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('lab1').firestore(), 'healthLabResults', 'result1')));
-  await assertFails(getDoc(doc(testEnv.authenticatedContext('patientB').firestore(), 'healthLabResults', 'result1')));
-});
+// Smart Cut Health ne stocke aucun résultat d'examen : il n'existe pas de
+// collection healthLabResults / healthImagingResults, donc aucun test de règle.
 
 test('verified Health professional reads only their own reused ledger balance', async () => {
   await seed(async (db) => {
@@ -276,15 +270,6 @@ test('anyone can read a published imaging exam, nobody can write it directly', a
   });
   await assertSucceeds(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'healthImagingExams', 'exam1')));
   await assertFails(updateDoc(doc(testEnv.authenticatedContext('imaging1').firestore(), 'healthImagingExams', 'exam1'), { price: 1 }));
-});
-
-test('imaging result is isolated from unrelated users', async () => {
-  await seed(async (db) => {
-    await setDoc(doc(db, 'healthImagingResults', 'result1'), { patientUid: 'patientA', imagingCenterId: 'imaging1', storagePath: 'private' });
-  });
-  await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('patientA').firestore(), 'healthImagingResults', 'result1')));
-  await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('imaging1').firestore(), 'healthImagingResults', 'result1')));
-  await assertFails(getDoc(doc(testEnv.authenticatedContext('patientB').firestore(), 'healthImagingResults', 'result1')));
 });
 
 // ---------- Doctor-issued e-prescriptions ----------

@@ -224,8 +224,9 @@ class EducationTeaser {
       <section class="edu-teaser" aria-labelledby="edu-teaser-title">
         <div class="edu-teaser-inner">
           <div class="edu-teaser-copy">
+            <span class="edu-teaser-eyebrow"><i class="fas fa-graduation-cap" aria-hidden="true"></i> Smart Akademi · Cours en ligne</span>
             <h2 id="edu-teaser-title">Apprenez. Avancez.</h2>
-            <p class="edu-teaser-lead">Formations et tuteurs, au même endroit.</p>
+            <p class="edu-teaser-lead">Formations, cours en ligne et tuteurs vérifiés, au même endroit.</p>
             <div class="edu-teaser-actions">
               <a class="edu-teaser-primary" href="./education.html">
                 Explorer <i class="fas fa-arrow-right" aria-hidden="true"></i>

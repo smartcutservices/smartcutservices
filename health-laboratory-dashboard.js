@@ -1,4 +1,4 @@
-import { bootClinicalProviderDashboard } from './health-clinical-provider-dashboard.js?v=20260831-5';
+import { bootClinicalProviderDashboard } from './health-clinical-provider-dashboard.js?v=20260901-1';
 
 bootClinicalProviderDashboard({
   providerType: 'laboratory',
@@ -6,10 +6,7 @@ bootClinicalProviderDashboard({
   statusField: 'labStatus',
   profileField: 'labProfile',
   examCollection: 'healthLabExams',
-  resultCollection: 'healthLabResults',
   centerIdField: 'laboratoryId',
   catalogUrl: './health-exam-catalog.json',
-  saveExamFn: 'healthSaveLabExam',
-  uploadResultFn: 'healthUploadLabResult',
-  storagePrefix: 'health-lab-results'
+  saveExamFn: 'healthSaveLabExam'
 });

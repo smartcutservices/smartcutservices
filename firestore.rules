@@ -1005,30 +1005,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Smart Cut Health ne stocke AUCUN résultat d'examen (laboratoire ou imagerie) :
+    // le patient récupère son résultat en main propre au centre (confidentialité).
+    // Il n'existe donc ni collection healthLabResults / healthImagingResults, ni règle
+    // les concernant. Seuls les catalogues publics d'examens existent, en écriture
+    // Admin-SDK uniquement — voir healthSaveLabExam / healthSaveImagingExam.
     match /healthLabExams/{examId} {
       allow read: if true;
       allow write: if false;
     }
 
-    match /healthLabResults/{resultId} {
-      allow read: if isAdmin() || (signedIn() && (
-        resource.data.patientUid == request.auth.uid || resource.data.laboratoryId == request.auth.uid
-      ));
-      allow write: if false;
-    }
-
-    // Imaging (Application "Imagerie") mirrors laboratory exactly: a public catalog and
-    // provider-scoped results, both Admin-SDK write only — see healthSaveImagingExam /
-    // healthUploadImagingResult in functions/health/clinical.js.
     match /healthImagingExams/{examId} {
       allow read: if true;
-      allow write: if false;
-    }
-
-    match /healthImagingResults/{resultId} {
-      allow read: if isAdmin() || (signedIn() && (
-        resource.data.patientUid == request.auth.uid || resource.data.imagingCenterId == request.auth.uid
-      ));
       allow write: if false;
     }
 

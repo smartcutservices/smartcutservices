@@ -667,27 +667,9 @@ function buildClinical(sstInternals) {
     res.status(200).json({ ok: true, exams: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
   }));
 
-  const healthUploadLabResult = onRequest({ region }, withErrorHandling(async (req, res) => {
-    if (req.method !== 'POST') throw new HttpError(405, 'method-not-allowed', 'POST requis.');
-    const user = await requireBearerUser(req, { verifyBearerUser: verifyBearer });
-    await requireVerified(user.uid, 'laboratory');
-    await enforceRateLimit(user.uid, 'upload-result', { limit: 15, windowMs: 300_000 });
-    const body = parseBody(req);
-    const appointmentId = sanitizeText(body.appointmentId, 200);
-    const storagePath = sanitizeText(body.storagePath, 500);
-    const appointment = await db.collection('healthAppointments').doc(appointmentId).get();
-    if (!appointment.exists || appointment.data().providerUid !== user.uid || appointment.data().providerType !== 'laboratory') throw new HttpError(403, 'forbidden', 'Rendez-vous laboratoire non autorisé.');
-    const patientUid = appointment.data().patientUid;
-    const expectedPrefix = `health-lab-results/${patientUid}__${appointmentId}/`;
-    if (!storagePath.startsWith(expectedPrefix)) throw new HttpError(400, 'invalid-storage-path', 'Chemin de résultat invalide.');
-    const [exists] = await admin.storage().bucket().file(storagePath).exists();
-    if (!exists) throw new HttpError(400, 'file-not-found', 'Fichier introuvable.');
-    const ref = db.collection('healthLabResults').doc();
-    await ref.set({ appointmentId, patientUid, laboratoryId: user.uid, storagePath, status: 'AVAILABLE', createdAt: nowIso() });
-    await audit(user.uid, 'lab_result_uploaded', `healthLabResults/${ref.id}`, { appointmentId });
-    await notifyUser(patientUid, 'lab_result_available', { title: 'Résultat de laboratoire disponible', body: 'Un résultat d’examen est disponible dans votre espace.', url: './health-espace.html', context: { resultId: ref.id } });
-    res.status(200).json({ ok: true, resultId: ref.id });
-  }));
+  // Smart Cut Health ne stocke aucun résultat d'examen : le patient récupère son
+  // résultat en main propre au laboratoire (confidentialité). Aucune Cloud Function,
+  // collection Firestore ni règle Storage de résultat n'existe donc côté laboratoire.
 
   // ---------- Imaging (Application "Imagerie") — mirrors laboratory exactly ----------
 
@@ -732,27 +714,8 @@ function buildClinical(sstInternals) {
     res.status(200).json({ ok: true, exams: snap.docs.map((d) => ({ id: d.id, ...d.data() })), types: IMAGING_EXAM_TYPES });
   }));
 
-  const healthUploadImagingResult = onRequest({ region }, withErrorHandling(async (req, res) => {
-    if (req.method !== 'POST') throw new HttpError(405, 'method-not-allowed', 'POST requis.');
-    const user = await requireBearerUser(req, { verifyBearerUser: verifyBearer });
-    await requireVerified(user.uid, 'imaging');
-    await enforceRateLimit(user.uid, 'upload-result', { limit: 15, windowMs: 300_000 });
-    const body = parseBody(req);
-    const appointmentId = sanitizeText(body.appointmentId, 200);
-    const storagePath = sanitizeText(body.storagePath, 500);
-    const appointment = await db.collection('healthAppointments').doc(appointmentId).get();
-    if (!appointment.exists || appointment.data().providerUid !== user.uid || appointment.data().providerType !== 'imaging') throw new HttpError(403, 'forbidden', 'Rendez-vous imagerie non autorisé.');
-    const patientUid = appointment.data().patientUid;
-    const expectedPrefix = `health-imaging-results/${patientUid}__${appointmentId}/`;
-    if (!storagePath.startsWith(expectedPrefix)) throw new HttpError(400, 'invalid-storage-path', 'Chemin de résultat invalide.');
-    const [exists] = await admin.storage().bucket().file(storagePath).exists();
-    if (!exists) throw new HttpError(400, 'file-not-found', 'Fichier introuvable.');
-    const ref = db.collection('healthImagingResults').doc();
-    await ref.set({ appointmentId, patientUid, imagingCenterId: user.uid, storagePath, status: 'AVAILABLE', createdAt: nowIso() });
-    await audit(user.uid, 'imaging_result_uploaded', `healthImagingResults/${ref.id}`, { appointmentId });
-    await notifyUser(patientUid, 'imaging_result_available', { title: 'Résultat d’imagerie disponible', body: 'Un résultat d’examen d’imagerie est disponible dans votre espace.', url: './health-espace.html', context: { resultId: ref.id } });
-    res.status(200).json({ ok: true, resultId: ref.id });
-  }));
+  // Pas de stockage de résultat d'imagerie non plus (voir note côté laboratoire) :
+  // le patient récupère ses images / son compte rendu directement au centre.
 
   const healthGetPrivateDocument = onRequest({ region }, withErrorHandling(async (req, res) => {
     if (req.method !== 'GET') throw new HttpError(405, 'method-not-allowed', 'GET requis.');
@@ -770,20 +733,6 @@ function buildClinical(sstInternals) {
       if (!(await isAdmin(user.uid)) && data.patientUid !== user.uid && !routed.exists) throw new HttpError(403, 'forbidden', 'Accès refusé.');
       path = data.storagePath;
       resource = `healthPrescriptions/${id}`;
-    } else if (type === 'lab-result') {
-      const snap = await db.collection('healthLabResults').doc(id).get();
-      if (!snap.exists) throw new HttpError(404, 'not-found', 'Document introuvable.');
-      const data = snap.data();
-      if (!(await isAdmin(user.uid)) && data.patientUid !== user.uid && data.laboratoryId !== user.uid) throw new HttpError(403, 'forbidden', 'Accès refusé.');
-      path = data.storagePath;
-      resource = `healthLabResults/${id}`;
-    } else if (type === 'imaging-result') {
-      const snap = await db.collection('healthImagingResults').doc(id).get();
-      if (!snap.exists) throw new HttpError(404, 'not-found', 'Document introuvable.');
-      const data = snap.data();
-      if (!(await isAdmin(user.uid)) && data.patientUid !== user.uid && data.imagingCenterId !== user.uid) throw new HttpError(403, 'forbidden', 'Accès refusé.');
-      path = data.storagePath;
-      resource = `healthImagingResults/${id}`;
     } else if (type === 'application-document') {
       if (!(await isAdmin(user.uid))) throw new HttpError(403, 'admin-required', 'Accès administrateur requis.');
       const professionalType = sanitizeText(req.query?.professionalType, 30).toLowerCase();
@@ -871,8 +820,8 @@ function buildClinical(sstInternals) {
     healthGetRendezvousCatalog, healthDoctorScheduleAppointment, healthRetryExpiredAppointment, healthDismissExpiredAppointment,
     healthSaveAvailability, healthListAvailability, healthBookAppointment, healthCreateAppointmentPayment, healthUpdateAppointment,
     healthDoctorUpdateConsultation, healthAutoCloseNoShowConsultations,
-    healthSaveLabExam, healthListLabExams, healthUploadLabResult,
-    healthSaveImagingExam, healthListImagingExams, healthUploadImagingResult,
+    healthSaveLabExam, healthListLabExams,
+    healthSaveImagingExam, healthListImagingExams,
     healthGetPrivateDocument, healthAdminReviewProfessional, healthAdminSaveCommissionRule, healthReleaseExpiredAppointments,
     ...require('./messaging')(sstInternals),
     ...require('./prescriptions')(sstInternals),

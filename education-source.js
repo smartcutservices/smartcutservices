@@ -6,10 +6,10 @@
 // laquelle est active, hormis pour afficher le bandeau de mode demonstration.
 
 import { isDemoMode } from './education-utils.js';
-import * as demoSource from './education-demo-source.js?v=20260831-4';
-import * as repository from './education-repository.js?v=20260831-4';
+import * as demoSource from './education-demo-source.js?v=20260901-1';
+import * as repository from './education-repository.js?v=20260901-1';
 
-export { EducationRepositoryError } from './education-repository.js?v=20260831-4';
+export { EducationRepositoryError } from './education-repository.js?v=20260901-1';
 
 export function getEducationSource() {
   return isDemoMode() ? demoSource : repository;

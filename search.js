@@ -1,11 +1,11 @@
 // ============= SEARCH COMPONENT - AVEC NOUVELLE STRUCTURE THÈME =============
 import { db } from './firebase-init.js';
-import { isPublicProductVisible, loadPublicProducts } from './catalog-products.js?v=20260831-4';
+import { isPublicProductVisible, loadPublicProducts } from './catalog-products.js?v=20260901-1';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import {
   collection, query, where, getDocs, orderBy, limit
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { marketplaceApi } from './marketplace-api.js?v=20260831-4';
+import { marketplaceApi } from './marketplace-api.js?v=20260901-1';
 import theme from './theme-root.js';
 
 const SMARTCUT_SEARCH_HISTORY_KEY = 'smartcut_search_history';
@@ -920,7 +920,7 @@ class SearchComponent {
     let programs = [];
     try {
       programs = await cachedSearchSource('formations', async () => {
-        const mod = await import('./education-repository.js?v=20260831-4');
+        const mod = await import('./education-repository.js?v=20260901-1');
         const list = await mod.listPublishedPrograms({ limit: 200 });
         return Array.isArray(list) ? list : [];
       });
@@ -1131,7 +1131,7 @@ class SearchComponent {
         
         if (type === 'product') {
           try {
-            const module = await import('./product-modal.js?v=20260831-4');
+            const module = await import('./product-modal.js?v=20260901-1');
             const ProductModal = module.default;
             
             new ProductModal({

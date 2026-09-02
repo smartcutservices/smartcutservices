@@ -1,13 +1,15 @@
 // Cœur partagé des dashboards Laboratoire et Imagerie — les deux métiers suivent
-// exactement la même mécanique (catalogue d'examens publié, créneaux, rendez-vous
-// payés par le patient, résultat PDF privé transmis après l'examen, revenus/décaissements),
-// seuls les libellés, la collection Firestore et les noms de Cloud Functions diffèrent.
+// exactement la même mécanique (catalogue d'examens publié, créneaux, commandes
+// d'examens payées par le patient, revenus / décaissements), seuls les libellés, la
+// collection Firestore et les noms de Cloud Functions diffèrent.
+// Smart Cut Health NE STOCKE AUCUN résultat d'examen : le patient récupère son
+// résultat en main propre au laboratoire ou au centre d'imagerie (confidentialité).
 // health-laboratory-dashboard.js et health-imaging-dashboard.js n'importent que ce
 // fichier avec leur propre config — aucune logique dupliquée entre les deux métiers.
 import { auth, db, storage } from './firebase-init.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { collection, getDocs, query, where, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
+import { ref, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js';
 import mountProfilePhotoUploader from './health-profile-photo.js';
 
 const FN = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/';
@@ -17,6 +19,8 @@ const money = (v) => `${Number(v || 0).toLocaleString('fr-FR')} HTG`;
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const PAYOUT_LABELS = { requested: 'Demandé', approved: 'Approuvé', paid: 'Payé', rejected: 'Refusé' };
 const APPT_LABELS = { PAYMENT_PENDING: 'Paiement en attente', CONFIRMED: 'Nouvelle demande', PROVIDER_ACCEPTED: 'Acceptée', PROVIDER_REFUSED: 'Refusée', RESCHEDULE_REQUESTED: 'Report demandé', COMPLETED: 'Terminé', NO_SHOW: 'Absence', CANCELLED: 'Annulée' };
+// Libellés « Statut de la commande » côté prestataire diagnostic (vocabulaire du propriétaire).
+const ORDER_STATUS_LABELS = { PAYMENT_PENDING: 'Paiement en attente', CONFIRMED: 'Nouvelle commande', PROVIDER_ACCEPTED: 'Acceptée', PROVIDER_REFUSED: 'Refusée', RESCHEDULE_REQUESTED: 'Report demandé', COMPLETED: 'Terminée', NO_SHOW: 'Absence', CANCELLED: 'Annulée' };
 
 function toDate(value) {
   if (!value) return null;
@@ -38,7 +42,7 @@ function groupByMonth(items, dateField) {
 }
 
 export function bootClinicalProviderDashboard(config) {
-  let user, exams = [], appointments = [], results = [], ledgerEntries = [], payoutRequests = [], balance = { availableAmount: 0 };
+  let user, exams = [], appointments = [], ledgerEntries = [], payoutRequests = [], balance = { availableAmount: 0 };
   let masterExamCatalog = { categories: [], exams: [] };
   const notice = (t, isError = false) => { $('#notice').textContent = t; $('#notice').className = `health-status ${isError ? 'error' : 'success'}`; };
 
@@ -71,17 +75,15 @@ export function bootClinicalProviderDashboard(config) {
       initExamCatalogForm();
     }
 
-    const [examSnap, apptSnap, resultSnap, ledgerSnap, payoutSnap, balanceSnap] = await Promise.all([
+    const [examSnap, apptSnap, ledgerSnap, payoutSnap, balanceSnap] = await Promise.all([
       getDocs(query(collection(db, config.examCollection), where(config.centerIdField, '==', user.uid))),
       getDocs(query(collection(db, 'healthAppointments'), where('providerUid', '==', user.uid))),
-      getDocs(query(collection(db, config.resultCollection), where(config.centerIdField, '==', user.uid))),
       getDocs(query(collection(db, 'ledgerEntries'), where('organizationId', '==', user.uid))),
       getDocs(query(collection(db, 'payoutRequests'), where('organizationId', '==', user.uid))),
       getDoc(doc(db, 'balances', user.uid))
     ]);
     exams = examSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     appointments = apptSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.startsAt || '').localeCompare(String(a.startsAt || '')));
-    results = resultSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     ledgerEntries = ledgerSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.type === 'payment');
     payoutRequests = payoutSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
     balance = balanceSnap.data() || { availableAmount: 0 };
@@ -90,7 +92,6 @@ export function bootClinicalProviderDashboard(config) {
     renderCatalog();
     renderSlots();
     renderAppointments();
-    renderResults();
     renderPatients();
     renderWallet();
     renderWithdrawals();
@@ -136,11 +137,18 @@ export function bootClinicalProviderDashboard(config) {
     };
   }
 
+  // Revenus nets (après commission Smart Cut) crédités au prestataire aujourd'hui.
+  function revenueTodayAmount() {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    return ledgerEntries
+      .filter((e) => (toDate(e.createdAt)?.toISOString().slice(0, 10)) === todayKey)
+      .reduce((n, e) => n + Number(e.creatorNet || 0), 0);
+  }
+
   function renderOverview() {
     const todayKey = new Date().toISOString().slice(0, 10);
-    const pendingResults = appointments.filter((a) => ['CONFIRMED', 'PROVIDER_ACCEPTED'].includes(a.status) && !results.some((r) => r.appointmentId === a.id));
     $('#statToday').textContent = appointments.filter((a) => String(a.startsAt || '').startsWith(todayKey) && a.status === 'COMPLETED').length;
-    $('#statPendingResults').textContent = pendingResults.length;
+    $('#statRevenueToday').textContent = money(revenueTodayAmount());
     $('#statExams').textContent = exams.filter((e) => e.active !== false).length;
     $('#statRevenue').textContent = money(ledgerEntries.reduce((n, e) => n + Number(e.creatorNet || 0), 0));
     const upcoming = appointments.filter((a) => ['CONFIRMED', 'PROVIDER_ACCEPTED'].includes(a.status)).slice(0, 8);
@@ -235,17 +243,24 @@ export function bootClinicalProviderDashboard(config) {
     } catch (error) { status.className = 'health-status error'; status.textContent = error.message; }
   });
 
-  // ---------- Rendez-vous ----------
+  // ---------- Commandes d'examens ----------
+  // Une « commande » = un doc healthAppointments d'un prestataire diagnostic, présenté au
+  // format demandé par le propriétaire : Numéro · Patient · Adresse · Date et heure ·
+  // Nombre d'examens · lignes examen+prix · Total · Statut paiement · Statut de la commande.
   function appointmentRow(a) {
     const isDiagnostic = config.providerType === 'laboratory' || config.providerType === 'imaging';
     const canDecide = isDiagnostic && a.status === 'CONFIRMED';
     const canComplete = a.status === (isDiagnostic ? 'PROVIDER_ACCEPTED' : 'CONFIRMED');
     const orderNumber = a.orderNumber || a.orderId || a.id;
     const examLines = Array.isArray(a.exams) ? a.exams : (a.examName ? [{ name: a.examName, price: a.amount }] : []);
+    const examCount = examLines.length || 1;
+    const statusLabels = isDiagnostic ? ORDER_STATUS_LABELS : APPT_LABELS;
+    const statusLabel = statusLabels[a.status] || a.status;
+    const paymentLabel = a.paymentStatus || (a.status === 'PAYMENT_PENDING' ? 'En attente' : 'Payé');
     return `<details class="health-provider-row health-order-row">
-      <summary><div><strong>${esc(orderNumber)}</strong> <span class="health-badge ${['CANCELLED','PROVIDER_REFUSED'].includes(a.status) ? 'danger' : ''}">${esc(APPT_LABELS[a.status] || a.status)}</span>
-      <br><small>${esc(a.patientName || 'Patient')} · ${esc(fmt(a.startsAt || a.createdAt))}</small></div><div class="health-provider-row__meta"><strong>${money(a.amount)}</strong><i class="fas fa-chevron-down" aria-hidden="true"></i></div></summary>
-      <div class="health-order-detail"><div><b>Patient</b><span>${esc(a.patientName || 'Patient')}</span></div><div><b>Adresse</b><span>${esc(a.patientAddress || a.address || 'Non renseignée')}</span></div><div><b>Date de commande</b><span>${esc(fmt(a.createdAt || a.startsAt))}</span></div><div><b>Paiement</b><span>${esc(a.paymentStatus || (a.status === 'PAYMENT_PENDING' ? 'En attente' : 'Payé'))}</span></div><div><b>Examens (${examLines.length || 1})</b><span>${examLines.length ? examLines.map((e) => `${esc(e.name || 'Examen')} — ${money(e.price)}`).join('<br>') : esc(a.examName || 'Examen')}</span></div></div>
+      <summary><div><strong>${esc(orderNumber)}</strong> <span class="health-badge ${['CANCELLED','PROVIDER_REFUSED'].includes(a.status) ? 'danger' : ''}">${esc(statusLabel)}</span>
+      <br><small>${esc(a.patientName || 'Patient')} · ${esc(fmt(a.createdAt || a.startsAt))} · ${examCount} examen${examCount > 1 ? 's' : ''}</small></div><div class="health-provider-row__meta"><strong>${money(a.amount)}</strong><i class="fas fa-chevron-down" aria-hidden="true"></i></div></summary>
+      <div class="health-order-detail"><div><b>Nom du patient</b><span>${esc(a.patientName || 'Patient')}</span></div><div><b>Adresse du patient</b><span>${esc(a.patientAddress || a.address || 'Non renseignée')}</span></div><div><b>Date et heure de la commande</b><span>${esc(fmt(a.createdAt || a.startsAt))}</span></div><div><b>Nombre d'examens commandés</b><span>${examCount}</span></div><div><b>Examens</b><span>${examLines.length ? examLines.map((e) => `${esc(e.name || 'Examen')} — ${money(e.price)}`).join('<br>') : esc(a.examName || 'Examen')}</span></div><div><b>Total</b><span>${money(a.amount)}</span></div><div><b>Statut paiement</b><span>${esc(paymentLabel)}</span></div><div><b>Statut de la commande</b><span>${esc(statusLabel)}</span></div></div>
       <div class="health-provider-row__meta">
         <strong>${money(a.amount)}</strong>
         ${canDecide ? `<button class="health-btn primary" style="padding:.4rem .7rem;font-size:.76rem;" data-appt-action="PROVIDER_ACCEPTED" data-appt-id="${a.id}">Accepter</button><button class="health-btn danger" style="padding:.4rem .7rem;font-size:.76rem;" data-appt-action="PROVIDER_REFUSED" data-appt-id="${a.id}">Refuser</button>` : ''}
@@ -255,9 +270,9 @@ export function bootClinicalProviderDashboard(config) {
   }
   function bindAppointmentActions(container) {
     container.querySelectorAll('[data-appt-action]').forEach((btn) => btn.addEventListener('click', async () => {
-      if (btn.dataset.apptAction === 'CANCELLED' && !confirm('Annuler ce rendez-vous ?')) return;
-      if (btn.dataset.apptAction === 'PROVIDER_REFUSED' && !confirm('Refuser cette demande ? Le patient sera remboursé dans son portefeuille.')) return;
-      try { await call('healthUpdateAppointment', { appointmentId: btn.dataset.apptId, status: btn.dataset.apptAction }); notice('Rendez-vous mis à jour.'); await load(); } catch (error) { notice(error.message, true); }
+      if (btn.dataset.apptAction === 'CANCELLED' && !confirm('Annuler cette commande ?')) return;
+      if (btn.dataset.apptAction === 'PROVIDER_REFUSED' && !confirm('Refuser cette commande ? Le montant payé sera intégralement recrédité dans le portefeuille du patient.')) return;
+      try { await call('healthUpdateAppointment', { appointmentId: btn.dataset.apptId, status: btn.dataset.apptAction }); notice('Commande mise à jour.'); await load(); } catch (error) { notice(error.message, true); }
     }));
   }
   function renderAppointments() {
@@ -270,37 +285,6 @@ export function bootClinicalProviderDashboard(config) {
     bindAppointmentActions($('#appointmentsList')); bindAppointmentActions($('#acceptedAppointmentsList')); bindAppointmentActions($('#refusedAppointmentsList'));
   }
 
-  // ---------- Résultats ----------
-  function renderResults() {
-    const pending = appointments.filter((a) => ['CONFIRMED', 'PROVIDER_ACCEPTED'].includes(a.status) && !results.some((r) => r.appointmentId === a.id));
-    $('#resultAppointment').innerHTML = '<option value="">Choisir…</option>' + pending.map((a) => `<option value="${a.id}" data-patient="${a.patientUid}">${esc(a.examName || 'Examen')} · ${esc(a.patientName || 'Patient')} · ${esc(fmt(a.startsAt))}</option>`).join('');
-    $('#resultsPending').innerHTML = pending.length ? pending.map((a) => `<div class="health-provider-row"><div><strong>${esc(a.patientName || 'Patient')}</strong><small>${esc(a.examName || 'Examen')} · ${esc(fmt(a.startsAt))}</small></div><span class="health-badge warn">À transmettre</span></div>`).join('') : '<div class="empty">Aucun résultat en attente.</div>';
-    $('#resultsSent').innerHTML = results.length ? results.slice().sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0)).map((r) => {
-      const appt = appointments.find((a) => a.id === r.appointmentId);
-      return `<div class="health-provider-row"><div><strong>${esc(appt?.patientName || 'Patient')}</strong><small>${esc(appt?.examName || 'Examen')} · Transmis le ${esc(fmt(r.createdAt))}</small></div><span class="health-badge">Transmis</span></div>`;
-    }).join('') : '<div class="empty">Aucun résultat transmis pour le moment.</div>';
-  }
-  $('#resultForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const status = $('#resultFormStatus');
-    const appointmentId = $('#resultAppointment').value;
-    const option = $('#resultAppointment').selectedOptions[0];
-    const patientUid = option?.dataset.patient;
-    const file = $('#resultFile').files[0];
-    if (!appointmentId || !file) { status.className = 'health-status error'; status.textContent = 'Choisissez un rendez-vous et un fichier.'; return; }
-    if (file.type !== 'application/pdf' || file.size > 15 * 1024 * 1024) { status.className = 'health-status error'; status.textContent = 'Le résultat doit être un PDF de 15 Mo maximum.'; return; }
-    status.textContent = 'Envoi privé du résultat…';
-    try {
-      const path = `${config.storagePrefix}/${patientUid}__${appointmentId}/resultat-${Date.now()}.pdf`;
-      await uploadBytes(ref(storage, path), file, { contentType: 'application/pdf', cacheControl: 'private,no-store,max-age=0' });
-      await call(config.uploadResultFn, { appointmentId, storagePath: path });
-      status.className = 'health-status success';
-      status.textContent = 'Résultat transmis au patient et accès journalisé.';
-      event.target.reset();
-      await load();
-    } catch (error) { status.className = 'health-status error'; status.textContent = error.message; }
-  });
-
   // ---------- Patients ----------
   function renderPatients() {
     const map = new Map(appointments.filter((a) => a.patientUid).map((a) => [a.patientUid, a]));
@@ -309,6 +293,8 @@ export function bootClinicalProviderDashboard(config) {
 
   // ---------- Revenus / décaissements / rapports ----------
   function renderWallet() {
+    const todayEl = $('#walletToday');
+    if (todayEl) todayEl.textContent = money(revenueTodayAmount());
     $('#walletAvailable').textContent = money(balance.availableAmount);
     $('#walletLifetime').textContent = money(ledgerEntries.reduce((n, e) => n + Number(e.creatorNet || 0), 0));
     const paidMonths = new Set(payoutRequests.filter((p) => p.status === 'paid' && p.periodKey).map((p) => p.periodKey));

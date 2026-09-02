@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0b3d35">
 <title>Espace laboratoire · Smart Cut Health</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-<link rel="stylesheet" href="./site-foundation.css?v=20260831-4">
-<link rel="stylesheet" href="./health.css?v=20260831-4">
+<link rel="stylesheet" href="./site-foundation.css?v=20260901-1">
+<link rel="stylesheet" href="./health.css?v=20260901-1">
 <style>
   body:not(.provider-ready) main.health-dashboard{display:none}
   body.provider-blocked{background:#eef3f2}
@@ -31,7 +31,6 @@
       <button data-tab="appointments"><i class="fas fa-inbox"></i> Nouvelles commandes</button>
       <button data-tab="accepted"><i class="fas fa-circle-check"></i> Commandes acceptées</button>
       <button data-tab="refused"><i class="fas fa-circle-xmark"></i> Refusées / annulées</button>
-      <button data-tab="results"><i class="fas fa-file-medical"></i> Résultats</button>
       <button data-tab="patients"><i class="fas fa-user-injured"></i> Patients</button>
       <button data-tab="reports"><i class="fas fa-chart-line"></i> Rapports</button>
       <button data-tab="wallet"><i class="fas fa-wallet"></i> Revenus</button>
@@ -46,7 +45,7 @@
 
   <div class="health-dashboard__main">
     <div class="health-dashboard__header">
-      <div><span class="health-eyebrow">Laboratoire vérifié</span><h1 id="providerName">Chargement…</h1><p>Examens, rendez-vous et résultats, au même endroit.</p></div>
+      <div><span class="health-eyebrow">Laboratoire vérifié</span><h1 id="providerName">Chargement…</h1><p>Catalogue d’examens, commandes et revenus, au même endroit.</p></div>
     </div>
     <div id="notice" class="health-status" style="max-width:1180px;margin:0 auto 1rem;"></div>
 
@@ -54,7 +53,7 @@
       <div class="health-dashboard__metrics">
         <article><span>Examens réalisés aujourd’hui</span><strong id="statToday">—</strong></article>
         <article><span>Examens publiés</span><strong id="statExams">—</strong></article>
-        <article><span>Résultats à transmettre</span><strong id="statPendingResults">—</strong></article>
+        <article><span>Revenus du jour</span><strong id="statRevenueToday">—</strong></article>
         <article><span>Revenus (total)</span><strong id="statRevenue">—</strong></article>
       </div>
       <div class="health-card"><h3 style="margin-top:0;">Prochains rendez-vous</h3><div id="overviewList">Chargement…</div></div>
@@ -103,22 +102,6 @@
     <section class="health-panel" id="panel-accepted" hidden><div id="acceptedAppointmentsList" class="health-provider-list">Chargement…</div></section>
     <section class="health-panel" id="panel-refused" hidden><div id="refusedAppointmentsList" class="health-provider-list">Chargement…</div></section>
 
-    <section class="health-panel" id="panel-results" hidden>
-      <div class="health-provider-section__head"><div><span class="health-eyebrow">À transmettre</span><h3>Résultats en attente</h3></div></div>
-      <div id="resultsPending" class="health-provider-list">Chargement…</div>
-      <div class="health-card" style="margin-top:1rem;">
-        <h3 style="margin-top:0;">Transmettre un résultat</h3>
-        <form id="resultForm" class="health-form">
-          <div class="health-field"><label for="resultAppointment">Rendez-vous concerné</label><select id="resultAppointment" required><option value="">Chargement…</option></select></div>
-          <div class="health-field"><label for="resultFile">Résultat PDF, 15 Mo maximum</label><input id="resultFile" type="file" accept="application/pdf" required></div>
-          <button class="health-btn primary" type="submit">Transmettre au patient</button>
-          <div class="health-status" id="resultFormStatus"></div>
-        </form>
-      </div>
-      <div class="health-provider-section__head" style="margin-top:1.5rem;"><div><span class="health-eyebrow">Historique</span><h3>Résultats transmis</h3></div></div>
-      <div id="resultsSent" class="health-provider-list">Chargement…</div>
-    </section>
-
     <section class="health-panel" id="panel-patients" hidden><div id="patientsList" class="health-provider-list">Chargement…</div></section>
 
     <section class="health-panel" id="panel-reports" hidden>
@@ -128,6 +111,7 @@
 
     <section class="health-panel" id="panel-wallet" hidden>
       <div class="health-provider-metrics">
+        <article><span>Revenus du jour</span><strong id="walletToday">—</strong></article>
         <article><span>Solde disponible</span><strong id="walletAvailable">—</strong></article>
         <article><span>Revenus générés (total)</span><strong id="walletLifetime">—</strong></article>
       </div>
@@ -143,7 +127,7 @@
 <script type="module">
 import SmartCutHealthHeader from './health-header.js';
 new SmartCutHealthHeader('health-header-root');
-import './health-laboratory-dashboard.js?v=20260831-5';
+import './health-laboratory-dashboard.js?v=20260901-1';
 </script>
 </body>
 </html>

@@ -104,6 +104,7 @@ class SierraHero {
     this.data = null;
     this.currentIndex = 0;
     this.autoplayTimer = null;
+    this.autoplayEnabled = options.autoplay !== false;
     this.mobileScrollLock = false;
     this.unsubscribeSnapshot = null;
     this.unsubscribeTheme = null;
@@ -441,8 +442,8 @@ class SierraHero {
             </div>
 
             <div class="posterHeroArrows913" aria-label="Flèches hero">
-              <button type="button" class="posterHeroArrow913" data-hero-prev aria-label="Affiche précédente">←</button>
-              <button type="button" class="posterHeroArrow913" data-hero-next aria-label="Affiche suivante">→</button>
+              <button type="button" class="posterHeroArrow913" data-hero-prev aria-label="Affiche précédente">‹</button>
+              <button type="button" class="posterHeroArrow913" data-hero-next aria-label="Affiche suivante">›</button>
             </div>
           </div>
         </div>
@@ -535,10 +536,52 @@ class SierraHero {
     this.dotEls?.forEach((dot, index) => {
       dot.classList.toggle('is-active', index === this.currentIndex);
     });
+
+    this.syncBackdropColor();
+  }
+
+  syncBackdropColor() {
+    const image = this.slideEls?.[this.currentIndex]?.querySelector('img');
+    if (!image) return;
+    const apply = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 16;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.drawImage(image, 0, 0, 16, 16);
+        const pixels = context.getImageData(0, 0, 16, 16).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        let rr = 0, gg = 0, bb = 0, rightCount = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (pixels[i + 3] < 180) continue;
+          r += pixels[i]; g += pixels[i + 1]; b += pixels[i + 2]; count++;
+          const pixelIndex = (i / 4) % 16;
+          if (pixelIndex >= 8) { rr += pixels[i]; gg += pixels[i + 1]; bb += pixels[i + 2]; rightCount++; }
+        }
+        if (!count) return;
+        const color = `rgb(${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)})`;
+        document.documentElement.style.setProperty('--hero-dominant-color', color);
+        let themeMeta = document.querySelector('meta[name="theme-color"]');
+        if (!themeMeta) {
+          themeMeta = document.createElement('meta');
+          themeMeta.name = 'theme-color';
+          document.head.appendChild(themeMeta);
+        }
+        themeMeta.setAttribute('content', color);
+        if (rightCount) {
+          document.documentElement.style.setProperty('--hero-secondary-color', `rgb(${Math.round(rr / rightCount)}, ${Math.round(gg / rightCount)}, ${Math.round(bb / rightCount)})`);
+        }
+      } catch (_) {
+        // Images distantes sans CORS : conserver la couleur précédente.
+      }
+    };
+    if (image.complete) apply();
+    else image.addEventListener('load', apply, { once: true });
   }
 
   startAutoplay() {
     this.stopAutoplay();
+    if (!this.autoplayEnabled) return;
     if (!this.slideEls?.length || this.slideEls.length < 2) return;
     this.autoplayTimer = window.setInterval(() => {
       this.goTo(this.currentIndex + 1);

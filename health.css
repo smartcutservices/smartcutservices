@@ -173,6 +173,34 @@ button,a { -webkit-tap-highlight-color:transparent; }
 @media(max-width:760px){.health-secure-layout{grid-template-columns:1fr}.health-account-bar{align-items:stretch;flex-direction:column}.health-account-bar .health-btn{width:100%}}
 @media(max-width:620px){.health-hero{padding-top:3.5rem}.health-page-hero{padding:3rem 1rem}.health-route-main{padding:2rem 1rem}.health-search{display:grid;grid-template-columns:auto 1fr}.health-search button{grid-column:1/-1}.health-actions-grid,.health-grid,.health-form-grid{grid-template-columns:1fr}.health-heading,.health-subheading{align-items:start;flex-direction:column}.health-section{padding-inline:1rem}.health-card{padding:1rem}.health-hero-actions{display:grid}.health-home-statement{padding-inline:1rem}}
 
+/* Accueil Health : hero immersif inspiré de la nouvelle direction artistique. */
+.health-hero {
+  min-height: min(650px, calc(100vh - var(--health-header-height)));
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(3rem, 7vw, 6.5rem) 1.25rem clamp(2.5rem, 5vw, 4.5rem);
+  background:
+    radial-gradient(circle at 78% 42%, rgba(118, 238, 211, .38), transparent 32%),
+    radial-gradient(circle at 8% 105%, rgba(24, 125, 112, .6), transparent 40%),
+    linear-gradient(125deg, #073b46 0%, #0b625f 48%, #54bfae 100%);
+}
+.health-hero .health-wrap { width: min(1240px, 100%); }
+.health-hero .health-hero-layout { grid-template-columns: minmax(0, .92fr) minmax(360px, 1.08fr); min-height: 500px; }
+.health-hero-copy { position: relative; z-index: 2; }
+.health-hero h1 { max-width: 680px; font-size: clamp(2.8rem, 6vw, 5.3rem); line-height: .98; }
+.health-hero p { max-width: 540px; font-size: clamp(1rem, 1.5vw, 1.2rem); }
+.health-hero-visual.health-art-home { align-self: stretch; max-height: none; min-height: 420px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.health-hero-visual.health-art-home::after { content:""; position:absolute; inset:8% 0 0 18%; background:radial-gradient(circle,rgba(151,255,226,.3),transparent 65%); pointer-events:none; }
+.health-hero-visual.health-art-home img { position: relative; z-index: 1; width: 100%; height: 100%; min-height: 420px; object-fit: cover; object-position: center right; mix-blend-mode: normal; }
+
+@media (max-width:760px){
+  .health-hero { min-height: auto; padding: 2.5rem 1rem 2rem; }
+  .health-hero .health-hero-layout { min-height: 0; }
+  .health-hero-visual.health-art-home { min-height: 285px; }
+  .health-hero-visual.health-art-home img { min-height: 285px; object-position: 68% center; }
+}
+
 /* Téléconsultation — tarifs verrouillés côté serveur. */
 .telehealth-hero { background:linear-gradient(135deg,#092f29,#0f6958 70%,#17816d); }
 .health-emergency { display:flex; gap:.9rem; align-items:flex-start; margin-bottom:2rem; padding:1rem 1.1rem; border:1px solid #f0d4c9; border-radius:14px; color:#6f2b1c; background:#fff8f5; }
@@ -368,7 +396,7 @@ button,a { -webkit-tap-highlight-color:transparent; }
 .health-patient-empty{min-height:260px;padding:3rem 1.5rem;display:grid;place-items:center;gap:.7rem;text-align:center}
 .health-patient-empty h2{margin:0;color:var(--health-ink);font-size:1.25rem}
 .health-patient-empty p{max-width:34rem;margin:0;color:var(--health-muted)}
-.health-provider-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem;margin-bottom:1.1rem}
+.health-provider-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.75rem;margin-bottom:1.1rem}
 .health-provider-metrics article{padding:1rem;border:1px solid var(--health-line);border-radius:13px;background:#fff}.health-provider-metrics span{display:block;color:var(--health-muted);font-size:.72rem}.health-provider-metrics strong{display:block;margin-top:.35rem;color:var(--health-deep);font-size:1.3rem}
 .health-provider-section{margin-top:1.1rem}.health-provider-section__head{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 .75rem}.health-provider-section__head h3{margin:.2rem 0 0;color:var(--health-ink);font-size:1.1rem}.health-provider-section__head .health-eyebrow{margin:0;font-size:.66rem}.health-provider-list{border:1px solid var(--health-line);border-radius:14px;background:#fff;padding:1.1rem}.health-provider-list .empty{padding:.6rem 0}
 .health-provider-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 0;border-bottom:1px solid #eef3f0}.health-provider-row:last-child{border-bottom:0}.health-provider-row strong,.health-provider-row small{display:block}.health-provider-row small{margin-top:.18rem;color:var(--health-muted);font-size:.78rem}.health-provider-row__meta{display:flex;align-items:center;gap:.65rem;color:var(--health-deep);font-weight:700;white-space:nowrap}.health-provider-row__meta .health-icon-btn{width:32px;height:32px;color:var(--health);border-color:#cfe3dc;background:#fff}.health-provider-row__meta [data-delete-product]{color:#a33a32;border-color:#eed6d2}.health-provider-row__meta [data-delete-product]:hover{background:#fff4f2}

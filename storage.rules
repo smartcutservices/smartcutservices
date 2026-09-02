@@ -260,23 +260,9 @@ service firebase.storage {
       allow delete: if false;
     }
 
-    // The laboratory writes a result only for an appointment assigned to it. The
-    // patient and that laboratory can read it; clients normally use the audited,
-    // five-minute signed URL returned by healthGetPrivateDocument.
-    match /health-lab-results/{compositeId}/{fileName} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == compositeId.split('__')[0] ||
-        isHealthAdminRequester() ||
-        (firestore.exists(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])) &&
-          firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.providerUid == request.auth.uid)
-      );
-      allow create: if isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])) &&
-        firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.providerUid == request.auth.uid &&
-        firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.patientUid == compositeId.split('__')[0] &&
-        isPdf() && maxSize(15);
-      allow update, delete: if false;
-    }
+    // Smart Cut Health ne stocke aucun résultat d'examen : le patient récupère ses
+    // résultats de laboratoire et d'imagerie en main propre au centre (confidentialité).
+    // Il n'y a donc aucun préfixe health-lab-results/** ni health-imaging-results/**.
 
     // Medicine photos: non-sensitive catalog imagery, public read like every other
     // creator-uploaded asset in this file — write restricted to the owning pharmacy.
@@ -285,25 +271,9 @@ service firebase.storage {
       allow write: if isSignedIn() && request.auth.uid == pharmacyId && isImage() && maxSize(8);
     }
 
-    // Imaging results — same shape and same reasoning as health-lab-results above.
-    match /health-imaging-results/{compositeId}/{fileName} {
-      allow read: if isSignedIn() && (
-        request.auth.uid == compositeId.split('__')[0] ||
-        isHealthAdminRequester() ||
-        (firestore.exists(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])) &&
-          firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.providerUid == request.auth.uid)
-      );
-      allow create: if isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])) &&
-        firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.providerUid == request.auth.uid &&
-        firestore.get(/databases/(default)/documents/healthAppointments/$(compositeId.split('__')[1])).data.patientUid == compositeId.split('__')[0] &&
-        isPdf() && maxSize(15);
-      allow update, delete: if false;
-    }
-
     // Teleconsultation session media (chat photos / voice notes). compositeId is
     // `{patientUid}__{appointmentId}` — same 2-variable-path reasoning as
-    // health-prescriptions/health-lab-results above. Either participant of that specific
+    // health-prescriptions above. Either participant of that specific
     // appointment may read; only that same participant may upload their own file (a
     // patient can never upload as the doctor and vice versa, checked against the
     // appointment's own patientUid/providerUid). Counts (max 2 photos / 2 voice per
@@ -368,7 +338,10 @@ service firebase.storage {
     match /{topLevel}/{allPaths=**} {
       allow read: if !(topLevel in [
         'health-prescriptions', 'health-pharmacy-docs', 'health-doctor-docs',
-        'health-lab-docs', 'health-lab-results', 'health-imaging-docs', 'health-imaging-results',
+        'health-lab-docs', 'health-imaging-docs',
+        // health-lab-results / health-imaging-results laissés en liste de refus
+        // par précaution : Smart Cut Health ne crée jamais ces préfixes.
+        'health-lab-results', 'health-imaging-results',
         'health-session-media', 'sst-courses', 'education-content',
         'marketplace-public', 'marketplace-private', 'auto-parts'
       ]);

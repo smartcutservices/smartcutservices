@@ -21,6 +21,7 @@ import { getAuthManager } from './auth.js';
 //                 pharmacie ou laboratoire. Il disparaît une fois le compte
 //                 vérifié, remplacé par l'icône de profil -> dashboard dédié.
 const NAV_LINKS = [
+  { href: './index.html', label: 'Smart Cut Services', icon: 'fa-house', match: ['index.html'], audience: 'user', returnHome: true },
   { href: './health-pharmacie.html', label: 'Pharmacie', match: ['health-pharmacie.html'], audience: 'user' },
   { href: './health-teleconsultation.html', label: 'Téléconsultation', icon: 'fa-user-doctor', match: ['health-teleconsultation.html'], audience: 'user' },
   { href: './health-imagerie.html', label: 'Imagerie', icon: 'fa-x-ray', match: ['health-imagerie.html'], audience: 'user' },
@@ -147,7 +148,7 @@ export default class SmartCutHealthHeader {
         .health-site-header {
           height: 100%;
           border-bottom: 1px solid rgba(255, 255, 255, .11);
-          background: #0b3d35;
+          background: linear-gradient(125deg, #073b46 0%, #0b625f 52%, #3aa897 100%);
           color: #fff;
           box-shadow: 0 4px 18px rgba(7, 43, 36, .14);
         }
@@ -159,6 +160,11 @@ export default class SmartCutHealthHeader {
           display: flex;
           align-items: center;
           gap: 1.25rem;
+          padding-inline: .75rem;
+          border: 1px solid rgba(255,255,255,.28);
+          border-radius: 0 0 18px 18px;
+          background: rgba(255,255,255,.12);
+          backdrop-filter: blur(14px);
         }
 
         .health-site-header__brand {
@@ -230,6 +236,16 @@ export default class SmartCutHealthHeader {
           color: #0b3d35;
         }
 
+        .health-site-header__link--return {
+          border: 1px solid rgba(255, 255, 255, .34);
+          color: #fff;
+        }
+        .health-site-header__link--return:hover,
+        .health-site-header__link--return:focus-visible {
+          background: #fff;
+          color: #0b3d35;
+        }
+
         .health-site-header__avatar {
           flex: 0 0 auto; margin-left: .85rem;
           width: 40px; height: 40px; display: grid; place-items: center;
@@ -274,7 +290,8 @@ export default class SmartCutHealthHeader {
             margin: 0;
             padding: .65rem;
             border-bottom: 1px solid #d9e6e2;
-            background: #fff;
+            background: rgba(7,59,70,.94);
+            backdrop-filter: blur(16px);
             box-shadow: 0 16px 30px rgba(7, 43, 36, .16);
           }
 
@@ -283,14 +300,17 @@ export default class SmartCutHealthHeader {
             width: 100%;
             margin: 0;
             justify-content: flex-start;
-            color: #24453e;
+            color: #fff;
           }
           .health-site-header__link:hover,
           .health-site-header__link:focus-visible,
-          .health-site-header__link.is-active { color: #0b3d35; background: #eef7f4; }
-          .health-site-header__link--cta { border-color: #b9d8d0; color: #0b3d35; }
+          .health-site-header__link.is-active { color: #fff; background: rgba(255,255,255,.14); }
+          .health-site-header__link--cta { border-color: rgba(255,255,255,.45); color: #fff; }
           .health-site-header__link--cta:hover,
           .health-site-header__link--cta:focus-visible { background: #0b3d35; color: #fff; }
+          .health-site-header__link--return { border-color: rgba(255,255,255,.4); color: #fff; background: rgba(255,255,255,.1); }
+          .health-site-header__link--return:hover,
+          .health-site-header__link--return:focus-visible { background: #0b3d35; color: #fff; }
         }
       </style>
 
@@ -414,7 +434,8 @@ export default class SmartCutHealthHeader {
       const active = link.match.some((file) => this.isCurrentPage(file));
       const icon = link.icon ? `<i class="fas ${link.icon}" aria-hidden="true"></i> ` : '';
       const cta = link.audience === 'prospect' ? ' health-site-header__link--cta' : '';
-      return `<a class="health-site-header__link${cta} ${active ? 'is-active' : ''}" href="${link.href}">${icon}${link.label}</a>`;
+      const returnHome = link.returnHome ? ' health-site-header__link--return' : '';
+      return `<a class="health-site-header__link${cta}${returnHome} ${active ? 'is-active' : ''}" href="${link.href}">${icon}${link.label}</a>`;
     }).join('');
   }
 }

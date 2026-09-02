@@ -1,9 +1,9 @@
 // ============= PRODUCT MODAL COMPONENT =============
 import { db } from './firebase-init.js';
-import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260831-4';
+import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260901-1';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
-import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260831-4';
+import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260901-1';
 import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './product-display-utils.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
@@ -1982,7 +1982,7 @@ class ProductModal {
 
  addToCart() {
   // Récupérer l'instance du panier
-  import('./cart.js?v=20260831-4').then(({ getCartManager }) => {
+  import('./cart.js?v=20260901-1').then(({ getCartManager }) => {
     const cart = getCartManager();
     const vendorCartMeta = this.getVendorCartMeta(this.product);
     
