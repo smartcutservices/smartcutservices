@@ -32,6 +32,11 @@ export function createEducationApi(user) {
     archive: (type, id) => call('ArchiveResource', user, { method: 'POST', body: { type, id } }),
     setStatus: (programId, status) => call('SetProgramStatus', user, { method: 'POST', body: { programId, status } }),
     saveAsset: (body) => call('SaveAsset', user, { method: 'POST', body })
+    ,certificates: () => call('GetCertificates', user)
+    ,savePartnership: (body) => call('SavePartnership', user, { method: 'POST', body })
+    ,documents: () => call('GetDocuments', user)
+    ,saveDocument: (body) => call('SaveDocument', user, { method: 'POST', body })
+    ,markAllNotificationsRead: () => call('MarkAllNotificationsRead', user, { method: 'POST' })
   };
 }
 

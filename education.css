@@ -498,7 +498,74 @@ body.education-home-page .edu-section {
   .edu-hero-visual { aspect-ratio: 4 / 3; }
 }
 
-/* ---------- Categories populaires ---------- */
+/* ---------- Menu des catégories ---------- */
+
+.edu-category-menu {
+  position: relative;
+  z-index: 10;
+  padding: 0 0 1.25rem;
+  background: var(--edu-surface);
+}
+
+.edu-category-menu__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 52px;
+  padding: .7rem 1rem;
+  border: 1px solid var(--edu-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--edu-navy);
+  font: inherit;
+  font-size: .9rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--edu-shadow);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.edu-category-menu__trigger:hover,
+.edu-category-menu__trigger:focus-visible,
+.edu-category-menu.is-open .edu-category-menu__trigger {
+  border-color: var(--edu-accent);
+  box-shadow: 0 0 0 3px rgba(228, 71, 47, .1);
+  outline: none;
+}
+
+.edu-category-menu__trigger > span:first-child { display: inline-flex; align-items: center; gap: .55rem; }
+.edu-category-menu__trigger > span:first-child i { color: var(--edu-accent-dark); }
+.edu-category-menu__trigger-meta { display: inline-flex; align-items: center; gap: .55rem; color: var(--edu-ink-soft); font-size: .75rem; font-weight: 700; }
+.edu-category-menu__trigger-meta .fa-chevron-down { transition: transform .2s ease; }
+.edu-category-menu.is-open .edu-category-menu__trigger-meta .fa-chevron-down { transform: rotate(180deg); }
+
+.edu-category-menu__panel {
+  display: none;
+  margin-top: .55rem;
+  padding: 1rem;
+  border: 1px solid var(--edu-line);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, .13);
+}
+
+.edu-category-menu.is-open .edu-category-menu__panel { display: block; }
+.edu-category-menu__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: .75rem; }
+.edu-category-menu__head strong { color: var(--edu-navy); font-size: .96rem; }
+.edu-category-menu__head span { color: var(--edu-ink-soft); font-size: .76rem; }
+.edu-category-menu__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; max-height: min(62vh, 520px); overflow-y: auto; }
+.edu-category-menu__item { display: grid; grid-template-columns: 30px minmax(0, 1fr) 14px; align-items: center; gap: .55rem; min-height: 58px; padding: .55rem .65rem; border: 1px solid var(--edu-line); border-radius: 10px; color: var(--edu-ink); text-decoration: none; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+.edu-category-menu__item:hover, .edu-category-menu__item:focus-visible { border-color: var(--edu-accent); background: #fff8f6; transform: translateY(-1px); outline: none; }
+.edu-category-menu__icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--edu-accent-soft); color: var(--edu-accent-dark); font-size: .72rem; }
+.edu-category-menu__copy { min-width: 0; }
+.edu-category-menu__copy strong, .edu-category-menu__copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edu-category-menu__copy strong { font-size: .76rem; line-height: 1.25; }
+.edu-category-menu__copy small { margin-top: .15rem; color: var(--edu-ink-soft); font-size: .64rem; }
+.edu-category-menu__arrow { color: #a3aab5; font-size: .65rem; }
+
+/* ---------- Categories populaires (legacy utility) ---------- */
 
 .edu-categories {
   display: flex;
@@ -1316,6 +1383,11 @@ body.education-home-page .edu-section {
 }
 
 @media (max-width: 767px) {
+  .edu-category-menu { padding-bottom: 1rem; }
+  .edu-category-menu__trigger { min-height: 48px; }
+  .edu-category-menu__trigger-meta { font-size: .7rem; }
+  .edu-category-menu__head span { display: none; }
+  .edu-category-menu__grid { grid-template-columns: 1fr; max-height: 52vh; }
   .edu-tutor-inner { flex-direction: column; align-items: flex-start; }
   .edu-tutor-cta { width: 100%; justify-content: center; }
   .edu-course-card { scroll-snap-align: start; }

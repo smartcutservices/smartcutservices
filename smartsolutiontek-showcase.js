@@ -55,15 +55,20 @@ class SmartSolutionTekShowcase {
         --sst-navy: #111a24;
         --sst-gold: #c89539;
         --sst-ivory: #f7f3eb;
-        padding: clamp(1.5rem, 2.6vw, 2.25rem) clamp(1rem, 4vw, 3rem);
+        /* Give the band a quiet breathing room so it reads as a distinct
+           homepage section without creating a large gutter. */
+        margin-inline: clamp(.5rem, 1.4vw, 1.25rem);
+        border-radius: 18px;
+        overflow: hidden;
+        padding: clamp(1.5rem, 2.6vw, 2.25rem) clamp(.85rem, 2vw, 1.5rem);
         background:
           radial-gradient(circle at 8% 0%, rgba(200,149,57,.11), transparent 24rem),
           linear-gradient(180deg, #fbf9f5 0%, #f4efe6 100%);
         color: var(--sst-navy);
       }
       .sst-showcase-inner {
-        width: min(100%, 1280px);
-        margin: 0 auto;
+        width: 100%;
+        margin: 0;
       }
       .sst-showcase-header {
         display: flex;

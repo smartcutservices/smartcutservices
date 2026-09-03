@@ -49,21 +49,44 @@ class SmartCutHealth {
     }
     this.root.innerHTML = `<div class="health-shell">
       <section class="health-hero"><div class="health-wrap health-hero-layout"><div class="health-hero-copy">
-        <h1>Votre santé, plus accessible.</h1>
-        <p>Pharmacies, ordonnances et consultations vérifiées. <span class="health-privacy-inline"><i class="fas fa-lock"></i> Données privées et protégées.</span></p>
+        <h1 data-health-hero-title aria-label="Votre santé, plus accessible."><span aria-hidden="true"></span></h1>
         <div class="health-hero-actions"><a class="health-btn health-btn-link primary" href="./health-teleconsultation.html">Consulter un médecin</a><a class="health-btn health-btn-link health-btn-ghost" href="./health-pharmacie.html">Trouver un médicament</a><a class="health-btn health-btn-link health-btn-ghost" href="./health-espace.html?tab=prescriptions">Envoyer une ordonnance</a></div>
-      </div><div class="health-hero-visual health-art-home"><img src="./assets/health/heroes/health-home-hero-black-v1.png" alt="Médecin noire de Smart Cut Health" loading="eager"></div></div></section>
-      <section class="health-module-entry"><div class="health-wrap"><div class="health-module-heading"><span class="health-eyebrow">Smart Cut Health</span><h2>Choisissez votre espace.</h2></div><div class="health-module-grid">
-        <a class="health-module-card health-module-card--patient" href="./health-espace.html"><span class="health-module-icon"><i class="fas fa-heart-pulse"></i></span><span><strong>Mon espace</strong><small>Rendez-vous, ordonnances et commandes.</small></span><i class="fas fa-arrow-right"></i></a>
-        <a class="health-module-card health-module-card--provider" href="./health-candidature.html"><span class="health-module-icon"><i class="fas fa-user-shield"></i></span><span><strong>Devenir prestataire</strong><small>Rejoignez Smart Cut Health comme médecin, pharmacie ou laboratoire.</small></span><i class="fas fa-arrow-right"></i></a>
-      </div></div></section>
+      </div><div class="health-hero-visual health-art-home"><img src="./assets/health/heroes/health-home-hero-professional-v1.png" alt="Médecin noire de Smart Cut Health" loading="eager"></div></div></section>
       <main class="health-home-directory"><div class="health-wrap">
-        <div class="health-subheading"><div><span>Pharmacies partenaires</span><h2>Médicaments disponibles</h2></div><a href="./health-pharmacie.html">Voir la pharmacie <i class="fas fa-arrow-right"></i></a></div>
-        <div id="health-home-medicines" class="health-grid"><div class="health-empty"><i class="fas fa-circle-notch fa-spin"></i>Chargement des médicaments…</div></div>
-        <div class="health-subheading health-subheading--spaced"><div><span>Professionnels vérifiés</span><h2>Médecins disponibles</h2></div><a href="./health-medecins.html">Voir les médecins <i class="fas fa-arrow-right"></i></a></div>
-        <div id="health-home-doctors" class="health-grid"><div class="health-empty"><i class="fas fa-circle-notch fa-spin"></i>Chargement des médecins…</div></div>
+        <section class="health-directory-block" aria-label="Catalogue des médicaments">
+          <div class="health-subheading"><a href="./health-pharmacie.html">Voir la pharmacie <i class="fas fa-arrow-right"></i></a></div>
+          <div id="health-home-medicines" class="health-grid"><div class="health-empty"><i class="fas fa-circle-notch fa-spin"></i>Chargement des médicaments…</div></div>
+        </section>
+        <section class="health-directory-block health-directory-block--spaced" aria-label="Annuaire des médecins">
+          <div class="health-subheading"><a href="./health-medecins.html">Voir les médecins <i class="fas fa-arrow-right"></i></a></div>
+          <div id="health-home-doctors" class="health-grid"><div class="health-empty"><i class="fas fa-circle-notch fa-spin"></i>Chargement des médecins…</div></div>
+        </section>
       </div></main>
     </div>`;
+    this.animateHeroTitle();
+  }
+
+  animateHeroTitle() {
+    const title = this.root?.querySelector('[data-health-hero-title]');
+    const target = title?.querySelector('span');
+    if (!title || !target || title.dataset.animated === 'true') return;
+
+    const text = title.getAttribute('aria-label') || 'Votre santé, plus accessible.';
+    title.dataset.animated = 'true';
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      target.textContent = text;
+      return;
+    }
+
+    const letters = Array.from(text);
+    let index = 0;
+    const typeNext = () => {
+      target.textContent += letters[index] || '';
+      index += 1;
+      if (index < letters.length) window.setTimeout(typeNext, 52);
+    };
+    window.setTimeout(typeNext, 120);
   }
 
   renderStandalone() {

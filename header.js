@@ -1,7 +1,7 @@
 import { db } from './firebase-init.js?v=20260901-1';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js?v=20260901-1';
-import Navbar from './navbar.js?v=20260901-1';
+import './search.js?v=20260902-2';
+import Navbar from './navbar.js?v=20260902-1';
 import { getCartManager } from './cart.js?v=20260901-1';
 import { getAuthManager } from './auth.js?v=20260901-1';
 import { getProfilePanel } from './profile-panel.js?v=20260901-6';
@@ -1321,6 +1321,7 @@ class SierraHeaderNebula {
     this.authManager = getAuthManager();
     this.authManager.addAuthChangeListener?.((user) => this.updateProfileAvatars(user));
     this.updateProfileAvatars(this.authManager.getCurrentUser?.());
+    this.setupSearchBarInputs();
     getWebsiteAnalyticsTracker().init();
     await loadCurrencySettings();
 
@@ -1338,10 +1339,10 @@ class SierraHeaderNebula {
     await this.loadMobileFooterLinks();
     this.setupCurrencySelectors();
     this.setupProfileActions();
+    this.setupVendorNavigation();
     this.setupSmartSolutionMenu();
     this.setupMobileNavControls();
     this.openRequestedAuthModal();
-    this.setupSearchBarInputs();
     this.setupScrollBehavior();
     this.setupCartBadge();
     this.setupHeaderLayoutSync();
@@ -1655,13 +1656,6 @@ class SierraHeaderNebula {
       const panel = getProfilePanel();
       const authManager = panel?.authManager || getAuthManager();
       const isAuthenticated = authManager?.isAuthenticated?.() ?? false;
-      console.info('[PROFILE_DEBUG] header-profile-click', {
-        version: '20260523-6',
-        authReady: authManager?.isAuthReady ?? null,
-        isAuthenticated,
-        authUid: authManager?.getCurrentUser?.()?.uid || null,
-        route: isAuthenticated ? 'profile-page' : 'auth-modal'
-      });
       if (!isAuthenticated) {
         authManager?.openAuthModal?.('login');
         return;
@@ -1673,6 +1667,34 @@ class SierraHeaderNebula {
       const button = document.getElementById(id);
       if (!button) return;
       this.bindResponsivePress(button, handleProfileClick);
+    });
+  }
+
+  setupVendorNavigation() {
+    const links = document.querySelectorAll('a[href*="vendor-application"]');
+    if (!links.length) return;
+    links.forEach((link) => {
+      link.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const fallbackUrl = link.href;
+        const user = this.authManager?.getCurrentUser?.();
+        if (!user?.uid || !db) {
+          window.location.assign(fallbackUrl);
+          return;
+        }
+        try {
+          const snapshot = await getDoc(doc(db, 'clients', user.uid));
+          const client = snapshot.exists() ? (snapshot.data() || {}) : {};
+          const role = String(client.role || client.accountType || '').toLowerCase();
+          const status = String(client.vendorStatus || client.vendor?.status || client.status || '').toLowerCase();
+          const isVendor = role === 'vendor' || status === 'approved' || status === 'active' ||
+            client.isVendor === true || client.isVendorApproved === true || Boolean(client.vendorId);
+          window.location.assign(isVendor ? './DvendorProducts.html' : fallbackUrl);
+        } catch (_) {
+          // En cas d’échec réseau, conserver le parcours d’inscription actuel.
+          window.location.assign(fallbackUrl);
+        }
+      });
     });
   }
 

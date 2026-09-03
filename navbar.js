@@ -4,7 +4,7 @@ import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasej
 import theme from './theme-root.js';
 import MegaMenu from './mega-menu.js';
 import MobileMenu from './mobile-menu.js?v=20260901-1';
-import { getSearchManager } from './search.js?v=20260901-1';
+import { getSearchManager } from './search.js?v=20260902-2';
 
 class Navbar {
   constructor(options = {}) {

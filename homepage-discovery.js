@@ -277,7 +277,7 @@ export default class HomepageDiscovery {
     this.root = document.getElementById(rootId);
     this.options = {
       imageBasePath: options.imageBasePath || './',
-      maxProducts: options.maxProducts || 7,
+      maxProducts: options.maxProducts || 6,
       maxVendors: options.maxVendors || 6
     };
 
@@ -290,21 +290,21 @@ export default class HomepageDiscovery {
     this.root.innerHTML = `
       <section class="home-discovery" aria-label="Sections produits">
         <div class="home-discovery__section" data-section="sponsored">
-          <div class="home-discovery__heading">
-            <h2>Produits à la une</h2>
+          <div class="home-discovery__heading home-section-heading">
+            <h2 class="home-section-title">Produits à la une</h2>
           </div>
           <div class="home-discovery__rail" data-sponsored-list>${this.renderSkeletonCards(4)}</div>
         </div>
         <div class="home-discovery__section" data-section="recommended">
-          <div class="home-discovery__heading">
-            <h2>Produits recommandés</h2>
+          <div class="home-discovery__heading home-section-heading">
+            <h2 class="home-section-title">Produits recommandés</h2>
           </div>
           <div class="home-discovery__rail" data-recommended-list>${this.renderSkeletonCards(4)}</div>
         </div>
         <div id="discovery-services-slot" class="home-discovery__services-slot" aria-label="Services professionnels"></div>
         <div class="home-discovery__section home-discovery__section--vendors" data-section="vendors">
-          <div class="home-discovery__heading">
-            <h2>Top vendeurs</h2>
+          <div class="home-discovery__heading home-section-heading">
+            <h2 class="home-section-title">Top vendeurs</h2>
           </div>
           <div class="home-discovery__vendors" data-vendors-list>${this.renderSkeletonCards(4)}</div>
         </div>
@@ -1004,38 +1004,78 @@ export default class HomepageDiscovery {
         }
       }
 
-      /* Featured and recommended products stay on one desktop/tablet row.
-         Flex sizing keeps every card identical even when product content or
-         image proportions differ. */
+      /* On wide screens, use the full available width for the six seller
+         cards instead of leaving the unused flex space on the right. */
+      @media (min-width: 1200px) {
+        .home-discovery__section--vendors .home-discovery__vendors {
+          display: grid;
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          align-items: stretch;
+          width: 100%;
+          overflow: hidden;
+          padding-inline: 0.2rem;
+        }
+
+        .home-discovery__section--vendors .home-discovery-card {
+          display: flex;
+          flex: none;
+          flex-direction: column;
+          width: 100%;
+          min-width: 0;
+          max-width: none;
+          height: 100%;
+        }
+
+        .home-discovery__section--vendors .home-discovery-card__body {
+          display: flex;
+          flex: 1 1 auto;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        .home-discovery__section--vendors .home-discovery-card__footer {
+          margin-top: auto;
+        }
+      }
+
+      /* Featured and recommended products stay in a single horizontal rail on
+         desktop/tablet. A fixed card basis prevents the last partial row from
+         stretching a card across an otherwise empty grid cell. */
       @media (min-width: 769px) {
         .home-discovery__section[data-section="sponsored"] .home-discovery__rail,
         .home-discovery__section[data-section="recommended"] .home-discovery__rail {
-          display: grid !important;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+          display: flex !important;
           flex-wrap: nowrap !important;
-          overflow: hidden !important;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          /* When the cards fit in the viewport, distribute the remaining
+             space so the left and right edges stay visually balanced. If the
+             rail overflows, the browser naturally falls back to a scrollable
+             start-aligned row. */
+          justify-content: space-between;
           align-items: stretch;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(31, 30, 28, 0.25) transparent;
         }
 
-        .home-discovery__section[data-section="sponsored"] .home-discovery__rail > :nth-child(n + 7),
-        .home-discovery__section[data-section="recommended"] .home-discovery__rail > :nth-child(n + 7) {
+        .home-discovery__section[data-section="sponsored"] .home-discovery__rail:not(:has(> :nth-child(2))),
+        .home-discovery__section[data-section="recommended"] .home-discovery__rail:not(:has(> :nth-child(2))) {
+          justify-content: flex-start;
+        }
+
+        .home-discovery__section[data-section="sponsored"] .home-discovery__rail > :nth-child(n + 6),
+        .home-discovery__section[data-section="recommended"] .home-discovery__rail > :nth-child(n + 6) {
           display: none !important;
         }
 
         .home-discovery__section[data-section="sponsored"] .home-discovery-card,
         .home-discovery__section[data-section="recommended"] .home-discovery-card {
-          width: auto !important;
-          max-width: none !important;
+          flex: 0 0 clamp(220px, 22vw, 280px) !important;
+          width: clamp(220px, 22vw, 280px) !important;
+          max-width: clamp(220px, 22vw, 280px) !important;
           min-width: 0 !important;
-          width: auto !important;
           display: flex;
           flex-direction: column;
-        }
-        .home-discovery__section[data-section="sponsored"] .home-discovery-card { width:auto !important; max-width:none !important; }
-        .home-discovery__section[data-section="sponsored"] .home-discovery-card:only-child,
-        .home-discovery__section[data-section="recommended"] .home-discovery-card:only-child {
-          flex: 0 0 250px !important;
-          max-width: 250px !important;
         }
 
         .home-discovery__section[data-section="sponsored"] .home-discovery-card__image,
@@ -1055,8 +1095,18 @@ export default class HomepageDiscovery {
       @media (min-width: 769px) and (max-width: 1100px) {
         .home-discovery__section[data-section="sponsored"] .home-discovery-card,
         .home-discovery__section[data-section="recommended"] .home-discovery-card {
-          flex-basis: 220px !important;
+          flex: 0 0 220px !important;
+          width: 220px !important;
           max-width: 220px !important;
+        }
+      }
+
+      @media (min-width: 1200px) {
+        .home-discovery__section[data-section="sponsored"] .home-discovery-card,
+        .home-discovery__section[data-section="recommended"] .home-discovery-card {
+          flex-basis: calc((100% - 4rem) / 5) !important;
+          width: calc((100% - 4rem) / 5) !important;
+          max-width: calc((100% - 4rem) / 5) !important;
         }
       }
 

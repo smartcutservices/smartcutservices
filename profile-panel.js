@@ -1214,8 +1214,7 @@ class ProfilePanel {
               <button type="button" class="profile-sidebar-link${isPersonalView ? ' is-active' : ''}" data-profile-nav="personal"><i class="fas fa-id-card"></i><span>Informations personnelles</span></button>
               <button type="button" class="profile-sidebar-link${this.activeView === 'likes' ? ' is-active' : ''}" data-profile-nav="likes"><i class="fas fa-heart"></i><span>Favoris</span></button>
               <button type="button" class="profile-sidebar-link${this.activeView === 'orders' ? ' is-active' : ''}" data-profile-nav="orders"><i class="fas fa-receipt"></i><span>Commandes</span></button>
-              ${this.vendorAccess?.approved ? `<a class="profile-sidebar-link" href="${VENDOR_DASHBOARD_URL}"><i class="fas fa-store"></i><span>Espace vendeur</span></a>` : ''}
-              <div class="profile-sidebar-help"><i class="fas fa-headset"></i><strong>Besoin d’aide ?</strong><p>Notre équipe est là pour vous aider.</p><a href="https://wa.me/50937000000?text=Bonjour%20Smart%20Cut%20Services%2C%20j%27ai%20besoin%20d%27aide." target="_blank" rel="noopener noreferrer">Nous contacter</a></div>
+              <div class="profile-sidebar-help"><i class="fas fa-headset"></i><strong>Besoin d’aide ?</strong><p>Notre équipe est là pour vous aider.</p><a href="https://wa.me/50934913988?text=Bonjour%20Smart%20Cut%20Services%2C%20j%27ai%20besoin%20d%27aide." target="_blank" rel="noopener noreferrer">Nous contacter</a></div>
             </aside>
           ` : ''}
           <main class="profile-content${isAuthenticated && this.activeView === 'account' ? ' profile-overview-view' : ''}" style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">

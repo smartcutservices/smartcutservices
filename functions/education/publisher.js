@@ -35,9 +35,14 @@ function registerEducationPublisherFunctions({ db, sstInternals, region }) {
   const getPublisherDashboard = onRequest({ region }, withErrorHandling(async (req, res) => {
     const user = await requireBearerUser(req, sstInternals);
     const programId = text(req.query?.programId, 160);
-    const [schoolsSnap, programsSnap] = await Promise.all([
+    const [schoolsSnap, programsSnap, requestsSnap, partnershipsSnap, notificationsSnap, ledgerSnap, documentsSnap] = await Promise.all([
       db.collection('educationSchools').where('ownerUid', '==', user.uid).get(),
-      db.collection('educationPrograms').where('ownerUid', '==', user.uid).get()
+      db.collection('educationPrograms').where('ownerUid', '==', user.uid).get(),
+      db.collection('educationPublicationRequests').where('ownerUid', '==', user.uid).get(),
+      db.collection('educationPartnerships').where('ownerUid', '==', user.uid).get(),
+      db.collection('educationNotifications').where('recipientUid', '==', user.uid).get(),
+      db.collection('billingLedgerEntries').where('ownerUid', '==', user.uid).limit(100).get(),
+      db.collection('educationDocuments').where('ownerUid', '==', user.uid).limit(100).get()
     ]);
     const schools = schoolsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const programs = programsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
@@ -55,7 +60,16 @@ function registerEducationPublisherFunctions({ db, sstInternals, region }) {
       selected = { ...program, ...tree, students, analytics: { pageViews: events.filter((item) => item.type === 'page_view').length, inquiries: events.filter((item) => item.type === 'inquiry').length, enrollments: students.length, revenue: students.filter((item) => item.paymentStatus === 'paid').reduce((sum, item) => sum + (Number(item.amount) || 0), 0) } };
       selected.checklist = buildPublishChecklist(selected, { modules: tree.modules.length, lessons: tree.lessons.length });
     }
-    res.status(200).json({ ok: true, schools, programs, selected });
+    const publicationRequests = requestsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    const partnerships = partnershipsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const notifications = notificationsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 50);
+    const ledger = ledgerSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const documents = documentsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const programIds = new Set(programs.map((item) => item.id));
+    const certificatesSnap = await db.collection('educationCertificates').limit(200).get();
+    const certificates = certificatesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((item) => programIds.has(item.programId));
+    const finance = { ledger, credits: ledger.filter((item) => ['CREDIT','credit'].includes(item.direction)).reduce((sum, item) => sum + Number(item.amountMinor || item.amount || 0), 0), debits: ledger.filter((item) => ['DEBIT','debit'].includes(item.direction)).reduce((sum, item) => sum + Number(item.amountMinor || item.amount || 0), 0) };
+    res.status(200).json({ ok: true, schools, programs, selected, publicationRequests, partnerships, notifications, finance, documents, certificates });
   }));
 
   const saveSchool = onRequest({ region }, withErrorHandling(async (req, res) => {
@@ -146,10 +160,9 @@ function registerEducationPublisherFunctions({ db, sstInternals, region }) {
     const tree = await programTree(programId, user.uid);
     const checklist = buildPublishChecklist(snap.data(), { modules: tree.modules.length, lessons: tree.lessons.length });
     if (status !== 'draft' && !checklist.complete) throw new HttpError(409, 'program-incomplete', 'Complétez la checklist avant soumission.');
-    if (status === 'published') {
-      const school = await owned(db.collection('educationSchools').doc(snap.data().schoolId), user.uid, 'school');
-      if (school.data().verification?.status !== 'verified') throw new HttpError(403, 'school-verification-required', 'La vérification du profil est requise.');
-    }
+    // Publication is an administrative decision. A partner request using the
+    // legacy `published` action is stored as `review` and enters moderation.
+    const effectiveStatus = status === 'published' ? 'review' : status;
     const publicCurriculum = tree.modules.map((module) => ({
       title: text(module.title, 160),
       description: text(module.description, 500),
@@ -160,9 +173,18 @@ function registerEducationPublisherFunctions({ db, sstInternals, region }) {
         isFreePreview: lesson.isFreePreview === true
       }))
     }));
-    await ref.set({ publicationStatus: status, publishChecklist: checklist, publicCurriculum, updatedAt: stamp(), ...(status === 'published' ? { publishedAt: stamp() } : {}) }, { merge: true });
-    await audit(user.uid, `program.${status}`, { programId });
-    res.status(200).json({ ok: true, status, checklist });
+    await ref.set({ publicationStatus: effectiveStatus, publishChecklist: checklist, publicCurriculum, updatedAt: stamp(), ...(effectiveStatus === 'review' ? { submittedAt: stamp() } : {}) }, { merge: true });
+    if (effectiveStatus === 'review') {
+      const openRequest = await db.collection('educationPublicationRequests').where('ownerUid', '==', user.uid).where('resourceId', '==', programId).where('status', 'in', ['submitted','changes_requested']).limit(1).get();
+      if (!openRequest.empty) { res.status(200).json({ ok: true, status: effectiveStatus, submittedForReview: status === 'published', checklist, requestId: openRequest.docs[0].id }); return; }
+      await db.collection('educationPublicationRequests').add({
+        resourceType: 'program', resourceId: programId, ownerUid: user.uid,
+        status: 'submitted', version: Number(snap.data().publicationVersion || 0) + 1,
+        checklist, submittedAt: stamp(), updatedAt: stamp()
+      });
+    }
+    await audit(user.uid, `program.${effectiveStatus}`, { programId });
+    res.status(200).json({ ok: true, status: effectiveStatus, submittedForReview: status === 'published', checklist });
   }));
 
   const saveAsset = onRequest({ region }, withErrorHandling(async (req, res) => {

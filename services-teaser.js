@@ -79,8 +79,8 @@ export async function initServicesTeaser(options = {}) {
     const cards = [...services.map(serviceCard), ...products.map(productCard)].join('');
     root.innerHTML = `<section class="services-teaser" aria-label="Services professionnels">
       <div class="services-teaser-inner">
-        <div class="services-teaser-head">
-          <p class="services-teaser-label">Services professionnels</p>
+        <div class="services-teaser-head home-section-heading">
+          <h2 class="services-teaser-label home-section-title">Services professionnels</h2>
           <div class="services-teaser-actions"><a class="services-teaser-button" href="./logiciel proformat/">Proposer un service</a><a class="services-teaser-button primary" href="./services.html">Voir tous les services</a></div>
         </div>
         <div class="services-carousel-shell">

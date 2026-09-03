@@ -45,7 +45,8 @@ class SierraProducts {
     this.currentModal = null;
     this.ProductModalClass = null;
     this.productObserver = null;
-    
+
+    this.renderLoading();
     this.init();
   }
   
@@ -343,12 +344,43 @@ class SierraProducts {
     document.dispatchEvent(new CustomEvent('addToCart', { detail: item }));
   }
   
+  renderSectionHeading({ showScrollIndicator = false } = {}) {
+    return `
+      <div class="flex justify-between items-center mb-6 px-4 md:px-6 home-section-heading">
+        <h2 class="font-primary text-2xl md:text-3xl text-luxury home-section-title">
+          ${this.options.sectionTitle}
+        </h2>
+        ${showScrollIndicator && this.options.scrollIndicator ? `
+          <div class="scroll-indicator-${this.uniqueId} flex items-center gap-2 text-accent text-sm md:hidden">
+            <span>Faites glisser</span>
+            <i class="fas fa-arrow-right animate-pulse"></i>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  renderLoading() {
+    this.container.innerHTML = `
+      <div class="products-wrapper-${this.uniqueId} w-full relative" aria-busy="true">
+        ${this.renderSectionHeading()}
+        <div class="text-center py-10 text-accent/70" role="status">
+          <i class="fas fa-circle-notch fa-spin text-2xl mb-3" aria-hidden="true"></i>
+          <p class="text-sm">Chargement des produits…</p>
+        </div>
+      </div>
+    `;
+  }
+
   render() {
     if (this.products.length === 0) {
       this.container.innerHTML = `
-        <div class="products-empty-${this.uniqueId} text-center py-16 text-accent/70">
-          <i class="fas fa-box-open text-5xl mb-4 opacity-50"></i>
-          <p class="text-lg">Aucun produit disponible</p>
+        <div class="products-wrapper-${this.uniqueId} w-full relative">
+          ${this.renderSectionHeading()}
+          <div class="products-empty-${this.uniqueId} text-center py-12 text-accent/70">
+            <i class="fas fa-box-open text-5xl mb-4 opacity-50" aria-hidden="true"></i>
+            <p class="text-lg">Aucun produit disponible</p>
+          </div>
         </div>
       `;
       return;
@@ -362,17 +394,7 @@ class SierraProducts {
     const html = `
       <div class="products-wrapper-${this.uniqueId} w-full relative">
         <!-- En-tête avec indicateur de scroll -->
-        <div class="flex justify-between items-center mb-6 px-4 md:px-6">
-          <h2 class="font-primary text-2xl md:text-3xl text-luxury">
-            ${this.options.sectionTitle}
-          </h2>
-          ${this.options.scrollIndicator ? `
-            <div class="scroll-indicator-${this.uniqueId} flex items-center gap-2 text-accent text-sm md:hidden">
-              <span>Faites glisser</span>
-              <i class="fas fa-arrow-right animate-pulse"></i>
-            </div>
-          ` : ''}
-        </div>
+        ${this.renderSectionHeading({ showScrollIndicator: true })}
         
         <!-- Carousel Container -->
         <div class="relative group">
@@ -596,8 +618,8 @@ class SierraProducts {
   renderGridCards() {
     this.container.innerHTML = `
       <div class="products-wrapper-${this.uniqueId} products-grid-layout-${this.uniqueId}">
-        <div class="products-grid-header-${this.uniqueId}">
-          <h2 class="products-grid-title-${this.uniqueId}">Pour toi</h2>
+        <div class="products-grid-header-${this.uniqueId} home-section-heading">
+          <h2 class="products-grid-title-${this.uniqueId} home-section-title">Pour toi</h2>
           <a class="products-grid-all-${this.uniqueId}" href="./catalogue.html">
             Voir tout <i class="fas fa-arrow-right" aria-hidden="true"></i>
           </a>
@@ -1255,10 +1277,13 @@ class SierraProducts {
   
   renderError() {
     this.container.innerHTML = `
-      <div class="products-error-${this.uniqueId} text-center py-16 text-danger">
-        <i class="fas fa-exclamation-triangle text-5xl mb-4"></i>
-        <p class="text-lg">Erreur de chargement des produits</p>
-        <p class="text-sm text-accent mt-2">Veuillez rafraîchir la page</p>
+      <div class="products-wrapper-${this.uniqueId} w-full relative">
+        ${this.renderSectionHeading()}
+        <div class="products-error-${this.uniqueId} text-center py-12 text-danger" role="alert">
+          <i class="fas fa-exclamation-triangle text-5xl mb-4" aria-hidden="true"></i>
+          <p class="text-lg">Erreur de chargement des produits</p>
+          <p class="text-sm text-accent mt-2">Veuillez rafraîchir la page</p>
+        </div>
       </div>
     `;
   }

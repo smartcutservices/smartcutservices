@@ -84,6 +84,139 @@ export default class SmartCutEducationHeader {
           margin-left: auto;
         }
 
+        .education-header__category-wrap {
+          position: relative;
+        }
+
+        .education-header__category-trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: .45rem;
+          min-height: 42px;
+          padding: 0 .8rem;
+          border: 0;
+          border-radius: 7px;
+          background: transparent;
+          color: #e7eaf0;
+          font: inherit;
+          font-size: .86rem;
+          font-weight: 700;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: color .18s ease, background .18s ease;
+        }
+
+        .education-header__category-trigger:hover,
+        .education-header__category-trigger:focus-visible,
+        .education-header__category-wrap.is-open .education-header__category-trigger {
+          color: #fff;
+          background: rgba(255, 255, 255, .09);
+          outline: none;
+        }
+
+        .education-header__category-trigger .fa-chevron-down {
+          font-size: .68rem;
+          transition: transform .2s ease;
+        }
+
+        .education-header__category-wrap.is-open .fa-chevron-down { transform: rotate(180deg); }
+
+        .education-header__category-panel {
+          position: absolute;
+          top: calc(100% + .8rem);
+          left: 50%;
+          width: min(790px, calc(100vw - 2rem));
+          padding: 1.1rem;
+          border: 1px solid #e4e7ec;
+          border-radius: 14px;
+          background: #fff;
+          box-shadow: 0 20px 55px rgba(15, 23, 42, .2);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transform: translate(-50%, -8px);
+          transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
+        }
+
+        .education-header__category-wrap.is-open .education-header__category-panel {
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+          transform: translate(-50%, 0);
+        }
+
+        .education-header__category-panel::before {
+          content: '';
+          position: absolute;
+          top: -7px;
+          left: 50%;
+          width: 13px;
+          height: 13px;
+          border-top: 1px solid #e4e7ec;
+          border-left: 1px solid #e4e7ec;
+          background: #fff;
+          transform: translateX(-50%) rotate(45deg);
+        }
+
+        .education-header__category-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-bottom: .8rem;
+        }
+
+        .education-header__category-head strong { color: #131921; font-size: .98rem; }
+        .education-header__category-head span { color: #687181; font-size: .74rem; }
+
+        .education-header__category-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: .45rem;
+          max-height: min(64vh, 510px);
+          overflow: auto;
+          padding-right: .2rem;
+        }
+
+        .education-header__category-item {
+          display: grid;
+          grid-template-columns: 28px minmax(0, 1fr) 14px;
+          align-items: center;
+          gap: .55rem;
+          min-height: 56px;
+          padding: .55rem .6rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
+          color: #1b2533;
+          text-decoration: none;
+          transition: border-color .18s ease, background .18s ease, transform .18s ease;
+        }
+
+        .education-header__category-item:hover,
+        .education-header__category-item:focus-visible {
+          border-color: var(--sc-education, #c93a24);
+          background: #fff8f6;
+          transform: translateY(-1px);
+          outline: none;
+        }
+
+        .education-header__category-icon {
+          display: grid;
+          place-items: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          background: #fde9e5;
+          color: var(--sc-education, #c93a24);
+          font-size: .72rem;
+        }
+
+        .education-header__category-item strong,
+        .education-header__category-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .education-header__category-item strong { font-size: .75rem; line-height: 1.25; }
+        .education-header__category-item small { margin-top: .16rem; color: #778091; font-size: .64rem; }
+        .education-header__category-arrow { color: #a3aab5; font-size: .65rem; }
+
         .education-header__link {
           display: inline-flex;
           align-items: center;
@@ -188,6 +321,26 @@ export default class SmartCutEducationHeader {
             color: #303642;
           }
 
+          .education-header__category-wrap { width: 100%; }
+          .education-header__category-trigger { width: 100%; justify-content: space-between; color: #303642; }
+          .education-header__category-trigger:hover,
+          .education-header__category-trigger:focus-visible,
+          .education-header__category-wrap.is-open .education-header__category-trigger { color: #16181d; background: #f4f5f7; }
+          .education-header__category-panel {
+            position: static;
+            width: 100%;
+            margin: .15rem 0 .35rem;
+            padding: .7rem;
+            border-radius: 10px;
+            box-shadow: inset 0 0 0 1px #e5e7eb;
+            transform: none;
+          }
+          .education-header__category-panel::before { display: none; }
+          .education-header__category-wrap.is-open .education-header__category-panel { transform: none; }
+          .education-header__category-grid { grid-template-columns: 1fr; max-height: 42vh; }
+          .education-header__category-head { margin-bottom: .5rem; }
+          .education-header__category-head span { display: none; }
+
           .education-header__link:hover,
           .education-header__link:focus-visible {
             color: #16181d;
@@ -216,6 +369,7 @@ export default class SmartCutEducationHeader {
             <a class="education-header__link ${this.isCurrentPage('education-formations.html') ? 'is-active' : ''}" href="./education-formations.html${demoSuffix}">Formations</a>
             <a class="education-header__link ${this.isCurrentPage('education-etablissements.html') ? 'is-active' : ''}" href="./education-etablissements.html${demoSuffix}">Établissements</a>
             <a class="education-header__link ${this.isCurrentPage('education-tuteurs.html') ? 'is-active' : ''}" href="./education-tuteurs.html${demoSuffix}">Tuteurs</a>
+            <a class="education-header__link ${this.isCurrentPage('education-certificat.html') ? 'is-active' : ''}" href="./education-certificat.html">Certificats</a>
             <a class="education-header__link ${this.isCurrentPage('education-tuteur-pro.html') ? 'is-active' : ''}" href="./education-tuteur-pro.html"><i class="fas fa-chalkboard-user" aria-hidden="true"></i> Devenir tuteur</a>
             <a class="education-header__link education-header__site-link" href="./index.html">
               <i class="fas fa-arrow-left" aria-hidden="true"></i> Smart Cut Services

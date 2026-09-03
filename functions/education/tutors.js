@@ -29,6 +29,9 @@ function profileInput(body = {}, current = {}) {
     headline,
     bio,
     subjects,
+    categoryIds: list(body.categoryIds ?? current.categoryIds, 12, 100),
+    subcategoryIds: list(body.subcategoryIds ?? current.subcategoryIds, 24, 100),
+    teachingLevels: list(body.teachingLevels ?? current.teachingLevels, 8, 80),
     languages: list(body.languages ?? current.languages, 8, 60),
     experienceYears: Math.round(number(body.experienceYears ?? current.experienceYears, 0, 70)),
     education: text(body.education ?? current.education, 1200),
@@ -49,6 +52,8 @@ function serviceInput(body = {}, current = {}) {
     summary: text(body.summary ?? current.summary, 500),
     description: text(body.description ?? current.description, 5000),
     subject: text(body.subject ?? current.subject, 100),
+    categoryId: text(body.categoryId ?? current.categoryId, 100) || null,
+    subcategoryIds: list(body.subcategoryIds ?? current.subcategoryIds, 12, 100),
     level: ['primary','secondary','university','professional','all'].includes(body.level) ? body.level : (current.level || 'all'),
     language: text(body.language ?? current.language ?? 'Français', 60),
     price: Math.round(number(body.price ?? current.price, 0, 1000000)),
@@ -76,11 +81,11 @@ module.exports = function buildEducationTutorFunctions(sstInternals) {
     ]);
     let tutors = profilesSnap.docs.map((doc) => {
       const item = doc.data();
-      return { id: doc.id, slug:item.slug, displayName:item.displayName, headline:item.headline, bio:item.bio, subjects:item.subjects, languages:item.languages, experienceYears:item.experienceYears, education:item.education, city:item.city, photoUrl:item.photoUrl, weeklyAvailability:item.weeklyAvailability, responseTimeHours:item.responseTimeHours, verificationStatus:item.verificationStatus };
-    });
+      return { id: doc.id, slug:item.slug, displayName:item.displayName, headline:item.headline, bio:item.bio, subjects:item.subjects, categoryIds:item.categoryIds, subcategoryIds:item.subcategoryIds, teachingLevels:item.teachingLevels, languages:item.languages, experienceYears:item.experienceYears, education:item.education, city:item.city, photoUrl:item.photoUrl, weeklyAvailability:item.weeklyAvailability, responseTimeHours:item.responseTimeHours, verificationStatus:item.verificationStatus, visibility:item.visibility || 'public' };
+    }).filter((item) => item.visibility !== 'hidden');
     let services = servicesSnap.docs.map((doc) => {
       const item = doc.data();
-      return { id:doc.id, tutorUid:item.tutorUid, tutorName:item.tutorName, title:item.title, slug:item.slug, summary:item.summary, description:item.description, subject:item.subject, level:item.level, language:item.language, price:item.price, durationMinutes:item.durationMinutes, maxStudents:item.maxStudents, format:item.format, imageUrl:item.imageUrl, outcomes:item.outcomes };
+      return { id:doc.id, tutorUid:item.tutorUid, tutorName:item.tutorName, title:item.title, slug:item.slug, summary:item.summary, description:item.description, subject:item.subject, categoryId:item.categoryId, subcategoryIds:item.subcategoryIds, level:item.level, language:item.language, price:item.price, durationMinutes:item.durationMinutes, maxStudents:item.maxStudents, format:item.format, imageUrl:item.imageUrl, outcomes:item.outcomes };
     });
     if (tutorId) {
       tutors = tutors.filter((item) => item.id === tutorId || item.slug === tutorId);
@@ -95,14 +100,18 @@ module.exports = function buildEducationTutorFunctions(sstInternals) {
 
   const getDashboard = onRequest({ region: REGION }, withErrorHandling(async (req, res) => {
     const user = await requireBearerUser(req, sstInternals);
-    const [profileSnap, servicesSnap, requestsSnap] = await Promise.all([
+    const [profileSnap, servicesSnap, requestsSnap, notificationsSnap, documentsSnap] = await Promise.all([
       db.collection('educationTutorProfiles').doc(user.uid).get(),
       db.collection('educationTutorServices').where('ownerUid', '==', user.uid).get(),
-      db.collection('educationTutorRequests').where('tutorUid', '==', user.uid).get()
+      db.collection('educationTutorRequests').where('tutorUid', '==', user.uid).get(),
+      db.collection('educationNotifications').where('recipientUid', '==', user.uid).limit(50).get(),
+      db.collection('educationDocuments').where('ownerUid', '==', user.uid).limit(100).get()
     ]);
     const services = servicesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const requests = requestsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-    res.status(200).json({ ok: true, profile: profileSnap.exists ? { id: profileSnap.id, ...profileSnap.data() } : null, services, requests, metrics: { publishedServices: services.filter((item) => item.publicationStatus === 'published').length, pendingRequests: requests.filter((item) => item.status === 'pending').length, acceptedRequests: requests.filter((item) => item.status === 'accepted').length, completedSessions: requests.filter((item) => item.status === 'completed').length } });
+    const notifications = notificationsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const documents = documentsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json({ ok: true, profile: profileSnap.exists ? { id: profileSnap.id, ...profileSnap.data() } : null, services, requests, notifications, documents, metrics: { publishedServices: services.filter((item) => item.publicationStatus === 'published').length, pendingRequests: requests.filter((item) => item.status === 'pending').length, acceptedRequests: requests.filter((item) => item.status === 'accepted').length, completedSessions: requests.filter((item) => item.status === 'completed').length } });
   }));
 
   const saveProfile = onRequest({ region: REGION }, withErrorHandling(async (req, res) => {
@@ -113,9 +122,18 @@ module.exports = function buildEducationTutorFunctions(sstInternals) {
     const input = profileInput(req.body, snap.exists ? snap.data() : {});
     const requestedStatus = text(req.body?.publicationStatus, 30);
     if (requestedStatus === 'published' && !profileComplete(input)) throw new HttpError(409, 'profile-incomplete', 'Complétez votre nom, titre, présentation et matières avant publication.');
-    const publicationStatus = requestedStatus === 'published' ? 'published' : (requestedStatus === 'paused' ? 'paused' : (snap.data()?.publicationStatus || 'draft'));
-    await ref.set({ ...input, ownerUid: user.uid, publicationStatus, verificationStatus: snap.data()?.verificationStatus || 'unverified', updatedAt: stamp(), ...(snap.exists ? {} : { createdAt: stamp() }) }, { merge: true });
-    res.status(200).json({ ok: true, tutorId: user.uid, publicationStatus });
+    // A partner can submit a profile, but only Smart Akademi moderation can
+    // make it public. The former direct `published` path is intentionally
+    // converted into a review request.
+    const publicationStatus = requestedStatus === 'published' ? 'review' : (requestedStatus === 'paused' ? 'paused' : (snap.data()?.publicationStatus || 'draft'));
+    const verificationStatus = requestedStatus === 'published' ? 'pending' : (snap.data()?.verificationStatus || 'unverified');
+    await ref.set({ ...input, ownerUid: user.uid, publicationStatus, verificationStatus, ...(requestedStatus === 'published' ? { submittedAt: stamp() } : {}), updatedAt: stamp(), ...(snap.exists ? {} : { createdAt: stamp() }) }, { merge: true });
+    if (requestedStatus === 'published') {
+      const openRequest = await db.collection('educationPublicationRequests').where('ownerUid', '==', user.uid).where('resourceId', '==', user.uid).where('status', 'in', ['submitted','changes_requested']).limit(1).get();
+      if (!openRequest.empty) { res.status(200).json({ ok: true, tutorId: user.uid, publicationStatus, submittedForReview: true, requestId: openRequest.docs[0].id }); return; }
+      await db.collection('educationPublicationRequests').add({ resourceType: 'tutor_profile', resourceId: user.uid, ownerUid: user.uid, status: 'submitted', submittedAt: stamp(), updatedAt: stamp() });
+    }
+    res.status(200).json({ ok: true, tutorId: user.uid, publicationStatus, submittedForReview: requestedStatus === 'published' });
   }));
 
   const saveService = onRequest({ region: REGION }, withErrorHandling(async (req, res) => {
@@ -129,11 +147,16 @@ module.exports = function buildEducationTutorFunctions(sstInternals) {
     if (snap && (!snap.exists || snap.data().ownerUid !== user.uid)) throw new HttpError(404, 'service-not-found', 'Offre introuvable.');
     const input = serviceInput(req.body, snap?.data() || {});
     const requestedStatus = text(req.body?.publicationStatus, 30);
-    if (requestedStatus === 'published' && profileSnap.data().publicationStatus !== 'published') throw new HttpError(409, 'profile-not-published', 'Publiez d’abord votre profil tuteur.');
+    if (requestedStatus === 'published' && profileSnap.data().publicationStatus !== 'published') throw new HttpError(409, 'profile-not-published', 'Votre profil tuteur doit être approuvé avant la publication d’une offre.');
     if (requestedStatus === 'published' && !serviceComplete(input)) throw new HttpError(409, 'service-incomplete', 'Complétez le titre, le résumé, la matière, le prix et la durée.');
-    const publicationStatus = ['draft','published','paused'].includes(requestedStatus) ? requestedStatus : (snap?.data()?.publicationStatus || 'draft');
-    await ref.set({ ...input, ownerUid: user.uid, tutorUid: user.uid, tutorName: profileSnap.data().displayName, publicationStatus, updatedAt: stamp(), ...(snap?.exists ? {} : { createdAt: stamp() }) }, { merge: true });
-    res.status(200).json({ ok: true, serviceId: ref.id, publicationStatus });
+    const publicationStatus = requestedStatus === 'published' ? 'review' : (['draft','paused'].includes(requestedStatus) ? requestedStatus : (snap?.data()?.publicationStatus || 'draft'));
+    await ref.set({ ...input, ownerUid: user.uid, tutorUid: user.uid, tutorName: profileSnap.data().displayName, publicationStatus, ...(requestedStatus === 'published' ? { submittedAt: stamp() } : {}), updatedAt: stamp(), ...(snap?.exists ? {} : { createdAt: stamp() }) }, { merge: true });
+    if (requestedStatus === 'published') {
+      const openRequest = await db.collection('educationPublicationRequests').where('ownerUid', '==', user.uid).where('resourceId', '==', ref.id).where('status', 'in', ['submitted','changes_requested']).limit(1).get();
+      if (!openRequest.empty) { res.status(200).json({ ok: true, serviceId: ref.id, publicationStatus, submittedForReview: true, requestId: openRequest.docs[0].id }); return; }
+      await db.collection('educationPublicationRequests').add({ resourceType: 'tutor_service', resourceId: ref.id, ownerUid: user.uid, status: 'submitted', submittedAt: stamp(), updatedAt: stamp() });
+    }
+    res.status(200).json({ ok: true, serviceId: ref.id, publicationStatus, submittedForReview: requestedStatus === 'published' });
   }));
 
   const archiveService = onRequest({ region: REGION }, withErrorHandling(async (req, res) => {

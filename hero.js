@@ -422,7 +422,7 @@ class SierraHero {
                 <article class="posterHeroSlide913" data-hero-slide="${index}" aria-hidden="${index === this.currentIndex ? 'false' : 'true'}">
                   <picture class="posterHeroPoster913">
                     <source media="(min-width: 768px)" srcset="${safeDesktopUrl}">
-                    <img class="posterHeroPosterImage913" src="${safeMobileUrl}" alt="${this.escape(slide.altText)}" loading="${index === 0 ? 'eager' : 'lazy'}" decoding="async">
+                    <img class="posterHeroPosterImage913" src="${safeMobileUrl}" alt="${this.escape(slide.altText)}" loading="${index === 0 ? 'eager' : 'lazy'}" fetchpriority="${index === 0 ? 'high' : 'low'}" decoding="async">
                   </picture>
                 </article>
               `;

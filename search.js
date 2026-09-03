@@ -11,6 +11,35 @@ import theme from './theme-root.js';
 const SMARTCUT_SEARCH_HISTORY_KEY = 'smartcut_search_history';
 const HEALTH_FN_BASE = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
 const SEARCH_SOURCE_TTL = 5 * 60 * 1000; // une source n'est retéléchargée qu'une fois par tranche de 5 min
+let _searchHistoryMemory = [];
+
+function scEscapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getSmartcutSearchHistory(maxItems = 20) {
+  let values = _searchHistoryMemory;
+  try {
+    const stored = JSON.parse(localStorage.getItem(SMARTCUT_SEARCH_HISTORY_KEY) || '[]');
+    if (Array.isArray(stored) && stored.length) values = stored;
+  } catch (_) {}
+
+  const seen = new Set();
+  return values
+    .map((entry) => String(entry || '').trim())
+    .filter((entry) => {
+      const normalized = scNormalize(entry);
+      if (entry.length < 2 || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .slice(0, maxItems);
+}
 
 // Recherche tolérante aux accents : "medecin" trouve "médecin".
 function scNormalize(value) {
@@ -48,17 +77,40 @@ function saveSmartcutSearchTerm(term) {
   if (cleanTerm.length < 2) return;
 
   try {
-    const current = JSON.parse(localStorage.getItem(SMARTCUT_SEARCH_HISTORY_KEY) || '[]');
-    const list = Array.isArray(current) ? current : [];
-    const normalized = cleanTerm.toLowerCase();
+    const list = getSmartcutSearchHistory(20);
+    const normalized = scNormalize(cleanTerm);
     const next = [
       cleanTerm,
-      ...list.filter((entry) => String(entry || '').trim().toLowerCase() !== normalized)
+      ...list.filter((entry) => {
+        const entryNormalized = scNormalize(entry);
+        return entryNormalized !== normalized && !normalized.startsWith(entryNormalized);
+      })
     ].slice(0, 20);
+    _searchHistoryMemory = next;
     localStorage.setItem(SMARTCUT_SEARCH_HISTORY_KEY, JSON.stringify(next));
   } catch (_) {
-    // L'historique est un confort pour les recommandations; la recherche doit continuer meme sans stockage.
+    const list = getSmartcutSearchHistory(20);
+    _searchHistoryMemory = [
+      cleanTerm,
+      ...list.filter((entry) => scNormalize(entry) !== scNormalize(cleanTerm))
+    ].slice(0, 20);
   }
+}
+
+function removeSmartcutSearchTerm(term) {
+  const normalized = scNormalize(term);
+  _searchHistoryMemory = getSmartcutSearchHistory(20)
+    .filter((entry) => scNormalize(entry) !== normalized);
+  try {
+    localStorage.setItem(SMARTCUT_SEARCH_HISTORY_KEY, JSON.stringify(_searchHistoryMemory));
+  } catch (_) {}
+}
+
+function clearSmartcutSearchHistory() {
+  _searchHistoryMemory = [];
+  try {
+    localStorage.removeItem(SMARTCUT_SEARCH_HISTORY_KEY);
+  } catch (_) {}
 }
 
 class SearchComponent {
@@ -78,6 +130,7 @@ class SearchComponent {
     this.modal = null;
     this.isOpen = false;
     this.searchTimeout = null;
+    this.searchRequestId = 0;
     this.currentResults = {
       products: [],
       presentations: [],
@@ -502,6 +555,112 @@ class SearchComponent {
         color: ${buttonTextColor};
         border-color: ${iconHover};
       }
+
+      .search-recents-${this.uniqueId} {
+        animation: fadeIn 0.2s ease;
+      }
+
+      .search-recents-header-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .search-recents-title-${this.uniqueId} {
+        margin: 0;
+        color: ${titleColor};
+        font-family: ${primaryFont};
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .search-recents-clear-${this.uniqueId} {
+        border: 0;
+        background: transparent;
+        color: ${subtitleColor};
+        cursor: pointer;
+        font-family: ${secondaryFont};
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .search-recents-clear-${this.uniqueId}:hover {
+        color: ${iconHover};
+        text-decoration: underline;
+      }
+
+      .search-recents-list-${this.uniqueId} {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .search-recent-item-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+        border: 1px solid ${iconStandard}20;
+        border-radius: 0.7rem;
+        background: ${bgCardColor};
+        overflow: hidden;
+      }
+
+      .search-recent-term-${this.uniqueId} {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+        min-height: 48px;
+        padding: 0.7rem 0.9rem;
+        border: 0;
+        background: transparent;
+        color: ${titleColor};
+        cursor: pointer;
+        font-family: ${secondaryFont};
+        font-size: 0.95rem;
+        text-align: left;
+      }
+
+      .search-recent-term-${this.uniqueId} span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .search-recent-term-${this.uniqueId} i {
+        flex: 0 0 auto;
+        color: ${subtitleColor};
+      }
+
+      .search-recent-term-${this.uniqueId}:hover,
+      .search-recent-term-${this.uniqueId}:focus-visible {
+        background: ${iconHover}12;
+        outline: none;
+      }
+
+      .search-recent-remove-${this.uniqueId} {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        min-height: 48px;
+        border: 0;
+        border-left: 1px solid ${iconStandard}16;
+        background: transparent;
+        color: ${subtitleColor};
+        cursor: pointer;
+      }
+
+      .search-recent-remove-${this.uniqueId}:hover,
+      .search-recent-remove-${this.uniqueId}:focus-visible {
+        background: #b1270412;
+        color: #b12704;
+        outline: none;
+      }
     `;
     
     // Remplacer l'ancien style
@@ -515,6 +674,49 @@ class SearchComponent {
   init() {
     this.render();
     this.attachEvents();
+  }
+
+  renderIdleMarkup() {
+    const history = getSmartcutSearchHistory(5);
+    if (!history.length) {
+      return `
+        <div class="search-empty-${this.uniqueId}">
+          <i class="fas fa-search"></i>
+          <p>Que souhaitez-vous trouver ?</p>
+          <p style="font-size: 0.9rem; margin-top: 0.5rem;">Tapez au moins 2 caractères</p>
+        </div>
+      `;
+    }
+
+    return `
+      <section class="search-recents-${this.uniqueId}" aria-labelledby="searchRecentsTitle-${this.uniqueId}">
+        <div class="search-recents-header-${this.uniqueId}">
+          <h3 class="search-recents-title-${this.uniqueId}" id="searchRecentsTitle-${this.uniqueId}">Vos 5 dernières recherches</h3>
+          <button type="button" class="search-recents-clear-${this.uniqueId}" data-clear-search-history>Tout effacer</button>
+        </div>
+        <ul class="search-recents-list-${this.uniqueId}">
+          ${history.map((term) => {
+            const safeTerm = scEscapeHtml(term);
+            return `
+              <li class="search-recent-item-${this.uniqueId}">
+                <button type="button" class="search-recent-term-${this.uniqueId}" data-recent-search="${safeTerm}">
+                  <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+                  <span>${safeTerm}</span>
+                </button>
+                <button type="button" class="search-recent-remove-${this.uniqueId}" data-remove-recent="${safeTerm}" aria-label="Supprimer la recherche ${safeTerm}">
+                  <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+              </li>
+            `;
+          }).join('')}
+        </ul>
+      </section>
+    `;
+  }
+
+  renderIdleContent() {
+    const content = this.modal?.querySelector(`#searchContent-${this.uniqueId}`);
+    if (content) content.innerHTML = this.renderIdleMarkup();
   }
   
   render() {
@@ -556,11 +758,7 @@ class SearchComponent {
         </div>
         
         <div class="search-content-${this.uniqueId}" id="searchContent-${this.uniqueId}">
-          <div class="search-empty-${this.uniqueId}">
-            <i class="fas fa-search"></i>
-            <p>Que souhaitez-vous trouver ?</p>
-            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Tapez au moins 2 caractères</p>
-          </div>
+          ${this.renderIdleMarkup()}
         </div>
       </div>
     `;
@@ -574,6 +772,7 @@ class SearchComponent {
     const closeBtn = this.modal.querySelector(`#searchClose-${this.uniqueId}`);
     const input = this.modal.querySelector(`#searchInput-${this.uniqueId}`);
     const clearBtn = this.modal.querySelector(`#searchClear-${this.uniqueId}`);
+    const content = this.modal.querySelector(`#searchContent-${this.uniqueId}`);
     
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
@@ -602,6 +801,10 @@ class SearchComponent {
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
           this.close();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          clearTimeout(this.searchTimeout);
+          this.performSearch(input.value.trim());
         }
       });
     }
@@ -614,6 +817,35 @@ class SearchComponent {
           clearBtn.style.display = 'none';
           this.performSearch('');
         }
+      });
+    }
+
+    if (content) {
+      content.addEventListener('click', (event) => {
+        const removeButton = event.target.closest('[data-remove-recent]');
+        if (removeButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          removeSmartcutSearchTerm(removeButton.dataset.removeRecent);
+          this.renderIdleContent();
+          return;
+        }
+
+        const clearHistoryButton = event.target.closest('[data-clear-search-history]');
+        if (clearHistoryButton) {
+          event.preventDefault();
+          clearSmartcutSearchHistory();
+          this.renderIdleContent();
+          return;
+        }
+
+        const recentButton = event.target.closest('[data-recent-search]');
+        if (!recentButton || !input) return;
+        const term = String(recentButton.dataset.recentSearch || '').trim();
+        if (!term) return;
+        input.value = term;
+        if (clearBtn) clearBtn.style.display = 'flex';
+        this.performSearch(term);
       });
     }
     
@@ -665,6 +897,9 @@ class SearchComponent {
     this.isOpen = true;
     const overlay = this.modal;
     const container = this.modal.querySelector(`.search-container-${this.uniqueId}`);
+    const input = this.modal.querySelector(`#searchInput-${this.uniqueId}`);
+
+    if (!String(input?.value || '').trim()) this.renderIdleContent();
     
     overlay.style.display = 'block';
     
@@ -672,7 +907,6 @@ class SearchComponent {
       overlay.style.opacity = '1';
       container.classList.add('visible');
       
-      const input = this.modal.querySelector(`#searchInput-${this.uniqueId}`);
       if (input) {
         setTimeout(() => input.focus(), 100);
       }
@@ -699,30 +933,16 @@ class SearchComponent {
       const clearBtn = this.modal.querySelector(`#searchClear-${this.uniqueId}`);
       if (input) input.value = '';
       if (clearBtn) clearBtn.style.display = 'none';
-      
-      const content = this.modal.querySelector(`#searchContent-${this.uniqueId}`);
-      if (content) {
-        content.innerHTML = `
-          <div class="search-empty-${this.uniqueId}">
-            <i class="fas fa-search"></i>
-            <p>Que souhaitez-vous trouver ?</p>
-            <p style="font-size: 0.9rem; margin-top: 0.5rem;">Tapez au moins 2 caractères</p>
-          </div>
-        `;
-      }
+      this.renderIdleContent();
     }, 300);
   }
   
   async performSearch(searchTerm) {
     const contentDiv = this.modal.querySelector(`#searchContent-${this.uniqueId}`);
+    const requestId = ++this.searchRequestId;
     
     if (!searchTerm || searchTerm.length < this.options.minChars) {
-      contentDiv.innerHTML = `
-        <div class="search-empty-${this.uniqueId}">
-          <i class="fas fa-search"></i>
-          <p>Tapez au moins ${this.options.minChars} caractères</p>
-        </div>
-      `;
+      this.renderIdleContent();
       return;
     }
     
@@ -746,9 +966,11 @@ class SearchComponent {
       ]);
 
       this.currentResults = { products, presentations, health, services, formations };
+      if (requestId !== this.searchRequestId) return;
       this.renderResults(contentDiv, searchTerm);
       
     } catch (error) {
+      if (requestId !== this.searchRequestId) return;
       console.error('❌ Erreur recherche:', error);
       contentDiv.innerHTML = `
         <div class="search-empty-${this.uniqueId}">

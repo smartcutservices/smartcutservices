@@ -45,7 +45,7 @@ function getAuthDebugSnapshot(extra = {}) {
 }
 
 function logAuthDebug(stage, extra = {}) {
-  console.info('[AUTH_DEBUG]', getAuthDebugSnapshot({ stage, ...extra }));
+  // Debug telemetry is intentionally silent in production.
 }
 
 class AuthManager {
@@ -1475,7 +1475,6 @@ class AuthManager {
   async logout() {
     try {
       logAuthDebug('logout:requested');
-      console.trace('[AUTH_DEBUG] logout stack');
       this.isExplicitLogout = true;
       await signOut(auth);
     } catch (error) {
@@ -1561,6 +1560,4 @@ export function getAuthManager(options = {}) {
 }
 
 export default AuthManager;
-
-
 

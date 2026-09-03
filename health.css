@@ -201,6 +201,21 @@ button,a { -webkit-tap-highlight-color:transparent; }
   .health-hero-visual.health-art-home img { min-height: 285px; object-position: 68% center; }
 }
 
+/* Mobile-first : aucun débordement horizontal dans le hero Health. */
+@media (max-width:760px){
+  .health-hero { width:100%; overflow:hidden; padding:1.5rem 1rem 1.75rem; }
+  .health-hero .health-wrap { width:100%; max-width:none; }
+  .health-hero .health-hero-layout { display:flex; flex-direction:column; gap:1.25rem; min-height:0; }
+  .health-hero-copy { width:100%; min-width:0; }
+  .health-hero h1 { max-width:100%; font-size:clamp(2.25rem,12vw,3.5rem); line-height:1; overflow-wrap:anywhere; }
+  .health-hero p { max-width:100%; font-size:.98rem; }
+  .health-privacy-inline { margin-left:0; margin-top:.45rem; white-space:normal; }
+  .health-hero-actions { display:grid; grid-template-columns:1fr; width:100%; gap:.65rem; }
+  .health-hero-actions .health-btn { width:100%; min-height:46px; }
+  .health-hero-visual.health-art-home { width:100%; min-height:260px; max-height:none; }
+  .health-hero-visual.health-art-home img { width:100%; min-height:260px; max-height:360px; object-fit:cover; object-position:68% center; }
+}
+
 /* Téléconsultation — tarifs verrouillés côté serveur. */
 .telehealth-hero { background:linear-gradient(135deg,#092f29,#0f6958 70%,#17816d); }
 .health-emergency { display:flex; gap:.9rem; align-items:flex-start; margin-bottom:2rem; padding:1rem 1.1rem; border:1px solid #f0d4c9; border-radius:14px; color:#6f2b1c; background:#fff8f5; }

@@ -35,4 +35,12 @@ export const tutorApi = {
   archiveService: (serviceId) => call('educationArchiveTutorService', { method: 'POST', authRequired: true, body: { serviceId } }),
   createRequest: (body) => call('educationCreateTutorRequest', { method: 'POST', authRequired: true, body }),
   updateRequest: (body) => call('educationUpdateTutorRequest', { method: 'POST', authRequired: true, body })
+  ,markNotificationRead: (notificationId) => call('educationMarkNotificationRead', { method: 'POST', authRequired: true, body: { notificationId } })
+  ,markAllNotificationsRead: () => call('educationMarkAllNotificationsRead', { method: 'POST', authRequired: true })
+  ,certificates: () => call('educationGetCertificates', { authRequired: true })
+  ,setVisibility: (visible) => call('educationSetTutorVisibility', { method: 'POST', authRequired: true, body: { visible } })
+  ,setPlan: (plan) => call('educationSetTutorPlan', { method: 'POST', authRequired: true, body: { plan } })
+  ,requestPlanPayment: (plan) => call('educationRequestTutorPlanPayment', { method: 'POST', authRequired: true, body: { plan } })
+  ,documents: () => call('educationGetDocuments', { authRequired: true })
+  ,saveDocument: (body) => call('educationSaveDocument', { method: 'POST', authRequired: true, body })
 };

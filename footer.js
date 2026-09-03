@@ -108,21 +108,21 @@ class FooterComponent {
     const style = document.createElement('style');
     style.textContent = `
       .footer-${this.uniqueId} {
-        --footer-bg: #0F1111;
-        --footer-bg-soft: #2C2A29;
+        --footer-bg: #0b1220;
+        --footer-bg-soft: #111c2e;
         --footer-text: #EAEDED;
-        --footer-text-muted: #B8B0A4;
-        --footer-accent: #FFA41C;
-        --footer-border: rgba(198, 167, 94, 0.2);
+        --footer-text-muted: #9aa8bb;
+        --footer-accent: #f5b63f;
+        --footer-border: rgba(148, 163, 184, 0.2);
       }
 
       .footer-${this.uniqueId} {
-        background: linear-gradient(180deg, var(--footer-bg) 0%, var(--footer-bg-soft) 100%);
+        background: linear-gradient(145deg, var(--footer-bg) 0%, var(--footer-bg-soft) 100%);
         color: var(--footer-text);
-        padding: 3rem 1.5rem 1.5rem;
+        padding: clamp(2.5rem, 5vw, 4.5rem) 1.5rem 1.25rem;
         font-family: 'Amazon Ember', sans-serif;
         width: 100%;
-        border-top: 1px solid var(--footer-border);
+        border-top: 1px solid rgba(245, 182, 63, .28);
       }
       
       .footer-container-${this.uniqueId} {
@@ -133,8 +133,8 @@ class FooterComponent {
       .footer-grid-${this.uniqueId} {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 2rem;
-        margin-bottom: 2rem;
+        gap: clamp(1.5rem, 3vw, 3rem);
+        margin-bottom: 2.5rem;
       }
       
       @media (min-width: 768px) {
@@ -145,7 +145,13 @@ class FooterComponent {
       
       @media (min-width: 1024px) {
         .footer-grid-${this.uniqueId} {
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 1280px) {
+        .footer-grid-${this.uniqueId} {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
         }
       }
       
@@ -306,9 +312,12 @@ class FooterComponent {
       }
       
       .footer-logo-img-${this.uniqueId} {
-        max-height: 50px;
+        max-height: 58px;
         width: auto;
         margin-bottom: 1rem;
+        border-radius: 8px;
+        background: #fff;
+        padding: 4px;
       }
       
       .footer-logo-placeholder-${this.uniqueId} {
@@ -324,6 +333,42 @@ class FooterComponent {
         font-weight: 700;
         color: var(--footer-bg);
         margin-bottom: 1rem;
+      }
+
+      .footer-${this.uniqueId} .footer-heading-${this.uniqueId} {
+        margin: 0 0 1rem;
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: #f8c867;
+      }
+
+      .footer-${this.uniqueId} .footer-links-${this.uniqueId} { gap: .15rem; }
+      .footer-${this.uniqueId} .footer-links-${this.uniqueId} li { margin-bottom: .35rem; }
+      .footer-${this.uniqueId} .footer-links-${this.uniqueId} a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        color: #c4cfdd;
+        font-size: .84rem;
+        line-height: 1.35;
+        transition: color .18s ease, transform .18s ease;
+      }
+      .footer-${this.uniqueId} .footer-links-${this.uniqueId} a:hover {
+        color: #fff;
+        transform: translateX(3px);
+      }
+      .footer-${this.uniqueId} .footer-copyright-${this.uniqueId} {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-top: 1.1rem;
+        margin-top: 0;
+        text-align: left;
+        color: #8f9caf;
+        font-size: .76rem;
       }
       
       @media (max-width: 640px) {
@@ -347,6 +392,11 @@ class FooterComponent {
           justify-content: flex-start;
           align-items: flex-start;
           text-align: left;
+        }
+
+        .footer-${this.uniqueId} .footer-copyright-${this.uniqueId} {
+          flex-direction: column;
+          align-items: flex-start;
         }
       }
     `;
@@ -379,8 +429,16 @@ class FooterComponent {
                 </div>
               ` : ''}
             </div>
+
+            <!-- Colonne 2: Services Smart Cut -->
+            <div class="footer-col-${this.uniqueId}">
+              <h3 class="footer-heading-${this.uniqueId}">Nos services</h3>
+              <ul class="footer-links-${this.uniqueId}">
+                ${this.renderServices()}
+              </ul>
+            </div>
             
-            <!-- Colonne 2: Coordonnées -->
+            <!-- Colonne 3: Coordonnées -->
             ${this.options.showContact ? `
               <div class="footer-col-${this.uniqueId}">
                 <h3 class="footer-heading-${this.uniqueId}">Contact</h3>
@@ -388,7 +446,7 @@ class FooterComponent {
               </div>
             ` : ''}
             
-            <!-- Colonne 3: Liens informations -->
+            <!-- Colonne 4: Liens informations -->
             ${this.options.showInfos && this.infoLinks.length > 0 ? `
               <div class="footer-col-${this.uniqueId}">
                 <h3 class="footer-heading-${this.uniqueId}">Informations</h3>
@@ -398,7 +456,7 @@ class FooterComponent {
               </div>
             ` : ''}
             
-            <!-- Colonne 4: Moyens de paiement -->
+            <!-- Colonne 5: Moyens de paiement -->
             ${this.options.showPayments && this.paymentMethods.length > 0 ? `
               <div class="footer-col-${this.uniqueId}">
                 <h3 class="footer-heading-${this.uniqueId}">Paiements acceptés</h3>
@@ -540,6 +598,24 @@ class FooterComponent {
         </li>
       `;
     }).join('');
+  }
+
+  renderServices() {
+    const services = [
+      { title: 'Devenir prestataire', link: './health-candidature.html' },
+      { title: 'Devenir vendeur', link: './vendor-application.html' },
+      { title: 'Devenir tuteur', link: './education-tuteur-pro.html' },
+      { title: 'Devenir freelancer', link: './logiciel%20proformat/' },
+      { title: 'Accéder à SmartSolutionTek', link: './smartsolutiontek/' },
+      { title: 'Vendre des pièces automobiles', link: './auto-parts-vendor.html' },
+      { title: 'Proposer un service', link: './logiciel%20proformat/' },
+      { title: 'Smart Cut Health', link: './health.html' },
+      { title: 'Formations en ligne', link: './education.html' },
+    ];
+
+    return services.map((service) => `
+      <li><a href="${service.link}">${service.title}</a></li>
+    `).join('');
   }
 
   resolveInfoLink(link) {

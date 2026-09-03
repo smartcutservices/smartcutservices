@@ -454,6 +454,15 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // New department-based commission scale (replaces vendorCommissionRules as the
+    // source of the applied rate). Public read so the vendor dashboard can show
+    // the rate for the chosen department; written only via Admin SDK / console
+    // (see functions/scripts/seed-commission-departments.js).
+    match /commissionDepartments/{departmentId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /vendorPayouts/{docId} {
       allow read: if isAdmin() || (isApprovedVendor() && resource.data.vendorId == request.auth.uid);
       allow write: if isAdmin();

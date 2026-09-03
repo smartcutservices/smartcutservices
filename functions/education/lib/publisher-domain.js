@@ -18,6 +18,10 @@ function list(value, maxItems = 30, maxLength = 240) {
   return value.map((item) => text(item, maxLength)).filter(Boolean).slice(0, maxItems);
 }
 
+function normalizeTags(value, maxItems = 20) {
+  return list(value, maxItems, 100);
+}
+
 function iso(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -57,6 +61,8 @@ function normalizeProgramInput(body = {}, existing = {}) {
     shortDescription: text(body.shortDescription ?? existing.shortDescription, 500),
     fullDescription: text(body.fullDescription ?? existing.fullDescription, 12000),
     categoryId: text(body.categoryId ?? existing.categoryId, 100) || null,
+    subcategoryIds: normalizeTags(body.subcategoryIds ?? existing.subcategoryIds, 12),
+    teachingLevels: normalizeTags(body.teachingLevels ?? existing.teachingLevels, 8),
     level: ['beginner', 'intermediate', 'advanced', 'all'].includes(body.level) ? body.level : (existing.level || 'all'),
     modality: ['in_person', 'online', 'hybrid'].includes(body.modality) ? body.modality : (existing.modality || 'online'),
     commune: text(body.commune ?? existing.commune, 100) || null,

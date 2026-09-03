@@ -43,6 +43,7 @@ const VENDOR_PLAN_SETTINGS_COLLECTION = 'vendorPlanSettings';
 const VENDOR_PLAN_SETTINGS_DOC = 'main';
 const VENDOR_PLAN_BONUSES_COLLECTION = 'vendorPlanBonuses';
 const DEFAULT_VENDOR_PRO_PLAN_PRICE = 1750;
+const COMMISSION_DEPARTMENTS_COLLECTION = 'commissionDepartments';
 const JWETPRO_TICKETS_COLLECTION = 'jwetproTicketCatalog';
 const JWETPRO_ORDERS_COLLECTION = 'jwetproTicketOrders';
 const JWETPRO_SETTINGS_COLLECTION = 'jwetproTicketSettings';
@@ -1956,19 +1957,78 @@ function smartCutHandlesDeliveryMode(value = '') {
 
 function sanitizeCommissionRule(rule, fallbackCategory = '') {
   if (!rule || typeof rule !== 'object') return null;
-  const categoryRate = Number(rule?.categoryRate ?? rule?.rate);
-  if (!Number.isFinite(categoryRate)) return null;
-  return {
+  const departmentRate = Number(rule?.departmentRate);
+  const categoryRateRaw = Number(rule?.categoryRate ?? rule?.rate);
+  // Commissions are now department-based; a rule is valid as soon as either a
+  // department rate or a legacy category rate is present.
+  const effectiveRate = Number.isFinite(departmentRate) ? departmentRate : categoryRateRaw;
+  if (!Number.isFinite(effectiveRate)) return null;
+  const sanitized = {
     ...rule,
     category: String(rule?.category || fallbackCategory || '').trim(),
-    categoryRate,
-    rate: Number.isFinite(Number(rule?.rate)) ? Number(rule.rate) : categoryRate
+    categoryRate: Number.isFinite(categoryRateRaw) ? categoryRateRaw : effectiveRate,
+    rate: Number.isFinite(Number(rule?.rate)) ? Number(rule.rate) : effectiveRate
+  };
+  if (rule?.departmentId != null) sanitized.departmentId = String(rule.departmentId).trim();
+  if (rule?.department != null) sanitized.department = String(rule.department).trim();
+  if (Number.isFinite(departmentRate)) sanitized.departmentRate = departmentRate;
+  return sanitized;
+}
+
+let commissionDepartmentsCache = null;
+let commissionDepartmentsCacheAt = 0;
+const COMMISSION_DEPARTMENTS_CACHE_MS = 60 * 1000;
+
+async function getCommissionDepartmentsMap() {
+  const now = Date.now();
+  if (commissionDepartmentsCache && (now - commissionDepartmentsCacheAt) < COMMISSION_DEPARTMENTS_CACHE_MS) {
+    return commissionDepartmentsCache;
+  }
+  const map = {};
+  try {
+    const snap = await db.collection(COMMISSION_DEPARTMENTS_COLLECTION).get();
+    snap.forEach((doc) => {
+      const data = doc.data() || {};
+      const rate = Number(data.rate);
+      if (!Number.isFinite(rate)) return;
+      if (data.active === false) return;
+      map[doc.id] = { id: doc.id, label: String(data.label || '').trim(), rate: Math.max(0, rate) };
+    });
+  } catch (error) {
+    logger.warn('commissionDepartments unavailable, keeping stored commission rules', { message: error?.message || String(error) });
+  }
+  commissionDepartmentsCache = map;
+  commissionDepartmentsCacheAt = now;
+  return map;
+}
+
+// Re-derive an item's commission rule from the authoritative per-department
+// scale so an admin rate change applies to new orders and a tampered client
+// payload cannot lower the commission. Falls back to the stored rule when the
+// product has no resolvable department.
+function applyDepartmentCommissionRule(rule, departmentId, departmentsMap) {
+  const id = String(departmentId || rule?.departmentId || '').trim();
+  const entry = id && departmentsMap ? departmentsMap[id] : null;
+  if (!entry) return rule;
+  const now = new Date().toISOString();
+  return {
+    ...(rule && typeof rule === 'object' ? rule : {}),
+    department: entry.label || rule?.department || '',
+    departmentId: id,
+    departmentRate: entry.rate,
+    categoryRate: entry.rate,
+    rate: entry.rate,
+    source: 'commissionDepartments',
+    updatedAt: now,
+    updatedBy: 'server_department_scale'
   };
 }
 
 async function enrichMarketplaceItems(items = []) {
   const normalizedItems = normalizeItems(items);
   if (!normalizedItems.length) return [];
+
+  const commissionDepartmentsMap = await getCommissionDepartmentsMap();
 
   return Promise.all(normalizedItems.map(async (item) => {
     const itemVendorId = String(item?.vendorId || '').trim();
@@ -2006,6 +2066,9 @@ async function enrichMarketplaceItems(items = []) {
       const trustedStockCandidate = selectedVariation?.stock ?? productData?.stock;
       const trustedStock = Number(trustedStockCandidate);
       const resolvedCategory = String(item?.category || productData?.category || productData?.categoryName || '').trim();
+      const resolvedDepartmentId = String(item?.departmentId || productData?.departmentId || item?.commissionRule?.departmentId || productData?.commissionRule?.departmentId || '').trim();
+      const baseCommissionRule = sanitizeCommissionRule(item?.commissionRule || productData?.commissionRule, resolvedCategory);
+      const commissionRule = applyDepartmentCommissionRule(baseCommissionRule, resolvedDepartmentId, commissionDepartmentsMap);
       const productDeliveryCoverage = item?.productDeliveryCoverage || item?.deliveryCoverage || productData?.deliveryCoverage || productData?.productDeliveryCoverage || null;
       const productDeliveryZones = normalizeDeliveryZoneList(
         Array.isArray(item?.productDeliveryZones) && item.productDeliveryZones.length
@@ -2024,11 +2087,13 @@ async function enrichMarketplaceItems(items = []) {
         image: item?.image || (Array.isArray(productData?.images) ? productData.images[0] || '' : ''),
         vendorId: itemVendorId || String(productData?.vendorId || '').trim(),
         vendorName: item?.vendorName || String(productData?.vendorName || productData?.shopName || '').trim(),
-        commissionRule: sanitizeCommissionRule(item?.commissionRule || productData?.commissionRule, resolvedCategory),
+        commissionRule,
         sourceCollection: collectionName,
         sourceType: isVendorItem ? 'vendor' : 'smartcut',
         categoryId: String(item?.categoryId || productData?.categoryId || '').trim(),
         category: resolvedCategory,
+        departmentId: resolvedDepartmentId,
+        department: String(item?.department || productData?.department || commissionRule?.department || '').trim(),
         deliveryMode: String(item?.deliveryMode || productData?.deliveryMode || '').trim(),
         weightGrams: Math.max(0, toNumber(item?.weightGrams ?? item?.weight ?? productData?.weightGrams ?? productData?.weight)),
         productDeliveryCoverage,
@@ -2127,7 +2192,7 @@ function validateServerMarketplaceItems(items = []) {
 }
 
 function getCommissionRate(rule = null) {
-  const rate = Number(rule?.categoryRate ?? rule?.rate);
+  const rate = Number(rule?.departmentRate ?? rule?.categoryRate ?? rule?.rate);
   return Number.isFinite(rate) ? Math.max(0, rate) : 0;
 }
 
@@ -8018,3 +8083,5 @@ Object.assign(exports, require('./auto-parts')(__sstInternals));
 // Smart Cut Education — espace professionnel et publication sécurisée.
 Object.assign(exports, require('./education/publisher')(__sstInternals));
 Object.assign(exports, require('./education/tutors')(__sstInternals));
+Object.assign(exports, require('./education/admin')(__sstInternals));
+Object.assign(exports, require('./education/operations')(__sstInternals));

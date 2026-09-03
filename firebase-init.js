@@ -66,7 +66,7 @@ function getAuthDebugContext(extra = {}) {
 }
 
 function logAuthDebug(stage, extra = {}) {
-  console.info('[AUTH_DEBUG]', getAuthDebugContext({ stage, ...extra }));
+  // Debug telemetry is intentionally silent in production.
 }
 
 async function configureAuthPersistence(authInstance) {

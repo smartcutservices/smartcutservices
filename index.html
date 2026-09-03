@@ -60,9 +60,9 @@
 <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <link rel="stylesheet" href="./tailwind-site.css?v=20260901-1">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260901-4">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260903-11">
   <link rel="stylesheet" href="./health-teaser.css?v=20260901-1">
-  <link rel="stylesheet" href="./services-teaser.css?v=20260901-1">
+  <link rel="stylesheet" href="./services-teaser.css?v=20260901-2">
   
   <!-- Import Map Firebase -->
   <script type="importmap">
@@ -114,6 +114,24 @@
 
     #sierra-header-root {
       width: 100%;
+    }
+    /* Reserve the main visual bands before their modules finish loading so
+       the first paint does not cause a large layout shift. */
+    #sierra-hero-root { min-height: 360px; }
+    #sierra-home-categories-root { min-height: 410px; }
+    #sierra-products-root { min-height: 620px; }
+    #sierra-home-discovery-root { min-height: 720px; }
+    @media (max-width: 767px) {
+      #sierra-hero-root { min-height: 300px; }
+      #sierra-home-categories-root { min-height: 390px; }
+      #sierra-products-root { min-height: 560px; }
+      #sierra-home-discovery-root { min-height: 620px; }
+    }
+    #sierra-home-categories-root,
+    #sierra-home-categories-root .categories-wrapper-carousel,
+    #sierra-home-categories-root .categories-wrapper-grid {
+      background: transparent !important;
+      box-shadow: none !important;
     }
 
     #sierra-hero-root {
@@ -198,6 +216,49 @@
 
     }
 
+    #ecosystem-sections-rail {
+      display:flex;
+      gap:1rem;
+      overflow-x:auto;
+      overflow-y:hidden;
+      scroll-snap-type:x proximity;
+      padding:0 1rem 1rem;
+      -webkit-overflow-scrolling:touch;
+    }
+    #ecosystem-sections-rail > [id] { flex:0 0 min(62vw, 760px); min-width:0; height:520px; scroll-snap-align:start; display:flex; overflow:hidden; }
+    #ecosystem-sections-rail > [id] > * { width:100%; height:100%; min-height:0; overflow:hidden; }
+    @media (min-width:769px) {
+      #ecosystem-sections-rail > [id] > section { width:100%; height:100%; min-height:520px; margin:0; }
+      #ecosystem-sections-rail .home-health-inner { width:100%; min-height:520px; grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); }
+      #ecosystem-sections-rail .home-health-teaser { width:100%; padding:0; margin:0; background:transparent; }
+      #ecosystem-sections-rail .home-health-inner { margin:0; }
+      #ecosystem-sections-rail .edu-teaser { width:100%; padding:0; margin:0; background:transparent; }
+      #ecosystem-sections-rail .edu-teaser-inner { width:100%; height:520px; min-height:520px; margin:0; }
+      #ecosystem-sections-rail .home-health-copy { padding:2.25rem; min-width:0; }
+      #ecosystem-sections-rail .home-health-inner h2 { font-size:clamp(2rem,4vw,3.35rem); line-height:1; overflow-wrap:break-word; }
+      #ecosystem-sections-rail .home-health-inner p { max-width:100%; }
+      #ecosystem-sections-rail .home-health-visual img { min-height:520px; }
+    }
+    #ecosystem-sections-rail::-webkit-scrollbar { height:8px; }
+    #ecosystem-sections-rail::-webkit-scrollbar-thumb { background:#9aa5a8; border-radius:999px; }
+    #sierra-sst-showcase-root { margin-top:2.25rem; }
+    @media (max-width:768px) {
+      #ecosystem-sections-rail { align-items:stretch; }
+      #ecosystem-sections-rail > [id] { flex:0 0 88vw; min-height:430px; height:430px; }
+      #ecosystem-sections-rail .home-health-teaser { height:100%; padding:0; margin:0; background:transparent; }
+      #ecosystem-sections-rail .home-health-inner {
+        height:430px;
+        min-height:0;
+        grid-template-rows:minmax(0, 58%) minmax(0, 42%);
+      }
+      #ecosystem-sections-rail .home-health-copy { min-height:0; padding:1.25rem 1.35rem; }
+      #ecosystem-sections-rail .home-health-inner h2 { margin:.45rem 0 .6rem; font-size:clamp(2rem, 10vw, 2.65rem); line-height:.96; }
+      #ecosystem-sections-rail .home-health-inner p { margin-bottom:.85rem; font-size:.84rem; line-height:1.45; }
+      #ecosystem-sections-rail .home-health-inner a { min-height:42px; }
+      #ecosystem-sections-rail .home-health-visual { height:100%; min-height:0; aspect-ratio:auto; }
+      #ecosystem-sections-rail .home-health-visual img { height:100%; min-height:0; object-position:center 42%; }
+    }
+
     @media (min-width: 1024px) {
       #sierra-header-root {
         height: calc(var(--header-height, 156px) + 0.35rem);
@@ -248,6 +309,7 @@
   <!-- 1. Header -->
   <div id="sierra-header-root"></div>
   
+  <main id="main-content">
   <!-- 2–3. Hero et catégories sur un même fond dégradé -->
   <div id="home-hero-categories-shell">
     <div id="sierra-hero-root"></div>
@@ -255,32 +317,48 @@
   </div>
 
   <!-- 4. Pour toi : section fixe juste après les catégories -->
-  <div id="sierra-products-root" class="my-10"></div>
+  <div id="sierra-products-root" class="my-10">
+    <div class="home-section-heading">
+      <h2 class="home-section-title">Pour toi</h2>
+    </div>
+  </div>
 
   <!-- 5. Découverte : recommandations et top vendeurs -->
   <div id="sierra-home-discovery-root" class="my-10"></div>
 
   <div id="sierra-services-teaser-root" hidden></div>
 
-  <div id="sierra-auto-parts-teaser-root"></div>
-
-  <!-- 4a-bis. Teaser Smart Cut Education -->
-  <div id="sierra-education-teaser-root"></div>
-
-  <div id="sierra-health-teaser-root"></div>
+  <div id="ecosystem-sections-rail" aria-label="Nos écosystèmes">
+    <div id="sierra-auto-parts-teaser-root"></div>
+    <div id="sierra-education-teaser-root"></div>
+    <div id="sierra-health-teaser-root"></div>
+  </div>
 
   <!-- 4b. Vitrine SmartSolutionTek: creer ses propres pages -->
   <div id="sierra-sst-showcase-root"></div>
 
   <!-- 5. Tickets de championnat -->
   <div id="sierra-home-tickets-root" hidden></div>
+  </main>
   
 <!-- 7. Footer Section -->
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260902-1';
+    const ASSET_VERSION = '20260903-8';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
+    /* Les traces *_DEBUG sont utiles en développement mais ne doivent pas
+       polluer la console de production (ni les audits Lighthouse). */
+    const silentConsoleTags = ['DEBUG', '[AUTH]', '[HEADER]', '[CART]', '[FIREBASE]', '[STORAGE]', '[PROFILE_'];
+    for (const method of ['log', 'info', 'debug', 'warn', 'error']) {
+      const original = console[method];
+      if (typeof original !== 'function') continue;
+      console[method] = (...args) => {
+        const firstArg = String(args[0] || '');
+        if (silentConsoleTags.some((tag) => firstArg.includes(tag))) return;
+        original.apply(console, args);
+      };
+    }
     try {
       const versionKey = 'smartcut_asset_version';
       const previousVersion = localStorage.getItem(versionKey);
@@ -308,8 +386,7 @@
     const HOME_SECTION_ORDER_KEY = 'smartcut_home_section_interests_v1';
     const dynamicHomeSections = [
       'sierra-auto-parts-teaser-root',
-      'sierra-education-teaser-root', 'sierra-health-teaser-root',
-      'sierra-sst-showcase-root', 'sierra-home-tickets-root'
+      'sierra-education-teaser-root', 'sierra-health-teaser-root'
     ];
     let homeOrderObserver = null;
     const getHomeSectionHistory = () => {
@@ -322,22 +399,20 @@
       reorderHomeSections();
     };
     const reorderHomeSections = () => {
-      const discovery = document.getElementById('sierra-home-discovery-root');
-      if (!discovery) return;
+      const rail = document.getElementById('ecosystem-sections-rail');
+      if (!rail) return;
       const history = getHomeSectionHistory();
       const ordered = [...history, ...dynamicHomeSections.filter((id) => !history.includes(id))];
       const current = dynamicHomeSections.map((id) => document.getElementById(id)).filter(Boolean).map((node) => node.id);
       const visibleOrdered = ordered.filter((id) => document.getElementById(id));
       if (current.join('|') === visibleOrdered.join('|')) return;
-      const footer = document.getElementById('sierra-footer-root');
       // Déconnecter l'observateur pendant le déplacement des blocs évite une
       // cascade de mutations lorsque plusieurs sections dynamiques arrivent.
       homeOrderObserver?.disconnect();
       ordered.forEach((id) => {
         const node = document.getElementById(id);
         if (!node) return;
-        if (footer) footer.before(node);
-        else document.body.append(node);
+        rail.append(node);
       });
       homeOrderObserver?.observe(document.body, { childList: true });
     };
@@ -414,7 +489,9 @@
       groupedCards: true,
     });
 
-    mount('products', 'sierra-products-root', () => import(`./products.js?v=${ASSET_VERSION}`), {
+    /* Charger les rails produits à l’approche du viewport réduit le travail
+       du thread principal pendant le premier écran. */
+    mountOnVisible('products', 'sierra-products-root', () => import(`./products.js?v=${ASSET_VERSION}`), {
       collectionName: 'products',
       filterActive: true,
       imageBasePath: './',
@@ -422,19 +499,21 @@
       visibleProductsDesktop: 4,
       visibleProductsMobile: 1.2,
       scrollIndicator: false,
-      layout: 'grid-cards',
-      sectionTitle: 'Sélection de produits',
+      /* Keep the home catalogue as one continuous rail so a partial last
+         grid row can never leave a large empty block beside the final card. */
+      layout: 'carousel',
+      sectionTitle: 'Pour toi',
       maxRelatedProducts: 6,
       maxDisplayCount: 10,
       randomizeOnLoad: true
-    });
+    }, '450px');
 
     mount('home-tickets', 'sierra-home-tickets-root', () => import(`./homepage-tickets.js?v=${ASSET_VERSION}`));
 
-    mount('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
+    mountOnVisible('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',
-      maxProducts: 7
-    });
+      maxProducts: 6
+    }, '550px');
 
 
     mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '550px');

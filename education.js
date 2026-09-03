@@ -5,6 +5,7 @@
 // Etape prototype : aucune admission, aucun paiement, aucun dashboard.
 
 import { getEducationSource } from './education-source.js';
+import { EDUCATION_TAXONOMY } from './education-taxonomy.js';
 import {
   renderCourseCard,
   renderSchoolCard,
@@ -30,7 +31,7 @@ export default class SmartCutEducation {
     this.demoMode = isDemoMode();
     this.source = getEducationSource();
 
-    this.activeCategory = 'all';
+    this.activeCategory = new URLSearchParams(window.location.search).get('category') || 'all';
     this.searchTerm = '';
     this.categories = [];
     this.schools = [];
@@ -51,6 +52,16 @@ export default class SmartCutEducation {
     const schoolsLead = this.demoMode
       ? 'Quelques établissements présentés à titre d\'exemple. Données de démonstration.'
       : 'Découvrez les établissements partenaires de Smart Academi.';
+    const categoryItems = EDUCATION_TAXONOMY.map((category) => `
+      <a class="edu-category-menu__item" href="./education.html?category=${encodeURIComponent(category.id)}${this.demoMode ? '&demo=1' : ''}">
+        <span class="edu-category-menu__icon"><i class="fas fa-book-open" aria-hidden="true"></i></span>
+        <span class="edu-category-menu__copy">
+          <strong>${escapeHtml(category.name)}</strong>
+          <small>${escapeHtml(category.subcategories.slice(0, 3).join(' · '))}</small>
+        </span>
+        <i class="fas fa-arrow-right edu-category-menu__arrow" aria-hidden="true"></i>
+      </a>
+    `).join('');
 
     this.container.innerHTML = `
       ${this.demoMode ? renderDemoBanner() : ''}
@@ -93,17 +104,18 @@ export default class SmartCutEducation {
         </div>
       </section>
 
-      <section class="edu-section" aria-labelledby="edu-categories-title">
+      <section class="edu-category-menu" aria-label="Catégories de formations">
         <div class="edu-container">
-          <div class="edu-section-head">
-            <span class="edu-section-eyebrow">Par domaine</span>
-            <h2 class="edu-section-title" id="edu-categories-title">Catégories populaires</h2>
-          </div>
-          <div class="edu-categories" data-edu-categories>
-            <button type="button" class="edu-category-chip is-active" data-edu-category="all">
-              <i class="fas fa-grip" aria-hidden="true"></i> Toutes
-            </button>
-            <div class="edu-categories-dynamic" data-edu-categories-dynamic></div>
+          <button class="edu-category-menu__trigger" type="button" aria-expanded="false" aria-controls="edu-category-panel" data-edu-category-trigger>
+            <span><i class="fas fa-layer-group" aria-hidden="true"></i> Explorer les catégories</span>
+            <span class="edu-category-menu__trigger-meta">${EDUCATION_TAXONOMY.length} domaines <i class="fas fa-chevron-down" aria-hidden="true"></i></span>
+          </button>
+          <div class="edu-category-menu__panel" id="edu-category-panel" role="region" aria-label="Domaines de formation" data-edu-category-panel>
+            <div class="edu-category-menu__head">
+              <strong>Choisissez un domaine</strong>
+              <span>Formations, métiers et compétences</span>
+            </div>
+            <div class="edu-category-menu__grid">${categoryItems}</div>
           </div>
         </div>
       </section>
@@ -157,8 +169,6 @@ export default class SmartCutEducation {
   }
 
   bindStaticEvents() {
-    this.container.querySelector('[data-edu-category="all"]')?.addEventListener('click', () => this.setActiveCategory('all'));
-
     const searchForm = this.container.querySelector('[data-edu-search-form]');
     const searchInput = this.container.querySelector('[data-edu-search-input]');
     searchForm?.addEventListener('submit', (event) => {
@@ -170,6 +180,25 @@ export default class SmartCutEducation {
     searchInput?.addEventListener('input', () => {
       this.searchTerm = normalizeSearchText(searchInput.value || '');
       this.applyFilters();
+    });
+
+    const categoryMenu = this.container.querySelector('.edu-category-menu');
+    const categoryTrigger = this.container.querySelector('[data-edu-category-trigger]');
+    const categoryPanel = this.container.querySelector('[data-edu-category-panel]');
+    const closeCategories = () => {
+      categoryMenu?.classList.remove('is-open');
+      categoryTrigger?.setAttribute('aria-expanded', 'false');
+    };
+    categoryTrigger?.addEventListener('click', () => {
+      const isOpen = categoryMenu.classList.toggle('is-open');
+      categoryTrigger.setAttribute('aria-expanded', String(isOpen));
+    });
+    categoryPanel?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeCategories));
+    document.addEventListener('click', (event) => {
+      if (categoryMenu && !categoryMenu.contains(event.target)) closeCategories();
+    });
+    categoryTrigger?.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeCategories();
     });
 
     this.container.querySelectorAll('[data-edu-coming-soon]').forEach((button) => {
@@ -196,32 +225,33 @@ export default class SmartCutEducation {
         this.source.listPublishedPrograms()
       ]);
 
-      this.categories = categories;
+      // Keep category suggestions useful before the administrator has seeded
+      // every taxonomy entry in Firestore; configured records always win.
+      const configured = new Map(categories.map((category) => [category.id, category]));
+      EDUCATION_TAXONOMY.forEach((category) => {
+        if (!configured.has(category.id)) configured.set(category.id, {
+          ...category,
+          description: category.subcategories.slice(0, 4).join(' · '),
+          icon: 'fa-book-open',
+          image: null
+        });
+      });
+      this.categories = [...configured.values()].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
       this.schools = schools;
       this.programs = programs;
       this.schoolNameById = new Map(schools.map((school) => [school.id, school.name]));
-      this.categoryLabelById = new Map(categories.map((category) => [category.id, category.name]));
+      this.categoryLabelById = new Map(this.categories.map((category) => [category.id, category.name]));
 
-      this.renderCategoryChips();
+      if (this.activeCategory !== 'all' && !this.categoryLabelById.has(this.activeCategory)) {
+        this.activeCategory = 'all';
+      }
+
       this.renderCourses();
       this.renderSchools();
       this.applyFilters();
     } catch (error) {
       this.renderLoadError(error);
     }
-  }
-
-  renderCategoryChips() {
-    const wrap = this.container.querySelector('[data-edu-categories-dynamic]');
-    if (!wrap) return;
-    wrap.innerHTML = this.categories.map((cat) => `
-      <button type="button" class="edu-category-chip" data-edu-category="${escapeHtml(cat.id)}">
-        <i class="fas ${escapeHtml(cat.icon || 'fa-tag')}" aria-hidden="true"></i> ${escapeHtml(cat.name)}
-      </button>
-    `).join('');
-    wrap.querySelectorAll('[data-edu-category]').forEach((button) => {
-      button.addEventListener('click', () => this.setActiveCategory(button.dataset.eduCategory));
-    });
   }
 
   buildSearchIndex(program) {

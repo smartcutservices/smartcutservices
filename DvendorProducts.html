@@ -1277,6 +1277,335 @@
       font-weight: 700;
     }
 
+    /* ========== PRODUCT EDITOR — REDESIGN (mobile-first: single column; sticky rail on desktop) ========== */
+    .pe { --pe-gap: 1rem; }
+    /* every input/select/textarea inside the editor must be able to shrink below its
+       intrinsic size, otherwise flex rows push the page wider than the viewport */
+    #product-editor-view { overflow-x: clip; }
+    .pe input, .pe select, .pe textarea, .pe .form-input, .pe .form-select, .pe .image-name-input { min-width: 0; max-width: 100%; }
+
+    .pe-topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem 1rem;
+      padding: 0.75rem 0;
+      background: var(--background);
+      border-bottom: 1px solid var(--border);
+    }
+    .pe-topbar__titles { flex: 1 1 10rem; min-width: 0; }
+    .pe-topbar__crumb {
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      font-weight: 700;
+    }
+    .pe-topbar__title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pe-topbar__actions { display: flex; align-items: center; gap: 0.5rem; flex: 0 0 auto; margin-left: auto; flex-wrap: wrap; }
+    .pe-topbar__actions .btn, .pe-topbar__actions .btn-secondary { flex: 0 0 auto; white-space: nowrap; }
+    .pe-save-state { font-size: 0.75rem; color: var(--text-tertiary); white-space: nowrap; }
+
+    /* editor module nav — mobile: horizontal chip scroller ; desktop: left aside */
+    .pe-anchorbar {
+      order: -1;
+      position: sticky;
+      top: 56px;
+      z-index: 19;
+      display: flex;
+      gap: 0.4rem;
+      padding: 0.55rem 0;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      background: var(--background);
+      border-bottom: 1px solid var(--border);
+      scrollbar-width: none;
+    }
+    .pe-anchorbar::-webkit-scrollbar { display: none; }
+    .pe-anchor {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .pe-anchor i { width: 1rem; text-align: center; }
+    .pe-anchor:hover { border-color: var(--text-tertiary); color: var(--text-primary); }
+    .pe-anchor.is-active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+    .pe-anchor.is-hidden { display: none; }
+
+    /* only the active module is rendered on the right */
+    .pe-main .pe-card[data-section] { display: none; }
+    .pe-main .pe-card[data-section].is-current { display: block; }
+    .pe-main .pe-card[data-section].is-hidden { display: none !important; }
+
+    .pe-layout { display: flex; flex-direction: column; gap: var(--pe-gap); }
+    .pe-main { min-width: 0; display: flex; flex-direction: column; gap: var(--pe-gap); }
+    .pe-rail {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      order: 0;
+    }
+
+    @media (min-width: 1024px) {
+      .pe { --pe-gap: 1.25rem; }
+      .pe-topbar { position: sticky; top: 76px; z-index: 20; flex-wrap: nowrap; padding: 0.9rem 0; }
+      .pe-topbar__title { font-size: 1.15rem; }
+      .pe-layout {
+        display: grid;
+        grid-template-columns: 224px minmax(0, 1fr) 320px;
+        align-items: start;
+      }
+      .pe-anchorbar {
+        order: 0;
+        position: sticky;
+        top: 136px;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.35rem;
+        border-bottom: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-card);
+        overflow: visible;
+        max-height: calc(100vh - 152px);
+        overflow-y: auto;
+      }
+      .pe-anchor {
+        width: 100%;
+        justify-content: flex-start;
+        border: 0;
+        border-left: 3px solid transparent;
+        border-radius: var(--radius-sm);
+        padding: 0.6rem 0.75rem;
+        font-size: 0.86rem;
+      }
+      .pe-anchor:hover { background: var(--background); color: var(--text-primary); }
+      .pe-anchor.is-active {
+        background: var(--background);
+        border-left-color: var(--secondary);
+        color: var(--text-primary);
+      }
+      .pe-rail {
+        position: sticky;
+        top: 136px;
+        max-height: calc(100vh - 152px);
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+    }
+
+    /* ===== Immersive mode: the product editor owns the whole screen ===== */
+    body.pe-immersive .sidebar,
+    body.pe-immersive .header { display: none !important; }
+    body.pe-immersive .main-content { margin-left: 0 !important; }
+    body.pe-immersive .pe-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      padding: 0.6rem 0;
+    }
+    body.pe-immersive .pe-anchorbar { top: 52px; }
+    @media (min-width: 1024px) {
+      body.pe-immersive .pe-topbar { padding: 0.9rem 0; }
+      body.pe-immersive .pe-anchorbar,
+      body.pe-immersive .pe-rail { top: 68px; max-height: calc(100vh - 84px); }
+    }
+
+    .pe-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      scroll-margin-top: 200px;
+    }
+    .pe-card.is-hidden { display: none; }
+    .pe-card.is-flash { box-shadow: 0 0 0 2px var(--secondary), var(--shadow-card); transition: box-shadow 0.3s; }
+    .pe-card__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .pe-card__title { font-size: 0.98rem; font-weight: 700; color: var(--text-primary); }
+    .pe-card__sub { font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+    .pe-card__head { flex-wrap: wrap; padding: 0.9rem 1rem; }
+    .pe-card__body { padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+
+    .pe-field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+    .pe-field > label { font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+    .pe-field .pe-req { color: var(--danger); }
+    .pe-hint { font-size: 0.76rem; color: var(--text-tertiary); overflow-wrap: anywhere; }
+    .pe-grid-2, .pe-grid-3 { display: grid; grid-template-columns: 1fr; gap: 0.85rem; }
+    .pe-inline { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .pe-inline > .form-input, .pe-inline > input { flex: 1 1 8rem; }
+    .pe-callout { overflow-wrap: anywhere; }
+
+    @media (min-width: 560px) {
+      .pe-card__head { padding: 1rem 1.25rem; }
+      .pe-card__body { padding: 1.25rem; }
+      .pe-grid-2 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; }
+      .pe-grid-3 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; }
+    }
+
+    .pe-callout {
+      border: 1px solid rgba(255,164,28,0.22);
+      background: rgba(255,164,28,0.07);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+    .pe-callout strong { color: var(--text-primary); }
+    .pe-callout--info { border-color: rgba(0,113,133,0.25); background: rgba(0,113,133,0.06); }
+    .pe-callout--ok { border-color: rgba(0,118,0,0.22); background: rgba(0,118,0,0.06); }
+
+    /* rail: publish */
+    .pe-rail-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .pe-rail-card__title {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-tertiary);
+    }
+    .pe-segment {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.3rem;
+      padding: 0.25rem;
+      background: var(--background);
+      border-radius: 999px;
+    }
+    .pe-segment button {
+      border: 0;
+      background: transparent;
+      padding: 0.45rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .pe-segment button.is-active { background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-card); }
+    .pe-segment button.is-active[data-status="active"] { color: var(--success); }
+
+    /* rail: live preview card */
+    .pe-preview {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+      max-width: 240px;
+    }
+    @media (min-width: 1024px) { .pe-preview { max-width: none; } }
+    .pe-preview__media {
+      position: relative;
+      aspect-ratio: 1 / 1;
+      background: var(--background);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+      font-size: 1.6rem;
+    }
+    .pe-preview__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pe-preview__badge {
+      position: absolute;
+      top: 0.5rem;
+      left: 0.5rem;
+      background: var(--danger);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--radius-sm);
+    }
+    .pe-preview__body { padding: 0.7rem 0.8rem 0.85rem; display: flex; flex-direction: column; gap: 0.3rem; }
+    .pe-preview__name {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .pe-preview__prices { display: flex; align-items: baseline; gap: 0.45rem; }
+    .pe-preview__price { font-size: 1rem; font-weight: 800; color: var(--text-primary); }
+    .pe-preview__compare { font-size: 0.8rem; color: var(--text-tertiary); text-decoration: line-through; }
+    .pe-preview__shop { font-size: 0.72rem; color: var(--text-tertiary); }
+    .pe-preview__net { font-size: 0.76rem; color: var(--text-secondary); }
+
+    /* rail: checklist */
+    .pe-check { display: flex; flex-direction: column; gap: 0.5rem; }
+    .pe-check__bar { height: 6px; border-radius: 999px; background: var(--background); overflow: hidden; }
+    .pe-check__bar > span { display: block; height: 100%; background: var(--success); transition: width 0.3s; }
+    .pe-check__item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .pe-check__item .pe-check__dot {
+      width: 16px; height: 16px; border-radius: 999px;
+      border: 2px solid var(--border);
+      flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; color: #fff;
+    }
+    .pe-check__item.is-done { color: var(--text-tertiary); text-decoration: line-through; }
+    .pe-check__item.is-done .pe-check__dot { background: var(--success); border-color: var(--success); }
+
+    /* variations: quick generator (mobile-first: stacked) */
+    .pe-generator { border: 1px dashed var(--border); border-radius: var(--radius); padding: 0.85rem; display: flex; flex-direction: column; gap: 0.8rem; }
+    .pe-optgroup { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: center; }
+    .pe-optgroup .pe-gen-name { grid-column: 1 / -1; }
+    @media (min-width: 560px) {
+      .pe-optgroup { grid-template-columns: 150px 1fr auto; }
+      .pe-optgroup .pe-gen-name { grid-column: auto; }
+    }
+
+    #variationModal .modal-container { max-width: 680px; }
+
     /* ========== STATUS BADGE ========== */
     .status-badge {
       display: inline-flex;
@@ -1948,10 +2277,14 @@
         </div>
 
         <!-- ========== VIEW: PRODUCT EDITOR ========== -->
-        <div id="product-editor-view" class="view hidden">
-          <div class="flex justify-between items-center mb-6">
-            <h2 id="editor-title" class="text-xl font-semibold">Nouveau produit</h2>
-            <div class="flex gap-3 items-center">
+        <div id="product-editor-view" class="view hidden pe">
+          <div class="pe-topbar">
+            <div class="pe-topbar__titles">
+              <div class="pe-topbar__crumb">Produits &middot; &Eacute;diteur</div>
+              <div id="editor-title" class="pe-topbar__title">Nouveau produit</div>
+            </div>
+            <div class="pe-topbar__actions">
+              <span id="peSaveState" class="pe-save-state"></span>
               <button id="backToProducts" class="btn-secondary">
                 <i class="fas fa-arrow-left"></i>
                 Retour
@@ -1963,281 +2296,316 @@
             </div>
           </div>
 
-          <!-- Tabs de navigation -->
-          <div class="section-tabs">
-            <button class="section-tab active" data-tab="general">G&eacute;n&eacute;ral</button>
-            <button class="section-tab" data-tab="delivery">Livraison</button>
-            <button class="section-tab" data-tab="digital">Digital</button>
-            <button class="section-tab" data-tab="category">Cat&eacute;gorie & attributs</button>
-            <button class="section-tab" data-tab="variations">Variations</button>
-            <button class="section-tab" data-tab="gallery">Galerie</button>
-          </div>
+          <div class="pe-layout">
+            <nav id="peAnchorBar" class="pe-anchorbar" aria-label="Modules du produit">
+              <button type="button" class="pe-anchor is-active" data-anchor="general"><i class="fas fa-circle-info"></i> Infos</button>
+              <button type="button" class="pe-anchor" data-anchor="gallery"><i class="fas fa-image"></i> Photos</button>
+              <button type="button" class="pe-anchor" data-anchor="general-price"><i class="fas fa-tag"></i> Prix &amp; stock</button>
+              <button type="button" class="pe-anchor" data-anchor="category"><i class="fas fa-sitemap"></i> Classement</button>
+              <button type="button" class="pe-anchor" data-anchor="variations"><i class="fas fa-layer-group"></i> Variations</button>
+              <button type="button" class="pe-anchor" data-anchor="delivery"><i class="fas fa-truck"></i> Livraison</button>
+              <button type="button" class="pe-anchor" data-anchor="digital"><i class="fas fa-bolt"></i> Digital</button>
+            </nav>
+            <div class="pe-main">
+              <form id="productForm">
+                <input type="hidden" id="productId">
 
-          <!-- Formulaire produit -->
-          <form id="productForm">
-            <input type="hidden" id="productId">
-            
-            <!-- ===== TAB 1: GÉNÉRAL ===== -->
-            <div id="tab-general" class="tab-content active">
-              <div class="content-card">
-                <div class="card-header">
-                  <span>Informations g&eacute;n&eacute;rales</span>
-                  <div class="flex items-center gap-3">
-                    <span class="text-sm text-text-secondary">Statut</span>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" id="productStatus" class="sr-only peer" checked>
-                      <div class="w-11 h-6 bg-accent/30 peer-checked:bg-secondary rounded-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-5"></div>
-                    </label>
-                  </div>
-                </div>
-                <div class="card-body space-y-4">
-                  <div class="grid grid-cols-2 gap-4">
+                <!-- ===== INFOS ===== -->
+                <section id="pe-sec-general" class="pe-card" data-section="general">
+                  <div class="pe-card__head">
                     <div>
-                      <label class="block text-sm text-text-secondary mb-1">Nom du produit *</label>
-                      <input type="text" id="productName" class="form-input" required>
-                    </div>
-                    <div>
-                      <label class="block text-sm text-text-secondary mb-1">SKU principal</label>
-                      <input type="text" id="mainSku" class="form-input" placeholder="G&eacute;n&eacute;r&eacute; automatiquement">
+                      <div class="pe-card__title">Informations g&eacute;n&eacute;rales</div>
+                      <div class="pe-card__sub">Le nom et la description que verront vos clients.</div>
                     </div>
                   </div>
-                  
-                  <div>
-                    <label class="block text-sm text-text-secondary mb-1">Description courte</label>
-                    <input type="text" id="shortDescription" class="form-input">
-                  </div>
-                  
-                  <div>
-                    <label class="block text-sm text-text-secondary mb-1">Description longue</label>
-                    <textarea id="longDescription" class="form-textarea"></textarea>
-                  </div>
-                  
-                  <div class="grid grid-cols-3 gap-4">
-                    <div>
-                      <label class="block text-sm text-text-secondary mb-1">Prix de base</label>
-                      <input type="number" id="basePrice" step="0.01" class="form-input">
+                  <div class="pe-card__body">
+                    <div class="pe-field">
+                      <label for="productName">Nom du produit <span class="pe-req">*</span></label>
+                      <input type="text" id="productName" class="form-input" required placeholder="Ex : Casque Bluetooth sans fil &mdash; noir">
                     </div>
-                    <div>
-                      <label class="block text-sm text-text-secondary mb-1">Prix barr&eacute;</label>
-                      <input type="number" id="comparePrice" step="0.01" class="form-input">
-                    </div>
-                    <div>
-                      <label class="block text-sm text-text-secondary mb-1">Stock total</label>
-                      <input type="number" id="totalStock" class="form-input" readonly>
-                    </div>
-                  </div>
-
-                  <div class="rounded-2xl p-4 space-y-4" style="border:1px solid rgba(255,164,28,0.18);background:rgba(255,164,28,0.06);">
-                    <div class="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <h4 class="font-semibold text-text-primary">Discount produit</h4>
-                        <p class="text-sm text-text-secondary mt-1">Applique une remise simple sur ce produit seulement. Le prix normal reviendra automatiquement apres la date de fin.</p>
+                    <div class="pe-grid-2">
+                      <div class="pe-field">
+                        <label for="mainSku">SKU principal</label>
+                        <input type="text" id="mainSku" class="form-input" placeholder="G&eacute;n&eacute;r&eacute; automatiquement">
+                        <span class="pe-hint">R&eacute;f&eacute;rence interne unique. Laissez vide pour g&eacute;n&eacute;rer.</span>
                       </div>
-                      <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase" style="border:1px solid rgba(255,164,28,0.2);color:#8a5a00;">
-                        Pourcentage uniquement
-                      </span>
-                    </div>
-
-                    <input type="hidden" id="discountType" value="percentage">
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Discount (%)</label>
-                        <input type="number" id="discountValue" step="0.01" min="0" max="100" class="form-input" placeholder="Ex: 24">
-                      </div>
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Date debut</label>
-                        <input type="datetime-local" id="discountStartAt" class="form-input">
-                      </div>
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Date fin</label>
-                        <input type="datetime-local" id="discountEndAt" class="form-input">
+                      <div class="pe-field">
+                        <label for="shortDescription">Accroche courte</label>
+                        <input type="text" id="shortDescription" class="form-input" placeholder="Une phrase qui r&eacute;sume le produit">
                       </div>
                     </div>
+                    <div class="pe-field">
+                      <label for="longDescription">Description compl&egrave;te</label>
+                      <textarea id="longDescription" class="form-textarea" rows="5" placeholder="Caract&eacute;ristiques, mati&egrave;res, usage, contenu de la bo&icirc;te&hellip;"></textarea>
+                      <span class="pe-hint">Les champs laiss&eacute;s vides n'apparaissent pas sur la fiche publique.</span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
+                </section>
 
-            <!-- ===== TAB 2: LIVRAISON ===== -->
-            <div id="tab-delivery" class="tab-content hidden">
-              <div class="content-card">
-                <div class="card-header">
-                  <span>Livraison du produit</span>
-                  <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase" style="border:1px solid rgba(255,164,28,0.2);color:#8a5a00;">
-                    Haiti uniquement
-                  </span>
-                </div>
-                <div class="card-body space-y-4">
-                  <div class="rounded-2xl p-4 space-y-4" style="border:1px solid rgba(255,164,28,0.18);background:#EAEDED;">
-                    <div class="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <h4 class="font-semibold text-text-primary">Zones de livraison et prix</h4>
-                        <p class="text-sm text-text-secondary mt-1">Definissez le poids du produit, puis ajoutez les communes ou ce produit peut etre livre avec le prix facture au client. Si l'adresse du client ne correspond pas, il ne pourra pas commander ce produit.</p>
+                <!-- ===== PHOTOS ===== -->
+                <section id="pe-sec-gallery" class="pe-card" data-section="gallery">
+                  <div class="pe-card__head">
+                    <div>
+                      <div class="pe-card__title">Photos</div>
+                      <div class="pe-card__sub">La 1re image est la couverture. Carr&eacute; 1200&times;1200, 5&nbsp;Mo max.</div>
+                    </div>
+                  </div>
+                  <div class="pe-card__body">
+                    <div id="mainImagesContainer" class="image-grid"></div>
+                    <div class="image-name-input-area">
+                      <input type="file" id="mainImageFileInput" class="image-name-input" accept="image/*" multiple>
+                      <button type="button" id="uploadMainImageBtn" class="btn btn-secondary">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        T&eacute;l&eacute;verser
+                      </button>
+                    </div>
+                    <details>
+                      <summary class="pe-hint" style="cursor:pointer;">Ajouter par URL ou nom de fichier (transition)</summary>
+                      <div class="image-name-input-area" style="margin-top:.5rem;">
+                        <input type="text" id="mainImageNameInput" class="image-name-input" placeholder="URL distante ou ancien nom de fichier" value="">
+                        <button type="button" id="addMainImageNameBtn" class="btn btn-primary">
+                          <i class="fas fa-plus"></i>
+                          Ajouter
+                        </button>
+                      </div>
+                    </details>
+                  </div>
+                </section>
+
+                <!-- ===== PRIX & STOCK ===== -->
+                <section id="pe-sec-general-price" class="pe-card" data-section="general-price">
+                  <div class="pe-card__head">
+                    <div>
+                      <div class="pe-card__title">Prix &amp; stock</div>
+                      <div class="pe-card__sub">Prix affich&eacute; au client. Le stock total se calcule depuis les variations.</div>
+                    </div>
+                  </div>
+                  <div class="pe-card__body">
+                    <div class="pe-grid-3">
+                      <div class="pe-field">
+                        <label for="basePrice">Prix de vente (HTG) <span class="pe-req">*</span></label>
+                        <input type="number" id="basePrice" step="0.01" min="0" class="form-input" placeholder="0">
+                      </div>
+                      <div class="pe-field">
+                        <label for="comparePrice">Prix barr&eacute;</label>
+                        <input type="number" id="comparePrice" step="0.01" min="0" class="form-input" placeholder="Optionnel">
+                        <span class="pe-hint">Doit &ecirc;tre sup&eacute;rieur au prix de vente.</span>
+                      </div>
+                      <div class="pe-field">
+                        <label for="totalStock">Stock total</label>
+                        <input type="number" id="totalStock" class="form-input" readonly>
+                        <span class="pe-hint">Somme des variations.</span>
                       </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Poids produit</label>
-                        <div class="flex gap-2">
-                          <input type="number" id="productWeightValue" class="form-input" min="0" step="0.001" value="0" placeholder="Ex: 15 ou 1.5">
-                          <select id="productWeightUnit" class="form-input" style="max-width:90px;">
+                    <div id="peMarginCallout" class="pe-callout pe-callout--info">Choisissez un d&eacute;partement pour voir la commission Smart Cut Services et votre net estim&eacute;.</div>
+                    <div class="pe-field" style="gap:.6rem;">
+                      <div class="pe-inline" style="justify-content:space-between;flex-wrap:wrap;">
+                        <label style="margin:0;">Remise programm&eacute;e</label>
+                        <span class="pe-hint">Pourcentage uniquement &mdash; le prix normal revient apr&egrave;s la date de fin.</span>
+                      </div>
+                      <input type="hidden" id="discountType" value="percentage">
+                      <div class="pe-grid-3">
+                        <div class="pe-field">
+                          <label for="discountValue">Remise (%)</label>
+                          <input type="number" id="discountValue" step="0.01" min="0" max="100" class="form-input" placeholder="Ex : 24">
+                        </div>
+                        <div class="pe-field">
+                          <label for="discountStartAt">D&eacute;but</label>
+                          <input type="datetime-local" id="discountStartAt" class="form-input">
+                        </div>
+                        <div class="pe-field">
+                          <label for="discountEndAt">Fin</label>
+                          <input type="datetime-local" id="discountEndAt" class="form-input">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ===== CLASSEMENT ===== -->
+                <section id="pe-sec-category" class="pe-card" data-section="category">
+                  <div class="pe-card__head">
+                    <div>
+                      <div class="pe-card__title">Classement du produit</div>
+                      <div class="pe-card__sub">Le d&eacute;partement fixe la commission Smart Cut Services. Cat&eacute;gorie et sous-cat&eacute;gorie am&eacute;liorent la recherche.</div>
+                    </div>
+                  </div>
+                  <div class="pe-card__body">
+                    <div class="pe-grid-3">
+                      <div class="pe-field">
+                        <label for="taxonomyDepartmentSelect">D&eacute;partement <span class="pe-req">*</span></label>
+                        <select id="taxonomyDepartmentSelect" class="form-select">
+                          <option value="">Choisir un d&eacute;partement</option>
+                        </select>
+                      </div>
+                      <div class="pe-field">
+                        <label for="taxonomyCategorySelect">Cat&eacute;gorie</label>
+                        <select id="taxonomyCategorySelect" class="form-select" disabled>
+                          <option value="">Choisir d'abord un d&eacute;partement</option>
+                        </select>
+                      </div>
+                      <div class="pe-field">
+                        <label for="taxonomySubcategorySelect">Sous-cat&eacute;gorie</label>
+                        <select id="taxonomySubcategorySelect" class="form-select" disabled>
+                          <option value="">Choisir d'abord une cat&eacute;gorie</option>
+                        </select>
+                      </div>
+                    </div>
+                    <p id="departmentCommissionHint" class="pe-hint"></p>
+                    <details>
+                      <summary class="pe-hint" style="cursor:pointer;">Attributs de filtrage catalogue (avanc&eacute;)</summary>
+                      <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem;">
+                        <div class="pe-field">
+                          <label for="categorySelect">Cat&eacute;gorie d'attributs</label>
+                          <select id="categorySelect" class="form-select">
+                            <option value="">Choisir une cat&eacute;gorie</option>
+                          </select>
+                        </div>
+                        <div id="categoryAttributesContainer" class="category-tree"></div>
+                        <div id="selectedLinesContainer" class="p-4 bg-background rounded-lg">
+                          <h4 class="font-medium mb-2">Lignes s&eacute;lectionn&eacute;es</h4>
+                          <div id="selectedLinesList" class="flex flex-wrap gap-2"></div>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                </section>
+
+                <!-- ===== VARIATIONS ===== -->
+                <section id="pe-sec-variations" class="pe-card" data-section="variations">
+                  <div class="pe-card__head">
+                    <div>
+                      <div class="pe-card__title">Variations</div>
+                      <div class="pe-card__sub">D&eacute;clinaisons du produit (couleur, taille, volume&hellip;). Chaque ligne a son stock, prix et SKU.</div>
+                    </div>
+                    <button type="button" id="addVariationBtn" class="btn btn-secondary btn-sm">
+                      <i class="fas fa-plus"></i>
+                      Ajouter
+                    </button>
+                  </div>
+                  <div class="pe-card__body">
+                    <div class="pe-generator">
+                      <div class="pe-inline" style="justify-content:space-between;flex-wrap:wrap;">
+                        <strong style="font-size:.85rem;">G&eacute;n&eacute;rateur de combinaisons</strong>
+                        <span class="pe-hint">Ex. : Couleur = Noir, Blanc &bull; Taille = M, L &rarr; 4 variations</span>
+                      </div>
+                      <div id="peGenGroups"></div>
+                      <div class="pe-inline" style="flex-wrap:wrap;gap:.5rem;">
+                        <button type="button" id="peGenAddGroupBtn" class="btn-secondary btn-sm"><i class="fas fa-plus"></i> Ajouter un axe</button>
+                        <button type="button" id="peGenBuildBtn" class="btn btn-primary btn-sm"><i class="fas fa-wand-magic-sparkles"></i> G&eacute;n&eacute;rer les variations</button>
+                      </div>
+                    </div>
+                    <div id="variationsContainer" style="margin-top:1rem;"></div>
+                    <div id="noVariations" class="text-center py-8 text-text-secondary">
+                      <i class="fas fa-cubes text-4xl mb-3 opacity-50"></i>
+                      <p>Aucune variation &mdash; le produit se vend en une seule d&eacute;clinaison.</p>
+                      <p class="text-sm mt-2">Utilisez le g&eacute;n&eacute;rateur ci-dessus ou &laquo; Ajouter &raquo;.</p>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ===== LIVRAISON ===== -->
+                <section id="pe-sec-delivery" class="pe-card" data-section="delivery">
+                  <div class="pe-card__head">
+                    <div>
+                      <div class="pe-card__title">Livraison</div>
+                      <div class="pe-card__sub">Poids du produit puis les communes o&ugrave; il peut &ecirc;tre livr&eacute;, avec prix et d&eacute;lai.</div>
+                    </div>
+                    <span class="pe-hint">Ha&iuml;ti uniquement</span>
+                  </div>
+                  <div class="pe-card__body">
+                    <div class="pe-grid-3">
+                      <div class="pe-field">
+                        <label for="productWeightValue">Poids produit</label>
+                        <div class="pe-inline">
+                          <input type="number" id="productWeightValue" class="form-input" min="0" step="0.001" value="0" placeholder="Ex : 15 ou 1.5">
+                          <select id="productWeightUnit" class="form-input" style="max-width:80px;">
                             <option value="g">g</option>
                             <option value="kg">kg</option>
                           </select>
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-                        <div>
-                          <h5 class="font-semibold text-text-primary">Zones et prix de livraison</h5>
-                          <p class="text-sm text-text-secondary mt-1">Ajoutez une ou plusieurs zones: pays, departement, commune, prix et delai de livraison.</p>
-                        </div>
-                        <button type="button" id="addProductDeliveryZoneBtn" class="btn btn-secondary btn-sm">
-                          <i class="fas fa-plus"></i>
-                          Ajouter une zone
-                        </button>
-                      </div>
-                      <div id="productDeliveryZonesList" class="space-y-3"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== TAB 2: CATÉGORIE & ATTRIBUTS ===== -->
-            <div id="tab-digital" class="tab-content hidden">
-              <div class="content-card">
-                <div class="card-header">
-                  <span>Produit digital</span>
-                  <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.12em] uppercase" style="border:1px solid rgba(0,118,0,0.25);color:#007600;">
-                    Livraison gratuite et instantanee
-                  </span>
-                </div>
-                <div class="card-body space-y-4">
-                  <div class="rounded-2xl p-4 space-y-4" style="border:1px solid rgba(0,118,0,0.18);background:rgba(0,118,0,0.05);">
-                    <div class="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <h4 class="font-semibold text-text-primary">Activer le mode digital</h4>
-                        <p class="text-sm text-text-secondary mt-1">Un produit digital ne demande ni stock ni zone de livraison: disponible partout, frais 0 G, poids 0 g, delai instantane.</p>
-                      </div>
-                      <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-sm font-semibold text-text-primary" style="border:1px solid rgba(0,118,0,0.2);">
-                        <input type="checkbox" id="isDigitalProduct" style="accent-color:#007600;">
-                        Article digital
-                      </label>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Delai de livraison</label>
-                        <input type="text" id="deliveryDelay" class="form-input" placeholder="Instantanee" value="Instantanee">
-                      </div>
-                      <div>
-                        <label class="block text-sm text-text-secondary mb-1">Lien de telechargement digital</label>
-                        <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
-                        <p class="text-xs text-text-secondary mt-1">Collez ici le lien externe que le client recevra apres paiement. Aucun fichier digital n est stocke sur Smart Cut.</p>
-                      </div>
-                    </div>
-                    <div class="rounded-xl bg-white p-4 text-sm text-text-secondary" style="border:1px solid rgba(0,118,0,0.16);">
-                      <p class="font-semibold text-text-primary mb-1">Photos du produit digital</p>
-                      <p>Ajoutez les photos dans l'onglet Galerie. Maximum 3 photos, 1 Mo par photo.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div id="tab-category" class="tab-content hidden">
-              <div class="content-card">
-                <div class="card-header">
-                  <span>S&eacute;lection des cat&eacute;gories et lignes</span>
-                </div>
-                <div class="card-body">
-                  <div class="mb-4">
-                    <label class="block text-sm text-text-secondary mb-2">Cat&eacute;gorie</label>
-                    <select id="categorySelect" class="form-select">
-                      <option value="">Choisir une cat&eacute;gorie</option>
-                    </select>
-                  </div>
-                  
-                  <div id="categoryAttributesContainer" class="category-tree">
-                    <!-- Injecté dynamiquement -->
-                  </div>
-                  
-                  <div id="selectedLinesContainer" class="mt-4 p-4 bg-background rounded-lg">
-                    <h4 class="font-medium mb-2">Lignes sélectionnées</h4>
-                    <div id="selectedLinesList" class="flex flex-wrap gap-2">
-                      <!-- Injecté dynamiquement -->
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== TAB 3: VARIATIONS ===== -->
-            <div id="tab-variations" class="tab-content hidden">
-              <div class="content-card">
-                <div class="card-header">
-                  <span>Variations du produit</span>
-                  <button type="button" id="addVariationBtn" class="btn btn-primary btn-sm">
-                    <i class="fas fa-plus"></i>
-                    Ajouter une variation
-                  </button>
-                </div>
-                <div class="card-body">
-                  <div id="variationsContainer" class="space-y-4">
-                    <!-- Injecté dynamiquement -->
-                  </div>
-                  
-                  <div id="noVariations" class="text-center py-8 text-text-secondary">
-                    <i class="fas fa-cubes text-4xl mb-3 opacity-50"></i>
-                    <p>Aucune variation pour ce produit</p>
-                    <p class="text-sm mt-2">Cliquez sur "Ajouter une variation" pour commencer</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== TAB 4: GALERIE ===== -->
-            <div id="tab-gallery" class="tab-content hidden">
-              <div class="content-card">
-                <div class="card-header">
-                  <span>Galerie d'images</span>
-                </div>
-                <div class="card-body">
-                  <div>
-                    <label class="block text-sm text-text-secondary mb-2">Images principales</label>
-                    <div id="mainImagesContainer" class="image-grid">
-                      <!-- Injecté dynamiquement -->
-                    </div>
-                    
-                    <div class="image-name-input-area">
-                      <input type="file" id="mainImageFileInput" class="image-name-input" accept="image/*" multiple>
-                      <button type="button" id="uploadMainImageBtn" class="btn btn-secondary">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        Uploader vers Storage
-                      </button>
-                    </div>
-
-                    <div class="image-name-input-area">
-                      <input type="text" id="mainImageNameInput" class="image-name-input" placeholder="URL distante ou ancien nom de fichier (transition)" value="">
-                      <button type="button" id="addMainImageNameBtn" class="btn btn-primary">
+                    <div class="pe-inline" style="justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+                      <span class="pe-hint">Si l'adresse du client ne correspond &agrave; aucune zone, il ne peut pas commander ce produit.</span>
+                      <button type="button" id="addProductDeliveryZoneBtn" class="btn btn-secondary btn-sm">
                         <i class="fas fa-plus"></i>
-                        Ajouter
+                        Ajouter une zone
                       </button>
                     </div>
-                    <p class="text-xs text-text-secondary mt-1">L'image doit être placée dans le même dossier que le dashboard</p>
+                    <div id="productDeliveryZonesList" class="space-y-3"></div>
                   </div>
-                  
-                  <div class="mt-6">
-                    <h4 class="font-medium mb-2">Images par variation</h4>
-                    <p class="text-sm text-text-secondary mb-4">Les images spécifiques sont gérées dans chaque variation</p>
+                </section>
+
+                <!-- ===== DIGITAL ===== -->
+                <section id="pe-sec-digital" class="pe-card is-hidden" data-section="digital">
+                  <div class="pe-card__head">
+                    <div>
+                      <div class="pe-card__title">Produit digital</div>
+                      <div class="pe-card__sub">Livraison gratuite et instantan&eacute;e, sans stock ni zone.</div>
+                    </div>
+                  </div>
+                  <div class="pe-card__body">
+                    <label class="pe-inline" style="gap:.6rem;cursor:pointer;">
+                      <input type="checkbox" id="isDigitalProduct" style="accent-color:#007600;width:18px;height:18px;">
+                      <span style="font-weight:600;">Ce produit est digital (fichier / lien)</span>
+                    </label>
+                    <div class="pe-grid-2">
+                      <div class="pe-field">
+                        <label for="deliveryDelay">D&eacute;lai de livraison</label>
+                        <input type="text" id="deliveryDelay" class="form-input" placeholder="Instantan&eacute;e" value="Instantanee">
+                      </div>
+                      <div class="pe-field">
+                        <label for="digitalDownloadLink">Lien de t&eacute;l&eacute;chargement</label>
+                        <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
+                        <span class="pe-hint">Le client re&ccedil;oit ce lien apr&egrave;s paiement. Aucun fichier n'est stock&eacute; sur Smart Cut.</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </form>
+            </div>
+
+            <aside class="pe-rail">
+              <div class="pe-rail-card">
+                <div class="pe-rail-card__title">Publication</div>
+                <div class="pe-segment" id="peStatusSegment">
+                  <button type="button" data-status="draft" class="is-active">Brouillon</button>
+                  <button type="button" data-status="active">Actif</button>
+                </div>
+                <input type="checkbox" id="productStatus" class="sr-only" checked>
+                <button type="button" id="railSaveBtn" class="btn btn-primary" style="width:100%;justify-content:center;">
+                  <i class="fas fa-save"></i>
+                  Enregistrer
+                </button>
+                <div id="peReviewNote" class="pe-hint">Un produit publi&eacute; passe en revue admin avant d'appara&icirc;tre sur la boutique.</div>
+              </div>
+
+              <div class="pe-rail-card">
+                <div class="pe-rail-card__title">Aper&ccedil;u de la fiche</div>
+                <div class="pe-preview">
+                  <div class="pe-preview__media" id="pePreviewMedia"><i class="fas fa-image"></i></div>
+                  <div class="pe-preview__body">
+                    <div class="pe-preview__name" id="pePreviewName">Nom du produit</div>
+                    <div class="pe-preview__prices">
+                      <span class="pe-preview__price" id="pePreviewPrice">&mdash;</span>
+                      <span class="pe-preview__compare" id="pePreviewCompare" hidden></span>
+                    </div>
+                    <div class="pe-preview__net" id="pePreviewNet"></div>
+                    <div class="pe-preview__shop" id="pePreviewShop"></div>
                   </div>
                 </div>
               </div>
-            </div>
-          </form>
+
+              <div class="pe-rail-card">
+                <div class="pe-rail-card__title">&Agrave; compl&eacute;ter</div>
+                <div class="pe-check">
+                  <div class="pe-check__bar"><span id="peCheckBar" style="width:0%"></span></div>
+                  <div id="peCheckList"></div>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
 
         <!-- ========== VIEW: CATEGORIES ========== -->
@@ -2295,114 +2663,85 @@
 
   <!-- ========== MODAL VARIATION ========== -->
   <div id="variationModal" class="modal-overlay">
-    <div class="modal-container p-6">
-      <div class="flex justify-between items-center mb-6">
-        <h3 id="variationModalTitle" class="text-xl font-semibold">Nouvelle variation</h3>
-        <button class="close-modal btn-icon">
-          <i class="fas fa-times"></i>
-        </button>
+    <div class="modal-container p-6 pe">
+      <div class="pe-card__head" style="padding:0 0 1rem;margin-bottom:1rem;">
+        <div>
+          <div class="pe-card__title" id="variationModalTitle">Nouvelle variation</div>
+          <div class="pe-card__sub">Chaque d&eacute;clinaison a son propre stock, prix et SKU.</div>
+        </div>
+        <button class="close-modal btn-icon"><i class="fas fa-times"></i></button>
       </div>
 
-      <form id="variationForm" class="space-y-4">
+      <form id="variationForm">
         <input type="hidden" id="variationId">
         <input type="hidden" id="variationIndex">
-        
-        <!-- Attributs -->
-        <div class="grid grid-cols-2 gap-3">
+
+        <div style="display:flex;flex-direction:column;gap:1.25rem;">
           <div>
-            <label class="block text-sm text-text-secondary mb-1">Couleur</label>
-            <input type="text" id="varColor" class="form-input" placeholder="Rouge, Bleu...">
-          </div>
-          <div>
-            <label class="block text-sm text-text-secondary mb-1">Taille</label>
-            <input type="text" id="varSize" class="form-input" placeholder="S, M, L, XL...">
-          </div>
-        </div>
-        
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-sm text-text-secondary mb-1">Volume / Oz</label>
-            <input type="text" id="varVolume" class="form-input" placeholder="250ml, 8oz...">
-          </div>
-          <div>
-            <label class="block text-sm text-text-secondary mb-1">SKU *</label>
-            <div class="flex gap-2">
-              <input type="text" id="varSku" class="form-input" required>
-              <button type="button" id="generateSkuBtn" class="btn-secondary btn-sm whitespace-nowrap">
-                <i class="fas fa-sync-alt"></i>
-                Générer
-              </button>
+            <div class="pe-rail-card__title" style="margin-bottom:.6rem;">Attributs</div>
+            <div class="pe-grid-2">
+              <div class="pe-field"><label for="varColor">Couleur</label>
+                <input type="text" id="varColor" class="form-input" placeholder="Rouge, Bleu&hellip;"></div>
+              <div class="pe-field"><label for="varSize">Taille</label>
+                <input type="text" id="varSize" class="form-input" placeholder="S, M, L, XL&hellip;"></div>
+              <div class="pe-field"><label for="varVolume">Volume / Oz</label>
+                <input type="text" id="varVolume" class="form-input" placeholder="250ml, 8oz&hellip;"></div>
+              <div class="pe-field"><label for="varSku">SKU <span class="pe-req">*</span></label>
+                <div class="pe-inline">
+                  <input type="text" id="varSku" class="form-input" required>
+                  <button type="button" id="generateSkuBtn" class="btn-secondary btn-sm whitespace-nowrap"><i class="fas fa-sync-alt"></i> G&eacute;n&eacute;rer</button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        
-        <!-- Options personnalisées -->
-        <div>
-          <div class="flex justify-between items-center mb-2">
-            <label class="text-sm text-text-secondary">Options personnalisées</label>
-            <button type="button" id="addCustomOptionBtn" class="btn-secondary btn-sm">
-              <i class="fas fa-plus"></i> Ajouter
-            </button>
-          </div>
-          <div id="customOptionsContainer" class="space-y-2">
-            <!-- Options dynamiques -->
-          </div>
-        </div>
-        
-        <!-- Prix et stock -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label class="block text-sm text-text-secondary mb-1">Prix spécifique</label>
-            <input type="number" id="varPrice" step="0.01" class="form-input" placeholder="Optionnel">
-          </div>
-          <div>
-            <label class="block text-sm text-text-secondary mb-1">Stock *</label>
-            <input type="number" id="varStock" class="form-input" required min="0" value="0">
-          </div>
-          <div>
-            <label class="block text-sm text-text-secondary mb-1">Poids</label>
-            <div class="flex gap-2">
-              <input type="number" id="varWeightGrams" class="form-input" min="0" step="0.001" value="0" placeholder="Ex: 15 ou 1.5">
-              <select id="varWeightUnit" class="form-input" style="max-width:90px;">
-                <option value="g">g</option>
-                <option value="kg">kg</option>
-              </select>
+            <div style="margin-top:.75rem;">
+              <div class="pe-inline" style="justify-content:space-between;margin-bottom:.5rem;">
+                <span class="pe-hint" style="font-weight:600;">Options personnalis&eacute;es</span>
+                <button type="button" id="addCustomOptionBtn" class="btn-secondary btn-sm"><i class="fas fa-plus"></i> Ajouter</button>
+              </div>
+              <div id="customOptionsContainer" class="space-y-2"></div>
             </div>
-          </div>
-        </div>
-        
-        <!-- Images -->
-        <div>
-          <label class="block text-sm text-text-secondary mb-2">Images spécifiques (noms des fichiers)</label>
-          <div id="varImagesContainer" class="image-grid">
-            <!-- Images dynamiques -->
-          </div>
-          
-          <div class="image-name-input-area">
-            <input type="file" id="varImageFileInput" class="image-name-input" accept="image/*" multiple>
-            <button type="button" id="uploadVarImageBtn" class="btn btn-secondary">
-              <i class="fas fa-cloud-upload-alt"></i>
-              Uploader vers Storage
-            </button>
           </div>
 
-          <div class="image-name-input-area">
-            <input type="text" id="varImageNameInput" class="image-name-input" placeholder="URL distante ou ancien nom de fichier (transition)" value="">
-            <button type="button" id="addVarImageNameBtn" class="btn btn-primary">
-              <i class="fas fa-plus"></i>
-              Ajouter
-            </button>
+          <div>
+            <div class="pe-rail-card__title" style="margin-bottom:.6rem;">Tarif &amp; stock</div>
+            <div class="pe-grid-3">
+              <div class="pe-field"><label for="varPrice">Prix sp&eacute;cifique</label>
+                <input type="number" id="varPrice" step="0.01" class="form-input" placeholder="Sinon prix de base">
+                <span class="pe-hint">Laisser vide = prix du produit.</span></div>
+              <div class="pe-field"><label for="varStock">Stock <span class="pe-req">*</span></label>
+                <input type="number" id="varStock" class="form-input" required min="0" value="0"></div>
+              <div class="pe-field"><label for="varWeightGrams">Poids</label>
+                <div class="pe-inline">
+                  <input type="number" id="varWeightGrams" class="form-input" min="0" step="0.001" value="0" placeholder="Ex : 15 ou 1.5">
+                  <select id="varWeightUnit" class="form-input" style="max-width:80px;">
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
-          <p class="text-xs text-text-secondary mt-1">L'image doit être placée dans le même dossier que le dashboard</p>
+
+          <div>
+            <div class="pe-rail-card__title" style="margin-bottom:.6rem;">Photos de la variation</div>
+            <div id="varImagesContainer" class="image-grid"></div>
+            <div class="image-name-input-area" style="margin-top:.5rem;">
+              <input type="file" id="varImageFileInput" class="image-name-input" accept="image/*" multiple>
+              <button type="button" id="uploadVarImageBtn" class="btn btn-secondary"><i class="fas fa-cloud-upload-alt"></i> T&eacute;l&eacute;verser</button>
+            </div>
+            <details>
+              <summary class="pe-hint" style="cursor:pointer;">Ajouter par URL ou nom de fichier (transition)</summary>
+              <div class="image-name-input-area" style="margin-top:.5rem;">
+                <input type="text" id="varImageNameInput" class="image-name-input" placeholder="URL distante ou ancien nom de fichier" value="">
+                <button type="button" id="addVarImageNameBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Ajouter</button>
+              </div>
+            </details>
+          </div>
         </div>
-        
-        <div class="flex gap-3 pt-4">
-          <button type="submit" class="btn btn-primary flex-1">
-            Enregistrer la variation
-          </button>
-          <button type="button" class="btn btn-secondary cancel-modal">
-            Annuler
-          </button>
+
+        <div class="pe-inline" style="gap:.75rem;padding-top:1.25rem;margin-top:1rem;border-top:1px solid var(--border);">
+          <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;">Enregistrer la variation</button>
+          <button type="button" class="btn btn-secondary cancel-modal">Annuler</button>
         </div>
       </form>
     </div>
@@ -2470,6 +2809,8 @@
     };
     const CATEGORIES_COLLECTION = "categories_list";
     const COMMISSION_RULES_COLLECTION = "vendorCommissionRules";
+    const COMMISSION_DEPARTMENTS_COLLECTION = "commissionDepartments";
+    const PRODUCT_TAXONOMY_URL = "./product-taxonomy.json";
     const VENDOR_ANALYTICS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardAnalytics';
     const VENDOR_ORDERS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardOrders';
     const VENDOR_PAYOUT_REQUEST_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/requestVendorPayout';
@@ -2483,6 +2824,9 @@
         this.products = [];
         this.categories = [];
         this.commissionRules = [];
+        this.productTaxonomy = null;          // parsed product-taxonomy.json
+        this.commissionDepartments = new Map(); // departmentId -> { id, label, rate }
+        this.taxonomySelection = { departmentId: '', categoryId: '', subcategoryId: '' };
         this.salesAnalytics = null;
         this.vendorOrders = [];
         this.vendorPayoutHistory = [];
@@ -2521,10 +2865,13 @@
           this.loadProducts(),
           this.loadCategories(),
           this.loadCommissionRules(),
+          this.loadProductTaxonomy(),
+          this.loadCommissionDepartments(),
           this.loadVendorServiceFeeStatus(),
           this.loadSalesAnalytics(),
           this.loadVendorOrders()
         ]);
+        this.populateTaxonomyDepartmentSelect();
         this.setupRealtimeListener();
         this.setupLikesListener();
         this.updateVendorNotificationCard();
@@ -2946,6 +3293,10 @@
           productStatus: document.getElementById('productStatus'),
           
           // Category tab
+          taxonomyDepartmentSelect: document.getElementById('taxonomyDepartmentSelect'),
+          taxonomyCategorySelect: document.getElementById('taxonomyCategorySelect'),
+          taxonomySubcategorySelect: document.getElementById('taxonomySubcategorySelect'),
+          departmentCommissionHint: document.getElementById('departmentCommissionHint'),
           categorySelect: document.getElementById('categorySelect'),
           categoryAttributesContainer: document.getElementById('categoryAttributesContainer'),
           selectedLinesContainer: document.getElementById('selectedLinesContainer'),
@@ -2963,10 +3314,27 @@
           mainImageNameInput: document.getElementById('mainImageNameInput'),
           addMainImageNameBtn: document.getElementById('addMainImageNameBtn'),
           
-          // Tabs
+          // Editor navigation / rail (redesign)
           sectionTabs: document.querySelectorAll('.section-tab'),
           tabContents: document.querySelectorAll('.tab-content'),
-          
+          peAnchorBar: document.getElementById('peAnchorBar'),
+          peSaveState: document.getElementById('peSaveState'),
+          peStatusSegment: document.getElementById('peStatusSegment'),
+          railSaveBtn: document.getElementById('railSaveBtn'),
+          peReviewNote: document.getElementById('peReviewNote'),
+          peMarginCallout: document.getElementById('peMarginCallout'),
+          pePreviewMedia: document.getElementById('pePreviewMedia'),
+          pePreviewName: document.getElementById('pePreviewName'),
+          pePreviewPrice: document.getElementById('pePreviewPrice'),
+          pePreviewCompare: document.getElementById('pePreviewCompare'),
+          pePreviewNet: document.getElementById('pePreviewNet'),
+          pePreviewShop: document.getElementById('pePreviewShop'),
+          peCheckBar: document.getElementById('peCheckBar'),
+          peCheckList: document.getElementById('peCheckList'),
+          peGenGroups: document.getElementById('peGenGroups'),
+          peGenAddGroupBtn: document.getElementById('peGenAddGroupBtn'),
+          peGenBuildBtn: document.getElementById('peGenBuildBtn'),
+
           // Variation Modal
           variationModal: document.getElementById('variationModal'),
           variationModalTitle: document.getElementById('variationModalTitle'),
@@ -3035,16 +3403,31 @@
         this.elements.saveProductBtn.addEventListener('click', () => this.saveProduct());
         this.elements.addProductDeliveryZoneBtn?.addEventListener('click', () => this.addProductDeliveryZoneRow());
         
-        // Tabs
-        this.elements.sectionTabs.forEach(tab => {
-          tab.addEventListener('click', () => {
-            const tabName = tab.dataset.tab;
-            this.switchEditorTab(tabName);
-          });
+        // Editor: anchor bar (scroll to section), status segment, rail save, live preview
+        this.elements.peAnchorBar?.querySelectorAll('.pe-anchor').forEach(btn => {
+          btn.addEventListener('click', () => this.switchEditorTab(btn.dataset.anchor));
         });
-        
+        this.elements.peStatusSegment?.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => this.setPublicationStatus(btn.dataset.status));
+        });
+        this.elements.railSaveBtn?.addEventListener('click', () => this.saveProduct());
+        this.elements.productForm?.addEventListener('input', () => this.refreshEditorAside());
+        this.elements.productForm?.addEventListener('change', () => this.refreshEditorAside());
+        this.setupEditorScrollspy();
+
+        // Variations: quick combination generator
+        this.elements.peGenAddGroupBtn?.addEventListener('click', () => this.addGeneratorGroup());
+        this.elements.peGenBuildBtn?.addEventListener('click', () => this.runVariationGenerator());
+
         // Catégorie select
         this.elements.categorySelect.addEventListener('change', () => this.loadCategoryAttributes());
+
+        // Taxonomie Département → Catégorie → Sous-catégorie (pilote la commission)
+        this.elements.taxonomyDepartmentSelect?.addEventListener('change', () => this.onTaxonomyDepartmentChange());
+        this.elements.taxonomyCategorySelect?.addEventListener('change', () => this.onTaxonomyCategoryChange());
+        this.elements.taxonomySubcategorySelect?.addEventListener('change', () => {
+          this.taxonomySelection.subcategoryId = this.elements.taxonomySubcategorySelect.value || '';
+        });
         
         // Variation
         this.elements.addVariationBtn.addEventListener('click', () => this.openVariationModal());
@@ -3212,6 +3595,11 @@
       switchView(view) {
         if (!this.elements.views[view]) return;
 
+        // Immersive product editor: hide the dashboard chrome (sidebar + header)
+        // so the add/edit canvas takes the whole screen.
+        document.body.classList.toggle('pe-immersive', view === 'editor');
+        if (view === 'editor') this.setSidebarOpen?.(false);
+
         this.elements.sidebarNav.forEach(btn => {
           btn.classList.remove('active', 'bg-background');
           if (btn.dataset.view === view) {
@@ -3234,45 +3622,258 @@
         this.elements.currentViewTitle.textContent = titles[view] || 'Produits vendeur';
       }
       
-      switchEditorTab(tabName) {
-        const targetTab = document.querySelector(`.section-tab[data-tab="${tabName}"]`);
-        if (targetTab?.classList.contains('hidden')) {
-          tabName = this.editorMode === 'digital' ? 'general' : 'general';
+      // Module editor: the left aside picks one section; only that card renders.
+      editorSectionEl(name) {
+        return document.getElementById(`pe-sec-${name}`) || null;
+      }
+
+      editorSectionNames() {
+        return ['general', 'gallery', 'general-price', 'category', 'variations', 'delivery', 'digital'];
+      }
+
+      switchEditorTab(name) {
+        let target = this.editorSectionEl(name);
+        if (!target || target.classList.contains('is-hidden')) {
+          name = 'general';
+          target = this.editorSectionEl('general');
         }
-        this.elements.sectionTabs.forEach(t => t.classList.remove('active'));
-        this.elements.tabContents.forEach(c => c.classList.add('hidden'));
-        
-        document.querySelector(`.section-tab[data-tab="${tabName}"]`).classList.add('active');
-        document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-        if (tabName === 'digital' && this.elements.isDigitalProduct) {
+        if (!target) return;
+        this.currentEditorSection = name;
+        this.editorSectionNames().forEach(n => {
+          const sec = this.editorSectionEl(n);
+          if (sec) sec.classList.toggle('is-current', n === name);
+        });
+        this.setActiveAnchor(name);
+        // bring the panel into view (mobile: below the sticky chrome)
+        const main = document.querySelector('.pe-main');
+        if (main && typeof main.scrollIntoView === 'function') {
+          main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (name === 'digital' && this.elements.isDigitalProduct) {
           this.elements.isDigitalProduct.checked = true;
           this.updateDigitalProductUi();
         }
       }
 
+      setActiveAnchor(name) {
+        this.elements.peAnchorBar?.querySelectorAll('.pe-anchor').forEach(a => {
+          a.classList.toggle('is-active', a.dataset.anchor === name);
+        });
+      }
+
+      // Single-module view: no scroll-spy needed.
+      setupEditorScrollspy() {}
+
       setEditorMode(mode = 'physical') {
         this.editorMode = mode === 'digital' ? 'digital' : 'physical';
-        const hiddenTabs = this.editorMode === 'digital'
+        const hidden = this.editorMode === 'digital'
           ? ['delivery', 'variations']
           : ['digital'];
-        const visibleTabs = this.editorMode === 'digital'
-          ? ['general', 'digital', 'category', 'gallery']
-          : ['general', 'delivery', 'category', 'variations', 'gallery'];
-
-        this.elements.sectionTabs.forEach((tab) => {
-          const tabName = tab.dataset.tab;
-          tab.classList.toggle('hidden', hiddenTabs.includes(tabName));
-          tab.style.display = visibleTabs.includes(tabName) ? '' : 'none';
+        this.editorSectionNames().forEach(name => {
+          const sec = this.editorSectionEl(name);
+          if (sec) sec.classList.toggle('is-hidden', hidden.includes(name));
+          const anchor = this.elements.peAnchorBar?.querySelector(`.pe-anchor[data-anchor="${name}"]`);
+          if (anchor) anchor.classList.toggle('is-hidden', hidden.includes(name));
         });
 
-        if (this.editorMode === 'digital' && this.elements.isDigitalProduct) {
-          this.elements.isDigitalProduct.checked = true;
+        if (this.elements.isDigitalProduct) {
+          this.elements.isDigitalProduct.checked = this.editorMode === 'digital';
           this.updateDigitalProductUi();
         }
-        if (this.editorMode === 'physical' && this.elements.isDigitalProduct) {
-          this.elements.isDigitalProduct.checked = false;
-          this.updateDigitalProductUi();
+        // if the open module just got hidden by the mode switch, fall back
+        if (hidden.includes(this.currentEditorSection || '') || !this.currentEditorSection) {
+          this.switchEditorTab('general');
         }
+        this.refreshEditorAside();
+      }
+
+      // ===== Publication status (rail segmented control <-> hidden checkbox) =====
+      setPublicationStatus(status) {
+        const active = status === 'active';
+        if (this.elements.productStatus) this.elements.productStatus.checked = active;
+        this.syncPublicationSegment();
+        this.refreshEditorAside();
+      }
+
+      syncPublicationSegment() {
+        const active = Boolean(this.elements.productStatus?.checked);
+        this.elements.peStatusSegment?.querySelectorAll('button').forEach(b => {
+          b.classList.toggle('is-active', (b.dataset.status === 'active') === active);
+        });
+      }
+
+      // ===== Right rail: live preview + checklist + margin =====
+      fmtHtg(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return '—';
+        return new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+      }
+
+      refreshEditorAside() {
+        this.syncPublicationSegment();
+        this.updateEditorPreview();
+        this.updateEditorChecklist();
+        this.updateMarginCallout();
+      }
+
+      updateEditorPreview() {
+        const els = this.elements;
+        if (!els.pePreviewName) return;
+        const name = els.productName?.value?.trim();
+        els.pePreviewName.textContent = name || 'Nom du produit';
+
+        const price = Number(els.basePrice?.value);
+        const compare = Number(els.comparePrice?.value);
+        const discountPct = Number(els.discountValue?.value);
+        let effective = Number.isFinite(price) && price > 0 ? price : null;
+        let badge = '';
+        if (effective && Number.isFinite(discountPct) && discountPct > 0 && discountPct < 100) {
+          effective = Math.round(effective * (1 - discountPct / 100));
+          badge = `-${Math.round(discountPct)}%`;
+        }
+        els.pePreviewPrice.textContent = effective ? this.fmtHtg(effective) : '—';
+        const showCompare = (Number.isFinite(compare) && compare > (effective || 0)) || (badge && Number.isFinite(price));
+        els.pePreviewCompare.hidden = !showCompare;
+        els.pePreviewCompare.textContent = showCompare ? this.fmtHtg(Number.isFinite(compare) && compare > 0 ? compare : price) : '';
+
+        const firstImg = (this.currentImages?.main || [])[0];
+        if (firstImg) {
+          const src = this.escapeAttribute(this.getImagePath(firstImg));
+          els.pePreviewMedia.innerHTML = `<img src="${src}" alt="">${badge ? `<span class="pe-preview__badge">${badge}</span>` : ''}`;
+        } else {
+          els.pePreviewMedia.innerHTML = `<i class="fas fa-image"></i>${badge ? `<span class="pe-preview__badge">${badge}</span>` : ''}`;
+        }
+
+        els.pePreviewShop.textContent = this.vendorContext?.shopName || this.vendorContext?.vendorName || '';
+
+        const rate = this.getDepartmentCommissionRate(this.taxonomySelection.departmentId);
+        if (effective && Number.isFinite(Number(rate))) {
+          const net = Math.round(effective * (1 - Number(rate) / 100));
+          els.pePreviewNet.textContent = `Vous recevez ~ ${this.fmtHtg(net)} (commission ${rate}%)`;
+        } else {
+          els.pePreviewNet.textContent = '';
+        }
+      }
+
+      updateMarginCallout() {
+        const el = this.elements.peMarginCallout;
+        if (!el) return;
+        const price = Number(this.elements.basePrice?.value);
+        const rate = this.getDepartmentCommissionRate(this.taxonomySelection.departmentId);
+        const override = this.getManualCommissionOverride();
+        if (override) {
+          el.className = 'pe-callout pe-callout--info';
+          el.innerHTML = `Commission spécifique définie par l'administrateur : <strong>${Number(override.categoryRate ?? override.rate) || 0}%</strong>.`;
+          return;
+        }
+        if (!Number.isFinite(Number(rate))) {
+          el.className = 'pe-callout pe-callout--info';
+          el.textContent = 'Choisissez un département pour voir la commission Smart Cut Services et votre net estimé.';
+          return;
+        }
+        if (!Number.isFinite(price) || price <= 0) {
+          el.className = 'pe-callout pe-callout--info';
+          el.innerHTML = `Commission de ce département : <strong>${rate}%</strong> (identique pour tous les plans).`;
+          return;
+        }
+        const commission = Math.round(price * Number(rate) / 100);
+        const net = price - commission;
+        el.className = 'pe-callout pe-callout--ok';
+        el.innerHTML = `Prix client <strong>${this.fmtHtg(price)}</strong> · Commission ${rate}% : <strong>${this.fmtHtg(commission)}</strong> · Net vendeur : <strong>${this.fmtHtg(net)}</strong>`;
+      }
+
+      updateEditorChecklist() {
+        const list = this.elements.peCheckList;
+        const bar = this.elements.peCheckBar;
+        if (!list) return;
+        const digital = this.editorMode === 'digital';
+        const items = [
+          { key: 'name', label: 'Nom du produit', done: Boolean(this.elements.productName?.value?.trim()), anchor: 'general' },
+          { key: 'price', label: 'Prix de vente', done: Number(this.elements.basePrice?.value) > 0, anchor: 'general-price' },
+          { key: 'photo', label: 'Au moins 1 photo', done: (this.currentImages?.main || []).length > 0, anchor: 'gallery' },
+          { key: 'dept', label: 'Département', done: Boolean(this.taxonomySelection.departmentId) && Number.isFinite(Number(this.getDepartmentCommissionRate(this.taxonomySelection.departmentId))), anchor: 'category' },
+        ];
+        if (digital) {
+          items.push({ key: 'link', label: 'Lien de téléchargement', done: Boolean(this.elements.digitalDownloadLink?.value?.trim()), anchor: 'digital' });
+        } else {
+          items.push({ key: 'zone', label: 'Au moins 1 zone de livraison', done: (this.collectProductDeliveryCoverage?.()?.zones || []).length > 0, anchor: 'delivery' });
+        }
+        const done = items.filter(i => i.done).length;
+        if (bar) bar.style.width = `${Math.round(done / items.length * 100)}%`;
+        list.innerHTML = items.map(i => `
+          <div class="pe-check__item ${i.done ? 'is-done' : ''}" data-anchor="${i.anchor}">
+            <span class="pe-check__dot">${i.done ? '<i class="fas fa-check"></i>' : ''}</span>
+            <span>${i.label}</span>
+          </div>`).join('');
+        list.querySelectorAll('.pe-check__item').forEach(row => {
+          row.addEventListener('click', () => this.switchEditorTab(row.dataset.anchor));
+        });
+      }
+
+      // ===== Variation combination generator =====
+      addGeneratorGroup(name = '', values = '') {
+        const wrap = this.elements.peGenGroups;
+        if (!wrap) return;
+        const row = document.createElement('div');
+        row.className = 'pe-optgroup';
+        row.innerHTML = `
+          <input type="text" class="form-input pe-gen-name" placeholder="Axe (ex : Couleur)" value="${this.escapeAttribute(name)}">
+          <input type="text" class="form-input pe-gen-values" placeholder="Valeurs séparées par des virgules" value="${this.escapeAttribute(values)}">
+          <button type="button" class="btn-icon text-danger pe-gen-remove" title="Retirer"><i class="fas fa-times"></i></button>`;
+        row.querySelector('.pe-gen-remove').addEventListener('click', () => row.remove());
+        wrap.appendChild(row);
+      }
+
+      ensureGeneratorGroups() {
+        if (this.elements.peGenGroups && !this.elements.peGenGroups.children.length) {
+          this.addGeneratorGroup('Couleur', '');
+          this.addGeneratorGroup('Taille', '');
+        }
+      }
+
+      runVariationGenerator() {
+        const wrap = this.elements.peGenGroups;
+        if (!wrap) return;
+        const axes = Array.from(wrap.querySelectorAll('.pe-optgroup')).map(r => ({
+          name: r.querySelector('.pe-gen-name').value.trim(),
+          values: r.querySelector('.pe-gen-values').value.split(',').map(v => v.trim()).filter(Boolean)
+        })).filter(a => a.name && a.values.length);
+        if (!axes.length) {
+          this.showToast('Renseignez au moins un axe avec des valeurs.', 'error');
+          return;
+        }
+        // cartesian product
+        let combos = [[]];
+        axes.forEach(axis => {
+          const next = [];
+          combos.forEach(c => axis.values.forEach(v => next.push([...c, { name: axis.name, value: v }])));
+          combos = next;
+        });
+        if (combos.length > 60) {
+          this.showToast(`${combos.length} combinaisons : trop pour une génération d'un coup (max 60).`, 'error');
+          return;
+        }
+        const baseSku = (this.elements.mainSku?.value?.trim() || this.generateMainSku?.() || 'SKU').toUpperCase();
+        const known = new Set((this.currentVariations || []).map(v => JSON.stringify([v.color || '', v.size || '', v.volume || '', (v.customOptions || [])])));
+        let added = 0;
+        combos.forEach((parts, i) => {
+          const varia = { color: '', size: '', volume: '', sku: '', price: null, stock: 0, weightGrams: 0, customOptions: [] };
+          parts.forEach(p => {
+            const low = p.name.toLowerCase();
+            if (low.startsWith('coul')) varia.color = p.value;
+            else if (low.startsWith('tail') || low === 'size') varia.size = p.value;
+            else if (low.startsWith('vol') || low.includes('oz') || low.includes('ml')) varia.volume = p.value;
+            else varia.customOptions.push({ name: p.name, value: p.value });
+          });
+          const key = JSON.stringify([varia.color, varia.size, varia.volume, varia.customOptions]);
+          if (known.has(key)) return;
+          varia.sku = `${baseSku}-${parts.map(p => p.value).join('-')}`.replace(/\s+/g, '').toUpperCase().slice(0, 40);
+          this.currentVariations.push(varia);
+          added += 1;
+        });
+        this.renderVariations();
+        this.refreshEditorAside();
+        this.showToast(added ? `${added} variation(s) générée(s). Ajustez prix et stock.` : 'Ces combinaisons existent déjà.', added ? 'success' : 'info');
       }
       
       // ========== CHARGEMENT DES DONNÉES ==========
@@ -3329,6 +3930,146 @@
           console.error('Erreur chargement commissions vendeur:', error);
           this.commissionRules = [];
         }
+      }
+
+      async loadProductTaxonomy() {
+        try {
+          const res = await fetch(PRODUCT_TAXONOMY_URL, { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          this.productTaxonomy = data && Array.isArray(data.departments) ? data : null;
+        } catch (error) {
+          console.error('Erreur chargement taxonomie produits:', error);
+          this.productTaxonomy = null;
+        }
+      }
+
+      async loadCommissionDepartments() {
+        this.commissionDepartments = new Map();
+        try {
+          const snapshot = await getDocs(collection(db, COMMISSION_DEPARTMENTS_COLLECTION));
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data() || {};
+            const rate = Number(data.rate);
+            if (!Number.isFinite(rate) || data.active === false) return;
+            this.commissionDepartments.set(docSnap.id, {
+              id: docSnap.id,
+              label: String(data.label || '').trim(),
+              rate: Math.max(0, rate)
+            });
+          });
+        } catch (error) {
+          console.error('Erreur chargement commissions par departement:', error);
+        }
+      }
+
+      getTaxonomyDepartments() {
+        return this.productTaxonomy && Array.isArray(this.productTaxonomy.departments)
+          ? this.productTaxonomy.departments
+          : [];
+      }
+
+      getTaxonomyDepartment(departmentId) {
+        return this.getTaxonomyDepartments().find(d => d.id === departmentId) || null;
+      }
+
+      // Authoritative applied rate: admin-editable commissionDepartments doc,
+      // falling back to the rate shipped in product-taxonomy.json.
+      getDepartmentCommissionRate(departmentId) {
+        const id = String(departmentId || '').trim();
+        if (!id) return null;
+        const liveEntry = this.commissionDepartments.get(id);
+        if (liveEntry && Number.isFinite(Number(liveEntry.rate))) return Number(liveEntry.rate);
+        const fromFile = this.productTaxonomy?.commissionByDepartment?.[id];
+        if (Number.isFinite(Number(fromFile))) return Number(fromFile);
+        const dep = this.getTaxonomyDepartment(id);
+        return dep && Number.isFinite(Number(dep.commissionRate)) ? Number(dep.commissionRate) : null;
+      }
+
+      populateTaxonomyDepartmentSelect() {
+        const select = this.elements.taxonomyDepartmentSelect;
+        if (!select) return;
+        const deps = this.getTaxonomyDepartments();
+        select.innerHTML = '<option value="">Choisir un département</option>' +
+          deps.map(d => `<option value="${d.id}">${d.label}</option>`).join('');
+        select.value = this.taxonomySelection.departmentId || '';
+        this.onTaxonomyDepartmentChange({ keepChildren: true });
+      }
+
+      onTaxonomyDepartmentChange(opts = {}) {
+        const departmentId = this.elements.taxonomyDepartmentSelect?.value || '';
+        this.taxonomySelection.departmentId = departmentId;
+        const dep = this.getTaxonomyDepartment(departmentId);
+        const catSelect = this.elements.taxonomyCategorySelect;
+        if (catSelect) {
+          const cats = dep && Array.isArray(dep.categories) ? dep.categories : [];
+          catSelect.innerHTML = '<option value="">' + (dep ? 'Choisir une catégorie' : 'Choisir d\'abord un département') + '</option>' +
+            cats.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+          catSelect.disabled = !dep;
+          if (opts.keepChildren && this.taxonomySelection.categoryId) {
+            catSelect.value = this.taxonomySelection.categoryId;
+          } else {
+            this.taxonomySelection.categoryId = '';
+          }
+        }
+        this.onTaxonomyCategoryChange({ keepChildren: opts.keepChildren });
+        this.renderDepartmentCommissionHint();
+        this.refreshEditorAside?.();
+      }
+
+      onTaxonomyCategoryChange(opts = {}) {
+        const categoryId = this.elements.taxonomyCategorySelect?.value || '';
+        this.taxonomySelection.categoryId = categoryId;
+        const dep = this.getTaxonomyDepartment(this.taxonomySelection.departmentId);
+        const cat = dep && Array.isArray(dep.categories)
+          ? dep.categories.find(c => c.id === categoryId) || null
+          : null;
+        const subSelect = this.elements.taxonomySubcategorySelect;
+        if (subSelect) {
+          const subs = cat && Array.isArray(cat.subcategories) ? cat.subcategories : [];
+          subSelect.innerHTML = '<option value="">' + (cat ? 'Choisir une sous-catégorie' : 'Choisir d\'abord une catégorie') + '</option>' +
+            subs.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+          subSelect.disabled = !cat;
+          if (opts.keepChildren && this.taxonomySelection.subcategoryId) {
+            subSelect.value = this.taxonomySelection.subcategoryId;
+          } else {
+            this.taxonomySelection.subcategoryId = '';
+          }
+        }
+      }
+
+      renderDepartmentCommissionHint() {
+        const hint = this.elements.departmentCommissionHint;
+        if (!hint) return;
+        const departmentId = this.taxonomySelection.departmentId;
+        if (!departmentId) { hint.textContent = ''; return; }
+        const rate = this.getDepartmentCommissionRate(departmentId);
+        const override = this.getManualCommissionOverride();
+        if (override) {
+          hint.textContent = `Commission appliquée : ${Number(override.categoryRate ?? override.rate) || 0}% (règle spécifique définie par l'administrateur)`;
+        } else if (Number.isFinite(Number(rate))) {
+          hint.textContent = `Commission Smart Cut Services pour ce département : ${rate}% (identique pour tous les plans).`;
+        } else {
+          hint.textContent = '';
+        }
+      }
+
+      resetTaxonomySelection() {
+        this.taxonomySelection = { departmentId: '', categoryId: '', subcategoryId: '' };
+        if (this.elements.taxonomyDepartmentSelect) this.elements.taxonomyDepartmentSelect.value = '';
+        this.onTaxonomyDepartmentChange();
+      }
+
+      applyTaxonomySelectionFromProduct(product = {}) {
+        this.taxonomySelection = {
+          departmentId: String(product.departmentId || product.commissionRule?.departmentId || '').trim(),
+          categoryId: String(product.taxonomyCategoryId || '').trim(),
+          subcategoryId: String(product.taxonomySubcategoryId || '').trim()
+        };
+        if (this.elements.taxonomyDepartmentSelect) {
+          this.elements.taxonomyDepartmentSelect.value = this.taxonomySelection.departmentId;
+        }
+        this.onTaxonomyDepartmentChange({ keepChildren: true });
       }
 
       async loadVendorServiceFeeStatus() {
@@ -3743,30 +4484,42 @@
         return this.commissionRules.find(rule => this.normalizeCategory(rule.category) === normalized) || null;
       }
 
-      buildCommissionRule(categoryName, now) {
+      // An admin can pin a per-product rate; that always wins over the
+      // department scale.
+      getManualCommissionOverride() {
         const currentRule = this.currentProduct?.commissionRule || null;
-        const currentUpdatedBy = String(currentRule?.updatedBy || '').toLowerCase();
-        const isManualProductOverride = currentRule && (
-          currentRule.source === 'product_override' ||
-          currentUpdatedBy === 'dashboard_admin'
-        );
+        if (!currentRule) return null;
+        const updatedBy = String(currentRule.updatedBy || '').toLowerCase();
+        const isManualProductOverride = currentRule.source === 'product_override' || updatedBy === 'dashboard_admin';
+        return isManualProductOverride ? currentRule : null;
+      }
 
-        if (isManualProductOverride) {
-          return currentRule;
-        }
+      buildCommissionRule(categoryName, now) {
+        const override = this.getManualCommissionOverride();
+        if (override) return override;
 
-        const categoryRule = this.getCategoryCommissionRule(categoryName);
-        if (categoryRule) {
+        // New model: commission is set by the selected DEPARTMENT and applies to
+        // every plan (Basic and Pro). categoryRate mirrors departmentRate so the
+        // server's getCommissionRate stays backward compatible.
+        const departmentId = this.taxonomySelection.departmentId;
+        const rate = this.getDepartmentCommissionRate(departmentId);
+        if (departmentId && Number.isFinite(Number(rate))) {
+          const dep = this.getTaxonomyDepartment(departmentId);
           return {
-            category: categoryRule.category || categoryName || '',
-            categoryRate: Number(categoryRule.rate) || 0,
-            source: 'vendorCommissionRules',
+            department: dep?.label || '',
+            departmentId,
+            departmentRate: Number(rate),
+            category: categoryName || '',
+            categoryRate: Number(rate),
+            rate: Number(rate),
+            source: 'commissionDepartments',
             updatedAt: now,
             updatedBy: 'vendor_dashboard_default'
           };
         }
 
-        return currentRule || this.vendorContext.commissionRule || null;
+        // No department chosen yet: keep whatever the product already had.
+        return this.currentProduct?.commissionRule || this.vendorContext.commissionRule || null;
       }
       
       async loadColumns(categoryId) {
@@ -4119,6 +4872,8 @@
         if (this.currentVariations.length === 0) {
           this.elements.noVariations.style.display = 'block';
           this.elements.variationsContainer.innerHTML = '';
+          this.elements.totalStock.value = '0';
+          this.refreshEditorAside?.();
           return;
         }
         
@@ -4276,9 +5031,10 @@
             e.stopPropagation();
             this.removeImage('main', index);
           });
-          
+
           container.appendChild(div);
         });
+        this.refreshEditorAside?.();
       }
       
       renderVariationImages(variationIndex) {
@@ -4340,6 +5096,7 @@
       updateTotalStock() {
         const total = this.currentVariations.reduce((sum, v) => sum + (v.stock || 0), 0);
         this.elements.totalStock.value = total;
+        this.refreshEditorAside?.();
       }
 
       setProductWeightInputs(weightGrams) {
@@ -5062,6 +5819,8 @@
         this.setEditorMode('physical');
         this.switchView('editor');
         this.elements.editorTitle.textContent = 'Nouveau produit';
+        this.ensureGeneratorGroups();
+        this.refreshEditorAside();
         this.switchEditorTab('general');
       }
 
@@ -5088,6 +5847,8 @@
         this.elements.uploadDigitalProductNav?.classList.add('active', 'bg-background');
         this.elements.currentViewTitle.textContent = 'Upload Produit Digital';
         this.elements.editorTitle.textContent = 'Upload Produit Digital';
+        this.ensureGeneratorGroups();
+        this.refreshEditorAside();
         this.switchEditorTab('general');
         this.showToast('Mode produit digital active: ajoutez description, prix, lien et photos.', 'info');
       }
@@ -5145,15 +5906,18 @@
             this.elements.categorySelect.value = this.currentProduct.categoryId;
             await this.loadCategoryAttributes();
           }
-          
+          this.applyTaxonomySelectionFromProduct(this.currentProduct);
+
           this.renderVariations();
           this.renderMainImages();
           this.renderSelectedLines();
           
           this.switchView('editor');
           this.elements.editorTitle.textContent = `${this.currentProduct.isDigitalProduct ? 'Edition produit digital' : 'Edition'}: ${this.currentProduct.name || 'Produit'}`;
+          this.ensureGeneratorGroups();
+          this.refreshEditorAside();
           this.switchEditorTab('general');
-          
+
         } catch (error) {
           console.error('Erreur Erreur chargement produit:', error);
           this.showToast('Erreur chargement produit', 'error');
@@ -5178,12 +5942,15 @@
         this.elements.totalStock.value = '0';
         this.elements.productStatus.checked = true;
         this.elements.categorySelect.value = '';
+        this.resetTaxonomySelection();
         this.elements.categoryAttributesContainer.innerHTML = '';
         this.elements.selectedLinesList.innerHTML = '';
         this.elements.variationsContainer.innerHTML = '';
         this.elements.noVariations.style.display = 'block';
         this.elements.mainImagesContainer.innerHTML = '';
         if (this.elements.mainImageFileInput) this.elements.mainImageFileInput.value = '';
+        if (this.elements.peGenGroups) this.elements.peGenGroups.innerHTML = '';
+        this.syncPublicationSegment?.();
       }
       
       async saveProduct() {
@@ -5226,6 +5993,15 @@
           this.switchEditorTab('category');
           return;
         }
+        const selectedDepartmentId = String(this.taxonomySelection.departmentId || '').trim();
+        const selectedDepartment = this.getTaxonomyDepartment(selectedDepartmentId);
+        const taxonomyReady = this.getTaxonomyDepartments().length > 0;
+        if (taxonomyReady && !this.getManualCommissionOverride()
+          && (!selectedDepartmentId || !Number.isFinite(Number(this.getDepartmentCommissionRate(selectedDepartmentId))))) {
+          this.showToast('Choisissez le departement du produit : la commission Smart Cut Services est fixee par departement.', 'error');
+          this.switchEditorTab('category');
+          return;
+        }
         const deliveryCoverage = isDigitalProduct
           ? { country: 'Haiti', mode: 'digital', nationwide: false, nationwideFee: 0, zones: [] }
           : this.collectProductDeliveryCoverage();
@@ -5259,6 +6035,10 @@
           categoryId: selectedCategoryId,
           category: selectedCategoryName,
           categorySelections: this.categorySelections,
+          departmentId: selectedDepartmentId,
+          department: selectedDepartment?.label || '',
+          taxonomyCategoryId: String(this.taxonomySelection.categoryId || '').trim(),
+          taxonomySubcategoryId: String(this.taxonomySelection.subcategoryId || '').trim(),
           variations: isDigitalProduct ? [] : this.currentVariations.map((v, index) => ({
             ...v,
             images: this.currentImages.variations[index] || []
