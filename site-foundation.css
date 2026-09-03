@@ -696,7 +696,11 @@ body {
 #sierra-home-categories-root .category-group-subgrid .category-image { aspect-ratio: 1 / 1; border-radius: 6px; }
 #sierra-home-categories-root .category-group-subgrid span { display: block; margin-top: .3rem; color: var(--sc-muted); font-size: .78rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (min-width: 1600px) {
-  #sierra-home-categories-root .categories-wrapper-carousel { width: calc(100% - 4rem) !important; }
+  #sierra-home-categories-root .categories-wrapper-carousel {
+    width: 100% !important;
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
 }
 @media (min-width: 769px) {
   #sierra-home-categories-root .categories-row {
@@ -916,6 +920,17 @@ body {
 /* Ultra-wide viewport correction: the original desktop caps below would
    otherwise keep the header and product rail visually tiny at 2K/4K sizes. */
 @media (min-width: 1600px) {
+  :root { --header-height: 176px; }
+  #headerNebulaX92 .desktop-header-inner {
+    padding: 1rem 2rem .75rem !important;
+    gap: .9rem !important;
+  }
+  #headerNebulaX92 .desktop-logo { height: 66px !important; }
+  #headerNebulaX92 .desktop-search-bar { min-height: 58px !important; }
+  #headerNebulaX92 .desktop-search-input { font-size: 1rem !important; }
+  #headerNebulaX92 .desktop-nav-action,
+  #headerNebulaX92 .desktop-all-button,
+  #headerNebulaX92 .smartsolution-menu__trigger { min-height: 46px !important; font-size: .96rem !important; }
   #headerNebulaX92 .desktop-header-inner {
     width: calc(100% - 3rem) !important;
     max-width: none !important;
@@ -1024,6 +1039,59 @@ body {
     flex-basis: calc((100% - 4rem) / 5) !important;
     width: calc((100% - 4rem) / 5) !important;
     max-width: calc((100% - 4rem) / 5) !important;
+  }
+}
+/* Desktop top-vendor rail: compact service-style cards with one shared
+   media height and a fixed content rhythm, so no card grows independently. */
+@media (min-width: 769px) {
+  .home-discovery__section[data-section="vendors"] {
+    margin-top: 1.25rem !important;
+    padding: 1rem !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery__heading {
+    margin-bottom: .75rem !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery__vendors {
+    align-items: stretch !important;
+    padding: 0 0 .55rem !important;
+    gap: .75rem !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card__image {
+    aspect-ratio: auto !important;
+    height: 190px !important;
+    min-height: 190px !important;
+    max-height: 190px !important;
+    overflow: hidden !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card__image img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+    padding: 0 !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card__body {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
+    padding: .85rem !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card h3 {
+    min-height: 2.55rem !important;
+    margin-bottom: .3rem !important;
+    line-height: 1.25 !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card__desc {
+    min-height: 2.35rem !important;
+  }
+  .home-discovery__section[data-section="vendors"] .home-discovery-card__footer {
+    margin-top: auto !important;
   }
 }
 @media (max-width: 520px) {
