@@ -335,13 +335,11 @@
     }
 
     .vendor-header-logo img {
-      position: absolute;
-      top: -0.1rem;
-      left: 50%;
-      width: 4.75rem;
-      max-width: none;
-      height: auto;
-      transform: translateX(-50%);
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      padding: 0.28rem;
     }
 
     .vendor-header-logo:focus-visible {
@@ -979,6 +977,7 @@
       border-radius: 0.5rem;
       font-size: 0.875rem;
       font-weight: 500;
+      white-space: nowrap;
       transition: all 0.2s;
       cursor: pointer;
       border: none;
@@ -1043,6 +1042,85 @@
       font-size: 0.8rem;
     }
     
+    /* ========== PRODUCTS TOOLBAR ========== */
+    .products-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .products-toolbar__intro h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .products-toolbar__intro p {
+      margin: 0.25rem 0 0;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .products-toolbar__actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .products-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .products-search > i {
+      position: absolute;
+      left: 0.85rem;
+      color: var(--text-tertiary);
+      font-size: 0.85rem;
+      pointer-events: none;
+    }
+
+    .products-search input {
+      width: 18rem;
+      max-width: 100%;
+      padding: 0.6rem 1rem 0.6rem 2.35rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      background: var(--surface);
+      transition: all 0.2s;
+    }
+
+    .products-search input:focus {
+      outline: none;
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(255,164,28, 0.1);
+    }
+
+    .products-toolbar__actions .btn {
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 767px) {
+      .products-toolbar__actions {
+        width: 100%;
+      }
+
+      .products-search {
+        flex: 1 1 12rem;
+      }
+
+      .products-search input {
+        width: 100%;
+      }
+    }
+
     /* ========== FORM ========== */
     .form-input {
       width: 100%;
@@ -1301,6 +1379,29 @@
       color: var(--text-tertiary);
       font-weight: 700;
     }
+
+    /* refined back control (nav-style, not a generic button) */
+    .pe-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex: 0 0 auto;
+      margin-left: -0.4rem;
+      padding: 0.42rem 0.7rem 0.42rem 0.55rem;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.86rem;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+    .pe-back i { font-size: 0.72rem; opacity: 0.9; }
+    .pe-back:hover { background: rgba(15,17,17,0.06); color: var(--text-primary); }
+    .pe-back:active { background: rgba(15,17,17,0.1); }
+    .pe-back:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
     .pe-topbar__title {
       font-size: 1.05rem;
       font-weight: 700;
@@ -1419,21 +1520,134 @@
       }
     }
 
-    /* ===== Immersive mode: the product editor owns the whole screen ===== */
+    /* ===== Immersive editor: dark app-shell chrome, full-bleed, roomy content ===== */
+    body.pe-immersive { overflow: hidden; }
     body.pe-immersive .sidebar,
     body.pe-immersive .header { display: none !important; }
     body.pe-immersive .main-content { margin-left: 0 !important; }
+
+    body.pe-immersive #product-editor-view {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      overflow-y: auto;
+      overflow-x: clip;
+      background: var(--background);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* coloured top bar */
     body.pe-immersive .pe-topbar {
       position: sticky;
       top: 0;
-      z-index: 20;
-      padding: 0.6rem 0;
+      z-index: 30;
+      margin: 0;
+      padding: 0.7rem clamp(1rem, 3vw, 2rem);
+      background: var(--primary);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.35);
     }
-    body.pe-immersive .pe-anchorbar { top: 52px; }
+    body.pe-immersive .pe-topbar__crumb { color: rgba(255,255,255,0.45); }
+    body.pe-immersive .pe-topbar__title { color: #fff; }
+    body.pe-immersive .pe-save-state { color: rgba(255,255,255,0.55); }
+    body.pe-immersive .pe-back { color: rgba(255,255,255,0.72); }
+    body.pe-immersive .pe-back:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    body.pe-immersive .pe-back:active { background: rgba(255,255,255,0.18); }
+    body.pe-immersive .pe-topbar__titles {
+      padding-left: 0.9rem;
+      margin-left: 0.3rem;
+      border-left: 1px solid rgba(255,255,255,0.14);
+    }
+    @media (max-width: 1023px) {
+      body.pe-immersive .pe-topbar__titles { padding-left: 0; margin-left: 0; border-left: 0; }
+    }
+
+    /* full-bleed shell */
+    body.pe-immersive .pe-layout { display: flex; flex-direction: column; gap: 0; }
+    body.pe-immersive .pe-anchorbar {
+      position: sticky;
+      top: 53px;
+      z-index: 19;
+      margin: 0;
+      padding: 0.5rem clamp(1rem, 3vw, 2rem);
+      background: var(--primary-light);
+      border: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-radius: 0;
+      box-shadow: none;
+    }
+    body.pe-immersive .pe-anchor {
+      border: 0;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.78);
+    }
+    body.pe-immersive .pe-anchor:hover { background: rgba(255,255,255,0.16); color: #fff; }
+    body.pe-immersive .pe-anchor.is-active { background: var(--secondary); color: var(--primary); }
+    body.pe-immersive .pe-main { padding: clamp(1.25rem, 3vw, 2rem) clamp(1rem, 3vw, 1.75rem); }
+    body.pe-immersive .pe-rail { padding: 0 clamp(1rem, 3vw, 1.75rem) 2rem; }
+
     @media (min-width: 1024px) {
-      body.pe-immersive .pe-topbar { padding: 0.9rem 0; }
-      body.pe-immersive .pe-anchorbar,
-      body.pe-immersive .pe-rail { top: 68px; max-height: calc(100vh - 84px); }
+      body.pe-immersive .pe-layout {
+        display: grid;
+        grid-template-columns: 250px minmax(0, 1fr) 320px;
+        align-items: stretch;
+        min-height: calc(100vh - 54px);
+        gap: 0;
+      }
+      body.pe-immersive .pe-anchorbar {
+        top: 54px;
+        align-self: stretch;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 1rem 0.75rem;
+        max-height: calc(100vh - 54px);
+        overflow-y: auto;
+        border-bottom: 0;
+        border-right: 1px solid rgba(255,255,255,0.08);
+      }
+      body.pe-immersive .pe-anchor {
+        width: 100%;
+        justify-content: flex-start;
+        border-radius: var(--radius-sm);
+        border-left: 3px solid transparent;
+        background: transparent;
+        padding: 0.65rem 0.8rem;
+        font-size: 0.88rem;
+      }
+      body.pe-immersive .pe-anchor:hover { background: rgba(255,255,255,0.08); color: #fff; }
+      body.pe-immersive .pe-anchor.is-active {
+        background: rgba(255,255,255,0.10);
+        color: #fff;
+        border-left-color: var(--secondary);
+      }
+      body.pe-immersive .pe-main { padding: clamp(1.75rem, 2.6vw, 3rem) clamp(1.75rem, 3vw, 3.25rem); }
+      body.pe-immersive .pe-rail {
+        position: sticky;
+        top: 54px;
+        align-self: stretch;
+        max-height: calc(100vh - 54px);
+        overflow-y: auto;
+        padding: 1.5rem;
+        background: var(--background);
+        border-left: 1px solid var(--border);
+      }
+    }
+
+    /* module panel — a touch more substance in the immersive canvas */
+    body.pe-immersive .pe-card {
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15,17,17,.06), 0 12px 28px -24px rgba(15,17,17,.35);
+    }
+    body.pe-immersive .pe-card__head { padding: 1.15rem 1.5rem; }
+    body.pe-immersive .pe-card__title { font-size: 1.05rem; }
+    body.pe-immersive .pe-card__body { padding: 1.5rem; gap: 1.15rem; }
+    @media (min-width: 1024px) {
+      body.pe-immersive .pe-card__body { padding: 1.75rem; }
+      body.pe-immersive .pe-field > input:not([type="checkbox"]),
+      body.pe-immersive .pe-field > select,
+      body.pe-immersive .pe-field > textarea,
+      body.pe-immersive .pe-field > .pe-input-group { max-width: 760px; }
     }
 
     .pe-card {
@@ -1441,10 +1655,8 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
-      scroll-margin-top: 200px;
     }
     .pe-card.is-hidden { display: none; }
-    .pe-card.is-flash { box-shadow: 0 0 0 2px var(--secondary), var(--shadow-card); transition: box-shadow 0.3s; }
     .pe-card__head {
       display: flex;
       align-items: flex-start;
@@ -1486,6 +1698,168 @@
     .pe-callout--info { border-color: rgba(0,113,133,0.25); background: rgba(0,113,133,0.06); }
     .pe-callout--ok { border-color: rgba(0,118,0,0.22); background: rgba(0,118,0,0.06); }
 
+    /* ===== Form primitives — refined (2026, Amazon/Apple feel) ===== */
+    .pe .form-input,
+    .pe .form-select,
+    .pe .form-textarea {
+      width: 100%;
+      min-height: 44px;
+      padding: 0.62rem 0.85rem;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      color: var(--text-primary);
+      background: #FBFBFB;
+      border: 1px solid #D9DEDE;
+      border-radius: 10px;
+      box-shadow: inset 0 1px 1px rgba(15,17,17,0.02);
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+      appearance: none;
+    }
+    .pe .form-textarea { min-height: 120px; line-height: 1.55; }
+    .pe .form-input::placeholder,
+    .pe .form-textarea::placeholder { color: #9AA0A0; }
+    .pe .form-input:hover:not(:focus):not(:disabled):not([readonly]),
+    .pe .form-select:hover:not(:focus):not(:disabled),
+    .pe .form-textarea:hover:not(:focus):not(:disabled) { border-color: #B6BDBD; background: #fff; }
+    .pe .form-input:focus,
+    .pe .form-select:focus,
+    .pe .form-textarea:focus {
+      outline: none;
+      background: #fff;
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(255,164,28,0.28);
+    }
+    .pe .form-input:disabled,
+    .pe .form-select:disabled,
+    .pe .form-textarea:disabled { background: #F0F2F2; color: var(--text-tertiary); cursor: not-allowed; }
+    .pe .form-input[readonly] { background: #F2F4F4; color: var(--text-secondary); }
+    .pe .form-select { padding-right: 2.5rem; }
+    .pe input[type="number"]::-webkit-outer-spin-button,
+    .pe input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .pe input[type="number"] { -moz-appearance: textfield; }
+
+    .pe-field > label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .pe-field .pe-req {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--danger);
+      background: rgba(177,39,4,0.09);
+      padding: 0.08rem 0.36rem;
+      border-radius: 999px;
+    }
+    .pe-field .pe-opt {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+    }
+    .pe-hint { font-size: 0.76rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+    .pe-field__meta { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
+    .pe-field__meta .pe-hint { flex: 1 1 auto; }
+    .pe-count { font-size: 0.72rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+    .pe-count.is-over { color: var(--danger); font-weight: 700; }
+
+    .pe-field.is-invalid .form-input,
+    .pe-field.is-invalid .form-select,
+    .pe-field.is-invalid .pe-input-group { border-color: var(--danger); box-shadow: 0 0 0 3px rgba(177,39,4,0.16); }
+    .pe-field__err { display: none; font-size: 0.76rem; color: var(--danger); align-items: center; gap: 0.35rem; }
+    .pe-field.is-invalid .pe-field__err { display: flex; }
+
+    /* input group with currency / unit adornment */
+    .pe-input-group {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid #D9DEDE;
+      border-radius: 10px;
+      background: #FBFBFB;
+      overflow: hidden;
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .pe-input-group:hover:not(:focus-within) { border-color: #B6BDBD; }
+    .pe-input-group:focus-within { border-color: var(--secondary); background: #fff; box-shadow: 0 0 0 3px rgba(255,164,28,0.28); }
+    .pe-input-group > .form-input,
+    .pe-input-group > input {
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border-radius: 0;
+      min-height: 42px;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .pe-adorn {
+      display: flex;
+      align-items: center;
+      padding: 0 0.8rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: #EFF2F2;
+      white-space: nowrap;
+    }
+    .pe-adorn--start { border-right: 1px solid #E1E5E5; }
+    .pe-adorn--end { border-left: 1px solid #E1E5E5; }
+    .pe-input-group > select.pe-adorn-select {
+      flex: 0 0 auto;
+      width: auto;
+      min-height: 42px;
+      border: 0;
+      border-left: 1px solid #E1E5E5;
+      background: #EFF2F2;
+      border-radius: 0;
+      padding: 0 0.7rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+    .pe-input-group > select.pe-adorn-select:focus { outline: none; box-shadow: none; }
+
+    /* iOS-style switch */
+    .pe-switch { display: inline-flex; align-items: center; gap: 0.7rem; cursor: pointer; user-select: none; }
+    .pe-switch > input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .pe-switch__track {
+      width: 46px; height: 28px; border-radius: 999px;
+      background: #C9CFCF; flex: 0 0 auto; position: relative;
+      transition: background .18s ease;
+    }
+    .pe-switch__track::after {
+      content: ""; position: absolute; top: 3px; left: 3px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      transition: transform .18s ease;
+    }
+    .pe-switch > input:checked + .pe-switch__track { background: var(--success); }
+    .pe-switch > input:checked + .pe-switch__track::after { transform: translateX(18px); }
+    .pe-switch > input:focus-visible + .pe-switch__track { box-shadow: 0 0 0 3px rgba(255,164,28,0.4); }
+
+    /* card head icon */
+    .pe-card__head { align-items: center; }
+    .pe-card__icon {
+      flex: 0 0 auto;
+      width: 38px; height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 10px;
+      background: rgba(255,164,28,0.12);
+      color: #B5730B;
+      font-size: 0.95rem;
+    }
+    .pe-card__head > .pe-card__titles { flex: 1 1 auto; min-width: 0; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pe .form-input, .pe .form-select, .pe .form-textarea, .pe-input-group,
+      .pe-switch__track, .pe-switch__track::after { transition: none; }
+    }
+
     /* rail: publish */
     .pe-rail-card {
       background: var(--surface);
@@ -1525,53 +1899,117 @@
     .pe-segment button.is-active { background: var(--surface); color: var(--text-primary); box-shadow: var(--shadow-card); }
     .pe-segment button.is-active[data-status="active"] { color: var(--success); }
 
-    /* rail: live preview card */
-    .pe-preview {
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      overflow: hidden;
-      background: var(--surface);
-      max-width: 240px;
-    }
-    @media (min-width: 1024px) { .pe-preview { max-width: none; } }
-    .pe-preview__media {
-      position: relative;
-      aspect-ratio: 1 / 1;
-      background: var(--background);
+    /* ===== Aperçu : réplique de la carte produit "Pour toi" de l'accueil ===== */
+    .pe-preview-body { align-items: center; }
+    .pe-preview-stage {
+      width: 100%;
       display: flex;
-      align-items: center;
       justify-content: center;
-      color: var(--text-tertiary);
-      font-size: 1.6rem;
+      padding: clamp(1rem, 4vw, 2.5rem);
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.72), transparent 40%),
+        #EAEDED;
+      border: 1px solid rgba(31,30,28,0.06);
+      border-radius: 16px;
     }
-    .pe-preview__media img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .pe-preview__badge {
+    .pcard {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #ffffff;
+      color: #0f1111;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+      transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+    .pcard:hover { transform: translateY(-8px); box-shadow: 0 20px 35px rgba(0,0,0,0.12); }
+    .pcard__section-badge {
       position: absolute;
-      top: 0.5rem;
-      left: 0.5rem;
-      background: var(--danger);
-      color: #fff;
+      z-index: 2;
+      top: 0.65rem;
+      left: 0.65rem;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0.35rem 0.65rem;
+      background: rgba(31,30,28,0.88);
+      color: #ffffff;
+      box-shadow: 0 10px 22px rgba(31,30,28,0.18);
       font-size: 0.72rem;
       font-weight: 800;
-      padding: 0.15rem 0.45rem;
-      border-radius: var(--radius-sm);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
-    .pe-preview__body { padding: 0.7rem 0.8rem 0.85rem; display: flex; flex-direction: column; gap: 0.3rem; }
-    .pe-preview__name {
-      font-size: 0.86rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1.3;
+    .pcard__verified-badge {
+      position: absolute;
+      z-index: 3;
+      top: 0.58rem;
+      right: 0.65rem;
+      display: grid;
+      place-items: center;
+      width: 2.35rem;
+      height: 2.35rem;
+      background: #3da0f5;
+      filter: drop-shadow(0 9px 18px rgba(24,119,242,0.28));
+      clip-path: polygon(50% 0%,61% 15%,79% 8%,84% 26%,100% 35%,89% 50%,100% 65%,84% 74%,79% 92%,61% 85%,50% 100%,39% 85%,21% 92%,16% 74%,0% 65%,11% 50%,0% 35%,16% 26%,21% 8%,39% 15%);
+    }
+    .pcard__verified-badge span {
+      width: 1.05rem;
+      height: 0.62rem;
+      border-left: 0.24rem solid #ffffff;
+      border-bottom: 0.24rem solid #ffffff;
+      transform: rotate(-45deg) translate(0.05rem, -0.06rem);
+    }
+    .pcard__image { aspect-ratio: 1 / 1; background: #eee8dc; }
+    .pcard__image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pcard__image-empty {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.4rem; color: #b7ae9d; font-size: 1.6rem;
+    }
+    .pcard__image-empty span { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; }
+    .pcard__body { padding: 1rem; }
+    .pcard h3 {
+      min-height: 3.05rem;
+      margin: 0 0 0.35rem;
+      color: #0f1111;
+      font-size: 1.125rem;
+      font-weight: 500;
+      line-height: 1.35;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .pe-preview__prices { display: flex; align-items: baseline; gap: 0.45rem; }
-    .pe-preview__price { font-size: 1rem; font-weight: 800; color: var(--text-primary); }
-    .pe-preview__compare { font-size: 0.8rem; color: var(--text-tertiary); text-decoration: line-through; }
-    .pe-preview__shop { font-size: 0.72rem; color: var(--text-tertiary); }
-    .pe-preview__net { font-size: 0.76rem; color: var(--text-secondary); }
+    .pcard__store {
+      display: block;
+      margin: 0 0 0.5rem;
+      color: rgba(122,116,107,0.9);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pcard__store i { margin-right: 0.25rem; font-size: 0.72rem; }
+    .pcard__verified { display: none; }
+    .pcard__desc {
+      min-height: 2.5rem;
+      margin: 0 0 0.65rem;
+      color: #7a746b;
+      font-size: 0.875rem;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .pcard__footer { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; }
+    .pcard__footer strong { color: #0f1111; font-size: 1.25rem; }
+    .pcard__footer span { color: #565959; font-size: 0.9rem; text-decoration: line-through; }
 
     /* rail: checklist */
     .pe-check { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1869,16 +2307,6 @@
     <!-- ========== SIDEBAR ========== -->
     <aside class="sidebar" id="sidebar">
       <div class="p-6">
-        <a class="sidebar-home-link flex items-center gap-3 mb-8" href="./index.html" aria-label="Retour à l'accueil Smart Cut Services">
-          <span class="sidebar-brand-logo" aria-hidden="true">
-            <img src="./logo.png" alt="">
-          </span>
-          <div>
-            <h1 class="font-semibold text-lg">Smart Cut Services</h1>
-            <p class="text-xs text-text-secondary">Catalogue vendeur</p>
-          </div>
-        </a>
-        
         <nav class="space-y-1">
           <button class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors sidebar-nav active" data-view="dashboard">
             <i class="fas fa-grip w-5"></i>
@@ -1969,10 +2397,6 @@
             <a href="https://smartcutservices.com/" class="vendor-return-link btn btn-secondary">
               <i class="fas fa-arrow-left"></i>
               <span>Retour au site</span>
-            </a>
-            <a href="./auto-parts-vendor.html" class="btn btn-secondary">
-              <i class="fas fa-car"></i>
-              <span class="hidden sm:inline">Auto &amp; Parts</span>
             </a>
             <button id="addProductBtn" class="btn btn-primary">
               <i class="fas fa-plus"></i>
@@ -2259,13 +2683,19 @@
 
         <!-- ========== VIEW: PRODUCTS ========== -->
         <div id="products-view" class="view hidden">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-semibold">Gestion des produits vendeur</h2>
-            <div class="flex gap-3">
-              <input type="text" id="search-products" placeholder="Rechercher..." class="form-input w-64">
+          <div class="products-toolbar">
+            <div class="products-toolbar__intro">
+              <h2>Gestion des produits</h2>
+              <p>Cr&eacute;ez, modifiez et suivez le stock de vos produits.</p>
+            </div>
+            <div class="products-toolbar__actions">
+              <div class="products-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="text" id="search-products" placeholder="Rechercher un produit&hellip;">
+              </div>
               <button id="newProductBtn" class="btn btn-primary">
                 <i class="fas fa-plus"></i>
-                Ajouter un produit
+                <span>Ajouter un produit</span>
               </button>
             </div>
           </div>
@@ -2279,16 +2709,16 @@
         <!-- ========== VIEW: PRODUCT EDITOR ========== -->
         <div id="product-editor-view" class="view hidden pe">
           <div class="pe-topbar">
+            <button id="backToProducts" class="pe-back" aria-label="Retour aux produits">
+              <i class="fas fa-chevron-left"></i>
+              <span>Produits</span>
+            </button>
             <div class="pe-topbar__titles">
-              <div class="pe-topbar__crumb">Produits &middot; &Eacute;diteur</div>
+              <div class="pe-topbar__crumb">&Eacute;diteur produit</div>
               <div id="editor-title" class="pe-topbar__title">Nouveau produit</div>
             </div>
             <div class="pe-topbar__actions">
               <span id="peSaveState" class="pe-save-state"></span>
-              <button id="backToProducts" class="btn-secondary">
-                <i class="fas fa-arrow-left"></i>
-                Retour
-              </button>
               <button id="saveProductBtn" class="btn btn-primary">
                 <i class="fas fa-save"></i>
                 Enregistrer
@@ -2305,6 +2735,7 @@
               <button type="button" class="pe-anchor" data-anchor="variations"><i class="fas fa-layer-group"></i> Variations</button>
               <button type="button" class="pe-anchor" data-anchor="delivery"><i class="fas fa-truck"></i> Livraison</button>
               <button type="button" class="pe-anchor" data-anchor="digital"><i class="fas fa-bolt"></i> Digital</button>
+              <button type="button" class="pe-anchor" data-anchor="preview"><i class="fas fa-eye"></i> Aper&ccedil;u</button>
             </nav>
             <div class="pe-main">
               <form id="productForm">
@@ -2313,31 +2744,43 @@
                 <!-- ===== INFOS ===== -->
                 <section id="pe-sec-general" class="pe-card" data-section="general">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-circle-info"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Informations g&eacute;n&eacute;rales</div>
                       <div class="pe-card__sub">Le nom et la description que verront vos clients.</div>
                     </div>
                   </div>
                   <div class="pe-card__body">
                     <div class="pe-field">
-                      <label for="productName">Nom du produit <span class="pe-req">*</span></label>
-                      <input type="text" id="productName" class="form-input" required placeholder="Ex : Casque Bluetooth sans fil &mdash; noir">
+                      <label for="productName">Nom du produit <span class="pe-req">Requis</span></label>
+                      <input type="text" id="productName" class="form-input" required maxlength="140" placeholder="Ex : Casque Bluetooth sans fil &mdash; noir">
+                      <div class="pe-field__meta">
+                        <span class="pe-hint">Soyez pr&eacute;cis : marque, mod&egrave;le, couleur.</span>
+                        <span class="pe-count" data-count-for="productName" data-count-max="140">0&nbsp;/&nbsp;140</span>
+                      </div>
                     </div>
                     <div class="pe-grid-2">
                       <div class="pe-field">
-                        <label for="mainSku">SKU principal</label>
+                        <label for="mainSku">SKU principal <span class="pe-opt">Facultatif</span></label>
                         <input type="text" id="mainSku" class="form-input" placeholder="G&eacute;n&eacute;r&eacute; automatiquement">
                         <span class="pe-hint">R&eacute;f&eacute;rence interne unique. Laissez vide pour g&eacute;n&eacute;rer.</span>
                       </div>
                       <div class="pe-field">
-                        <label for="shortDescription">Accroche courte</label>
-                        <input type="text" id="shortDescription" class="form-input" placeholder="Une phrase qui r&eacute;sume le produit">
+                        <label for="shortDescription">Accroche courte <span class="pe-opt">Facultatif</span></label>
+                        <input type="text" id="shortDescription" class="form-input" maxlength="120" placeholder="Une phrase qui r&eacute;sume le produit">
+                        <div class="pe-field__meta">
+                          <span class="pe-hint">Affich&eacute;e sous le titre sur la fiche.</span>
+                          <span class="pe-count" data-count-for="shortDescription" data-count-max="120">0&nbsp;/&nbsp;120</span>
+                        </div>
                       </div>
                     </div>
                     <div class="pe-field">
-                      <label for="longDescription">Description compl&egrave;te</label>
-                      <textarea id="longDescription" class="form-textarea" rows="5" placeholder="Caract&eacute;ristiques, mati&egrave;res, usage, contenu de la bo&icirc;te&hellip;"></textarea>
-                      <span class="pe-hint">Les champs laiss&eacute;s vides n'apparaissent pas sur la fiche publique.</span>
+                      <label for="longDescription">Description compl&egrave;te <span class="pe-opt">Facultatif</span></label>
+                      <textarea id="longDescription" class="form-textarea" rows="6" maxlength="4000" placeholder="Caract&eacute;ristiques, mati&egrave;res, usage, contenu de la bo&icirc;te&hellip;"></textarea>
+                      <div class="pe-field__meta">
+                        <span class="pe-hint">Les champs laiss&eacute;s vides n'apparaissent pas sur la fiche publique.</span>
+                        <span class="pe-count" data-count-for="longDescription" data-count-max="4000">0&nbsp;/&nbsp;4000</span>
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -2345,7 +2788,8 @@
                 <!-- ===== PHOTOS ===== -->
                 <section id="pe-sec-gallery" class="pe-card" data-section="gallery">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-images"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Photos</div>
                       <div class="pe-card__sub">La 1re image est la couverture. Carr&eacute; 1200&times;1200, 5&nbsp;Mo max.</div>
                     </div>
@@ -2375,7 +2819,8 @@
                 <!-- ===== PRIX & STOCK ===== -->
                 <section id="pe-sec-general-price" class="pe-card" data-section="general-price">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-tag"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Prix &amp; stock</div>
                       <div class="pe-card__sub">Prix affich&eacute; au client. Le stock total se calcule depuis les variations.</div>
                     </div>
@@ -2383,13 +2828,23 @@
                   <div class="pe-card__body">
                     <div class="pe-grid-3">
                       <div class="pe-field">
-                        <label for="basePrice">Prix de vente (HTG) <span class="pe-req">*</span></label>
-                        <input type="number" id="basePrice" step="0.01" min="0" class="form-input" placeholder="0">
+                        <label for="basePrice">Prix de vente <span class="pe-req">Requis</span></label>
+                        <div class="pe-input-group">
+                          <span class="pe-adorn pe-adorn--start">HTG</span>
+                          <input type="number" id="basePrice" step="1" min="0" class="form-input" inputmode="numeric" placeholder="0">
+                        </div>
+                        <span class="pe-field__err"><i class="fas fa-circle-exclamation"></i> <span data-err-text></span></span>
                       </div>
                       <div class="pe-field">
-                        <label for="comparePrice">Prix barr&eacute;</label>
-                        <input type="number" id="comparePrice" step="0.01" min="0" class="form-input" placeholder="Optionnel">
-                        <span class="pe-hint">Doit &ecirc;tre sup&eacute;rieur au prix de vente.</span>
+                        <label for="comparePrice">Prix barr&eacute; <span class="pe-opt">Facultatif</span></label>
+                        <div class="pe-input-group">
+                          <span class="pe-adorn pe-adorn--start">HTG</span>
+                          <input type="number" id="comparePrice" step="1" min="0" class="form-input" inputmode="numeric" placeholder="Ancien prix">
+                        </div>
+                        <div class="pe-field__meta">
+                          <span class="pe-hint">Doit &ecirc;tre sup&eacute;rieur au prix de vente.</span>
+                        </div>
+                        <span class="pe-field__err"><i class="fas fa-circle-exclamation"></i> <span data-err-text></span></span>
                       </div>
                       <div class="pe-field">
                         <label for="totalStock">Stock total</label>
@@ -2398,16 +2853,20 @@
                       </div>
                     </div>
                     <div id="peMarginCallout" class="pe-callout pe-callout--info">Choisissez un d&eacute;partement pour voir la commission Smart Cut Services et votre net estim&eacute;.</div>
-                    <div class="pe-field" style="gap:.6rem;">
-                      <div class="pe-inline" style="justify-content:space-between;flex-wrap:wrap;">
-                        <label style="margin:0;">Remise programm&eacute;e</label>
-                        <span class="pe-hint">Pourcentage uniquement &mdash; le prix normal revient apr&egrave;s la date de fin.</span>
+                    <div class="pe-field" style="gap:.55rem;">
+                      <div class="pe-field__meta">
+                        <label style="margin:0;">Remise programm&eacute;e <span class="pe-opt">Facultatif</span></label>
                       </div>
+                      <span class="pe-hint">Pourcentage uniquement &mdash; le prix normal revient apr&egrave;s la date de fin.</span>
                       <input type="hidden" id="discountType" value="percentage">
                       <div class="pe-grid-3">
                         <div class="pe-field">
-                          <label for="discountValue">Remise (%)</label>
-                          <input type="number" id="discountValue" step="0.01" min="0" max="100" class="form-input" placeholder="Ex : 24">
+                          <label for="discountValue">Remise</label>
+                          <div class="pe-input-group">
+                            <input type="number" id="discountValue" step="1" min="0" max="100" class="form-input" inputmode="numeric" placeholder="Ex : 24">
+                            <span class="pe-adorn pe-adorn--end">%</span>
+                          </div>
+                          <span class="pe-field__err"><i class="fas fa-circle-exclamation"></i> <span data-err-text></span></span>
                         </div>
                         <div class="pe-field">
                           <label for="discountStartAt">D&eacute;but</label>
@@ -2425,7 +2884,8 @@
                 <!-- ===== CLASSEMENT ===== -->
                 <section id="pe-sec-category" class="pe-card" data-section="category">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-sitemap"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Classement du produit</div>
                       <div class="pe-card__sub">Le d&eacute;partement fixe la commission Smart Cut Services. Cat&eacute;gorie et sous-cat&eacute;gorie am&eacute;liorent la recherche.</div>
                     </div>
@@ -2433,7 +2893,7 @@
                   <div class="pe-card__body">
                     <div class="pe-grid-3">
                       <div class="pe-field">
-                        <label for="taxonomyDepartmentSelect">D&eacute;partement <span class="pe-req">*</span></label>
+                        <label for="taxonomyDepartmentSelect">D&eacute;partement <span class="pe-req">Requis</span></label>
                         <select id="taxonomyDepartmentSelect" class="form-select">
                           <option value="">Choisir un d&eacute;partement</option>
                         </select>
@@ -2474,7 +2934,8 @@
                 <!-- ===== VARIATIONS ===== -->
                 <section id="pe-sec-variations" class="pe-card" data-section="variations">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-layer-group"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Variations</div>
                       <div class="pe-card__sub">D&eacute;clinaisons du produit (couleur, taille, volume&hellip;). Chaque ligne a son stock, prix et SKU.</div>
                     </div>
@@ -2507,7 +2968,8 @@
                 <!-- ===== LIVRAISON ===== -->
                 <section id="pe-sec-delivery" class="pe-card" data-section="delivery">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-truck-fast"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Livraison</div>
                       <div class="pe-card__sub">Poids du produit puis les communes o&ugrave; il peut &ecirc;tre livr&eacute;, avec prix et d&eacute;lai.</div>
                     </div>
@@ -2517,9 +2979,9 @@
                     <div class="pe-grid-3">
                       <div class="pe-field">
                         <label for="productWeightValue">Poids produit</label>
-                        <div class="pe-inline">
+                        <div class="pe-input-group">
                           <input type="number" id="productWeightValue" class="form-input" min="0" step="0.001" value="0" placeholder="Ex : 15 ou 1.5">
-                          <select id="productWeightUnit" class="form-input" style="max-width:80px;">
+                          <select id="productWeightUnit" class="pe-adorn-select">
                             <option value="g">g</option>
                             <option value="kg">kg</option>
                           </select>
@@ -2540,14 +3002,16 @@
                 <!-- ===== DIGITAL ===== -->
                 <section id="pe-sec-digital" class="pe-card is-hidden" data-section="digital">
                   <div class="pe-card__head">
-                    <div>
+                    <span class="pe-card__icon"><i class="fas fa-bolt"></i></span>
+                    <div class="pe-card__titles">
                       <div class="pe-card__title">Produit digital</div>
                       <div class="pe-card__sub">Livraison gratuite et instantan&eacute;e, sans stock ni zone.</div>
                     </div>
                   </div>
                   <div class="pe-card__body">
-                    <label class="pe-inline" style="gap:.6rem;cursor:pointer;">
-                      <input type="checkbox" id="isDigitalProduct" style="accent-color:#007600;width:18px;height:18px;">
+                    <label class="pe-switch">
+                      <input type="checkbox" id="isDigitalProduct">
+                      <span class="pe-switch__track"></span>
                       <span style="font-weight:600;">Ce produit est digital (fichier / lien)</span>
                     </label>
                     <div class="pe-grid-2">
@@ -2561,6 +3025,21 @@
                         <span class="pe-hint">Le client re&ccedil;oit ce lien apr&egrave;s paiement. Aucun fichier n'est stock&eacute; sur Smart Cut.</span>
                       </div>
                     </div>
+                  </div>
+                </section>
+
+                <!-- ===== APERCU ===== -->
+                <section id="pe-sec-preview" class="pe-card" data-section="preview">
+                  <div class="pe-card__head">
+                    <span class="pe-card__icon"><i class="fas fa-eye"></i></span>
+                    <div class="pe-card__titles">
+                      <div class="pe-card__title">Aper&ccedil;u de la fiche</div>
+                      <div class="pe-card__sub">Voici comment votre produit appara&icirc;tra dans la section &laquo;&nbsp;Pour toi&nbsp;&raquo; sur smartcutservices.com. Il se met &agrave; jour pendant que vous remplissez les autres modules.</div>
+                    </div>
+                  </div>
+                  <div class="pe-card__body pe-preview-body">
+                    <div id="pePreviewCardHost" class="pe-preview-stage"></div>
+                    <div id="pePreviewNote" class="pe-callout pe-callout--info"></div>
                   </div>
                 </section>
               </form>
@@ -2579,22 +3058,6 @@
                   Enregistrer
                 </button>
                 <div id="peReviewNote" class="pe-hint">Un produit publi&eacute; passe en revue admin avant d'appara&icirc;tre sur la boutique.</div>
-              </div>
-
-              <div class="pe-rail-card">
-                <div class="pe-rail-card__title">Aper&ccedil;u de la fiche</div>
-                <div class="pe-preview">
-                  <div class="pe-preview__media" id="pePreviewMedia"><i class="fas fa-image"></i></div>
-                  <div class="pe-preview__body">
-                    <div class="pe-preview__name" id="pePreviewName">Nom du produit</div>
-                    <div class="pe-preview__prices">
-                      <span class="pe-preview__price" id="pePreviewPrice">&mdash;</span>
-                      <span class="pe-preview__compare" id="pePreviewCompare" hidden></span>
-                    </div>
-                    <div class="pe-preview__net" id="pePreviewNet"></div>
-                    <div class="pe-preview__shop" id="pePreviewShop"></div>
-                  </div>
-                </div>
               </div>
 
               <div class="pe-rail-card">
@@ -2686,7 +3149,7 @@
                 <input type="text" id="varSize" class="form-input" placeholder="S, M, L, XL&hellip;"></div>
               <div class="pe-field"><label for="varVolume">Volume / Oz</label>
                 <input type="text" id="varVolume" class="form-input" placeholder="250ml, 8oz&hellip;"></div>
-              <div class="pe-field"><label for="varSku">SKU <span class="pe-req">*</span></label>
+              <div class="pe-field"><label for="varSku">SKU <span class="pe-req">Requis</span></label>
                 <div class="pe-inline">
                   <input type="text" id="varSku" class="form-input" required>
                   <button type="button" id="generateSkuBtn" class="btn-secondary btn-sm whitespace-nowrap"><i class="fas fa-sync-alt"></i> G&eacute;n&eacute;rer</button>
@@ -2708,7 +3171,7 @@
               <div class="pe-field"><label for="varPrice">Prix sp&eacute;cifique</label>
                 <input type="number" id="varPrice" step="0.01" class="form-input" placeholder="Sinon prix de base">
                 <span class="pe-hint">Laisser vide = prix du produit.</span></div>
-              <div class="pe-field"><label for="varStock">Stock <span class="pe-req">*</span></label>
+              <div class="pe-field"><label for="varStock">Stock <span class="pe-req">Requis</span></label>
                 <input type="number" id="varStock" class="form-input" required min="0" value="0"></div>
               <div class="pe-field"><label for="varWeightGrams">Poids</label>
                 <div class="pe-inline">
@@ -2827,6 +3290,7 @@
         this.productTaxonomy = null;          // parsed product-taxonomy.json
         this.commissionDepartments = new Map(); // departmentId -> { id, label, rate }
         this.taxonomySelection = { departmentId: '', categoryId: '', subcategoryId: '' };
+        this.currentEditorSection = null; // which editor module is open
         this.salesAnalytics = null;
         this.vendorOrders = [];
         this.vendorPayoutHistory = [];
@@ -3323,12 +3787,8 @@
           railSaveBtn: document.getElementById('railSaveBtn'),
           peReviewNote: document.getElementById('peReviewNote'),
           peMarginCallout: document.getElementById('peMarginCallout'),
-          pePreviewMedia: document.getElementById('pePreviewMedia'),
-          pePreviewName: document.getElementById('pePreviewName'),
-          pePreviewPrice: document.getElementById('pePreviewPrice'),
-          pePreviewCompare: document.getElementById('pePreviewCompare'),
-          pePreviewNet: document.getElementById('pePreviewNet'),
-          pePreviewShop: document.getElementById('pePreviewShop'),
+          pePreviewCardHost: document.getElementById('pePreviewCardHost'),
+          pePreviewNote: document.getElementById('pePreviewNote'),
           peCheckBar: document.getElementById('peCheckBar'),
           peCheckList: document.getElementById('peCheckList'),
           peGenGroups: document.getElementById('peGenGroups'),
@@ -3628,7 +4088,7 @@
       }
 
       editorSectionNames() {
-        return ['general', 'gallery', 'general-price', 'category', 'variations', 'delivery', 'digital'];
+        return ['general', 'gallery', 'general-price', 'category', 'variations', 'delivery', 'digital', 'preview'];
       }
 
       switchEditorTab(name) {
@@ -3653,6 +4113,7 @@
           this.elements.isDigitalProduct.checked = true;
           this.updateDigitalProductUi();
         }
+        if (name === 'preview') this.updateEditorPreview();
       }
 
       setActiveAnchor(name) {
@@ -3714,44 +4175,104 @@
         this.updateEditorPreview();
         this.updateEditorChecklist();
         this.updateMarginCallout();
+        this.updateFieldCounters();
+        this.validateEditorFields();
       }
 
-      updateEditorPreview() {
-        const els = this.elements;
-        if (!els.pePreviewName) return;
-        const name = els.productName?.value?.trim();
-        els.pePreviewName.textContent = name || 'Nom du produit';
+      updateFieldCounters() {
+        document.querySelectorAll('.pe-count[data-count-for]').forEach(el => {
+          const input = document.getElementById(el.dataset.countFor);
+          if (!input) return;
+          const max = Number(el.dataset.countMax) || 0;
+          const len = String(input.value || '').length;
+          el.textContent = max ? `${len} / ${max}` : String(len);
+          el.classList.toggle('is-over', max > 0 && len > max);
+        });
+      }
 
-        const price = Number(els.basePrice?.value);
-        const compare = Number(els.comparePrice?.value);
-        const discountPct = Number(els.discountValue?.value);
-        let effective = Number.isFinite(price) && price > 0 ? price : null;
-        let badge = '';
-        if (effective && Number.isFinite(discountPct) && discountPct > 0 && discountPct < 100) {
-          effective = Math.round(effective * (1 - discountPct / 100));
-          badge = `-${Math.round(discountPct)}%`;
+      validateEditorFields() {
+        const setErr = (inputId, message) => {
+          const input = document.getElementById(inputId);
+          const field = input?.closest('.pe-field');
+          if (!field) return;
+          field.classList.toggle('is-invalid', Boolean(message));
+          const err = field.querySelector('.pe-field__err [data-err-text]');
+          if (err) err.textContent = message || '';
+        };
+        const priceRaw = this.elements.basePrice?.value ?? '';
+        const compareRaw = this.elements.comparePrice?.value ?? '';
+        const discountRaw = this.elements.discountValue?.value ?? '';
+        const price = Number(priceRaw);
+        const compare = Number(compareRaw);
+        const discount = Number(discountRaw);
+        setErr('basePrice',
+          (priceRaw !== '' && (!Number.isFinite(price) || price < 0)) ? 'Entrez un prix valide.' : '');
+        setErr('comparePrice',
+          (compareRaw !== '' && Number.isFinite(compare) && Number.isFinite(price) && price > 0 && compare <= price)
+            ? 'Le prix barré doit être supérieur au prix de vente.' : '');
+        setErr('discountValue',
+          (discountRaw !== '' && (!Number.isFinite(discount) || discount < 0 || discount >= 100))
+            ? 'La remise doit être comprise entre 0 et 99 %.' : '');
+      }
+
+      // Renders a faithful copy of the home-page "Pour toi" product card.
+      updateEditorPreview() {
+        const host = this.elements.pePreviewCardHost;
+        if (!host) return;
+        const esc = (v) => this.escape ? this.escape(v) : String(v ?? '');
+
+        const name = this.elements.productName?.value?.trim() || 'Nom du produit';
+        const shortDesc = this.elements.shortDescription?.value?.trim() || '';
+        const storeLabel = this.vendorContext?.shopName || this.vendorContext?.vendorName || 'Votre boutique';
+        const isVerified = this.isVendorProPlan();
+
+        const price = Number(this.elements.basePrice?.value);
+        const compareRaw = Number(this.elements.comparePrice?.value);
+        const discountPct = Number(this.elements.discountValue?.value);
+        let current = Number.isFinite(price) && price > 0 ? price : null;
+        let strike = Number.isFinite(compareRaw) && compareRaw > 0 ? compareRaw : null;
+        if (current && Number.isFinite(discountPct) && discountPct > 0 && discountPct < 100) {
+          strike = strike && strike > current ? strike : current;
+          current = Math.round(current * (1 - discountPct / 100));
         }
-        els.pePreviewPrice.textContent = effective ? this.fmtHtg(effective) : '—';
-        const showCompare = (Number.isFinite(compare) && compare > (effective || 0)) || (badge && Number.isFinite(price));
-        els.pePreviewCompare.hidden = !showCompare;
-        els.pePreviewCompare.textContent = showCompare ? this.fmtHtg(Number.isFinite(compare) && compare > 0 ? compare : price) : '';
+        if (strike && current && strike <= current) strike = null;
 
         const firstImg = (this.currentImages?.main || [])[0];
-        if (firstImg) {
-          const src = this.escapeAttribute(this.getImagePath(firstImg));
-          els.pePreviewMedia.innerHTML = `<img src="${src}" alt="">${badge ? `<span class="pe-preview__badge">${badge}</span>` : ''}`;
-        } else {
-          els.pePreviewMedia.innerHTML = `<i class="fas fa-image"></i>${badge ? `<span class="pe-preview__badge">${badge}</span>` : ''}`;
-        }
+        const imgSrc = firstImg ? this.getImagePath(firstImg) : '';
 
-        els.pePreviewShop.textContent = this.vendorContext?.shopName || this.vendorContext?.vendorName || '';
+        host.innerHTML = `
+          <div class="pcard" role="group" aria-label="Aperçu de la fiche produit">
+            <span class="pcard__section-badge">Pour toi</span>
+            ${isVerified ? '<span class="pcard__verified-badge" aria-label="Store vérifié"><span></span></span>' : ''}
+            <div class="pcard__image">
+              ${imgSrc
+                ? `<img src="${this.escapeAttribute(imgSrc)}" alt="${this.escapeAttribute(name)}">`
+                : '<div class="pcard__image-empty"><i class="fas fa-image"></i><span>Ajoutez une photo</span></div>'}
+            </div>
+            <div class="pcard__body">
+              <h3>${esc(name)}</h3>
+              <p class="pcard__store"><i class="fas fa-store"></i>${esc(storeLabel)}
+                ${isVerified ? '<span class="pcard__verified"><i class="fas fa-check-circle"></i> Vérifié</span>' : ''}
+              </p>
+              <p class="pcard__desc">${esc(shortDesc)}</p>
+              <div class="pcard__footer">
+                <strong>${current ? esc(this.fmtHtg(current)) : 'Prix à définir'}</strong>
+                ${strike ? `<span>${esc(this.fmtHtg(strike))}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
 
-        const rate = this.getDepartmentCommissionRate(this.taxonomySelection.departmentId);
-        if (effective && Number.isFinite(Number(rate))) {
-          const net = Math.round(effective * (1 - Number(rate) / 100));
-          els.pePreviewNet.textContent = `Vous recevez ~ ${this.fmtHtg(net)} (commission ${rate}%)`;
-        } else {
-          els.pePreviewNet.textContent = '';
+        const note = this.elements.pePreviewNote;
+        if (note) {
+          const rate = this.getDepartmentCommissionRate(this.taxonomySelection.departmentId);
+          if (current && Number.isFinite(Number(rate))) {
+            const net = Math.round(current * (1 - Number(rate) / 100));
+            note.className = 'pe-callout pe-callout--ok';
+            note.innerHTML = `Sur une vente à <strong>${esc(this.fmtHtg(current))}</strong>, commission ${rate}% — vous recevez <strong>${esc(this.fmtHtg(net))}</strong>.`;
+          } else {
+            note.className = 'pe-callout pe-callout--info';
+            note.textContent = "Renseignez un prix et un département pour estimer votre revenu net.";
+          }
         }
       }
 

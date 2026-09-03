@@ -26,6 +26,9 @@ class ProductModal {
     this.selectedOptions = new Map();
     this.currentImageIndex = 0;
     this.currentVariationIndex = 0;
+    // Quand true, la galerie ignore la variante choisie et montre toutes les
+    // photos du produit ("retour a la vue globale").
+    this.forceFullGallery = false;
     this.selectedQuantity = 1;
     this.variationQuantities = new Map();
     this.likeManager = getLikeManager();
@@ -235,6 +238,8 @@ class ProductModal {
   }
   
   getCurrentDisplayImages() {
+    const productImages = this.getProductImages(this.product) || [];
+    if (this.forceFullGallery) return productImages;
     const variations = Array.isArray(this.product?.variations) ? this.product.variations : [];
     const selectedVariation = variations[this.currentVariationIndex];
     const hasExplicitVariation = this.selectedOptions?.get('variation')
@@ -242,7 +247,21 @@ class ProductModal {
     const variationImages = hasExplicitVariation
       ? this.getVariationImages(selectedVariation)
       : [];
-    return variationImages.length ? variationImages : this.getProductImages(this.product);
+    if (!variationImages.length) return productImages;
+    // Photos de la variante d'abord, puis le reste de la galerie produit :
+    // le client voit tout de suite la variante choisie sans perdre les autres photos.
+    const seen = new Set(variationImages.map((value) => this.getImagePath(value)));
+    const rest = productImages.filter((img) => !seen.has(this.getImagePath(img)));
+    return [...variationImages, ...rest];
+  }
+
+  isVariationGalleryScoped() {
+    if (this.forceFullGallery) return false;
+    const variations = Array.isArray(this.product?.variations) ? this.product.variations : [];
+    const selectedVariation = variations[this.currentVariationIndex];
+    const hasExplicitVariation = this.selectedOptions?.get('variation')
+      || this.variationQuantities?.has(this.currentVariationIndex);
+    return Boolean(hasExplicitVariation && this.getVariationImages(selectedVariation).length);
   }
 
   getProductShareUrl() {
@@ -468,8 +487,8 @@ class ProductModal {
           <div class="product-modal-main-scroll" style="flex: 1 1 auto; overflow-y: auto; min-height: 0; -webkit-overflow-scrolling: touch;">
             <!-- Version Desktop (flex row) -->
             <div class="hidden md:flex" style="min-height: calc(100vh - 1px); align-items: flex-start;">
-              <!-- Partie Gauche - Images -->
-              <div style="width: 50%; padding: 1.5rem; border-right: 1px solid rgba(198, 167, 94, 0.2); overflow: visible; align-self: stretch;">
+              <!-- Partie Gauche - Images (colonne collante facon Amazon) -->
+              <div class="product-modal-media-col" style="width: 50%; padding: 1.5rem; border-right: 1px solid rgba(198, 167, 94, 0.2);">
                 <div class="product-images-desktop-root">
                   ${this.renderDesktopImages()}
                 </div>
@@ -637,13 +656,27 @@ class ProductModal {
           border-radius: 3px;
         }
         
+        /* Colonne image collante (facon Amazon) : reste visible pendant qu'on
+           parcourt les variantes et les infos a droite */
+        @media (min-width: 768px) {
+          .product-modal-media-col {
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            max-height: 100vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+          }
+          .product-modal-media-col::-webkit-scrollbar { width: 0; }
+        }
+
         /* Grille d'images desktop */
         .desktop-image-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 1rem;
         }
-        
+
         .desktop-image-item {
           aspect-ratio: 1;
           cursor: pointer;
@@ -651,18 +684,97 @@ class ProductModal {
           border-radius: 0.5rem;
           transition: all 0.3s;
         }
-        
+
         .desktop-image-item:hover {
           transform: scale(1.02);
           box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
-        
+
         .desktop-image-item img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
-        
+
+        /* Photo principale de la variante choisie */
+        .desktop-image-hero {
+          position: relative;
+          aspect-ratio: 1;
+          margin-bottom: 1rem;
+          border-radius: 0.85rem;
+          overflow: hidden;
+          cursor: pointer;
+          outline: 3px solid #FFA41C;
+          box-shadow: 0 14px 30px rgba(0,0,0,0.14);
+        }
+        .desktop-image-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .variation-image-tag {
+          position: absolute;
+          top: 0.7rem;
+          left: 0.7rem;
+          z-index: 2;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          background: #0F1111;
+          color: #ffffff;
+          font-family: 'Amazon Ember', Arial, sans-serif;
+          font-size: 0.72rem;
+          font-weight: 800;
+          letter-spacing: 0.03em;
+          padding: 0.32rem 0.62rem;
+          border-radius: 999px;
+        }
+        .variation-image-tag i { color: #FFA41C; }
+        .desktop-image-item.is-variation-image {
+          outline: 2px solid #FFA41C;
+          outline-offset: -2px;
+        }
+        .mobile-image-slide.is-variation-image::after {
+          content: "Variante";
+          position: absolute;
+          top: 0.6rem;
+          left: 0.6rem;
+          background: #0F1111;
+          color: #fff;
+          font-size: 0.68rem;
+          font-weight: 800;
+          padding: 0.25rem 0.55rem;
+          border-radius: 999px;
+        }
+        .mobile-image-slide { position: relative; }
+
+        /* Retour a la vue globale de la galerie */
+        .gallery-scope-all {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          border: 1px solid rgba(15,17,17,0.14);
+          background: #ffffff;
+          color: #0F1111;
+          font-family: 'Amazon Ember', Arial, sans-serif;
+          font-size: 0.82rem;
+          font-weight: 700;
+          padding: 0.5rem 0.9rem;
+          border-radius: 999px;
+          cursor: pointer;
+          box-shadow: 0 6px 16px rgba(15,17,17,0.10);
+          transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .gallery-scope-all:hover { background: #F5F5F5; }
+        .gallery-scope-all:active { transform: translateY(1px); }
+        .gallery-scope-all i { color: #FFA41C; }
+        .gallery-scope-all--block { margin-bottom: 1rem; }
+        .gallery-scope-all--float {
+          position: absolute;
+          top: 0.6rem;
+          left: 0.6rem;
+          z-index: 4;
+          padding: 0.4rem 0.75rem;
+          font-size: 0.76rem;
+          box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+        }
+
         /* Carousel mobile */
         .mobile-image-carousel {
           height: 100%;
@@ -825,15 +937,36 @@ class ProductModal {
     if (images.length === 0) {
       return '<div style="text-align: center; padding: 2rem; color: #565959;">Aucune image</div>';
     }
-    
+
+    const scoped = this.isVariationGalleryScoped();
+    const varCount = scoped
+      ? this.getVariationImages(this.product?.variations?.[this.currentVariationIndex]).length
+      : 0;
+    const imgTag = (img, index, eager) => `<img src="${this.getImagePath(img)}" alt="" decoding="async" loading="${eager ? 'eager' : 'lazy'}"${eager ? ' fetchpriority="high"' : ''} onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">`;
+
+    const hero = scoped ? `
+      <div class="desktop-image-hero" data-index="0">
+        <span class="variation-image-tag"><i class="fas fa-check-circle"></i> Variante choisie</span>
+        ${imgTag(images[0], 0, true)}
+      </div>` : '';
+
+    const gridImages = scoped ? images.slice(1) : images;
+    const grid = gridImages.map((img, i) => {
+      const realIndex = scoped ? i + 1 : i;
+      const mark = scoped && realIndex < varCount ? ' is-variation-image' : '';
+      return `
+        <div class="desktop-image-item${mark}" data-index="${realIndex}">
+          ${imgTag(img, realIndex, realIndex === 0)}
+        </div>`;
+    }).join('');
+
     return `
-      <div class="desktop-image-grid">
-        ${images.map((img, index) => `
-          <div class="desktop-image-item" data-index="${index}">
-            <img src="${this.getImagePath(img)}" alt="" decoding="async" loading="${index === 0 ? 'eager' : 'lazy'}"${index === 0 ? ' fetchpriority="high"' : ''} onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
-          </div>
-        `).join('')}
-      </div>
+      ${scoped ? `
+        <button type="button" class="gallery-scope-all gallery-scope-all--block">
+          <i class="fas fa-images"></i> Voir toutes les photos du produit
+        </button>` : ''}
+      ${hero}
+      ${grid ? `<div class="desktop-image-grid">${grid}</div>` : ''}
     `;
   }
   
@@ -845,14 +978,21 @@ class ProductModal {
     
     return `
       <div class="mobile-image-carousel">
+        ${this.isVariationGalleryScoped() ? `
+          <button type="button" class="gallery-scope-all gallery-scope-all--float">
+            <i class="fas fa-images"></i> Toutes les photos
+          </button>` : ''}
         <div class="mobile-image-container">
-          ${images.map((img, index) => `
-            <div class="mobile-image-slide" data-index="${index}">
+          ${images.map((img, index) => {
+            const isVar = this.isVariationGalleryScoped()
+              && index < this.getVariationImages(this.product?.variations?.[this.currentVariationIndex]).length;
+            return `
+            <div class="mobile-image-slide${isVar ? ' is-variation-image' : ''}" data-index="${index}">
               <img src="${this.getImagePath(img)}" alt="" decoding="async" loading="${index === 0 ? 'eager' : 'lazy'}"${index === 0 ? ' fetchpriority="high"' : ''} onerror="this.onerror=null;this.style.display='none';this.parentNode.innerHTML='<div style=&quot;height:100%;display:flex;align-items:center;justify-content:center;color:#565959;&quot;>Image indisponible</div>';">
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
-        
+
         ${images.length > 1 ? `
           <button class="mobile-nav-btn left">
             <i class="fas fa-chevron-left"></i>
@@ -883,6 +1023,21 @@ class ProductModal {
     
     this.bindImageInteractionEvents();
     this.bindMobileNavigationEvents();
+
+    // Amener la photo de la variante dans le champ de vision, sans deplacer
+    // le reste du modal (la colonne image est collante).
+    const mediaCol = this.modalElement?.querySelector('.product-modal-media-col');
+    if (mediaCol && typeof mediaCol.scrollTo === 'function') {
+      mediaCol.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    const mobileContainer = this.modalElement?.querySelector('.mobile-image-container');
+    if (mobileContainer && typeof mobileContainer.scrollTo === 'function') {
+      mobileContainer.scrollTo({ left: 0, behavior: 'auto' });
+    }
+    const mobileCounter = this.modalElement?.querySelector('.mobile-image-counter');
+    if (mobileCounter) {
+      mobileCounter.textContent = `1/${this.getCurrentDisplayImages().length || 1}`;
+    }
   }
 
   setupHistoryState() {
@@ -1025,10 +1180,18 @@ class ProductModal {
   }
   
   bindImageInteractionEvents() {
-    this.modalElement?.querySelectorAll('.desktop-image-item').forEach(item => {
+    this.modalElement?.querySelectorAll('.gallery-scope-all').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.forceFullGallery = true;
+        this.refreshDisplayedImages();
+      });
+    });
+
+    this.modalElement?.querySelectorAll('.desktop-image-item, .desktop-image-hero').forEach(item => {
       item.addEventListener('click', () => {
         const index = parseInt(item.dataset.index, 10);
-        this.openFullscreen(index);
+        this.openFullscreen(Number.isFinite(index) ? index : 0);
       });
     });
     
@@ -1595,6 +1758,7 @@ class ProductModal {
         const idx = parseInt(item.dataset.variationIndex, 10);
         if (!Number.isInteger(idx)) return;
         this.currentVariationIndex = idx;
+        this.forceFullGallery = false;
         const variation = this.product?.variations?.[idx];
         this.selectedOptions.set('variation', {
           type: 'variation',
@@ -1625,6 +1789,7 @@ class ProductModal {
         if (next <= 0) this.variationQuantities.delete(idx);
         else this.variationQuantities.set(idx, next);
         this.currentVariationIndex = idx;
+        this.forceFullGallery = false;
         const variation = this.product?.variations?.[idx];
         if (variation) {
           this.selectedOptions.set('variation', {

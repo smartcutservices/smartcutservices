@@ -102,8 +102,7 @@ class SierraHeaderNebula {
       .desktop-nav-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 0;
+        gap: 0.6rem;
         min-width: 0;
         position: relative;
         padding-top: 0.15rem;
@@ -118,6 +117,7 @@ class SierraHeaderNebula {
         gap: 0.75rem;
         min-width: max-content;
         flex: 0 0 auto;
+        margin-inline: auto;
         overflow: visible;
       }
 
@@ -141,9 +141,10 @@ class SierraHeaderNebula {
       }
 
       .desktop-logo {
-        height: 54px;
+        height: 42px;
         width: auto;
         object-fit: contain;
+        border-radius: 12px;
       }
 
       .desktop-company-name {
@@ -197,8 +198,6 @@ class SierraHeaderNebula {
       }
 
       .desktop-all-button {
-        position: absolute;
-        left: 0;
         padding: 0.65rem 0.95rem;
         border-radius: 999px;
         background: rgba(184, 155, 123, 0.12);
@@ -461,9 +460,10 @@ class SierraHeaderNebula {
       }
 
       .mobile-logo {
-        height: 38px;
+        height: 34px;
         width: auto;
         object-fit: contain;
+        border-radius: 8px;
       }
 
       .mobile-logo-text {
@@ -1176,7 +1176,7 @@ class SierraHeaderNebula {
               </nav>
             </div>
             <a class="desktop-nav-action" href="./education.html">Smart Akademi</a>
-            <a class="desktop-nav-action" href="./logiciel%20proformat/">Freelancer</a>
+            <a class="desktop-nav-action" href="./services.html">Freelancer</a>
             <a class="desktop-nav-action" href="./health.html">Santé &amp; Pharmacie</a>
           </div>
         </div>
@@ -1229,7 +1229,7 @@ class SierraHeaderNebula {
                 </nav>
               </details>
               <a class="mobile-nav-item" href="./education.html">Smart Akademi</a>
-              <a class="mobile-nav-item" href="./logiciel%20proformat/">Freelancer</a>
+              <a class="mobile-nav-item" href="./services.html">Freelancer</a>
               <a class="mobile-nav-item" href="./health.html">Santé &amp; Pharmacie</a>
             </div>
             <button id="mobileNavScrollRight" class="mobile-nav-arrow" type="button" aria-label="Voir les liens suivants" hidden><i class="fas fa-chevron-right"></i></button>
