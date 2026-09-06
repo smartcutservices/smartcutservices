@@ -3,8 +3,8 @@
 const COMMISSION_RATE = 15;
 
 const CONSULTATION_PLANS = Object.freeze({
-  essential: Object.freeze({ code: 'essential', name: 'Consultation Essentielle', durationMinutes: 15, maxPhotos: 1, maxVoiceMessages: 3, maxVoiceSeconds: 60, videoMinutes: 5, videoProvider: 'Agora HD', recordingEnabled: false, chatEnabled: true, prescriptionEnabled: false, labOrderEnabled: false }),
-  advanced: Object.freeze({ code: 'advanced', name: 'Consultation Avancée', durationMinutes: 25, maxPhotos: 5, maxVoiceMessages: 5, maxVoiceSeconds: 120, videoMinutes: 15, videoProvider: 'Agora HD', recordingEnabled: false, chatEnabled: true, prescriptionEnabled: true, labOrderEnabled: true })
+  essential: Object.freeze({ code: 'essential', name: 'Consultation Essentielle', durationMinutes: 15, maxPhotos: 1, maxVoiceMessages: 3, maxVoiceSeconds: 60, videoMinutes: 5, chatEnabled: true, prescriptionEnabled: false, labOrderEnabled: false }),
+  advanced: Object.freeze({ code: 'advanced', name: 'Consultation Avancée', durationMinutes: 25, maxPhotos: 5, maxVoiceMessages: 5, maxVoiceSeconds: 120, videoMinutes: 15, chatEnabled: true, prescriptionEnabled: true, labOrderEnabled: true })
 });
 
 const SPECIALTIES = Object.freeze([

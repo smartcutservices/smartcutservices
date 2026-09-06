@@ -15,7 +15,8 @@ test('resolveConsultationSelection still resolves a known specialty/plan pair', 
   assert.equal(result.plan.maxVoiceMessages, 3);
   assert.equal(result.plan.maxVoiceSeconds, 60);
   assert.equal(result.plan.videoMinutes, 5);
-  assert.equal(result.plan.recordingEnabled, false);
+  assert.equal(result.plan.prescriptionEnabled, false);
+  assert.equal(result.plan.labOrderEnabled, false);
 });
 
 // ---------- RENDEZ-VOUS (flat price per specialty, always 10 minutes) ----------

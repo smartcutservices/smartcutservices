@@ -4,6 +4,10 @@ import { getAuthManager } from './auth.js';
 const FUNCTIONS_BASE = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
 const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[c]));
 const money = (value) => `${new Intl.NumberFormat('fr-HT', { maximumFractionDigits: 0 }).format(Number(value) || 0)} HTG`;
+const PLAN_RULES = Object.freeze({
+  essential: Object.freeze({ durationMinutes: 15, maxVoiceMessages: 3, maxVoiceSeconds: 60, videoMinutes: 5, prescriptionEnabled: false, labOrderEnabled: false }),
+  advanced: Object.freeze({ durationMinutes: 25, maxVoiceMessages: 5, maxVoiceSeconds: 120, videoMinutes: 15, prescriptionEnabled: true, labOrderEnabled: true })
+});
 
 async function callHealth(name, { method = 'GET', query, body, authRequired = false } = {}) {
   const url = new URL(`${FUNCTIONS_BASE}/${name}`);
@@ -51,6 +55,13 @@ export default class HealthTeleconsultation {
   async load() {
     try {
       this.catalog = await callHealth('healthGetConsultationCatalog');
+      // Le navigateur peut conserver un ancien catalogue Firebase pendant un
+      // déploiement. Les droits affichés restent donc toujours ceux validés
+      // par Smart Cut Health, même si l’ancienne réponse arrive en cache.
+      this.catalog.plans = (this.catalog.plans || []).map((plan) => ({
+        ...plan,
+        ...(PLAN_RULES[plan.code] || {})
+      }));
       const select = this.root.querySelector('#telehealth-specialty');
       select.innerHTML = '<option value="">Choisir une spécialité</option>' + this.catalog.specialties.map((item) => `<option value="${esc(item.code)}">${esc(item.name)}</option>`).join('');
       select.addEventListener('change', () => { this.specialtyCode = select.value; this.renderPlans(); this.loadDoctors(); });
@@ -71,7 +82,7 @@ export default class HealthTeleconsultation {
     root.innerHTML = this.catalog.plans.map((plan) => `<article class="telehealth-plan ${this.planCode === plan.code ? 'is-selected' : ''}" data-plan="${esc(plan.code)}">
       <div class="telehealth-plan__top"><div><span>${plan.durationMinutes} minutes</span><h2>${esc(plan.name)}</h2></div><span class="telehealth-plan__check"><i class="fas fa-check"></i></span></div>
       <div class="telehealth-plan__price">${money(this.specialty.prices[plan.code])}</div>
-      <ul><li>${plan.durationMinutes} minutes de consultation</li><li>Messages texte illimités</li><li>${plan.maxVoiceMessages} messages vocaux de ${plan.maxVoiceSeconds} secondes</li><li>Vidéo Live ${plan.videoProvider || 'Agora HD'} : ${plan.videoMinutes} minutes</li><li>Aucune vidéo enregistrée</li><li>${plan.prescriptionEnabled ? 'Prescription si médicalement appropriée' : 'Sans prescription dans ce format'}</li><li>${plan.labOrderEnabled ? 'Demande d’examens possible' : 'Sans demande d’examens'}</li></ul>
+      <ul><li>${plan.durationMinutes} minutes de consultation</li><li>Messages texte illimités</li><li>${plan.maxVoiceMessages} messages vocaux (${plan.maxVoiceSeconds} secondes chacun)</li><li>Appel vidéo Live : ${plan.videoMinutes} minutes</li><li>${plan.prescriptionEnabled ? 'Prescription incluse' : 'Sans prescription dans ce format'}</li><li>${plan.labOrderEnabled ? 'Demande d’examen incluse' : 'Sans demande d’examen'}</li></ul>
       <button type="button">Choisir ce plan</button>
     </article>`).join('');
     root.querySelectorAll('[data-plan]').forEach((card) => card.addEventListener('click', () => { this.planCode = card.dataset.plan; this.renderPlans(); }));
@@ -97,7 +108,7 @@ export default class HealthTeleconsultation {
     dialog.showModal();
     try {
       const payload = await callHealth('healthListAvailability', { query:{ providerUid:doctor.id } });
-      const summary = `<div class="telehealth-summary"><span>${esc(this.specialty.name)}</span><strong>${esc(this.plan.name)} · ${money(this.specialty.prices[this.planCode])}</strong><small>${this.plan.durationMinutes} min · texte illimité · ${this.plan.maxVoiceMessages} vocaux de ${this.plan.maxVoiceSeconds}s · vidéo Live ${esc(this.plan.videoProvider || 'Agora HD')} ${this.plan.videoMinutes} min, non enregistrée</small></div>`;
+      const summary = `<div class="telehealth-summary"><span>${esc(this.specialty.name)}</span><strong>${esc(this.plan.name)} · ${money(this.specialty.prices[this.planCode])}</strong><small>${this.plan.durationMinutes} min · texte illimité · ${this.plan.maxVoiceMessages} messages vocaux de ${this.plan.maxVoiceSeconds}s · appel vidéo Live ${this.plan.videoMinutes} min · consultation confidentielle</small></div>`;
       content.innerHTML = `${summary}<form id="telehealth-book-form" class="health-form"><div class="health-field"><label>Créneau disponible</label><div class="telehealth-slots">${payload.slots?.length ? payload.slots.map((slot) => `<label><input type="radio" name="slotId" value="${esc(slot.id)}" required><span>${esc(new Date(slot.startsAt).toLocaleString('fr-HT', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }))}</span></label>`).join('') : '<div class="health-empty">Aucun créneau disponible.</div>'}</div></div><div class="health-form-grid"><div class="health-field"><label for="telehealth-name">Nom et prénom</label><input id="telehealth-name" name="patientName" autocomplete="name" required></div><div class="health-field"><label for="telehealth-age">Âge</label><input id="telehealth-age" name="patientAge" type="number" min="0" max="120" required></div><div class="health-field"><label for="telehealth-sex">Sexe</label><select id="telehealth-sex" name="patientSex" required><option value="">Choisir…</option><option value="female">Femme</option><option value="male">Homme</option><option value="other">Autre</option><option value="prefer_not_to_say">Préfère ne pas répondre</option></select></div></div><div class="health-field"><label for="telehealth-reason">Motif en quelques mots</label><textarea id="telehealth-reason" name="reason" maxlength="500" required placeholder="Décrivez brièvement votre besoin, sans urgence médicale."></textarea></div>${payload.slots?.length ? '<button class="health-btn primary" type="submit">Continuer vers le paiement</button>' : ''}<div class="health-status" id="telehealth-status"></div></form>`;
       content.querySelector('form')?.addEventListener('submit', (event) => this.book(event));
     } catch (error) { content.innerHTML = `<div class="health-empty">${esc(error.message)}</div>`; }

@@ -1171,7 +1171,6 @@ class SierraHeaderNebula {
               <nav id="smartsolution-desktop-panel" class="smartsolution-menu__panel" hidden aria-label="Applications SmartSolutionTek">
                 <a href="./smartsolutiontek/dashboard.html?app=forms"><i class="fas fa-clipboard-list"></i> Inscriptions en ligne</a>
                 <a href="./smartsolutiontek/dashboard.html?app=shops"><i class="fas fa-store"></i> Mini-boutique</a>
-                <a href="./smartsolutiontek/dashboard.html?app=courses"><i class="fas fa-graduation-cap"></i> Formation en ligne</a>
                 <a href="./smartsolutiontek/dashboard.html?app=services"><i class="fas fa-calendar-check"></i> Réservations</a>
                 <a href="./smartsolutiontek/dashboard.html?app=food"><i class="fas fa-utensils"></i> Cuisine &amp; artisanat</a>
               </nav>
@@ -1224,7 +1223,6 @@ class SierraHeaderNebula {
                 <nav class="mobile-smartsolution-menu__panel" aria-label="Applications SmartSolutionTek">
                   <a href="./smartsolutiontek/dashboard.html?app=forms"><i class="fas fa-clipboard-list"></i> Inscriptions en ligne</a>
                   <a href="./smartsolutiontek/dashboard.html?app=shops"><i class="fas fa-store"></i> Mini-boutique</a>
-                  <a href="./smartsolutiontek/dashboard.html?app=courses"><i class="fas fa-graduation-cap"></i> Formation en ligne</a>
                   <a href="./smartsolutiontek/dashboard.html?app=services"><i class="fas fa-calendar-check"></i> Réservations</a>
                   <a href="./smartsolutiontek/dashboard.html?app=food"><i class="fas fa-utensils"></i> Cuisine &amp; artisanat</a>
                 </nav>

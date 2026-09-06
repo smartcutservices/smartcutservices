@@ -232,6 +232,7 @@
 
     #ecosystem-sections-rail {
       display:flex;
+      direction:ltr;
       gap:1rem;
       overflow-x:auto;
       overflow-y:hidden;
@@ -359,7 +360,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260906-2';
+    const ASSET_VERSION = '20260906-4';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     /* Les traces *_DEBUG sont utiles en développement mais ne doivent pas
        polluer la console de production (ni les audits Lighthouse). */
@@ -419,7 +420,11 @@
       const ordered = [...history, ...dynamicHomeSections.filter((id) => !history.includes(id))];
       const current = dynamicHomeSections.map((id) => document.getElementById(id)).filter(Boolean).map((node) => node.id);
       const visibleOrdered = ordered.filter((id) => document.getElementById(id));
-      if (current.join('|') === visibleOrdered.join('|')) return;
+      if (current.join('|') === visibleOrdered.join('|')) {
+        rail.style.direction = 'ltr';
+        rail.scrollLeft = 0;
+        return;
+      }
       // Déconnecter l'observateur pendant le déplacement des blocs évite une
       // cascade de mutations lorsque plusieurs sections dynamiques arrivent.
       homeOrderObserver?.disconnect();
@@ -428,6 +433,11 @@
         if (!node) return;
         rail.append(node);
       });
+      // Après une réorganisation dynamique, le rail doit toujours démarrer
+      // au premier bloc à gauche, même si le navigateur a conservé une
+      // ancienne position horizontale.
+      rail.style.direction = 'ltr';
+      rail.scrollLeft = 0;
       homeOrderObserver?.observe(document.body, { childList: true });
     };
     document.addEventListener('click', (event) => {

@@ -16,13 +16,6 @@ const APPS = [
     alt: 'Boutique en ligne avec produits et colis prêts à expédier'
   },
   {
-    tab: 'courses',
-    title: 'Formation en ligne',
-    description: 'Vendez vos cours vidéo ou PDF depuis votre propre espace.',
-    image: './assets/smartsolutiontek/formation-premium.jpg',
-    alt: 'Espace de formation vidéo sur ordinateur et tablette'
-  },
-  {
     tab: 'services',
     title: 'Réservations de services',
     description: 'Affichez vos disponibilités et recevez des réservations payées.',
