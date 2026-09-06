@@ -22,6 +22,7 @@ function normalizePosterFileName(value = '') {
 function buildPosterUrl(fileName = '') {
   const raw = normalizePosterFileName(fileName);
   if (!raw) return '';
+  if (raw.toLowerCase().includes('bannermobile.jpg')) return './bannermobile.webp';
   if (/^https?:\/\//i.test(raw)) return raw;
   if (raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/')) return raw;
   return `./${raw}`;

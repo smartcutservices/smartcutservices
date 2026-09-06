@@ -458,12 +458,19 @@ class CategoriesDisplay {
       'pc007.png': './PC007.webp',
       'vetements.jpg': './vetements.webp',
       '22a.jpg': './22a.webp',
+      'pe001.jpg': './PE001.webp',
+      'autres001.webp': './Autres001.webp',
+      'am001.jpg': './AM001.webp',
+      't3b.jpg': './t3b.webp',
+      'medical (54).png': './medical (54).webp',
       'hero-auto-parts-v1.png': './assets/auto-parts/hero-auto-parts-v1.webp',
       'hero-learning-v2.png': './assets/education/hero-learning-v2.webp',
       'home-health-visual-v2.png': './assets/health/home-health-visual-v2.webp'
     };
-    const filename = decodeURIComponent(localPath).split('/').pop().toLowerCase();
-    return optimizedImages[path] || optimizedImages[localPath] || optimizedByFilename[filename] || path;
+    const sourceKey = decodeURIComponent(`${path} ${localPath}`).toLowerCase();
+    const optimizedMatch = Object.entries(optimizedByFilename)
+      .find(([filename]) => sourceKey.includes(filename));
+    return optimizedImages[path] || optimizedImages[localPath] || optimizedMatch?.[1] || path;
   }
 
   buildItems() {
