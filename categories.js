@@ -452,7 +452,18 @@ class CategoriesDisplay {
     try {
       localPath = new URL(path, window.location.origin).pathname;
     } catch (_) {}
-    return optimizedImages[path] || optimizedImages[localPath] || path;
+    const optimizedByFilename = {
+      'ti0055.png': './TI0055.webp',
+      'electrique.png': './electrique.webp',
+      'pc007.png': './PC007.webp',
+      'vetements.jpg': './vetements.webp',
+      '22a.jpg': './22a.webp',
+      'hero-auto-parts-v1.png': './assets/auto-parts/hero-auto-parts-v1.webp',
+      'hero-learning-v2.png': './assets/education/hero-learning-v2.webp',
+      'home-health-visual-v2.png': './assets/health/home-health-visual-v2.webp'
+    };
+    const filename = decodeURIComponent(localPath).split('/').pop().toLowerCase();
+    return optimizedImages[path] || optimizedImages[localPath] || optimizedByFilename[filename] || path;
   }
 
   buildItems() {
