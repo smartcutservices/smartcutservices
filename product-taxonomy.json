@@ -3,7 +3,7 @@
     "purpose": "Taxonomie produits Smart Cut Services : Département → Catégorie → Sous-catégorie, champs universels, champs dynamiques par catégorie, barème de commissions par département, bibliothèques de valeurs réutilisables.",
     "source": "Formulaire Dynamique pour les produits Smart Cut Services — NOUVELLE VERSION (220 pages)",
     "version": "2026-09-03",
-    "notes": "Les dynamicFields sont des descripteurs de formulaire (aucune logique prix/stock/commission). Le rendu conditionnel est une phase ultérieure. commissionByDepartment est la source des taux ; il est répliqué dans Firestore (collection commissionDepartments) pour édition admin."
+    "notes": "Les dynamicFields pilotent les caractéristiques conditionnelles du formulaire vendeur ; ils ne modifient pas la logique prix/stock/commission. commissionByDepartment est la source des taux ; il est répliqué dans Firestore (collection commissionDepartments) pour édition admin."
   },
   "universalFields": [
     {

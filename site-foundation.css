@@ -764,7 +764,15 @@ body {
     max-width: none !important;
   }
 }
-@media (max-width: 767px) {
+/* This whole block used to stop at 767px — the fixed header's dynamic-color,
+   see-through overlap onto the hero (and matching mobile-nav-item look) then
+   simply didn't exist at 768px: neither this block nor the ≥769px desktop
+   block (further up this file) fired there, leaving a flat, static, opaque
+   header with no hero color showing through. Widened to 1024px so it covers
+   every width where header.js actually renders the mobile header markup
+   (.mobile-header-inner, per header.js's own 1024/1025px breakpoint) instead
+   of stopping short of it. */
+@media (max-width: 1024px) {
   #home-hero-categories-shell {
     padding-top: var(--header-height-mobile, 104px) !important;
     background: transparent !important;

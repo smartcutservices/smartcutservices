@@ -1415,6 +1415,7 @@ class ProductModal {
         </div>
         
         <!-- Description longue -->
+        ${this.renderDynamicAttributes()}
         <div style="padding-top: 1rem; border-top: 1px solid rgba(198, 167, 94, 0.2);">
           <h3 style="font-weight: 500; margin-bottom: 0.5rem;">Description</h3>
           <div style="color: #565959; white-space: pre-line;">
@@ -1423,6 +1424,24 @@ class ProductModal {
         </div>
       </div>
     `;
+  }
+
+  renderDynamicAttributes() {
+    const attributes = this.product?.dynamicAttributes || this.product?.attributes || {};
+    const entries = Object.entries(attributes).filter(([, value]) => value !== null && value !== undefined && String(value).trim());
+    if (!entries.length) return '';
+    return `
+      <div class="product-dynamic-attributes" style="padding-top:1rem;border-top:1px solid rgba(198,167,94,.2);">
+        <h3 style="font-weight:600;margin-bottom:.65rem;">Caractéristiques</h3>
+        <dl style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.55rem .9rem;margin:0;">
+          ${entries.map(([key, value]) => `<div style="padding:.55rem .65rem;border:1px solid rgba(198,167,94,.18);border-radius:.55rem;background:#fff;"><dt style="font-size:.72rem;color:#7a746b;text-transform:capitalize;">${this.escapeProductText(key.replace(/[-_]/g, ' '))}</dt><dd style="margin:.15rem 0 0;color:#0f1111;font-weight:600;">${this.escapeProductText(value)}</dd></div>`).join('')}
+        </dl>
+      </div>
+    `;
+  }
+
+  escapeProductText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
   }
   
   renderOptions() {
