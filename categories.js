@@ -1,5 +1,5 @@
 import { db } from './firebase-init.js';
-import { collection, query, onSnapshot, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { collection, query, getDocs, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
 class CategoriesDisplay {
   constructor(containerId, options = {}) {
@@ -377,30 +377,29 @@ class CategoriesDisplay {
     }
   }
 
-  loadData() {
+  async loadData() {
     const categoriesRef = collection(db, this.collectionName);
     const productsRef = collection(db, 'products');
 
-    onSnapshot(query(categoriesRef), (snapshot) => {
-      this.rawCategories = snapshot.docs.map((doc) => ({
+    try {
+      // The homepage only needs a current snapshot. Keeping two realtime
+      // listeners open was consuming significant data on every visit.
+      const [categoriesSnapshot, productsSnapshot] = await Promise.all([
+        getDocs(query(categoriesRef)),
+        getDocs(query(productsRef, limit(200)))
+      ]);
+
+      this.rawCategories = categoriesSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
       }));
-      this.buildItems();
-    }, (error) => {
-      console.error('Erreur Firebase categories :', error);
-    });
 
-    // Le rail n'a besoin que d'un échantillon récent : écouter toute la
-    // collection rendait la page locale très lente lorsque le catalogue est
-    // volumineux.
-    onSnapshot(query(productsRef, limit(200)), (snapshot) => {
       this.firstProductImageByCategoryId.clear();
       this.availableCategoryIds.clear();
       this.availableCategoryNames.clear();
       this.productFallbackItems = [];
 
-      snapshot.forEach((doc) => {
+      productsSnapshot.forEach((doc) => {
         const data = doc.data();
         const firstImage = this.getFirstProductImage(data);
         const categoryId = String(data?.categoryId || data?.category || '').trim();
@@ -414,12 +413,13 @@ class CategoriesDisplay {
           this.firstProductImageByCategoryId.set(categoryId, firstImage);
         }
       });
-      this.productsLoaded = true;
 
+      this.productsLoaded = true;
       this.buildItems();
-    }, (error) => {
-      console.error('Erreur Firebase produits :', error);
-    });
+    } catch (error) {
+      console.error('Erreur Firebase categories:', error);
+      if (this.grid) this.grid.innerHTML = '<p>Impossible de charger les catégories pour le moment.</p>';
+    }
   }
 
   getFirstProductImage(productData) {

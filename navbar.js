@@ -1,6 +1,6 @@
 // ============= NAVBAR.JS AVEC THÈME - VERSION NOUVELLE STRUCTURE =============
 import { db } from './firebase-init.js';
-import { collection, query, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import MegaMenu from './mega-menu.js';
 import MobileMenu from './mobile-menu.js?v=20260901-1';
@@ -207,36 +207,31 @@ class Navbar {
     }
   }
   
-  loadCategories() {
+  async loadCategories() {
     try {
       const categoriesRef = collection(db, 'categories_list');
       const q = query(categoriesRef);
-      
-      onSnapshot(q, (snapshot) => {
-        this.categories = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.name || 'Sans nom',
-            order: data.order || 0,
-            image: data.image || null,
-            description: data.description || null,
-            ...data
-          };
-        });
-        
-        this.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
-        const visibleHeaderCategories = this.categories.filter((cat) => cat.showInHeader === true);
-        this.desktopCategories = visibleHeaderCategories;
-        this.mobileCategories = visibleHeaderCategories;
-        
-        
-        this.renderDesktopCategories();
-        this.renderMobileNav();
-        this.mobileMenu.setCategories(this.categories);
-      }, (error) => {
-        console.error("❌ Erreur chargement catégories depuis categories_list:", error);
+      const snapshot = await getDocs(q);
+      this.categories = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || 'Sans nom',
+          order: data.order || 0,
+          image: data.image || null,
+          description: data.description || null,
+          ...data
+        };
       });
+
+      this.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+      const visibleHeaderCategories = this.categories.filter((cat) => cat.showInHeader === true);
+      this.desktopCategories = visibleHeaderCategories;
+      this.mobileCategories = visibleHeaderCategories;
+
+      this.renderDesktopCategories();
+      this.renderMobileNav();
+      this.mobileMenu.setCategories(this.categories);
     } catch (error) {
       console.error("❌ Erreur dans loadCategories:", error);
     }

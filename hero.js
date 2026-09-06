@@ -1,8 +1,7 @@
 import { db } from './firebase-init.js';
 import {
   doc,
-  getDoc,
-  onSnapshot
+  getDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 
@@ -107,7 +106,6 @@ class SierraHero {
     this.autoplayTimer = null;
     this.autoplayEnabled = options.autoplay !== false;
     this.mobileScrollLock = false;
-    this.unsubscribeSnapshot = null;
     this.unsubscribeTheme = null;
     this.handleResize = this.handleResize.bind(this);
 
@@ -603,11 +601,6 @@ class SierraHero {
       this.data = snap.exists() ? (snap.data() || {}) : {};
       this.renderHero(this.data);
 
-      this.unsubscribeSnapshot?.();
-      this.unsubscribeSnapshot = onSnapshot(heroDocRef, (nextSnap) => {
-        this.data = nextSnap.exists() ? (nextSnap.data() || {}) : {};
-        this.renderHero(this.data);
-      });
     } catch (error) {
       console.error('Erreur chargement hero affiches:', error);
       this.renderEmpty('Impossible de charger les affiches hero pour le moment.');
@@ -625,7 +618,6 @@ class SierraHero {
 
   destroy() {
     this.stopAutoplay();
-    this.unsubscribeSnapshot?.();
     this.unsubscribeTheme?.();
     window.removeEventListener('resize', this.handleResize);
   }

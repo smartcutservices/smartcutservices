@@ -2,9 +2,7 @@ import { db } from './firebase-init.js?v=20260901-1';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js?v=20260902-2';
 import Navbar from './navbar.js?v=20260902-1';
-import { getCartManager } from './cart.js?v=20260901-1';
 import { getAuthManager } from './auth.js?v=20260901-1';
-import { getProfilePanel } from './profile-panel.js?v=20260901-6';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
 import { applyNavPreference } from './nav-preference.js?v=20260901-1';
@@ -25,6 +23,8 @@ class SierraHeaderNebula {
     this.navbar = null;
     this.cartManager = null;
     this.authManager = null;
+    this.cartManagerPromise = null;
+    this.profilePanelPromise = null;
     this.handleCartUpdated = null;
     this.handleStorageSync = null;
     this.handleWindowResize = null;
@@ -1325,20 +1325,11 @@ class SierraHeaderNebula {
     getWebsiteAnalyticsTracker().init();
     await loadCurrencySettings();
 
-    // Singleton: n'instancie qu'une seule fois le gestionnaire panier.
-    this.cartManager = getCartManager({
-      imageBasePath: './'
-    });
-    console.info('[HEADER] Cart manager initialise', {
-      hasCartManager: Boolean(this.cartManager)
-    });
-
-    getProfilePanel();
-
     await this.applyHeaderConfig();
     await this.loadMobileFooterLinks();
     this.setupCurrencySelectors();
     this.setupProfileActions();
+    this.setupCartActions();
     this.setupVendorNavigation();
     this.setupSmartSolutionMenu();
     this.setupMobileNavControls();
@@ -1347,7 +1338,25 @@ class SierraHeaderNebula {
     this.setupCartBadge();
     this.setupHeaderLayoutSync();
     this.syncHeaderLayout();
-    this.prewarmInteractivePanels();
+  }
+
+  async getCartManager() {
+    if (!this.cartManagerPromise) {
+      this.cartManagerPromise = import('./cart.js?v=20260901-1')
+        .then(({ getCartManager }) => {
+          this.cartManager = getCartManager({ imageBasePath: './' });
+          return this.cartManager;
+        });
+    }
+    return this.cartManagerPromise;
+  }
+
+  async getProfilePanel() {
+    if (!this.profilePanelPromise) {
+      this.profilePanelPromise = import('./profile-panel.js?v=20260901-6')
+        .then(({ getProfilePanel }) => getProfilePanel());
+    }
+    return this.profilePanelPromise;
   }
 
   openRequestedAuthModal() {
@@ -1609,25 +1618,6 @@ class SierraHeaderNebula {
     }
   }
 
-  prewarmInteractivePanels() {
-    const scheduleWarmup = () => {
-      const profilePanel = getProfilePanel();
-      profilePanel?.prime?.().catch((error) => {
-        console.error('Erreur prechargement profil:', error);
-      });
-      this.cartManager?.warmUpClientContext?.().catch((error) => {
-        console.error('Erreur prechargement panier:', error);
-      });
-    };
-
-    if (typeof window.requestIdleCallback === 'function') {
-      window.requestIdleCallback(scheduleWarmup, { timeout: 1200 });
-      return;
-    }
-
-    window.setTimeout(scheduleWarmup, 400);
-  }
-
   bindResponsivePress(target, handler) {
     if (!target) return;
 
@@ -1649,11 +1639,11 @@ class SierraHeaderNebula {
   }
 
   setupProfileActions() {
-    const handleProfileClick = (event) => {
+    const handleProfileClick = async (event) => {
       event.preventDefault();
       event.stopPropagation();
 
-      const panel = getProfilePanel();
+      const panel = await this.getProfilePanel();
       const authManager = panel?.authManager || getAuthManager();
       const isAuthenticated = authManager?.isAuthenticated?.() ?? false;
       if (!isAuthenticated) {
@@ -1667,6 +1657,20 @@ class SierraHeaderNebula {
       const button = document.getElementById(id);
       if (!button) return;
       this.bindResponsivePress(button, handleProfileClick);
+    });
+  }
+
+  setupCartActions() {
+    const openCart = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const cartManager = await this.getCartManager();
+      cartManager?.openCartModal?.();
+    };
+
+    ['desktopCartButton', 'mobileCartButton'].forEach((id) => {
+      const button = document.getElementById(id);
+      if (button) this.bindResponsivePress(button, openCart);
     });
   }
 

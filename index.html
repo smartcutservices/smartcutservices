@@ -563,11 +563,18 @@
     }
   </script>
   <script type="module">
-    if (!window.__veltrixaNotificationsBooted) {
+    const notificationsEnabled = window.Notification?.permission === 'granted'
+      && localStorage.getItem('veltrixa_order_notif_enabled') === '1';
+    if (notificationsEnabled && !window.__veltrixaNotificationsBooted) {
       window.__veltrixaNotificationsBooted = true;
       import('./notification.js?v=20260901-1')
         .then(({ NotificationComponent }) => {
-          const center = new NotificationComponent({ mode: 'client', defaultUrl: './index.html' });
+          const center = new NotificationComponent({
+            mode: 'client',
+            defaultUrl: './index.html',
+            listenNewProducts: false,
+            listenBroadcasts: false
+          });
           center.init();
           window.veltrixaNotificationCenter = center;
         })

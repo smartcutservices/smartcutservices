@@ -399,12 +399,12 @@ class SierraProducts {
         <!-- Carousel Container -->
         <div class="relative group">
           <!-- Flèches navigation desktop -->
-          <button class="scroll-left-${this.uniqueId} hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 bg-luxury/80 text-ivory rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:bg-secondary">
-            <i class="fas fa-chevron-left"></i>
+          <button type="button" class="scroll-left-${this.uniqueId} hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 bg-luxury/80 text-ivory rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:bg-secondary" aria-label="Voir les produits précédents" title="Produits précédents">
+            <i class="fas fa-chevron-left" aria-hidden="true"></i>
           </button>
-          
-          <button class="scroll-right-${this.uniqueId} hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-10 h-10 bg-luxury/80 text-ivory rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:bg-secondary">
-            <i class="fas fa-chevron-right"></i>
+
+          <button type="button" class="scroll-right-${this.uniqueId} hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-10 h-10 bg-luxury/80 text-ivory rounded-full items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 hover:bg-secondary" aria-label="Voir les produits suivants" title="Produits suivants">
+            <i class="fas fa-chevron-right" aria-hidden="true"></i>
           </button>
           
           <!-- Carousel -->
