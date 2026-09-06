@@ -35,8 +35,23 @@ class CategoriesDisplay {
   init() {
     this.renderBase();
     this.bindCarouselEvents();
-    this.loadData();
+    this.deferDataLoad();
     this.bindMenuOpenEvents();
+  }
+
+  deferDataLoad() {
+    const load = () => this.loadData();
+    if (!('IntersectionObserver' in window)) {
+      load();
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      observer.disconnect();
+      load();
+    }, { rootMargin: '250px 0px' });
+    observer.observe(this.container);
   }
 
   bindMenuOpenEvents() {
@@ -415,10 +430,29 @@ class CategoriesDisplay {
     if (typeof imageValue !== 'string') return '';
     const trimmed = imageValue.trim();
     if (!trimmed) return '';
-    if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('./') || trimmed.startsWith('/')) {
-      return trimmed;
-    }
-    return `./${trimmed}`;
+    const path = /^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('./') || trimmed.startsWith('/')
+      ? trimmed
+      : `./${trimmed}`;
+    const optimizedImages = {
+      './TI0055.png': './TI0055.webp',
+      '/TI0055.png': './TI0055.webp',
+      './electrique.png': './electrique.webp',
+      '/electrique.png': './electrique.webp',
+      './PC007.png': './PC007.webp',
+      '/PC007.png': './PC007.webp',
+      './vetements.jpg': './vetements.webp',
+      '/vetements.jpg': './vetements.webp',
+      './22a.jpg': './22a.webp',
+      '/22a.jpg': './22a.webp',
+      './assets/auto-parts/hero-auto-parts-v1.png': './assets/auto-parts/hero-auto-parts-v1.webp',
+      './assets/education/hero-learning-v2.png': './assets/education/hero-learning-v2.webp',
+      './assets/health/home-health-visual-v2.png': './assets/health/home-health-visual-v2.webp'
+    };
+    let localPath = path;
+    try {
+      localPath = new URL(path, window.location.origin).pathname;
+    } catch (_) {}
+    return optimizedImages[path] || optimizedImages[localPath] || path;
   }
 
   buildItems() {
@@ -452,9 +486,9 @@ class CategoriesDisplay {
     });
 
     const ecosystems = [
-      { id: 'health', name: 'Smart Health', description: 'Santé, pharmacies et consultations', image: './assets/health/home-health-visual-v2.png', href: './health.html' },
-      { id: 'academy', name: 'Smart Akademi', description: 'Cours en ligne, formations et tuteurs', image: './assets/education/hero-learning-v2.png', href: './education.html' },
-      { id: 'auto', name: 'Auto & Parts', description: 'Pièces, véhicules et équipements auto', image: './assets/auto-parts/hero-auto-parts-v1.png', href: './auto-parts.html' },
+      { id: 'health', name: 'Smart Health', description: 'Santé, pharmacies et consultations', image: './assets/health/home-health-visual-v2.webp', href: './health.html' },
+      { id: 'academy', name: 'Smart Akademi', description: 'Cours en ligne, formations et tuteurs', image: './assets/education/hero-learning-v2.webp', href: './education.html' },
+      { id: 'auto', name: 'Auto & Parts', description: 'Pièces, véhicules et équipements auto', image: './assets/auto-parts/hero-auto-parts-v1.webp', href: './auto-parts.html' },
       { id: 'solutions', name: 'SmartSolutionTek', description: 'Outils, inscriptions et mini-boutiques', image: './assets/smartsolutiontek/mini-boutique-premium.jpg', href: './smartsolutiontek/dashboard.html' },
     ];
     ecosystems.sort(() => Math.random() - 0.5);
@@ -531,7 +565,7 @@ class CategoriesDisplay {
     if (item.ecosystem) card.dataset.ecosystem = 'true';
 
     const imageHtml = item.image
-      ? `<img src="${item.image}" class="category-image" loading="lazy" onerror="this.remove();">`
+      ? `<img src="${item.image}" class="category-image" loading="lazy" decoding="async" width="768" height="512" alt="${item.name}" onerror="this.remove();">`
       : `<div class="category-image" style="display:flex;align-items:center;justify-content:center;background:#f4f4f4;color:#9b9b9b;"><i class="fas fa-image"></i></div>`;
 
     card.innerHTML = `
@@ -552,7 +586,7 @@ class CategoriesDisplay {
     card.className = 'category-card category-card--grouped scroll-hidden';
     card.style.transitionDelay = `${Math.min(index * 110, 660)}ms`;
     const image = (item) => item.image
-      ? `<img src="${item.image}" class="category-image" loading="lazy" alt="${item.name}">`
+      ? `<img src="${item.image}" class="category-image" loading="lazy" decoding="async" width="768" height="512" alt="${item.name}">`
       : '<div class="category-image category-image--empty"><i class="fas fa-image"></i></div>';
     const href = (item) => item.ecosystem
       ? item.href

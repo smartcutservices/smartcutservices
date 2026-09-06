@@ -1186,7 +1186,7 @@ class SierraHeaderNebula {
           <div class="mobile-top-bar">
           <div class="mobile-logo-center">
             <a class="mobile-logo-link" href="${this.getHomepageUrl()}" aria-label="Retour à l'accueil">
-              <img id="mobileLogoImg" class="mobile-logo" src="" alt="Smart Cut Services" style="display: none;">
+              <img id="mobileLogoImg" class="mobile-logo" src="" alt="Smart Cut Services" width="155" height="225" style="display: none;">
               <span id="mobileLogoText" class="mobile-logo-text">Smart Cut</span>
             </a>
           </div>

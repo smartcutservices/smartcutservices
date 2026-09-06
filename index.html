@@ -61,7 +61,7 @@
   <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"></noscript>
   <link rel="stylesheet" href="./tailwind-site.css?v=20260901-1">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260903-20">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260903-21">
   <link rel="preload" as="style" href="./health-teaser.css?v=20260901-1" onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" as="style" href="./services-teaser.css?v=20260901-2" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="./health-teaser.css?v=20260901-1"><link rel="stylesheet" href="./services-teaser.css?v=20260901-2"></noscript>
@@ -347,7 +347,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260903-9';
+    const ASSET_VERSION = '20260905-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     /* Les traces *_DEBUG sont utiles en développement mais ne doivent pas
        polluer la console de production (ni les audits Lighthouse). */
@@ -508,23 +508,23 @@
       maxRelatedProducts: 6,
       maxDisplayCount: 10,
       randomizeOnLoad: true
-    }, '450px');
+    }, '150px');
 
     mount('home-tickets', 'sierra-home-tickets-root', () => import(`./homepage-tickets.js?v=${ASSET_VERSION}`));
 
     mountOnVisible('home-discovery', 'sierra-home-discovery-root', () => import(`./homepage-discovery.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',
       maxProducts: 6
-    }, '550px');
+    }, '200px');
 
 
-    mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+    mountOnVisible('auto-parts-teaser', 'sierra-auto-parts-teaser-root', () => import(`./auto-parts-teaser.js?v=${ASSET_VERSION}`), {}, '200px');
 
-    mountOnVisible('education-teaser', 'sierra-education-teaser-root', () => import(`./education-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+    mountOnVisible('education-teaser', 'sierra-education-teaser-root', () => import(`./education-teaser.js?v=${ASSET_VERSION}`), {}, '200px');
 
-    mountOnVisible('health-teaser', 'sierra-health-teaser-root', () => import(`./health-teaser.js?v=${ASSET_VERSION}`), {}, '550px');
+    mountOnVisible('health-teaser', 'sierra-health-teaser-root', () => import(`./health-teaser.js?v=${ASSET_VERSION}`), {}, '200px');
 
-    mountOnVisible('sst-showcase', 'sierra-sst-showcase-root', () => import(`./smartsolutiontek-showcase.js?v=${ASSET_VERSION}`), {}, '550px');
+    mountOnVisible('sst-showcase', 'sierra-sst-showcase-root', () => import(`./smartsolutiontek-showcase.js?v=${ASSET_VERSION}`), {}, '200px');
 
     mountOnVisible('footer', 'sierra-footer-root', () => import(`./footer.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',
@@ -533,7 +533,7 @@
       showInfos: true,
       showPayments: true,
       showCopyright: true
-    }, '1200px');
+    }, '300px');
 
     if (!window.__articleOpenListenerBound) {
       window.__articleOpenListenerBound = true;

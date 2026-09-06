@@ -11,7 +11,7 @@ export default class AutoPartsTeaser {
           <a href="./auto-parts.html">Choisir mon véhicule <span aria-hidden="true">→</span></a>
         </div>
         <div class="auto-parts-teaser__media">
-          <img src="./assets/auto-parts/hero-auto-parts-v1.png" alt="Véhicule et système de freinage automobile" loading="lazy" decoding="async">
+          <img src="./assets/auto-parts/hero-auto-parts-v1.webp" alt="Véhicule et système de freinage automobile" loading="lazy" decoding="async" width="960" height="640">
         </div>
       </section>`;
   }
