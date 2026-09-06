@@ -35,7 +35,9 @@ class CategoriesDisplay {
   init() {
     this.renderBase();
     this.bindCarouselEvents();
-    this.deferDataLoad();
+    // The category rail is part of the first viewport on the homepage.
+    // Start its data request immediately instead of waiting for an observer tick.
+    this.loadData();
     this.bindMenuOpenEvents();
   }
 
@@ -583,7 +585,7 @@ class CategoriesDisplay {
     if (item.ecosystem) card.dataset.ecosystem = 'true';
 
     const imageHtml = item.image
-      ? `<img src="${item.image}" class="category-image" loading="lazy" decoding="async" width="768" height="512" alt="${item.name}" onerror="this.remove();">`
+      ? `<img src="${item.image}" class="category-image" loading="${index === 0 ? 'eager' : 'lazy'}" fetchpriority="${index === 0 ? 'high' : 'low'}" decoding="async" width="768" height="512" alt="${item.name}" onerror="this.remove();">`
       : `<div class="category-image" style="display:flex;align-items:center;justify-content:center;background:#f4f4f4;color:#9b9b9b;"><i class="fas fa-image"></i></div>`;
 
     card.innerHTML = `
@@ -603,19 +605,19 @@ class CategoriesDisplay {
     const card = document.createElement('div');
     card.className = 'category-card category-card--grouped scroll-hidden';
     card.style.transitionDelay = `${Math.min(index * 110, 660)}ms`;
-    const image = (item) => item.image
-      ? `<img src="${item.image}" class="category-image" loading="lazy" decoding="async" width="768" height="512" alt="${item.name}">`
+    const image = (item, imageIndex) => item.image
+      ? `<img src="${item.image}" class="category-image" loading="${index === 0 && imageIndex === 0 ? 'eager' : 'lazy'}" fetchpriority="${index === 0 && imageIndex === 0 ? 'high' : 'low'}" decoding="async" width="768" height="512" alt="${item.name}">`
       : '<div class="category-image category-image--empty"><i class="fas fa-image"></i></div>';
     const href = (item) => item.ecosystem
       ? item.href
       : item.product
         ? `./product.html?product=${encodeURIComponent(item.id)}`
         : `./catalogue.html?category=${encodeURIComponent(item.name)}`;
-    const linkImage = (item) => `<a class="category-group-link" href="${href(item)}" aria-label="Voir ${item.name}">${image(item)}</a>`;
+    const linkImage = (item, imageIndex) => `<a class="category-group-link" href="${href(item)}" aria-label="Voir ${item.name}">${image(item, imageIndex)}</a>`;
     const names = items.map((item) => item.name).filter(Boolean).join(' · ');
     card.innerHTML = `
-      <div class="category-group-main">${linkImage(items[0])}</div>
-      ${items.length > 1 ? `<div class="category-group-subgrid">${items.slice(1).map((item) => `<div><a class="category-group-link" href="${href(item)}" aria-label="Voir ${item.name}">${image(item)}</a><span>${item.name}</span></div>`).join('')}</div>` : ''}
+      <div class="category-group-main">${linkImage(items[0], 0)}</div>
+      ${items.length > 1 ? `<div class="category-group-subgrid">${items.slice(1).map((item, imageIndex) => `<div>${linkImage(item, imageIndex + 1)}<span>${item.name}</span></div>`).join('')}</div>` : ''}
       <div class="category-group-title" title="${names}">${names}</div>
     `;
     card.querySelectorAll('.category-group-link').forEach((link) => link.addEventListener('click', (event) => event.stopPropagation()));
