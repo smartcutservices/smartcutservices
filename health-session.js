@@ -26,6 +26,7 @@ export default class HealthSession {
     this.root = document.getElementById(rootId);
     this.timer = null;
     this.mediaRecorder = null;
+    this.voiceTimer = null;
     this.recordedChunks = [];
     this.messagesUnsub = null;
     this.messages = [];
@@ -327,6 +328,7 @@ export default class HealthSession {
     const button = this.root.querySelector('#sessionVoiceBtn');
     const label = this.root.querySelector('#sessionVoiceLabel');
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+      if (this.voiceTimer) clearTimeout(this.voiceTimer);
       this.mediaRecorder.stop();
       return;
     }
@@ -336,6 +338,8 @@ export default class HealthSession {
       this.mediaRecorder = new MediaRecorder(stream);
       this.mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) this.recordedChunks.push(event.data); };
       this.mediaRecorder.onstop = async () => {
+        if (this.voiceTimer) clearTimeout(this.voiceTimer);
+        this.voiceTimer = null;
         stream.getTracks().forEach((track) => track.stop());
         button.classList.remove('is-recording');
         label.textContent = 'Vocal';
@@ -343,8 +347,12 @@ export default class HealthSession {
         if (blob.size > 0) await this.sendMedia(blob, 'voice');
       };
       this.mediaRecorder.start();
+      const maxSeconds = Math.max(1, Number(this.item.consultationRights?.maxVoiceSeconds) || 60);
+      this.voiceTimer = setTimeout(() => {
+        if (this.mediaRecorder?.state === 'recording') this.mediaRecorder.stop();
+      }, maxSeconds * 1000);
       button.classList.add('is-recording');
-      label.textContent = 'Arrêter';
+      label.textContent = `Arrêter (${maxSeconds}s max)`;
     } catch (error) {
       this.setComposerStatus('Micro indisponible : ' + (error.message || 'accès refusé.'), true);
     }

@@ -254,6 +254,7 @@ class SierraHeaderNebula {
       .mobile-smartsolution-menu summary::-webkit-details-marker { display: none; }
       .mobile-smartsolution-menu[open] > summary { color: #fff; border-bottom: 2px solid rgba(255,255,255,.72); }
       .mobile-smartsolution-menu__panel { position: fixed; top: calc(var(--header-height-mobile) - 2px); left: 0.75rem; right: 0.75rem; z-index: 1010; display: grid; max-height: 60vh; overflow-y: auto; min-width: 248px; padding: 0.45rem; border: 1px solid rgba(24, 36, 49, 0.14); border-radius: 8px; background: #fff; box-shadow: 0 18px 40px rgba(25, 25, 25, 0.14); }
+      .mobile-smartsolution-menu__panel.is-ios-portal { position: fixed !important; z-index: 2147483000 !important; display: grid !important; max-height: 60vh !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
       .mobile-smartsolution-menu__panel a { display: flex; align-items: center; gap: 0.65rem; padding: 0.68rem 0.75rem; border-radius: 5px; color: #24313d; font-size: 0.84rem; font-weight: 700; text-decoration: none; }.mobile-smartsolution-menu__panel a:hover { background: #f5f1eb; color: #6f5424; }.mobile-smartsolution-menu__panel a i { width: 17px; color: #8b6c2f; text-align: center; }
 
       .desktop-icons {
@@ -1425,6 +1426,35 @@ class SierraHeaderNebula {
     if (!list || !left || !right) return;
     const shell = list.closest('.mobile-nav-scroll');
     const smartMenu = document.querySelector('.mobile-smartsolution-menu');
+    const smartPanel = smartMenu?.querySelector('.mobile-smartsolution-menu__panel');
+    const smartSummary = smartMenu?.querySelector('summary');
+    let smartPanelHome = smartPanel?.parentElement || null;
+    const closeSmartPanel = () => {
+      if (!smartPanel) return;
+      smartPanel.hidden = true;
+      smartMenu?.removeAttribute('open');
+      smartPanel.classList.remove('is-ios-portal');
+      if (smartPanelHome && smartPanel.parentElement !== smartPanelHome) smartPanelHome.appendChild(smartPanel);
+    };
+    const openSmartPanel = (event) => {
+      if (!smartPanel || !smartSummary) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!smartPanelHome) smartPanelHome = smartMenu;
+      const rect = smartSummary.getBoundingClientRect();
+      if (smartPanel.parentElement !== document.body) document.body.appendChild(smartPanel);
+      smartPanel.classList.add('is-ios-portal');
+      smartPanel.hidden = false;
+      smartMenu.open = true;
+      smartPanel.style.top = `${Math.round(rect.bottom + 6)}px`;
+      smartPanel.style.left = '12px';
+      smartPanel.style.right = '12px';
+    };
+    smartSummary?.addEventListener('click', openSmartPanel, { passive: false });
+    smartPanel?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSmartPanel));
+    document.addEventListener('click', (event) => {
+      if (smartPanel?.classList.contains('is-ios-portal') && !smartPanel.contains(event.target) && event.target !== smartSummary) closeSmartPanel();
+    });
     let idleTimer = null;
     const showArrows = () => {
       shell?.classList.remove('is-idle');
@@ -1454,7 +1484,7 @@ class SierraHeaderNebula {
     list.addEventListener('scroll', () => { showArrows(); sync(); hideArrowsAfterPause(); }, { passive: true });
     shell?.addEventListener('mouseenter', showArrows);
     window.addEventListener('scroll', () => {
-      if (smartMenu) smartMenu.open = false;
+      closeSmartPanel();
     }, { passive: true });
     window.addEventListener('resize', sync);
     requestAnimationFrame(sync);

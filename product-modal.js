@@ -1,6 +1,6 @@
 // ============= PRODUCT MODAL COMPONENT =============
-import { db } from './firebase-init.js';
-import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260901-1';
+import { db, auth } from './firebase-init.js';
+import { findPublicProductById, loadPublicProducts } from './catalog-products.js?v=20260906-1';
 import { getLikeManager } from './like.js';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import { buildProductPageUrl, buildProductShareUrl } from './product-links.js?v=20260901-1';
@@ -1254,6 +1254,8 @@ class ProductModal {
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${storeMeta.storeName}</span>
         </a>
 
+        ${this.renderBoostPanel()}
+
         ${(product.isDigitalProduct || product.deliveryDelay) ? `
           <div style="display:flex;flex-wrap:wrap;gap:.5rem;">
             ${product.isDigitalProduct ? `<span style="display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;padding:.45rem .75rem;font-size:.82rem;font-weight:700;"><i class="fas fa-bolt"></i> Article digital - livraison instantanee</span>` : ''}
@@ -1422,6 +1424,30 @@ class ProductModal {
             ${product.longDescription || 'Aucune description disponible.'}
           </div>
         </div>
+      </div>
+    `;
+  }
+
+  renderBoostPanel() {
+    const product = this.product || {};
+    const ownerId = String(product.vendorId || product.vendorUid || product.ownerUid || product.sellerUid || product.uid || '').trim();
+    const sourceCollection = String(product.sourceCollection || (ownerId ? 'vendorProducts' : 'products')).trim();
+    if (!ownerId || sourceCollection !== 'vendorProducts' || auth?.currentUser?.uid !== ownerId) return '';
+    return `
+      <div class="product-boost-panel" style="padding:1rem;border:1px solid rgba(245,158,11,.35);border-radius:.85rem;background:linear-gradient(135deg,#fffaf0,#fff);">
+        <div style="display:flex;align-items:center;gap:.55rem;color:#9a5b00;font-weight:800;"><i class="fas fa-rocket" aria-hidden="true"></i><span>Booster ce produit</span></div>
+        <p style="margin:.35rem 0 .75rem;color:#625b50;font-size:.86rem;">Choisissez une durée. Après confirmation MonCash, le produit apparaîtra dans la section SPONSORED.</p>
+        <div style="display:flex;gap:.55rem;align-items:center;flex-wrap:wrap;">
+          <label for="product-boost-duration-${this.uniqueId}" style="font-size:.84rem;font-weight:700;color:#403a33;">Durée</label>
+          <select id="product-boost-duration-${this.uniqueId}" class="product-boost-duration" style="flex:1;min-width:130px;padding:.55rem .65rem;border:1px solid #e7c98b;border-radius:.55rem;background:#fff;">
+            <option value="3">3 jours · 250 G</option>
+            <option value="7" selected>7 jours · 500 G</option>
+            <option value="14">14 jours · 900 G</option>
+            <option value="30">30 jours · 1 500 G</option>
+          </select>
+          <button type="button" class="product-boost-btn" style="padding:.58rem .8rem;border:0;border-radius:.55rem;background:#f59e0b;color:#1f2937;font-weight:800;cursor:pointer;"><i class="fas fa-credit-card" aria-hidden="true"></i> Payer et booster</button>
+        </div>
+        <div class="product-boost-feedback" role="status" aria-live="polite" style="margin-top:.55rem;font-size:.8rem;color:#625b50;"></div>
       </div>
     `;
   }
@@ -1685,6 +1711,11 @@ class ProductModal {
   
   attachEvents() {
     const mainScrollArea = this.modalElement.querySelector('.product-modal-main-scroll');
+
+    const boostButton = this.modalElement.querySelector('.product-boost-btn');
+    if (boostButton) {
+      boostButton.addEventListener('click', () => this.startProductBoost(boostButton));
+    }
 
     // Fermeture du modal
     const closeButtons = this.modalElement.querySelectorAll('.close-modal-btn');
@@ -1954,6 +1985,38 @@ class ProductModal {
     // Touche Echap pour fermer
     document.addEventListener('keydown', this.handleKeyDown);
     this.normalizeSelectedQuantities();
+  }
+
+  async startProductBoost(button) {
+    const feedback = this.modalElement?.querySelector('.product-boost-feedback');
+    const durationDays = Number(this.modalElement?.querySelector('.product-boost-duration')?.value || 0);
+    const user = auth?.currentUser;
+    if (!user) {
+      if (feedback) feedback.textContent = 'Connectez-vous avec le compte vendeur pour booster ce produit.';
+      return;
+    }
+    if (!durationDays) return;
+    button.disabled = true;
+    if (feedback) feedback.textContent = 'Préparation du paiement sécurisé…';
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/startProductBoostPayment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          productId: String(this.product?.id || ''),
+          sourceCollection: String(this.product?.sourceCollection || 'vendorProducts'),
+          durationDays
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.checkoutUrl) throw new Error(data.message || 'Impossible de démarrer le paiement.');
+      if (feedback) feedback.textContent = 'Redirection vers MonCash…';
+      window.location.assign(data.checkoutUrl);
+    } catch (error) {
+      if (feedback) feedback.textContent = error?.message || 'Paiement indisponible pour le moment.';
+      button.disabled = false;
+    }
   }
 
   updateShareFeedback(message, isError = false) {

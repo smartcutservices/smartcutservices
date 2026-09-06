@@ -45,6 +45,12 @@ function getProductSortTime(product = {}) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isActiveSponsoredProduct(product = {}) {
+  if (product.sponsored !== true && !product.sponsoredUntil) return false;
+  const until = new Date(product.sponsoredUntil || 0).getTime();
+  return Number.isFinite(until) && until > Date.now();
+}
+
 export function applyVendorPublicVisibility(products = []) {
   const baseVisible = products
     .filter((product) => product && typeof product === 'object')
@@ -64,6 +70,7 @@ export function applyVendorPublicVisibility(products = []) {
     const proActive = items.some(isVendorProductPro);
     const sorted = [...items].sort((a, b) => getProductSortTime(b) - getProductSortTime(a));
     const allowed = proActive ? sorted : sorted.slice(0, BASIC_VENDOR_PUBLIC_PRODUCT_LIMIT);
+    sorted.filter(isActiveSponsoredProduct).forEach((item) => allowed.push(item));
     allowed.forEach((item) => allowedVendorProductIds.add(item.id));
   });
 

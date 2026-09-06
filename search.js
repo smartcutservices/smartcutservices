@@ -1,6 +1,6 @@
 // ============= SEARCH COMPONENT - AVEC NOUVELLE STRUCTURE THÈME =============
 import { db } from './firebase-init.js';
-import { isPublicProductVisible, loadPublicProducts } from './catalog-products.js?v=20260901-1';
+import { isPublicProductVisible, loadPublicProducts } from './catalog-products.js?v=20260906-1';
 import { getFallbackProductImage, getResolvedProductImages, resolveImagePath } from './image-fallbacks.js';
 import {
   collection, query, where, getDocs, orderBy, limit

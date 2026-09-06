@@ -1,4 +1,4 @@
-import ProductModal from './product-modal.js?v=20260901-1';
+import ProductModal from './product-modal.js?v=20260906-2';
 import { applySeoMeta } from './seo-meta.js?v=20260901-1';
 
 class ProductPage extends ProductModal {

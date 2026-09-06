@@ -6,12 +6,16 @@ const {
   resolveConsultationSelection, RENDEZVOUS_DURATION_MINUTES, resolveRendezvousSpecialty, publicRendezvousCatalog
 } = require('./teleconsultation-config');
 
-// ---------- TELECONSULTATION (unchanged — Essentielle/Avancée per specialty) ----------
+// ---------- TELECONSULTATION (Essentielle/Avancée per specialty) ----------
 
 test('resolveConsultationSelection still resolves a known specialty/plan pair', () => {
   const result = resolveConsultationSelection('cardiology', 'essential');
   assert.equal(result.price, 3000);
-  assert.equal(result.plan.durationMinutes, 10);
+  assert.equal(result.plan.durationMinutes, 15);
+  assert.equal(result.plan.maxVoiceMessages, 3);
+  assert.equal(result.plan.maxVoiceSeconds, 60);
+  assert.equal(result.plan.videoMinutes, 5);
+  assert.equal(result.plan.recordingEnabled, false);
 });
 
 // ---------- RENDEZ-VOUS (flat price per specialty, always 10 minutes) ----------

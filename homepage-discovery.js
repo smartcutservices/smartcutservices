@@ -1,5 +1,5 @@
 import { auth, authReadyPromise, db } from './firebase-init.js';
-import { loadPublicProducts } from './catalog-products.js?v=20260901-1';
+import { loadPublicProducts } from './catalog-products.js?v=20260906-1';
 import { getResolvedProductImages, getFallbackProductImage } from './image-fallbacks.js';
 import { buildProductPageUrl } from './product-links.js';
 import { getProductPricing, getProductStoreMeta } from './product-display-utils.js';
@@ -64,6 +64,12 @@ function getProductImage(product, basePath) {
 
 function isSmartCutProduct(product = {}) {
   return !getProductStoreMeta(product).isVendorStore;
+}
+
+function isActiveSponsoredProduct(product = {}) {
+  if (product.sponsored !== true && !product.sponsoredUntil) return false;
+  const until = new Date(product.sponsoredUntil || 0).getTime();
+  return Number.isFinite(until) && until > Date.now();
 }
 
 function isProVendorProduct(product = {}) {
@@ -291,7 +297,7 @@ export default class HomepageDiscovery {
       <section class="home-discovery" aria-label="Sections produits">
         <div class="home-discovery__section" data-section="sponsored">
           <div class="home-discovery__heading home-section-heading">
-            <h2 class="home-section-title">Produits à la une</h2>
+            <h2 class="home-section-title">SPONSORED</h2>
           </div>
           <div class="home-discovery__rail" data-sponsored-list>${this.renderSkeletonCards(4)}</div>
         </div>
@@ -356,9 +362,15 @@ export default class HomepageDiscovery {
     const smartCutFallback = products.filter((product) => isSmartCutProduct(product) && !isProductInSelection(product, selectionSet));
     const smartCutAll = products.filter((product) => isSmartCutProduct(product));
     const selected = [];
+    const sponsoredProducts = products
+      .filter(isActiveSponsoredProduct)
+      .sort((a, b) => new Date(b.sponsoredAt || 0).getTime() - new Date(a.sponsoredAt || 0).getTime());
+    if (sponsoredProducts.length) selected.push(...sponsoredProducts.slice(0, this.options.maxProducts));
 
-    if (proVendorProducts.length) {
-      selected.push(...shuffle(proVendorProducts).slice(0, this.options.maxProducts));
+    if (selected.length < this.options.maxProducts && proVendorProducts.length) {
+      selected.push(...shuffle(proVendorProducts)
+        .filter((product) => !selected.some((entry) => getProductIdentity(entry).key === getProductIdentity(product).key))
+        .slice(0, this.options.maxProducts - selected.length));
     }
 
     if (selected.length < this.options.maxProducts) {
@@ -370,16 +382,17 @@ export default class HomepageDiscovery {
         const identity = getProductIdentity(product);
         return !used.has(identity.key || identity.id);
       });
-      selected.push(...shuffle(filler).slice(0, this.options.maxProducts - selected.length));
+      selected.push(...shuffle(filler).filter((product) => !selected.some((entry) => getProductIdentity(entry).key === getProductIdentity(product).key)).slice(0, this.options.maxProducts - selected.length));
     }
     if (selected.length < this.options.maxProducts) {
       const used = new Set(selected.map((product) => getProductIdentity(product).key));
       selected.push(...shuffle(products)
         .filter((product) => !used.has(getProductIdentity(product).key))
+        .filter((product) => !selected.some((entry) => getProductIdentity(entry).key === getProductIdentity(product).key))
         .slice(0, this.options.maxProducts - selected.length));
     }
     this.root.querySelector('[data-sponsored-list]').innerHTML = selected.length
-      ? selected.map((product) => this.renderProductCard(product, { badge: 'À la une' })).join('')
+      ? selected.map((product) => this.renderProductCard(product, { badge: isActiveSponsoredProduct(product) ? 'SPONSORED' : 'À la une' })).join('')
       : this.renderEmpty('Aucun produit sponsorisé disponible.');
   }
 

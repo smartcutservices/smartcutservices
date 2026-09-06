@@ -55,6 +55,13 @@ const JWETPRO_CONFIRM_PAYMENT_URL = process.env.JWETPRO_CONFIRM_PAYMENT_URL ||
 const SITE_COMMENTS_COLLECTION = 'siteComments';
 const SITE_COMMENT_RATE_LIMITS_COLLECTION = 'siteCommentRateLimits';
 const SITE_COMMENT_MIN_INTERVAL_MS = 15000;
+const PRODUCT_BOOST_COLLECTION = 'productBoosts';
+const PRODUCT_BOOST_DURATIONS = Object.freeze({
+  3: { amount: 250, label: '3 jours' },
+  7: { amount: 500, label: '7 jours' },
+  14: { amount: 900, label: '14 jours' },
+  30: { amount: 1500, label: '30 jours' }
+});
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
@@ -4188,6 +4195,56 @@ function derivePaymentStatus(details) {
   return 'failed';
 }
 
+async function syncProductBoostPayment({ session, details, source = '' }) {
+  const paymentStatus = derivePaymentStatus(details);
+  const sessionData = session?.data || {};
+  const boostId = String(sessionData.boostId || '').trim();
+  if (!session || !boostId) return { sessionId: session?.id || '', paymentStatus, updated: false, paymentType: 'product_boost' };
+
+  const boostRef = db.collection(PRODUCT_BOOST_COLLECTION).doc(boostId);
+  const now = new Date().toISOString();
+  const patch = {
+    status: paymentStatus,
+    providerOrderId: details?.orderId || sessionData.orderId || '',
+    providerTransactionId: details?.transactionId || null,
+    providerMessage: details?.message || '',
+    providerResponse: details?.providerResponse || null,
+    updatedAt: now
+  };
+  if (paymentStatus === 'paid') {
+    const durationDays = Math.max(1, Number(sessionData.durationDays || 0));
+    const startsAt = now;
+    const endsAt = new Date(Date.now() + durationDays * 86400000).toISOString();
+    const sourceCollection = String(sessionData.sourceCollection || 'vendorProducts').trim();
+    const productId = String(sessionData.productId || '').trim();
+    Object.assign(patch, { status: 'active', paidAt: now, startsAt, endsAt, durationDays });
+    const productRef = db.collection(sourceCollection).doc(productId);
+    await db.runTransaction(async (transaction) => {
+      const freshBoost = await transaction.get(boostRef);
+      const freshData = freshBoost.data() || {};
+      if (String(freshData.status || '').toLowerCase() === 'active' && freshData.endsAt) {
+        transaction.set(session.ref, { ...patch, status: 'paid', paidAt: freshData.paidAt || now }, { merge: true });
+        return;
+      }
+      transaction.set(boostRef, patch, { merge: true });
+      transaction.set(productRef, {
+        sponsored: true,
+        sponsoredBoostId: boostId,
+        sponsoredAt: startsAt,
+        sponsoredUntil: endsAt,
+        updatedAt: now
+      }, { merge: true });
+      transaction.set(session.ref, { ...patch, status: 'paid', paidAt: now }, { merge: true });
+    });
+  } else {
+    await Promise.all([
+      boostRef.set(patch, { merge: true }),
+      session.ref.set(patch, { merge: true })
+    ]);
+  }
+  return { sessionId: session.id, orderId: details?.orderId || sessionData.orderId || '', paymentStatus, paymentType: 'product_boost', boostId, updated: true };
+}
+
 async function syncMoncashPayment({ session, details, source = '' }) {
   const now = new Date().toISOString();
   const paymentStatus = derivePaymentStatus(details);
@@ -4197,6 +4254,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   }
   if (String(sessionData.paymentType || '').trim() === 'jwetpro_ticket') {
     return syncJwetproTicketPayment({ session, details, source });
+  }
+  if (String(sessionData.paymentType || '').trim() === 'product_boost') {
+    return syncProductBoostPayment({ session, details, source });
   }
   const clientId = sessionData.clientId || '';
   const orderId = sessionData.orderId || details.orderId || '';
@@ -5612,6 +5672,59 @@ exports.startVendorServiceFeePayment = onRequest(
       logger.error('startVendorServiceFeePayment failed', error);
       const publicError = getSafeMoncashPublicError(error);
       sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
+    }
+  }
+);
+
+exports.startProductBoostPayment = onRequest(
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user?.uid) return sendJson(res, 401, { ok: false, error: 'auth-required' });
+      const body = parseBody(req);
+      const productId = sanitizeText(body.productId, 160);
+      const sourceCollection = ['products', 'vendorProducts'].includes(String(body.sourceCollection || '').trim())
+        ? String(body.sourceCollection).trim() : 'vendorProducts';
+      const durationDays = Number(body.durationDays);
+      const offer = PRODUCT_BOOST_DURATIONS[durationDays];
+      if (!productId || !offer) return sendJson(res, 400, { ok: false, error: 'invalid-boost-duration', message: 'Choisissez une durée de boost valide.' });
+      const productRef = db.collection(sourceCollection).doc(productId);
+      const productSnap = await productRef.get();
+      if (!productSnap.exists) return sendJson(res, 404, { ok: false, error: 'product-not-found' });
+      const product = productSnap.data() || {};
+      const ownerId = String(product.vendorId || product.vendorUid || product.ownerUid || product.sellerUid || product.uid || '').trim();
+      if (sourceCollection !== 'vendorProducts' || ownerId !== user.uid) {
+        return sendJson(res, 403, { ok: false, error: 'seller-only', message: 'Seul le vendeur propriétaire peut booster ce produit.' });
+      }
+      const clientId = safeSecretValue(MONCASH_CLIENT_ID);
+      const clientSecret = safeSecretValue(MONCASH_CLIENT_SECRET);
+      if (!clientId || !clientSecret) return sendJson(res, 500, { ok: false, error: 'missing-moncash-credentials' });
+
+      const now = new Date().toISOString();
+      const boostRef = db.collection(PRODUCT_BOOST_COLLECTION).doc();
+      const sessionId = createSessionId();
+      const orderId = `BOOST-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+      const sessionRef = db.collection('paymentSessions').doc(sessionId);
+      const base = {
+        productId, sourceCollection, vendorId: user.uid, productName: sanitizeText(product.name || product.title || 'Produit', 220),
+        durationDays, amount: offer.amount, currency: MONCASH_CURRENCY, status: 'initiated', paymentType: 'product_boost',
+        provider: 'moncash', orderId, boostId: boostRef.id, returnUrl: DEFAULT_RETURN_URL, alertUrl: DEFAULT_ALERT_URL,
+        createdAt: now, updatedAt: now
+      };
+      await Promise.all([boostRef.set(base), sessionRef.set({ identifier: sessionId, ...base })]);
+      const redirect = await createMoncashRedirect(orderId, offer.amount);
+      await Promise.all([
+        boostRef.set({ status: 'redirect_ready', checkoutUrl: redirect.checkoutUrl, providerMode: redirect.providerMode || 'api', updatedAt: new Date().toISOString() }, { merge: true }),
+        sessionRef.set({ status: 'redirect_ready', checkoutUrl: redirect.checkoutUrl, paymentToken: redirect.paymentToken, providerMode: redirect.providerMode || 'api', updatedAt: new Date().toISOString() }, { merge: true })
+      ]);
+      return sendJson(res, 200, { ok: true, boostId: boostRef.id, sessionId, orderId, durationDays, amount: offer.amount, checkoutUrl: redirect.checkoutUrl, returnUrl: DEFAULT_RETURN_URL });
+    } catch (error) {
+      logger.error('startProductBoostPayment failed', error);
+      const publicError = getSafeMoncashPublicError(error);
+      return sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
     }
   }
 );
