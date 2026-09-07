@@ -1,6 +1,7 @@
 'use strict';
 
 const { onRequest } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { logger } = require('firebase-functions');
 const crypto = require('node:crypto');
 const { formatDocumentNumber } = require('../invoicing/domain');
@@ -99,17 +100,11 @@ function buildMarketplace(internals) {
     return formatDocumentNumber(prefix, year, sequence);
   }
 
-  async function commissionRule(service) {
-    const [global, category, provider] = await Promise.all([
-      db.collection('marketplaceSettings').doc('commission').get(),
-      service.categoryId ? db.collection('marketplaceCommissionRules').doc(`category_${service.categoryId}`).get() : null,
-      db.collection('marketplaceCommissionRules').doc(`provider_${service.ownerUid}`).get()
-    ]);
-    const active = (snap) => snap?.exists && (!snap.data().effectiveAt || new Date(snap.data().effectiveAt).valueOf() <= Date.now());
-    if (active(provider)) return provider.data();
-    if (active(category)) return category.data();
-    if (active(global)) return global.data();
-    throw new ApiError(503, 'commission-unconfigured', 'La commission SmartCut doit être configurée avant de créer une proposition.');
+  async function commissionRule() {
+    // Le Freelancer paie un abonnement : Smart Cut ne prélève aucune
+    // commission sur le prix des services. Les frais du prestataire de
+    // paiement sont gérés séparément par la facturation.
+    return { basisPoints: 0, minimumMinor: 0, maximumMinor: 0 };
   }
 
   const bootstrap = endpoint(async (req, res) => {
@@ -290,7 +285,7 @@ function buildMarketplace(internals) {
     const service = await db.collection('billingServices').doc(request.data().serviceId).get();
     if (!service.exists || !['FIXED', 'STARTING_AT'].includes(service.data().pricingType) || !Number.isSafeInteger(service.data().priceMinor) || service.data().priceMinor <= 0) throw new ApiError(409, 'fixed-price-required', 'Ce service nécessite une proposition personnalisée.');
     const provider = await db.collection('providerProfiles').doc(service.data().ownerUid).get(); const priceMinor = service.data().priceMinor;
-    const commission = calculateCommission(priceMinor, await commissionRule(service.data())); const proposalRef = db.collection('serviceProposals').doc();
+    const commission = calculateCommission(priceMinor, await commissionRule()); const proposalRef = db.collection('serviceProposals').doc();
     const proformaRef = db.collection('billingProformas').doc(); const publicToken = token(); const today = new Date(); const expiry = new Date(Date.now() + 7 * 86400000).toISOString().slice(0,10);
     await db.runTransaction(async (tx) => {
       const number = await nextNumber(tx, service.data().ownerUid, 'proforma', 'PF');
@@ -317,7 +312,7 @@ function buildMarketplace(internals) {
     const request = await db.collection('serviceRequests').doc(cleanText(req.body?.requestId, 120)).get(); if (!request.exists || request.data().providerUid !== current.uid) throw new ApiError(404, 'not-found', 'Demande introuvable.');
     if (!['ACCEPTED', 'QUOTED'].includes(request.data().status)) throw new ApiError(409, 'invalid-status', 'Acceptez la demande avant de proposer.');
     const service = await db.collection('billingServices').doc(request.data().serviceId).get(); const priceMinor = asMinor(req.body?.priceMinor); const depositMinor = req.body?.depositMinor ? asMinor(req.body.depositMinor) : priceMinor;
-    if (depositMinor !== priceMinor) throw new ApiError(400, 'installments-unavailable', 'Les acomptes ne sont pas encore activés. Utilisez le paiement intégral.'); const commission = calculateCommission(priceMinor, await commissionRule(service.data()));
+    if (depositMinor !== priceMinor) throw new ApiError(400, 'installments-unavailable', 'Les acomptes ne sont pas encore activés. Utilisez le paiement intégral.'); const commission = calculateCommission(priceMinor, await commissionRule());
     const ref = db.collection('serviceProposals').doc(); const proposal = { requestId: request.id, serviceId: service.id, providerUid: current.uid, buyerUid: request.data().buyerUid,
       summary: cleanText(req.body?.summary || request.data().objective, 1000), deliverables: toList(req.body?.deliverables, 20, 300), deliveryDays: Number(req.body?.deliveryDays || service.data().deliveryDays),
       revisionsIncluded: Number(req.body?.revisionsIncluded ?? service.data().revisionsIncluded ?? 0), priceMinor, depositMinor, balanceMinor: priceMinor - depositMinor, currency: 'HTG',
@@ -364,8 +359,10 @@ function buildMarketplace(internals) {
     if (!['ACCEPTED','IN_PROGRESS','REVISION_REQUESTED'].includes(order.data().status)) throw new ApiError(409, 'invalid-status', 'Commande non livrable.');
     const files = safeFiles(req.body?.files); const links = toList(req.body?.links, 10, 700); if (!files.length && !links.length) throw new ApiError(400, 'delivery-required', 'Ajoutez un fichier ou un lien.');
     const ref = db.collection('serviceDeliveries').doc(); const version = Number(order.data().deliveryVersion || 0) + 1;
+    const deliveredAt = new Date();
+    const autoApproveAt = new Date(deliveredAt.getTime() + 72 * 60 * 60 * 1000);
     await ref.set({ orderId: order.id, providerUid: current.uid, buyerUid: order.data().buyerUid, message: cleanText(req.body?.message, 2000), files, links, version, status: 'DELIVERED', createdAt: timestamp() });
-    await order.ref.set({ status: 'DELIVERED', deliveryVersion: version, latestDeliveryId: ref.id, deliveredAt: timestamp(), updatedAt: timestamp() }, { merge: true }); await notify(order.data().buyerUid, 'ORDER_DELIVERED', 'Livraison disponible', `Version ${version}`, order.id); res.json({ ok: true, id: ref.id });
+    await order.ref.set({ status: 'DELIVERED', deliveryVersion: version, latestDeliveryId: ref.id, deliveredAt: deliveredAt.toISOString(), autoApproveAt: autoApproveAt.toISOString(), reminder24At: new Date(autoApproveAt.getTime() - 24 * 60 * 60 * 1000).toISOString(), reminder12At: new Date(autoApproveAt.getTime() - 12 * 60 * 60 * 1000).toISOString(), escrowStatus: 'HELD', updatedAt: timestamp() }, { merge: true }); await notify(order.data().buyerUid, 'ORDER_DELIVERED', 'Livraison disponible', `Version ${version}. Vous avez 72 heures pour valider, demander une révision ou ouvrir un litige.`, order.id); res.json({ ok: true, id: ref.id, autoApproveAt: autoApproveAt.toISOString() });
   });
 
   const requestRevision = endpoint(async (req, res) => {
@@ -377,10 +374,38 @@ function buildMarketplace(internals) {
     await order.ref.set({ status: 'REVISION_REQUESTED', revisionsUsed: used + 1, updatedAt: timestamp() }, { merge: true }); res.json({ ok: true, id: ref.id });
   });
 
+  async function releaseEscrow(orderRef, source = 'CLIENT_APPROVAL') {
+    const releaseLedgerRef = db.collection('billingLedgerEntries').doc(`${orderRef.id}_ESCROW_RELEASE`);
+    let released = false;
+    await db.runTransaction(async (tx) => {
+      const freshOrder = await tx.get(orderRef);
+      const order = freshOrder.data() || {};
+      if (String(order.status || '').toUpperCase() === 'REFUNDED') return;
+      const providerUid = String(order.providerUid || order.ownerUid || '').trim();
+      if (!providerUid) return;
+      const providerBalanceRef = db.collection('billingBalances').doc(providerUid);
+      const [balance, ledger] = await Promise.all([tx.get(providerBalanceRef), tx.get(releaseLedgerRef)]);
+      if (ledger.exists || order.escrowReleasedAt) return;
+      const amount = Math.max(0, Number(order.netMinor || order.paidMinor || order.grossMinor || 0));
+      const current = balance.exists ? balance.data() : { availableMinor: 0, reservedMinor: 0, paidOutMinor: 0, currency: 'HTG' };
+      tx.set(releaseLedgerRef, { ownerUid: providerUid, type: 'ESCROW_RELEASE', amountMinor: amount, currency: order.currency || 'HTG', direction: 'CREDIT', source, referenceId: orderRef.id, createdAt: timestamp() });
+      tx.set(providerBalanceRef, { availableMinor: Number(current.availableMinor || 0) + amount, reservedMinor: Math.max(0, Number(current.reservedMinor || 0) - amount), currency: order.currency || 'HTG', updatedAt: timestamp() }, { merge: true });
+      tx.set(orderRef, { escrowStatus: 'RELEASED', escrowReleasedAt: new Date().toISOString(), fundsReleasedMinor: amount, updatedAt: timestamp() }, { merge: true });
+      released = true;
+    });
+    return released;
+  }
+
   const transitionOrder = endpoint(async (req, res) => {
     if (req.method !== 'POST') throw new ApiError(405, 'method-not-allowed', 'POST requis.'); const current = await user(req); const order = await participant('serviceOrders', cleanText(req.body?.orderId, 120), current.uid); const next = cleanText(req.body?.status, 30).toUpperCase();
     const actor = order.data().providerUid === current.uid ? 'provider' : order.data().buyerUid === current.uid ? 'buyer' : 'none'; if (!canTransitionOrder(order.data().status, next, actor)) throw new ApiError(409, 'invalid-transition', 'Transition de commande refusée.');
-    await order.ref.set({ status: next, updatedAt: timestamp(), ...(next === 'COMPLETED' ? { completedAt: timestamp() } : {}) }, { merge: true }); res.json({ ok: true });
+    if (next === 'COMPLETED') {
+      await releaseEscrow(order.ref, 'CLIENT_APPROVAL');
+      await order.ref.set({ status: next, completedAt: timestamp(), updatedAt: timestamp() }, { merge: true });
+    } else {
+      await order.ref.set({ status: next, updatedAt: timestamp() }, { merge: true });
+    }
+    res.json({ ok: true });
   });
 
   const createReview = endpoint(async (req, res) => {
@@ -393,10 +418,64 @@ function buildMarketplace(internals) {
 
   const openDispute = endpoint(async (req, res) => {
     if (req.method !== 'POST') throw new ApiError(405, 'method-not-allowed', 'POST requis.'); const current = await user(req); const order = await participant('serviceOrders', cleanText(req.body?.orderId, 120), current.uid);
-    if (['COMPLETED','CANCELLED','REFUNDED'].includes(order.data().status)) throw new ApiError(409, 'invalid-status', 'Litige indisponible.'); const explanation = cleanText(req.body?.explanation, 3000); if (explanation.length < 20) throw new ApiError(400, 'details-required', 'Expliquez le litige.');
+    const deliveredAtMs = new Date(order.data().deliveredAt || 0).getTime();
+    const withinClaimWindow = deliveredAtMs > 0 && Date.now() <= deliveredAtMs + 7 * 86400000;
+    if (['CANCELLED','REFUNDED'].includes(order.data().status) || (order.data().status === 'COMPLETED' && !withinClaimWindow)) throw new ApiError(409, 'invalid-status', 'Litige indisponible.'); const explanation = cleanText(req.body?.explanation, 3000); if (explanation.length < 20) throw new ApiError(400, 'details-required', 'Expliquez le litige.');
     const ref = db.collection('serviceDisputes').doc(); await ref.set({ orderId: order.id, openedByUid: current.uid, buyerUid: order.data().buyerUid, providerUid: order.data().providerUid,
       reason: cleanText(req.body?.reason, 200), explanation, files: safeFiles(req.body?.files), amountMinor: order.data().grossMinor, status: 'OPEN', createdAt: timestamp(), updatedAt: timestamp() });
     await order.ref.set({ status: 'DISPUTED', disputeId: ref.id, updatedAt: timestamp() }, { merge: true }); res.json({ ok: true, id: ref.id });
+  });
+
+  const autoApproveDeliveries = onSchedule({ schedule: 'every 15 minutes', timeZone: 'America/Port-au-Prince', region }, async () => {
+    const now = Date.now();
+    const snapshot = await db.collection('serviceOrders').where('status', '==', 'DELIVERED').limit(200).get();
+    for (const candidate of snapshot.docs) {
+      const data = candidate.data() || {};
+      const autoApproveAt = new Date(data.autoApproveAt || 0).getTime();
+      const reminder24At = new Date(data.reminder24At || 0).getTime();
+      const reminder12At = new Date(data.reminder12At || 0).getTime();
+      const shouldReminder24 = reminder24At > 0 && now >= reminder24At && !data.reminder24SentAt;
+      const shouldReminder12 = reminder12At > 0 && now >= reminder12At && !data.reminder12SentAt;
+      const shouldRelease = autoApproveAt > 0 && now >= autoApproveAt;
+      if (!shouldReminder24 && !shouldReminder12 && !shouldRelease) continue;
+
+      let releaseNotification = false;
+      let reminderTypes = [];
+      await db.runTransaction(async (tx) => {
+        const [freshOrder, balance, releaseLedger] = await Promise.all([
+          tx.get(candidate.ref),
+          tx.get(db.collection('billingBalances').doc(data.providerUid)),
+          tx.get(db.collection('billingLedgerEntries').doc(`${candidate.id}_ESCROW_RELEASE`))
+        ]);
+        const fresh = freshOrder.data() || {};
+        if (fresh.status !== 'DELIVERED') return;
+        const patch = {};
+        if (shouldReminder24 && !fresh.reminder24SentAt) { patch.reminder24SentAt = new Date().toISOString(); reminderTypes.push('24h'); }
+        if (shouldReminder12 && !fresh.reminder12SentAt) { patch.reminder12SentAt = new Date().toISOString(); reminderTypes.push('12h'); }
+        if (shouldRelease && !releaseLedger.exists && !fresh.escrowReleasedAt) {
+          const amount = Math.max(0, Number(fresh.netMinor || fresh.paidMinor || fresh.grossMinor || 0));
+          const current = balance.exists ? balance.data() : { availableMinor: 0, reservedMinor: 0, paidOutMinor: 0, currency: 'HTG' };
+          const reserved = Math.max(0, Number(current.reservedMinor || 0));
+          patch.status = 'COMPLETED';
+          patch.escrowStatus = 'RELEASED';
+          patch.escrowReleasedAt = new Date().toISOString();
+          patch.completedAt = new Date().toISOString();
+          patch.autoApproved = true;
+          patch.updatedAt = timestamp();
+          tx.set(db.collection('billingLedgerEntries').doc(`${candidate.id}_ESCROW_RELEASE`), { ownerUid: fresh.providerUid, type: 'ESCROW_RELEASE', amountMinor: amount, currency: fresh.currency || 'HTG', direction: 'CREDIT', source: 'AUTO_APPROVAL_72H', referenceId: candidate.id, createdAt: timestamp() });
+          tx.set(db.collection('billingBalances').doc(fresh.providerUid), { availableMinor: Number(current.availableMinor || 0) + amount, reservedMinor: Math.max(0, reserved - amount), currency: fresh.currency || 'HTG', updatedAt: timestamp() }, { merge: true });
+          releaseNotification = true;
+        }
+        if (Object.keys(patch).length) tx.set(candidate.ref, patch, { merge: true });
+      });
+      for (const reminder of reminderTypes) {
+        await notify(data.buyerUid, 'DELIVERY_AUTO_APPROVAL_REMINDER', `Validation automatique dans ${reminder === '24h' ? '24 heures' : '12 heures'}`, 'Validez la livraison, demandez une révision ou ouvrez un litige avant la fin du délai.', candidate.id);
+      }
+      if (releaseNotification) {
+        await notify(data.buyerUid, 'ORDER_AUTO_APPROVED', 'Commande validée automatiquement', 'Le délai de 72 heures est arrivé à expiration sans révision ni litige. La commande est considérée comme acceptée.', candidate.id);
+        await notify(data.providerUid, 'FUNDS_RELEASED', 'Paiement libéré', 'La livraison a été validée automatiquement après 72 heures. Les fonds sont maintenant disponibles.', candidate.id);
+      }
+    }
   });
 
   const resolveDispute = endpoint(async (req, res) => {
@@ -404,7 +483,15 @@ function buildMarketplace(internals) {
     const staff = await requireStaff(req, ['platform_admin', 'finance_admin', 'support_agent']); const id = cleanText(req.body?.id, 120), action = cleanText(req.body?.action, 30).toUpperCase();
     const disputeRef = db.collection('serviceDisputes').doc(id); const disputeSnap = await disputeRef.get(); if (!disputeSnap.exists || !['OPEN','UNDER_REVIEW'].includes(disputeSnap.data().status)) throw new ApiError(409, 'invalid-status', 'Litige déjà traité ou introuvable.');
     const orderRef = db.collection('serviceOrders').doc(disputeSnap.data().orderId); const orderSnap = await orderRef.get(); if (!orderSnap.exists) throw new ApiError(404, 'order-not-found', 'Commande introuvable.');
-    if (action === 'RESOLVE_PROVIDER') { await db.runTransaction(async (tx) => { tx.set(disputeRef, { status:'RESOLVED_PROVIDER', resolution:cleanText(req.body?.resolution,2000), resolvedByUid:staff.uid, resolvedAt:timestamp(), updatedAt:timestamp() }, { merge:true }); tx.set(orderRef, { status:'COMPLETED', completedAt:timestamp(), updatedAt:timestamp() }, { merge:true }); tx.set(db.collection('billingAuditLogs').doc(), { actorUid:staff.uid, ownerUid:orderSnap.data().providerUid, action:'DISPUTE_RESOLVED_PROVIDER', targetId:id, createdAt:timestamp() }); }); return res.json({ ok:true }); }
+    if (action === 'RESOLVE_PROVIDER') {
+      await releaseEscrow(orderRef, 'DISPUTE_RESOLVED_PROVIDER');
+      await db.runTransaction(async (tx) => {
+        tx.set(disputeRef, { status:'RESOLVED_PROVIDER', resolution:cleanText(req.body?.resolution,2000), resolvedByUid:staff.uid, resolvedAt:timestamp(), updatedAt:timestamp() }, { merge:true });
+        tx.set(orderRef, { status:'COMPLETED', completedAt:timestamp(), updatedAt:timestamp() }, { merge:true });
+        tx.set(db.collection('billingAuditLogs').doc(), { actorUid:staff.uid, ownerUid:orderSnap.data().providerUid, action:'DISPUTE_RESOLVED_PROVIDER', targetId:id, createdAt:timestamp() });
+      });
+      return res.json({ ok:true });
+    }
     if (!['FULL_REFUND','PARTIAL_REFUND'].includes(action)) throw new ApiError(400, 'invalid-action', 'Action invalide.');
     if (!(await isStaff(staff.uid, ['platform_admin','finance_admin']))) throw new ApiError(403, 'finance-admin-required', 'Un rôle financier est requis pour valider un remboursement.');
     const refundReference = cleanText(req.body?.refundReference, 180); if (!refundReference) throw new ApiError(400, 'refund-reference-required', 'La référence du remboursement réel est requise.');
@@ -414,10 +501,14 @@ function buildMarketplace(internals) {
     const balanceRef = db.collection('billingBalances').doc(orderSnap.data().providerUid); const ledgerRef = db.collection('billingLedgerEntries').doc(`${orderSnap.id}_REFUND_${crypto.createHash('sha256').update(refundReference).digest('hex').slice(0,20)}`);
     await db.runTransaction(async (tx) => {
       const [freshDispute,balance,ledger] = await Promise.all([tx.get(disputeRef),tx.get(balanceRef),tx.get(ledgerRef)]); if (ledger.exists) return;
-      if (!['OPEN','UNDER_REVIEW'].includes(freshDispute.data().status)) throw new ApiError(409,'invalid-status','Litige déjà traité.'); const available = Number(balance.data()?.availableMinor || 0);
-      if (available < providerDebitMinor) throw new ApiError(409,'insufficient-provider-balance','Solde prestataire insuffisant; traitement financier manuel requis.');
+      if (!['OPEN','UNDER_REVIEW'].includes(freshDispute.data().status)) throw new ApiError(409,'invalid-status','Litige déjà traité.');
+      const available = Number(balance.data()?.availableMinor || 0);
+      const reserved = Number(balance.data()?.reservedMinor || 0);
+      if (available + reserved < providerDebitMinor) throw new ApiError(409,'insufficient-provider-balance','Solde prestataire insuffisant; traitement financier manuel requis.');
+      const availableDebit = Math.min(available, providerDebitMinor);
+      const reservedDebit = providerDebitMinor - availableDebit;
       tx.set(ledgerRef, { ownerUid:orderSnap.data().providerUid,type:'REFUND_ISSUED',amountMinor:providerDebitMinor,grossRefundMinor:refundMinor,currency:'HTG',direction:'DEBIT',source:'MANUAL_REFUND',referenceId:orderSnap.id,refundReference,createdAt:timestamp() });
-      tx.set(balanceRef, { availableMinor:available-providerDebitMinor,updatedAt:timestamp() }, { merge:true });
+      tx.set(balanceRef, { availableMinor:available-availableDebit, reservedMinor:Math.max(0, reserved-reservedDebit), updatedAt:timestamp() }, { merge:true });
       tx.set(disputeRef, { status:action,amountMinor:refundMinor,resolution:cleanText(req.body?.resolution,2000),refundReference,resolvedByUid:staff.uid,resolvedAt:timestamp(),updatedAt:timestamp() }, { merge:true });
       tx.set(orderRef, { status:action==='FULL_REFUND'?'REFUNDED':'COMPLETED',refundMinor,refundReference,updatedAt:timestamp(),...(action==='FULL_REFUND'?{refundedAt:timestamp()}:{completedAt:timestamp()}) }, { merge:true });
       tx.set(db.collection('billingAuditLogs').doc(), { actorUid:staff.uid,ownerUid:orderSnap.data().providerUid,action,targetId:id,refundMinor,refundReference,createdAt:timestamp() });
@@ -425,13 +516,13 @@ function buildMarketplace(internals) {
   });
 
   function publicProfile(data, id) { return { id, businessName: data.businessName || '', professionalTitle: data.professionalTitle || '', shortBio: data.shortBio || '', biography: data.biography || '', specialties: data.specialties || [], address: data.address || data.commune || '', logoUrl: data.logoUrl || '', availability: data.availability || '', responseTimeLabel: data.responseTimeLabel || '' }; }
-  function serviceSnapshot(data, id) { return { id, name: data.name, slug: data.slug, pricingType: data.pricingType, priceMinor: data.priceMinor || 0, currency: 'HTG', deliveryDays: data.deliveryDays, revisionsIncluded: data.revisionsIncluded, coverImage: data.coverImage || '' }; }
+  function serviceSnapshot(data, id) { return { id, name: data.name, slug: data.slug, pricingType: data.pricingType, priceMinor: data.priceMinor || 0, currency: 'HTG', deliveryDays: data.deliveryDays, revisionsIncluded: data.revisionsIncluded, offers: Array.isArray(data.offers) ? data.offers : [], coverImage: data.coverImage || '' }; }
   function safeFiles(files) { return (Array.isArray(files) ? files : []).filter((x) => x && typeof x === 'object').slice(0, 8).map((x) => ({ path: cleanText(x.path, 700), name: cleanText(x.name, 180), contentType: cleanText(x.contentType, 100), size: Number(x.size || 0) })).filter((x) => x.path && x.name && x.size > 0 && x.size <= 20 * 1024 * 1024 && /^(image\/(jpeg|png|webp)|application\/pdf|application\/zip)$/.test(x.contentType)); }
   function toList(value, maxItems, maxLength) { const values = Array.isArray(value) ? value : String(value || '').split(/[\n,]/); return [...new Set(values.map((x) => cleanText(x, maxLength)).filter(Boolean))].slice(0, maxItems); }
   async function notify(uid, type, title, message, referenceId) { await db.collection('marketplaceNotifications').add({ recipientUid: uid, type, title, message: cleanText(message, 500), referenceId, read: false, createdAt: timestamp() }); }
 
   return { bootstrap, clientBootstrap, saveProfile, saveService, serviceAction, moderationQueue, moderateProfile, moderateService, publicServices, publicService, publicProvider, createRequest,
-    requestAction, fixedRequestToProforma, createProposal, proposalToProforma, sendMessage, attachFiles, deliver, requestRevision, transitionOrder, createReview, openDispute, resolveDispute };
+    requestAction, fixedRequestToProforma, createProposal, proposalToProforma, sendMessage, attachFiles, deliver, requestRevision, transitionOrder, createReview, openDispute, resolveDispute, autoApproveDeliveries };
 }
 
 module.exports = buildMarketplace;

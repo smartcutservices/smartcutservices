@@ -61,12 +61,35 @@ function buildAutoParts(internals) {
     if (categoryId) query = query.where('categoryId', '==', categoryId);
     const snapshot = await query.get();
     let parts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    // Les pièces créées depuis le dashboard vendeur principal sont stockées
+    // directement dans vendorProducts. Elles doivent apparaître dans le
+    // catalogue Auto & Parts sans passer par un dashboard séparé.
+    const directSnapshot = await db.collection('vendorProducts').where('departmentId', '==', 'automobile-pieces-accessoires').limit(120).get();
+    const directParts = directSnapshot.docs.map((doc) => {
+      const data = doc.data() || {};
+      const compatibility = data.compatibility || {};
+      return {
+        id: `vendor-${doc.id}`,
+        title: data.name || 'Pièce automobile',
+        partNumber: data.partNumber || data.mpn || data.sku || doc.id,
+        oemNumbers: data.oemNumber ? [data.oemNumber] : (data.oemNumbers || []),
+        brand: data.manufacturer || data.brand || '',
+        categoryId: data.taxonomyCategoryId || data.categoryId || '',
+        categoryName: data.category || data.department || 'Automobile - Pièces & Accessoires',
+        description: data.longDescription || data.shortDescription || '',
+        universalCompatibility: compatibility.type === 'UNIVERSAL',
+        fitments: (compatibility.vehicles || []).map((vehicle) => ({ ...vehicle, type: vehicle.type || 'car' })),
+        directOffer: { id: doc.id, vendorId: data.vendorId, vendorName: data.vendorName || data.shopName || '', price: Number(data.price || 0), stock: Math.max(0, Number(data.stock || 0)), condition: String(data.condition || 'NEW').toLowerCase(), warranty: data.warranty || '', deliveryMode: data.deliveryMode || '', deliveryDelay: data.deliveryDelay || '', images: Array.isArray(data.images) ? data.images.slice(0, 8) : [], commissionRule: data.commissionRule || null, status: data.status || 'draft' }
+      };
+    }).filter((part) => part.directOffer.status === 'active' && part.directOffer.stock > 0 && part.directOffer.price > 0);
+    parts = [...parts, ...directParts];
     if (queryText) {
       parts = parts.filter((part) => [part.title, part.partNumber, part.brand, ...(part.oemNumbers || []), ...(part.searchTokens || [])]
         .some((value) => String(value || '').toLowerCase().includes(queryText)));
     }
+    if (categoryId) parts = parts.filter((part) => String(part.categoryId || '') === categoryId);
     const hasVehicle = Boolean(vehicle.make && vehicle.model && vehicle.year);
-    if (hasVehicle) parts = parts.filter((part) => (part.fitments || []).some((fitment) => fitmentMatchesVehicle(fitment, vehicle)));
+    if (hasVehicle) parts = parts.filter((part) => part.universalCompatibility || (part.fitments || []).some((fitment) => fitmentMatchesVehicle(fitment, vehicle)));
     parts = parts.slice(0, limit);
 
     const offerSnaps = parts.length
@@ -79,7 +102,7 @@ function buildAutoParts(internals) {
       return {
       ...part,
       compatibilityStatus: !hasVehicle ? 'unknown' : (requiresEngine ? 'verify' : 'compatible'),
-      offers: offerSnaps[index].docs.map((doc) => {
+      offers: part.directOffer ? [part.directOffer] : offerSnaps[index].docs.map((doc) => {
         const data = doc.data() || {};
         return {
           id: doc.id,
@@ -117,20 +140,26 @@ function buildAutoParts(internals) {
     const vehicles = db.collection('clients').doc(user.uid).collection('garageVehicles');
     if (action === 'listGarage') {
       const snapshot = await vehicles.orderBy('updatedAt', 'desc').limit(20).get();
-      return reply(res, 200, { ok: true, vehicles: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) });
+      return reply(res, 200, { ok: true, vehicles: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((a, b) => Number(Boolean(b.isPrimary)) - Number(Boolean(a.isPrimary))) });
     }
     if (action === 'saveGarageVehicle') {
-      const vehicle = normalizeVehicle(body.vehicle);
-      if (!vehicle.make || !vehicle.model || !vehicle.year) return reply(res, 400, { ok: false, error: 'invalid-vehicle' });
       const id = cleanText(body.id, 160);
       const ref = id ? vehicles.doc(id) : vehicles.doc();
+      const existing = id ? await ref.get() : null;
+      const vehicle = body.vehicle ? normalizeVehicle(body.vehicle) : (existing?.exists ? normalizeVehicle(existing.data()) : normalizeVehicle({}));
+      if (!vehicle.make || !vehicle.model || !vehicle.year) return reply(res, 400, { ok: false, error: 'invalid-vehicle' });
       if (id) {
-        const current = await ref.get();
-        if (!current.exists) return reply(res, 404, { ok: false, error: 'vehicle-not-found' });
+        if (!existing.exists) return reply(res, 404, { ok: false, error: 'vehicle-not-found' });
       }
-      const vehiclePatch = { ...vehicle, nickname: cleanText(body.nickname, 80), ownerUid: user.uid, updatedAt: timestamp() };
+      const vehiclePatch = { ...vehicle, nickname: cleanText(body.nickname, 80), ownerUid: user.uid, isPrimary: body.isPrimary === true, updatedAt: timestamp() };
       if (!id) vehiclePatch.createdAt = timestamp();
-      await ref.set(vehiclePatch, { merge: true });
+      await db.runTransaction(async transaction => {
+        if (vehiclePatch.isPrimary) {
+          const currentVehicles = await transaction.get(vehicles.limit(20));
+          currentVehicles.docs.filter(doc => doc.id !== ref.id && doc.data()?.isPrimary === true).forEach(doc => transaction.set(doc.ref, { isPrimary: false, updatedAt: timestamp() }, { merge: true }));
+        }
+        transaction.set(ref, vehiclePatch, { merge: true });
+      });
       return reply(res, 200, { ok: true, id: ref.id });
     }
     if (action === 'deleteGarageVehicle') {
@@ -654,6 +683,24 @@ function buildAutoParts(internals) {
     return reply(res, 200, { ok: true, id: ref.id });
   }
 
+  async function saveTaxonomyCategory(req, res) {
+    const user = await requireUser(req);
+    if (!(await isAdminUser(user.uid))) return reply(res, 403, { ok: false, error: 'admin-required' });
+    const body = bodyOf(req);
+    const id = cleanText(body.id, 120).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const label = cleanText(body.label, 160);
+    if (!id || !label) return reply(res, 400, { ok: false, error: 'category-fields-required' });
+    const ref = db.collection('autoPartCategories').doc(id);
+    const existing = await ref.get();
+    const categories = Array.isArray(body.subcategories) ? body.subcategories.slice(0, 20).map((category, index) => {
+      const subId = cleanText(category.id || category.label, 120).toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      return { id: subId, label: cleanText(category.label || category.id, 160), order: Number(category.order ?? index), dynamicFields: Array.isArray(category.dynamicFields) ? category.dynamicFields.slice(0, 40).map(field => ({ key: cleanText(field.key, 80), label: cleanText(field.label, 160), type: cleanText(field.type || 'text', 30), required: field.required === true, options: Array.isArray(field.options) ? field.options.slice(0, 50).map(option => cleanText(option, 100)).filter(Boolean) : [] })).filter(field => field.key && field.label) : [] };
+    }).filter(category => category.id && category.label) : [];
+    await ref.set({ id, name: label, label, order: Number(body.order || 0), isActive: body.isActive !== false, subcategories: categories, updatedAt: timestamp(), ...(existing.exists ? {} : { createdAt: timestamp() }) }, { merge: true });
+    await db.collection('autoPartsAuditLogs').add({ actorUid: user.uid, action: existing.exists ? 'taxonomy.category.updated' : 'taxonomy.category.created', categoryId: id, at: timestamp() });
+    return reply(res, 200, { ok: true, id });
+  }
+
   const autoPartsApi = onRequest({ region: REGION }, async (req, res) => {
     if (req.method === 'OPTIONS') { cors(res); return res.status(204).send(''); }
     const action = cleanText(req.query.action || bodyOf(req).action, 80);
@@ -684,6 +731,7 @@ function buildAutoParts(internals) {
       if (req.method === 'POST' && action === 'updateGarageBookingStatus') return await updateGarageBookingStatus(req,res);
       if (req.method === 'POST' && action === 'createGarageBookingCheckout') return await createGarageBookingCheckout(req,res);
       if (req.method === 'POST' && action === 'saveCanonicalPart') return await saveCanonicalPart(req, res);
+      if (req.method === 'POST' && action === 'saveTaxonomyCategory') return await saveTaxonomyCategory(req, res);
       return reply(res, 400, { ok: false, error: 'unsupported-action' });
     } catch (error) {
       logger.error('Auto Parts API failed', { action, message: error?.message || '' });

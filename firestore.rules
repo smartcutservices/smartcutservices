@@ -456,10 +456,85 @@ service cloud.firestore {
 
     // New department-based commission scale (replaces vendorCommissionRules as the
     // source of the applied rate). Public read so the vendor dashboard can show
-    // the rate for the chosen department; written only via Admin SDK / console
-    // (see functions/scripts/seed-commission-departments.js).
+    // the rate for the chosen department; only admins can edit it.
     match /commissionDepartments/{departmentId} {
       allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.data.id == departmentId
+        && request.resource.data.rate is number
+        && request.resource.data.rate >= 0
+        && request.resource.data.rate <= 100
+        && request.resource.data.label is string;
+    }
+
+    // Smart Cut Affiliate Program
+    match /affiliateApplications/{applicationId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /affiliateAccounts/{affiliateId} {
+      allow read: if isAdmin() || isOwner(affiliateId);
+      allow write: if isAdmin();
+    }
+
+    match /affiliateDepartmentRates/{departmentId} {
+      allow read: if true;
+      allow write: if isAdmin()
+        && request.resource.data.id == departmentId
+        && request.resource.data.label is string
+        && request.resource.data.affiliateCommissionRate is number
+        && request.resource.data.customerDiscountRate is number
+        && request.resource.data.affiliateCommissionRate >= 0
+        && request.resource.data.customerDiscountRate >= 0
+        && request.resource.data.affiliateCommissionRate + request.resource.data.customerDiscountRate <= 100;
+    }
+
+    match /affiliateLinks/{linkId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.affiliateId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.affiliateId == request.auth.uid
+        && exists(/databases/$(database)/documents/affiliateAccounts/$(request.auth.uid))
+        && get(/databases/$(database)/documents/affiliateAccounts/$(request.auth.uid)).data.status == 'ACTIVE';
+      allow update, delete: if isAdmin();
+    }
+
+    match /sellerAffiliateSettings/{vendorId} {
+      allow read: if isAdmin() || isOwner(vendorId);
+      allow write: if isAdmin() || isOwner(vendorId);
+    }
+
+    match /affiliateProducts/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /affiliateClicks/{clickId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /affiliateReferrals/{referralId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /affiliateCommissions/{commissionId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.affiliateId == request.auth.uid);
+      allow create: if false;
+      allow update: if isAdmin()
+        && request.resource.data.status in ['PENDING', 'AVAILABLE', 'PROCESSING', 'PAID'];
+      allow delete: if false;
+    }
+
+    match /affiliatePayouts/{payoutId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.affiliateId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    match /affiliateAuditLogs/{logId} {
+      allow read: if isAdmin();
       allow write: if false;
     }
 
@@ -853,6 +928,48 @@ service cloud.firestore {
 
     match /billingBalances/{uid} {
       allow read: if isOwner(uid) || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false;
+    }
+
+    // Smart Wallet utilisateur. Le frontend peut consulter son propre solde et
+    // son historique, mais toutes les écritures financières passent par les
+    // Cloud Functions (ledger, holds, remboursements et callbacks prestataire).
+    match /wallets/{uid} {
+      allow read: if isOwner(uid) || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]);
+      allow write: if false;
+    }
+    match /walletLedger/{entryId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]));
+      allow write: if false;
+    }
+    match /walletTransactions/{transactionId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]));
+      allow write: if false;
+    }
+    match /walletHolds/{holdId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]));
+      allow write: if false;
+    }
+    match /walletNotifications/{notificationId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin", "support_agent"]));
+      allow update: if signedIn() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow create, delete: if false;
+    }
+    match /walletLimits/{docId} {
+      allow read: if isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin"]);
+      allow write: if false;
+    }
+    match /walletProviderTransactions/{docId} { allow read, write: if false; }
+    match /walletAdminActions/{docId} {
+      allow read: if isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin"]);
+      allow write: if false;
+    }
+    match /walletReconciliationReports/{docId} {
+      allow read: if isAdmin() || isSstPlatformStaff(["platform_admin", "finance_admin"]);
+      allow write: if false;
+    }
+    match /accountClosureRequests/{uid} {
+      allow read: if isOwner(uid) || isAdmin() || isSstPlatformStaff(["platform_admin", "support_agent"]);
       allow write: if false;
     }
 

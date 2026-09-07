@@ -28,6 +28,9 @@ class ProfilePanel {
     this.likeManager = getLikeManager();
     this.isBootstrapping = false;
     this.activeView = 'account';
+    this.walletData = null;
+    this.walletLoading = false;
+    this.walletError = '';
     this.profileClient = null;
     this.isEditingPersonalInfo = false;
     this.additionalAddressForms = 0;
@@ -224,6 +227,94 @@ class ProfilePanel {
     } catch (error) {
       console.warn('Accès aux écosystèmes professionnels indisponible:', error);
     }
+  }
+
+  async loadWalletData() {
+    if (!this.authManager.isAuthenticated()) return;
+    const user = this.authManager.getCurrentUser();
+    if (!user?.uid) return;
+    this.walletLoading = true;
+    this.walletError = '';
+    if (this.modal && this.activeView === 'wallet') this.render();
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/walletGetWallet', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'Impossible de charger le Wallet.');
+      this.walletData = payload;
+    } catch (error) {
+      this.walletError = error?.message || 'Impossible de charger le Wallet.';
+    } finally {
+      this.walletLoading = false;
+      if (this.modal && this.activeView === 'wallet') this.render();
+    }
+  }
+
+  async startWalletTopUp(amount) {
+    const user = this.authManager.getCurrentUser();
+    if (!user?.uid) return;
+    this.walletLoading = true;
+    this.walletError = '';
+    this.render();
+    try {
+      const token = await user.getIdToken();
+      const idempotencyKey = `wallet-${user.uid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const response = await fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/walletStartWalletTopUp', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ provider: 'moncash', amountMinor: Math.round(amount * 100) })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'La recharge n’a pas pu être démarrée.');
+      if (payload.transaction?.checkoutUrl) window.location.href = payload.transaction.checkoutUrl;
+    } catch (error) {
+      this.walletError = error?.message || 'La recharge n’a pas pu être démarrée.';
+      this.walletLoading = false;
+      this.render();
+    }
+  }
+
+  openWalletTopUpDialog() {
+    if (!this.modal || this.modal.querySelector('.wallet-topup-dialog')) return;
+    const host = document.createElement('div');
+    host.className = 'wallet-topup-dialog';
+    host.innerHTML = `<div class="wallet-topup-backdrop" data-wallet-topup-close></div><section class="wallet-topup-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-topup-title"><button type="button" class="wallet-topup-close" data-wallet-topup-close aria-label="Fermer"><i class="fas fa-times"></i></button><span class="wallet-eyebrow">Recharge sécurisée</span><h2 id="wallet-topup-title">Ajouter de l’argent</h2><form data-wallet-topup-form><label for="wallet-topup-amount">Montant à créditer <span>(HTG)</span></label><div class="wallet-topup-input"><input id="wallet-topup-amount" name="amount" type="number" min="1000" max="75000" step="1" value="1000" required><span>HTG</span></div><small>Minimum 1 000 HTG · Maximum 75 000 HTG</small><button type="submit" class="wallet-topup-submit"><i class="fas fa-lock"></i> Continuer avec MonCash</button></form></section>`;
+    this.modal.appendChild(host);
+    const close = () => host.remove();
+    host.querySelectorAll('[data-wallet-topup-close]').forEach((node) => node.addEventListener('click', close));
+    host.querySelector('[data-wallet-topup-form]')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const amount = Number(new FormData(event.currentTarget).get('amount'));
+      if (!Number.isFinite(amount)) return;
+      close();
+      this.startWalletTopUp(amount);
+    });
+    host.querySelector('#wallet-topup-amount')?.focus();
+  }
+
+  renderWalletView() {
+    const wallet = this.walletData?.wallet || { availableMinor: 0, reservedMinor: 0, currency: 'HTG', status: 'ACTIVE' };
+    const limits = this.walletData?.limits || { minTopUpMinor: 100000, maxTopUpMinor: 7500000, walletCapMinor: 60000000 };
+    const ledger = Array.isArray(this.walletData?.ledger) ? [...this.walletData.ledger].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))) : [];
+    const notifications = Array.isArray(this.walletData?.notifications) ? this.walletData.notifications.slice(0, 3) : [];
+    const money = (minor) => `${(Number(minor || 0) / 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} HTG`;
+    const row = (entry) => {
+      const credit = entry.direction === 'CREDIT';
+      const labels = { CASH_IN: 'Recharge Wallet', REFUND: 'Remboursement', PURCHASE: 'Commande', SERVICE: 'Service', PROMO: 'Crédit promotionnel' };
+      return `<div class="wallet-ledger-row"><div class="wallet-ledger-icon ${credit ? 'is-credit' : 'is-debit'}"><i class="fas ${credit ? 'fa-arrow-down' : 'fa-arrow-up'}"></i></div><div class="wallet-ledger-copy"><strong>${this.escape(labels[entry.type] || entry.type || 'Mouvement')}</strong><small>${this.escape(entry.referenceId || 'Smart Cut Services')}</small></div><strong class="wallet-ledger-amount ${credit ? 'is-credit' : 'is-debit'}">${credit ? '+' : '-'}${money(entry.amountMinor)}</strong></div>`;
+    };
+    return `<section class="wallet-view" aria-labelledby="wallet-title">
+      <div class="wallet-hero"><div><span class="wallet-eyebrow"><i class="fas fa-shield-halved"></i> Smart Cut Services</span><h1 id="wallet-title">Mon Smart Wallet</h1><p>Payez vos commandes et services rapidement avec votre solde sécurisé.</p></div><div class="wallet-status ${wallet.status === 'ACTIVE' ? 'is-active' : 'is-blocked'}"><i class="fas ${wallet.status === 'ACTIVE' ? 'fa-check' : 'fa-lock'}"></i>${wallet.status === 'ACTIVE' ? 'Actif' : 'Suspendu'}</div></div>
+      <div class="wallet-balance-grid"><article class="wallet-balance-card"><span>Solde disponible</span><strong>${money(wallet.availableMinor)}</strong><small>Utilisable sur Smart Cut Services</small></article><article class="wallet-balance-card wallet-balance-card-light"><span>Montant réservé</span><strong>${money(wallet.reservedMinor)}</strong><small>En attente de confirmation</small></article></div>
+      <div class="wallet-actions"><button type="button" class="wallet-topup-btn" data-wallet-topup><i class="fas fa-plus"></i> Ajouter de l’argent</button><div class="wallet-provider-note"><i class="fas fa-lock"></i> Paiement sécurisé par MonCash${' / NatCash bientôt'}</div></div>
+      ${this.walletError ? `<div class="wallet-alert is-error"><i class="fas fa-circle-exclamation"></i>${this.escape(this.walletError)}</div>` : ''}
+      ${this.walletLoading ? '<div class="wallet-loading"><i class="fas fa-spinner fa-spin"></i> Chargement de votre Wallet…</div>' : ''}
+      <div class="wallet-notice"><i class="fas fa-info-circle"></i><span>Le Smart Wallet est un solde interne. Il peut servir à payer des produits et des services, mais ne peut pas être retiré en espèces.</span></div>
+      ${notifications.length ? `<section class="wallet-notifications"><div class="wallet-section-heading"><div><span class="wallet-eyebrow">À suivre</span><h2>Dernières notifications</h2></div></div>${notifications.map((item) => `<div class="wallet-notification-row"><i class="fas fa-bell"></i><div><strong>${this.escape(item.title || 'Notification Wallet')}</strong><small>${this.escape(item.message || '')}</small></div></div>`).join('')}</section>` : ''}
+      <section class="wallet-history"><div class="wallet-section-heading"><div><span class="wallet-eyebrow">Traçabilité</span><h2>Historique des mouvements</h2></div><span class="wallet-limit">Plafond : ${money(limits.walletCapMinor)}</span></div>${ledger.length ? ledger.map(row).join('') : '<div class="wallet-empty"><i class="fas fa-receipt"></i><strong>Aucun mouvement pour le moment</strong><span>Votre recharge ou votre premier remboursement apparaîtra ici.</span></div>'}</section>
+    </section>`;
   }
 
   async preloadPanelData() {
@@ -998,7 +1089,7 @@ class ProfilePanel {
       { icon: 'fa-graduation-cap', title: 'Tuteur Smart Akademi', description: 'Proposez vos cours et accompagnez les apprenants.', registered: tutor?.registered, href: './education-tuteur-pro.html', action: tutor?.registered ? 'Accéder' : 'Devenir tuteur' },
       { icon: 'fa-car', title: 'Smart AutoParts', description: 'Vendez vos pièces et développez votre activité automobile.', href: './auto-parts-vendor.html', action: 'Vendre des pièces' },
       { icon: 'fa-lightbulb', title: 'SmartSolutionTek', description: 'Accédez à votre espace pour créer et gérer vos solutions.', href: './smartsolutiontek/dashboard.html', action: 'Accéder à l’espace' },
-      { icon: 'fa-user-plus', title: 'Smart Cut Services', description: 'Rejoignez le programme et développez votre réseau.', href: './vendor-application.html?type=affiliate', action: 'Devenir affilié' }
+      { icon: 'fa-user-plus', title: 'Smart Cut Services', description: 'Recommandez des produits et suivez vos commissions.', href: './affiliate.html', action: 'Devenir affilié' }
     ];
     return `<section class="profile-professional-access" aria-label="Écosystèmes professionnels">
       <div class="profile-professional-access-grid">${cards.map((card) => `<a class="profile-professional-access-card" href="${card.href}"><span class="profile-professional-access-icon"><i class="fas ${card.icon}"></i></span><span class="profile-professional-access-copy"><strong>${card.title}</strong><small>${card.description}</small></span><span class="profile-professional-access-action">${card.action}<i class="fas fa-arrow-right"></i></span></a>`).join('')}</div>
@@ -1092,6 +1183,7 @@ class ProfilePanel {
     const isAuthResolving = this.isBootstrapping && !this.authManager.isAuthReady;
     const isPersonalView = isAuthenticated && this.activeView === 'personal';
     const isCollectionView = isAuthenticated && (this.activeView === 'likes' || this.activeView === 'orders');
+    const isWalletView = isAuthenticated && this.activeView === 'wallet';
     const isMounted = document.body.contains(this.modal);
 
     this.modal.innerHTML = `
@@ -1168,9 +1260,9 @@ class ProfilePanel {
                 color:#FFFFFF;
                 line-height:1.25;
                 word-break:break-word;
-              ">${isPersonalView ? 'Informations personnelles' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')} ${isAuthenticated && !isPersonalView ? '<span class="profile-verified-badge" aria-label="Compte vérifié"><i class="fas fa-check"></i></span>' : ''}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isWalletView ? 'Mon Smart Wallet' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')} ${isAuthenticated && !isPersonalView ? '<span class="profile-verified-badge" aria-label="Compte vérifié"><i class="fas fa-check"></i></span>' : ''}</h2>
               <p style="margin:0.4rem 0 0;color:rgba(255,255,255,0.65);font-size:0.82rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isWalletView ? 'Solde, recharges et remboursements Smart Cut' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1214,6 +1306,7 @@ class ProfilePanel {
               <button type="button" class="profile-sidebar-link${isPersonalView ? ' is-active' : ''}" data-profile-nav="personal"><i class="fas fa-id-card"></i><span>Informations personnelles</span></button>
               <button type="button" class="profile-sidebar-link${this.activeView === 'likes' ? ' is-active' : ''}" data-profile-nav="likes"><i class="fas fa-heart"></i><span>Favoris</span></button>
               <button type="button" class="profile-sidebar-link${this.activeView === 'orders' ? ' is-active' : ''}" data-profile-nav="orders"><i class="fas fa-receipt"></i><span>Commandes</span></button>
+              <button type="button" class="profile-sidebar-link${isWalletView ? ' is-active' : ''}" data-profile-nav="wallet"><i class="fas fa-wallet"></i><span>Mon Wallet</span></button>
               <div class="profile-sidebar-help"><i class="fas fa-headset"></i><strong>Besoin d’aide ?</strong><p>Notre équipe est là pour vous aider.</p><a href="https://wa.me/50934913988?text=Bonjour%20Smart%20Cut%20Services%2C%20j%27ai%20besoin%20d%27aide." target="_blank" rel="noopener noreferrer">Nous contacter</a></div>
             </aside>
           ` : ''}
@@ -1230,7 +1323,7 @@ class ProfilePanel {
               <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vérification</strong>
               Votre compte est en cours de restauration. Le profil apparaîtra automatiquement.
             </div>
-          ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isCollectionView ? (this.activeView === 'likes' ? this.cartManager.renderLikedSection(colors, fonts) : this.cartManager.renderOrdersSection(colors, fonts)) : isAuthenticated ? `
+          ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isWalletView ? this.renderWalletView() : isCollectionView ? (this.activeView === 'likes' ? this.cartManager.renderLikedSection(colors, fonts) : this.cartManager.renderOrdersSection(colors, fonts)) : isAuthenticated ? `
             ${this.isBootstrapping ? `
               <div style="
                 margin-bottom:1rem;
@@ -1352,8 +1445,17 @@ class ProfilePanel {
           this.render();
           return;
         }
+        if (target === 'wallet') {
+          this.activeView = 'wallet';
+          this.isEditingPersonalInfo = false;
+          this.render();
+          this.loadWalletData();
+          return;
+        }
       });
     });
+
+    this.modal.querySelector('[data-wallet-topup]')?.addEventListener('click', () => this.openWalletTopUpDialog());
 
     closeBtn?.addEventListener('click', (event) => {
       event.preventDefault();

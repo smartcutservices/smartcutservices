@@ -604,6 +604,8 @@ class FooterComponent {
     const services = [
       { title: 'Devenir prestataire', link: './health-candidature.html' },
       { title: 'Devenir vendeur', link: './vendor-application.html' },
+      { title: 'Devenir affilié', link: './affiliate.html' },
+      { title: 'Espace vendeur affiliation', link: './affiliate-seller.html' },
       { title: 'Devenir tuteur', link: './education-tuteur-pro.html' },
       { title: 'Devenir freelancer', link: './logiciel%20proformat/' },
       { title: 'Accéder à SmartSolutionTek', link: './smartsolutiontek/' },

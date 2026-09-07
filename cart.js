@@ -11,6 +11,8 @@ import {
   collection, query, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, setDoc, addDoc
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
+const DIGITAL_DOWNLOAD_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getDigitalDownload';
+
 class CartManager {
   constructor(options = {}) {
     this.options = {
@@ -886,6 +888,9 @@ class CartManager {
         deliveryMode: item?.deliveryMode || '',
         isDigitalProduct: Boolean(item?.isDigitalProduct),
         digitalDownloadLink: item?.digitalDownloadLink || '',
+        digitalDownloadStoragePath: item?.digitalDownloadStoragePath || '',
+        digitalDownloadFileName: item?.digitalDownloadFileName || '',
+        digitalDownloadUrl: item?.digitalDownloadUrl || '',
         deliveryDelay: item?.deliveryDelay || '',
         printingDelivery: item?.printingDelivery || null,
         printingFiles: Array.isArray(item?.printingFiles) ? item.printingFiles : [],
@@ -893,6 +898,7 @@ class CartManager {
         previewImages: Array.isArray(item?.previewImages) ? item.previewImages : [],
         personalizationConfig: item?.personalizationConfig || null,
         designId: item?.designId || ''
+        ,affiliateReferral: item?.affiliateReferral || null
       }));
       const computedAmount = normalizedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const customerFirstName = String(this.currentClient.firstName || '').trim();
@@ -1221,6 +1227,35 @@ class CartManager {
       this.showNotification('Erreur lors du téléchargement', 'error');
     }
   }
+
+  async requestDigitalDownload(orderId, productId, button) {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        this.showNotification('Connectez-vous pour télécharger votre fichier.', 'warning');
+        return;
+      }
+      if (button) {
+        button.disabled = true;
+        button.style.opacity = '0.65';
+      }
+      const token = await user.getIdToken();
+      const response = await fetch(`${DIGITAL_DOWNLOAD_FUNCTION_URL}?orderId=${encodeURIComponent(orderId)}&productId=${encodeURIComponent(productId)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.url) throw new Error(payload.message || 'Téléchargement indisponible.');
+      window.open(payload.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('[DIGITAL_DOWNLOAD] failed', error);
+      this.showNotification(error?.message || 'Impossible de préparer le téléchargement.', 'error');
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.style.opacity = '';
+      }
+    }
+  }
   
   getImagePath(filename) {
     return resolveMediaUrl(filename, this.options.imageBasePath);
@@ -1280,9 +1315,13 @@ class CartManager {
           : (Array.isArray(item?.deliveryZones) ? item.deliveryZones : [])),
       isDigitalProduct: Boolean(item?.isDigitalProduct),
       digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
+      digitalDownloadStoragePath: String(item?.digitalDownloadStoragePath || '').trim(),
+      digitalDownloadFileName: String(item?.digitalDownloadFileName || '').trim(),
+      digitalDownloadUrl: String(item?.digitalDownloadUrl || '').trim(),
       deliveryDelay: String(item?.deliveryDelay || '').trim(),
       autoBookingId: String(item?.autoBookingId || '').trim(),
       autoProgramType: String(item?.autoProgramType || '').trim()
+      ,affiliateReferral: item?.affiliateReferral || null
     };
 
     const editCartIndex = Number.isInteger(item.editCartIndex) ? item.editCartIndex : -1;
@@ -1462,9 +1501,13 @@ class CartManager {
       deliveryMode: item?.deliveryMode || '',
       isDigitalProduct: Boolean(item?.isDigitalProduct),
       digitalDownloadLink: item?.digitalDownloadLink || '',
+      digitalDownloadStoragePath: item?.digitalDownloadStoragePath || '',
+      digitalDownloadFileName: item?.digitalDownloadFileName || '',
+      digitalDownloadUrl: item?.digitalDownloadUrl || '',
       deliveryDelay: item?.deliveryDelay || '',
       autoBookingId: item?.autoBookingId || '',
       autoProgramType: item?.autoProgramType || '',
+      affiliateReferral: item?.affiliateReferral || null,
       printingDelivery: item?.printingDelivery || null,
       printingFiles: Array.isArray(item?.printingFiles) ? item.printingFiles : [],
       originalFiles: Array.isArray(item?.originalFiles) ? item.originalFiles : [],
@@ -2383,7 +2426,7 @@ class CartManager {
       ? order.timeLeft
       : this.calculateTimeLeft(order.expiresAt);
     const orderItems = this.getOrderItems(order);
-    const downloadableItems = orderItems.filter((item) => item.isDigitalProduct && item.digitalDownloadLink);
+    const downloadableItems = orderItems.filter((item) => item.isDigitalProduct && (item.digitalDownloadLink || item.digitalDownloadStoragePath || item.digitalDownloadUrl));
     
     return `
       <div style="
@@ -2451,11 +2494,16 @@ class CartManager {
               <i class="fas fa-bolt"></i>
               Articles digitaux disponibles
             </strong>
-            ${downloadableItems.map((item) => `
-              <a href="${this.escapeHtml(item.digitalDownloadLink)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#047857;text-decoration:none;background:#fff;border-radius:.65rem;padding:.55rem .7rem;">
+            ${downloadableItems.map((item) => item.digitalDownloadLink || item.digitalDownloadUrl ? `
+              <a href="${this.escapeHtml(item.digitalDownloadLink || item.digitalDownloadUrl)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#047857;text-decoration:none;background:#fff;border-radius:.65rem;padding:.55rem .7rem;">
                 <span>${this.escapeHtml(item.name || 'Telechargement')}</span>
                 <i class="fas fa-download"></i>
               </a>
+            ` : `
+              <button type="button" class="digital-download-btn" data-order-id="${this.escapeHtml(order.id)}" data-product-id="${this.escapeHtml(item.productId || '')}" style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;color:#047857;text-decoration:none;background:#fff;border:0;border-radius:.65rem;padding:.55rem .7rem;font:inherit;cursor:pointer;text-align:left;">
+                <span>${this.escapeHtml(item.name || 'Telechargement')}</span>
+                <i class="fas fa-download"></i>
+              </button>
             `).join('')}
           </div>
         ` : ''}
@@ -2823,6 +2871,7 @@ class CartManager {
     const guestCheckoutBtns = this.modal.querySelectorAll('.guest-checkout-btn');
     const logoutBtn = this.modal.querySelector('.logout-btn');
     const downloadPdfBtns = this.modal.querySelectorAll('.download-pdf-btn');
+    const digitalDownloadBtns = this.modal.querySelectorAll('.digital-download-btn');
     const hideOrderBtns = this.modal.querySelectorAll('.hide-order-btn');
     const ordersHeader = this.modal.querySelector('.orders-header');
     const likesHeader = this.modal.querySelector('.likes-header');
@@ -2907,6 +2956,13 @@ class CartManager {
         e.stopPropagation();
         const orderId = btn.dataset.orderId;
         this.downloadOrderPdf(orderId);
+      });
+    });
+
+    digitalDownloadBtns.forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await this.requestDigitalDownload(btn.dataset.orderId, btn.dataset.productId, btn);
       });
     });
 

@@ -256,6 +256,40 @@
     }
     #ecosystem-sections-rail::-webkit-scrollbar { height:8px; }
     #ecosystem-sections-rail::-webkit-scrollbar-thumb { background:#9aa5a8; border-radius:999px; }
+    #affiliate-ecosystem-card {
+      position:relative;
+      display:grid;
+      grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);
+      background:#101827;
+      color:#fff;
+      border-radius:24px;
+      overflow:hidden;
+      isolation:isolate;
+    }
+    #affiliate-ecosystem-card::before {
+      content:"";
+      position:absolute;
+      inset:0;
+      background:radial-gradient(circle at 20% 15%,rgba(224,177,77,.2),transparent 42%),linear-gradient(135deg,rgba(16,24,39,.96),rgba(17,45,60,.84));
+      pointer-events:none;
+    }
+    .home-affiliate-copy,
+    .home-affiliate-visual { position:relative; z-index:1; min-width:0; }
+    .home-affiliate-copy { display:flex; flex-direction:column; justify-content:center; padding:clamp(1.5rem,3vw,2.75rem); }
+    .home-affiliate-eyebrow { color:#e8bd62; font-size:.72rem; font-weight:800; letter-spacing:.16em; text-transform:uppercase; }
+    .home-affiliate-copy h2 { margin:.65rem 0 .8rem; color:#fff; font-size:clamp(2rem,4vw,3.15rem); line-height:.98; letter-spacing:-.04em; }
+    .home-affiliate-copy p { max-width:28rem; margin:0 0 1.35rem; color:rgba(255,255,255,.76); font-size:.96rem; line-height:1.5; }
+    .home-affiliate-copy a { align-self:flex-start; display:inline-flex; align-items:center; gap:.55rem; padding:.75rem 1rem; border-radius:999px; background:#e6b957; color:#111827; font-weight:800; text-decoration:none; }
+    .home-affiliate-copy a:hover { background:#f6d484; }
+    .home-affiliate-visual { min-height:100%; }
+    .home-affiliate-visual img { display:block; width:100%; height:100%; min-height:100%; object-fit:cover; object-position:center; }
+    @media (max-width:768px) {
+      #affiliate-ecosystem-card { grid-template-columns:minmax(0,1fr) minmax(0,1fr); border-radius:18px; }
+      .home-affiliate-copy { padding:1.2rem 1.1rem; }
+      .home-affiliate-copy h2 { font-size:clamp(1.7rem,8vw,2.35rem); }
+      .home-affiliate-copy p { font-size:.8rem; line-height:1.35; margin-bottom:.9rem; }
+      .home-affiliate-copy a { padding:.6rem .75rem; font-size:.8rem; }
+    }
     #sierra-sst-showcase-root { margin-top:2.25rem; }
     @media (max-width:768px) {
       #ecosystem-sections-rail { align-items:stretch; }
@@ -347,6 +381,17 @@
     <div id="sierra-auto-parts-teaser-root"></div>
     <div id="sierra-education-teaser-root"></div>
     <div id="sierra-health-teaser-root"></div>
+    <section id="affiliate-ecosystem-card" aria-labelledby="affiliate-ecosystem-title">
+      <div class="home-affiliate-copy">
+        <span class="home-affiliate-eyebrow">Smart Cut Affiliate</span>
+        <h2 id="affiliate-ecosystem-title">Partagez.<br>Gagnez.</h2>
+        <p>Recommandez vos produits préférés et suivez vos commissions en toute simplicité.</p>
+        <a href="./affiliate.html">Découvrir l’affiliation <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+      </div>
+      <div class="home-affiliate-visual">
+        <img src="./assets/affiliate-ecosystem-card.png" alt="Réseau de recommandations Smart Cut Affiliate" loading="lazy" decoding="async">
+      </div>
+    </section>
   </div>
 
   <!-- 4b. Vitrine SmartSolutionTek: creer ses propres pages -->
@@ -360,7 +405,7 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260906-4';
+    const ASSET_VERSION = '20260907-3';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     /* Les traces *_DEBUG sont utiles en développement mais ne doivent pas
        polluer la console de production (ni les audits Lighthouse). */
@@ -401,7 +446,8 @@
     const HOME_SECTION_ORDER_KEY = 'smartcut_home_section_interests_v1';
     const dynamicHomeSections = [
       'sierra-auto-parts-teaser-root',
-      'sierra-education-teaser-root', 'sierra-health-teaser-root'
+      'sierra-education-teaser-root', 'sierra-health-teaser-root',
+      'affiliate-ecosystem-card'
     ];
     let homeOrderObserver = null;
     const getHomeSectionHistory = () => {
@@ -417,7 +463,10 @@
       const rail = document.getElementById('ecosystem-sections-rail');
       if (!rail) return;
       const history = getHomeSectionHistory();
-      const ordered = [...history, ...dynamicHomeSections.filter((id) => !history.includes(id))];
+      // Un écosystème sollicité récemment reste à l’extrémité droite du rail.
+      // L’historique est conservé du plus récent au plus ancien afin que le
+      // dernier bloc consulté soit toujours le dernier bloc affiché.
+      const ordered = [...dynamicHomeSections.filter((id) => !history.includes(id)), ...history.slice().reverse()];
       const current = dynamicHomeSections.map((id) => document.getElementById(id)).filter(Boolean).map((node) => node.id);
       const visibleOrdered = ordered.filter((id) => document.getElementById(id));
       if (current.join('|') === visibleOrdered.join('|')) {
@@ -443,10 +492,10 @@
     document.addEventListener('click', (event) => {
       const link = event.target.closest?.('a,button');
       if (!link) return;
-      const section = link.closest?.('[id^="sierra-"]');
+      const section = link.closest?.('#ecosystem-sections-rail > [id]');
       if (section) rememberHomeSection(section.id);
       const href = String(link.getAttribute('href') || '').toLowerCase();
-      const routeMap = [['auto-parts', 'sierra-auto-parts-teaser-root'], ['education', 'sierra-education-teaser-root'], ['health', 'sierra-health-teaser-root'], ['smartsolutiontek', 'sierra-sst-showcase-root'], ['printing', 'sierra-products-root']];
+      const routeMap = [['auto-parts', 'sierra-auto-parts-teaser-root'], ['education', 'sierra-education-teaser-root'], ['health', 'sierra-health-teaser-root'], ['affiliate', 'affiliate-ecosystem-card'], ['smartsolutiontek', 'sierra-sst-showcase-root'], ['printing', 'sierra-products-root']];
       const matchedRoute = routeMap.find(([route]) => href.includes(route));
       if (matchedRoute) rememberHomeSection(matchedRoute[1]);
     }, true);

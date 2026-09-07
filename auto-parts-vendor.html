@@ -9,7 +9,12 @@
   <link rel="stylesheet" href="./auto-parts-vendor.css?v=20260901-1">
 </head>
 <body>
-  <main id="auto-vendor-app" class="av-shell"><div class="av-loading">Chargement de votre espace Auto…</div></main>
-  <script type="module" src="./auto-parts-vendor.js?v=20260901-1"></script>
+  <main id="auto-vendor-app" class="av-shell"><div class="av-loading">Redirection vers votre dashboard vendeur…</div></main>
+  <script>
+    const target = new URL('./DvendorProducts.html', window.location.href);
+    target.searchParams.set('department', 'automobile-pieces-accessoires');
+    target.searchParams.set('add', '1');
+    window.location.replace(target.href);
+  </script>
 </body>
 </html>

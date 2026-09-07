@@ -62,6 +62,11 @@ const PRODUCT_BOOST_DURATIONS = Object.freeze({
   14: { amount: 900, label: '14 jours' },
   30: { amount: 1500, label: '30 jours' }
 });
+const FREELANCER_SUBSCRIPTION_PLANS = Object.freeze({
+  3: { amount: 1500, label: '3 mois' },
+  6: { amount: 2800, label: '6 mois' },
+  12: { amount: 5000, label: '12 mois' }
+});
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
@@ -1932,8 +1937,18 @@ function normalizeItems(items) {
           productDeliveryZones,
           vendorDeliveryCoverage: item?.vendorDeliveryCoverage || item?.productDeliveryCoverage || item?.deliveryCoverage || null,
           vendorDeliveryZones,
+          affiliateReferral: item?.affiliateReferral && typeof item.affiliateReferral === 'object'
+            ? {
+                sessionId: String(item.affiliateReferral.sessionId || '').trim(),
+                affiliateId: String(item.affiliateReferral.affiliateId || '').trim(),
+                productId: String(item.affiliateReferral.productId || '').trim()
+              }
+            : null,
           isDigitalProduct: Boolean(item?.isDigitalProduct),
           digitalDownloadLink: String(item?.digitalDownloadLink || '').trim(),
+          digitalDownloadStoragePath: String(item?.digitalDownloadStoragePath || '').trim(),
+          digitalDownloadFileName: String(item?.digitalDownloadFileName || '').trim(),
+          digitalDownloadUrl: String(item?.digitalDownloadUrl || '').trim(),
           deliveryDelay: String(item?.deliveryDelay || '').trim()
           ,autoBookingId: String(item?.autoBookingId || '').trim()
           ,autoProgramType: String(item?.autoProgramType || '').trim()
@@ -2113,7 +2128,11 @@ async function enrichMarketplaceItems(items = []) {
         ),
         isDigitalProduct: Boolean(item?.isDigitalProduct || productData?.isDigitalProduct),
         digitalDownloadLink: String(item?.digitalDownloadLink || productData?.digitalDownloadLink || '').trim(),
+        digitalDownloadStoragePath: String(item?.digitalDownloadStoragePath || productData?.digitalDownloadStoragePath || '').trim(),
+        digitalDownloadFileName: String(item?.digitalDownloadFileName || productData?.digitalDownloadFileName || '').trim(),
+        digitalDownloadUrl: String(item?.digitalDownloadUrl || productData?.digitalDownloadUrl || '').trim(),
         deliveryDelay: String(item?.deliveryDelay || productData?.deliveryDelay || (productData?.isDigitalProduct ? 'Instantanee' : '')).trim()
+        ,affiliateEligible: productData?.affiliateEligible === true
         ,catalogStatus: String(productData?.status || productData?.publicationStatus || '').trim().toLowerCase()
         ,stockLimit: Number.isFinite(trustedStock) ? Math.max(0, trustedStock) : null
         ,serverValidated: true
@@ -2796,14 +2815,76 @@ function collectVendorOutstandingOrders({ ordersSnap, vendorId, vendorProductIds
 
 function buildOrderTotals(items, delivery) {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const affiliateDiscountAmount = items.reduce((sum, item) => sum + Math.max(0, Number(item?.affiliateAttribution?.customerDiscountAmount || 0)), 0);
+  const affiliateCommissionAmount = items.reduce((sum, item) => sum + Math.max(0, Number(item?.affiliateAttribution?.affiliateCommissionAmount || 0)), 0);
   const shippingAmount = Math.max(0, toNumber(delivery?.totalFee || delivery?.shippingAmount));
   const weightFee = Math.max(0, toNumber(delivery?.weightFee));
   return {
     subtotal,
+    affiliateDiscountAmount,
+    affiliateCommissionAmount,
+    affiliateProgramImpactAmount: affiliateDiscountAmount + affiliateCommissionAmount,
     shippingAmount,
     weightFee,
-    total: subtotal + shippingAmount
+    total: Math.max(0, subtotal + shippingAmount - affiliateDiscountAmount)
   };
+}
+
+// Valide chaque referral au moment du checkout et fige les deux taux pour la
+// commande. Le client ne peut jamais fournir directement un montant fiable :
+// le serveur recharge le referral, le compte affilié et le taux département.
+async function applyAffiliateAttribution(items = [], clientUid = '') {
+  const rateCache = new Map();
+  const now = Date.now();
+  for (const item of items) {
+    const referral = item?.affiliateReferral && typeof item.affiliateReferral === 'object' ? item.affiliateReferral : null;
+    if (!referral?.sessionId || !referral?.affiliateId || !referral?.productId) continue;
+    if (String(referral.productId) !== String(item.productId)) continue;
+    try {
+      const referralSnap = await db.collection('affiliateReferrals').doc(String(referral.sessionId)).get();
+      const referralData = referralSnap.data() || {};
+      const expiresMs = referralData.expiresAt?.toMillis ? referralData.expiresAt.toMillis() : Date.parse(referralData.expiresAt || '');
+      if (!referralSnap.exists || referralData.status !== 'ACTIVE' || (expiresMs && expiresMs <= now) || String(referralData.productId) !== String(item.productId)) continue;
+      if (String(referralData.affiliateId) !== String(referral.affiliateId)) continue;
+      if (String(referralData.affiliateId) === String(clientUid)) continue;
+      const accountSnap = await db.collection('affiliateAccounts').doc(String(referralData.affiliateId)).get();
+      if (!accountSnap.exists || accountSnap.data()?.status !== 'ACTIVE') continue;
+      const departmentId = String(item.departmentId || '').trim();
+      if (!departmentId || item.affiliateEligible !== true) continue;
+      let rates = rateCache.get(departmentId);
+      if (!rates) {
+        const rateSnap = await db.collection('affiliateDepartmentRates').doc(departmentId).get();
+        if (rateSnap.exists) {
+          const data = rateSnap.data() || {};
+          rates = { affiliateRate: Number(data.affiliateCommissionRate || 0), customerRate: Number(data.customerDiscountRate || 0), active: data.active !== false };
+        } else {
+          const legacySnap = await db.collection('commissionDepartments').doc(departmentId).get();
+          const data = legacySnap.data() || {};
+          rates = { affiliateRate: Number(data.affiliateRate ?? data.rate ?? 0), customerRate: Number(data.customerDiscountRate || 0), active: data.active !== false };
+        }
+        rateCache.set(departmentId, rates);
+      }
+      if (!rates?.active || rates.affiliateRate < 0 || rates.customerRate < 0 || rates.affiliateRate + rates.customerRate > 100) continue;
+      const baseAmount = Math.max(0, Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)));
+      const customerDiscountAmount = Math.round(baseAmount * rates.customerRate) / 100;
+      const affiliateCommissionAmount = Math.round(baseAmount * rates.affiliateRate) / 100;
+      item.affiliateAttribution = {
+        affiliateId: String(referralData.affiliateId),
+        affiliateLinkId: String(referralData.affiliateLinkId || ''),
+        referralSessionId: String(referralData.sessionId),
+        departmentId,
+        affiliateRateSnapshot: rates.affiliateRate,
+        customerDiscountRateSnapshot: rates.customerRate,
+        commissionBaseAmount: baseAmount,
+        customerDiscountAmount,
+        affiliateCommissionAmount,
+        status: 'PENDING'
+      };
+    } catch (error) {
+      logger.warn('Affiliate referral validation skipped', { message: error?.message || String(error), productId: item?.productId || '' });
+    }
+  }
+  return items;
 }
 
 function normalizePromoCode(value = '') {
@@ -4245,6 +4326,75 @@ async function syncProductBoostPayment({ session, details, source = '' }) {
   return { sessionId: session.id, orderId: details?.orderId || sessionData.orderId || '', paymentStatus, paymentType: 'product_boost', boostId, updated: true };
 }
 
+async function syncFreelancerSubscriptionPayment({ session, details, source = '' }) {
+  const paymentStatus = derivePaymentStatus(details);
+  const data = session?.data || {};
+  const uid = String(data.uid || '').trim();
+  const subscriptionId = String(data.subscriptionId || '').trim();
+  if (!session || !uid || !subscriptionId) return { sessionId: session?.id || '', paymentStatus, updated: false, paymentType: 'freelancer_subscription' };
+  const now = new Date().toISOString();
+  const patch = { status: paymentStatus, providerOrderId: details?.orderId || data.orderId || '', providerTransactionId: details?.transactionId || null, providerMessage: details?.message || '', updatedAt: now };
+  const subRef = db.collection('freelancerSubscriptions').doc(subscriptionId);
+  if (paymentStatus === 'paid') {
+    const months = Math.max(1, Number(data.months || 3));
+    const startsAt = now;
+    const endsAt = new Date(Date.now() + months * 30 * 86400000).toISOString();
+    Object.assign(patch, { status: 'active', paidAt: now, startsAt, endsAt, months });
+    await db.runTransaction(async tx => {
+      tx.set(subRef, patch, { merge: true });
+      tx.set(db.collection('providerProfiles').doc(uid), { subscriptionStatus: 'ACTIVE', subscriptionPlanMonths: months, subscriptionEndsAt: endsAt, updatedAt: now }, { merge: true });
+      tx.set(session.ref, { ...patch, status: 'paid', paidAt: now }, { merge: true });
+    });
+  } else {
+    await Promise.all([subRef.set(patch, { merge: true }), session.ref.set(patch, { merge: true })]);
+  }
+  return { sessionId: session.id, paymentStatus, paymentType: 'freelancer_subscription', subscriptionId, updated: true };
+}
+
+async function recordAffiliateCommissionsForOrder({ orderId, clientId, sessionId, orderData, now }) {
+  const entries = (Array.isArray(orderData?.items) ? orderData.items : [])
+    .map((item) => ({ item, attribution: item?.affiliateAttribution }))
+    .filter(({ attribution }) => attribution?.affiliateId && Number(attribution.affiliateCommissionAmount || 0) > 0);
+  if (!entries.length) return 0;
+  const refs = entries.map(({ item, attribution }) => db.collection('affiliateCommissions').doc(
+    [orderId, item.productId || item.sku || 'item', attribution.affiliateId].join('_').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 150)
+  ));
+  let created = 0;
+  await db.runTransaction(async (transaction) => {
+    const existing = await Promise.all(refs.map((ref) => transaction.get(ref)));
+    const referralIds = new Set();
+    const linkIds = new Set();
+    const accountAmounts = new Map();
+    entries.forEach(({ item, attribution }, index) => {
+      if (existing[index].exists) return;
+      const amount = Math.max(0, Number(attribution.affiliateCommissionAmount || 0));
+      transaction.set(refs[index], {
+      orderId, clientId: String(clientId || ''), sessionId: String(sessionId || ''),
+      affiliateId: String(attribution.affiliateId), affiliateLinkId: String(attribution.affiliateLinkId || ''),
+      referralSessionId: String(attribution.referralSessionId || ''), productId: String(item.productId || ''),
+      productName: String(item.name || ''), departmentId: String(attribution.departmentId || item.departmentId || ''),
+      baseAmount: Math.max(0, Number(attribution.commissionBaseAmount || 0)),
+      affiliateRate: Number(attribution.affiliateRateSnapshot || 0),
+      customerDiscountRate: Number(attribution.customerDiscountRateSnapshot || 0),
+      customerDiscountAmount: Math.max(0, Number(attribution.customerDiscountAmount || 0)),
+      commissionAmount: amount, status: 'PENDING', createdAt: now, updatedAt: now
+      }, { merge: true });
+      if (attribution.referralSessionId) referralIds.add(String(attribution.referralSessionId));
+      if (attribution.affiliateLinkId) linkIds.add(String(attribution.affiliateLinkId));
+      accountAmounts.set(String(attribution.affiliateId), (accountAmounts.get(String(attribution.affiliateId)) || 0) + amount);
+      created += 1;
+    });
+    referralIds.forEach((id) => transaction.set(db.collection('affiliateReferrals').doc(id), { status: 'CONVERTED', convertedOrderId: orderId, convertedAt: now, updatedAt: now }, { merge: true }));
+    linkIds.forEach((id) => transaction.set(db.collection('affiliateLinks').doc(id), { conversions: admin.firestore.FieldValue.increment(1), updatedAt: now }, { merge: true }));
+    accountAmounts.forEach((amount, affiliateId) => transaction.set(db.collection('affiliateAccounts').doc(affiliateId), {
+      pendingCommission: admin.firestore.FieldValue.increment(amount),
+      totalCommission: admin.firestore.FieldValue.increment(amount),
+      updatedAt: now
+    }, { merge: true }));
+  });
+  return created;
+}
+
 async function syncMoncashPayment({ session, details, source = '' }) {
   const now = new Date().toISOString();
   const paymentStatus = derivePaymentStatus(details);
@@ -4257,6 +4407,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   }
   if (String(sessionData.paymentType || '').trim() === 'product_boost') {
     return syncProductBoostPayment({ session, details, source });
+  }
+  if (String(sessionData.paymentType || '').trim() === 'freelancer_subscription') {
+    return syncFreelancerSubscriptionPayment({ session, details, source });
   }
   const clientId = sessionData.clientId || '';
   const orderId = sessionData.orderId || details.orderId || '';
@@ -4468,6 +4621,14 @@ async function syncMoncashPayment({ session, details, source = '' }) {
         const smartCutNotificationRef = db.collection('notificationBroadcasts').doc(smartCutNotification.id);
         transaction.set(smartCutNotificationRef, smartCutNotification, { merge: true });
       }
+    });
+    const paidOrderSnap = await db.collection('clients').doc(clientId).collection('orders').doc(orderId).get();
+    await recordAffiliateCommissionsForOrder({
+      orderId,
+      clientId,
+      sessionId: session.id,
+      orderData: paidOrderSnap.data() || {},
+      now
     });
   } else {
     if (paymentStatus === 'failed' && sessionData.inventoryReservedAt && !sessionData.inventoryReleasedAt) {
@@ -4900,6 +5061,7 @@ exports.createMoncashPayment = onRequest(
       return;
     }
     const items = await enrichMarketplaceItems(body.items);
+    await applyAffiliateAttribution(items, clientUid);
 
     logger.info('MONCASH_CREATE_DEBUG request:start', {
       clientId: localClientId,
@@ -5000,6 +5162,9 @@ exports.createMoncashPayment = onRequest(
       amount: finalTotal,
       subtotal: totals.subtotal,
       discountAmount,
+      affiliateDiscountAmount: totals.affiliateDiscountAmount,
+      affiliateCommissionAmount: totals.affiliateCommissionAmount,
+      affiliateProgramImpactAmount: totals.affiliateProgramImpactAmount,
       shippingAmount: totals.shippingAmount,
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
@@ -5052,6 +5217,9 @@ exports.createMoncashPayment = onRequest(
       amount: finalTotal,
       subtotal: totals.subtotal,
       discountAmount,
+      affiliateDiscountAmount: totals.affiliateDiscountAmount,
+      affiliateCommissionAmount: totals.affiliateCommissionAmount,
+      affiliateProgramImpactAmount: totals.affiliateProgramImpactAmount,
       shippingAmount: totals.shippingAmount,
       weightFee: totals.weightFee,
       currency: MONCASH_CURRENCY,
@@ -5135,6 +5303,9 @@ exports.createMoncashPayment = onRequest(
         sessionId,
         orderId,
         discountAmount,
+        affiliateDiscountAmount: totals.affiliateDiscountAmount,
+        affiliateProgramImpactAmount: totals.affiliateProgramImpactAmount,
+        amount: finalTotal,
         checkoutUrl: redirect.checkoutUrl,
         returnUrl: DEFAULT_RETURN_URL,
         alertUrl: DEFAULT_ALERT_URL
@@ -5726,6 +5897,30 @@ exports.startProductBoostPayment = onRequest(
       const publicError = getSafeMoncashPublicError(error);
       return sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
     }
+  }
+);
+
+exports.getFreelancerSubscriptionPlans = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  return sendJson(res, 200, { ok: true, plans: Object.entries(FREELANCER_SUBSCRIPTION_PLANS).map(([months, plan]) => ({ months: Number(months), ...plan, currency: MONCASH_CURRENCY })) });
+});
+
+exports.startFreelancerSubscriptionPayment = onRequest(
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+    try {
+      const user = await verifyBearerUser(req); if (!user?.uid) return sendJson(res, 401, { ok: false, error: 'auth-required' });
+      const months = Number(parseBody(req).months); const plan = FREELANCER_SUBSCRIPTION_PLANS[months];
+      if (!plan) return sendJson(res, 400, { ok: false, error: 'invalid-plan', message: 'Choisissez une durée valide.' });
+      const now = new Date().toISOString(); const subscriptionRef = db.collection('freelancerSubscriptions').doc(); const sessionId = createSessionId(); const orderId = `FREELANCER-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+      const base = { uid: user.uid, months, amount: plan.amount, currency: MONCASH_CURRENCY, status: 'initiated', paymentType: 'freelancer_subscription', provider: 'moncash', orderId, subscriptionId: subscriptionRef.id, returnUrl: DEFAULT_RETURN_URL, alertUrl: DEFAULT_ALERT_URL, createdAt: now, updatedAt: now };
+      await Promise.all([subscriptionRef.set(base), db.collection('paymentSessions').doc(sessionId).set({ identifier: sessionId, ...base })]);
+      const redirect = await createMoncashRedirect(orderId, plan.amount);
+      await Promise.all([subscriptionRef.set({ status: 'redirect_ready', checkoutUrl: redirect.checkoutUrl, updatedAt: new Date().toISOString() }, { merge: true }), db.collection('paymentSessions').doc(sessionId).set({ status: 'redirect_ready', checkoutUrl: redirect.checkoutUrl, paymentToken: redirect.paymentToken, updatedAt: new Date().toISOString() }, { merge: true })]);
+      return sendJson(res, 200, { ok: true, subscriptionId: subscriptionRef.id, sessionId, orderId, months, amount: plan.amount, checkoutUrl: redirect.checkoutUrl, returnUrl: DEFAULT_RETURN_URL });
+    } catch (error) { logger.error('startFreelancerSubscriptionPayment failed', error); const publicError = getSafeMoncashPublicError(error); return sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message }); }
   }
 );
 
@@ -6515,6 +6710,36 @@ exports.moncashAlert = onRequest(
       }
     }
 
+    // Recharge Smart Wallet : les transactions utilisent aussi l'alert URL
+    // marchand commune. Le document walletTransactions permet de router le
+    // callback vers le traitement idempotent du Wallet.
+    if (orderId) {
+      try {
+        const walletTransaction = await db.collection('walletTransactions').doc(orderId).get();
+        if (walletTransaction.exists) {
+          const callbackUrl = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/walletPaymentCallback`;
+          const callbackResponse = await fetch(callbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, transactionId })
+          });
+          const callbackBody = await callbackResponse.json().catch(() => ({ ok: callbackResponse.ok }));
+          if (req.method === 'GET') {
+            res.redirect(302, buildReturnPageUrl({ orderId, transactionId, status: callbackResponse.ok ? '' : 'failed' }));
+            return;
+          }
+          sendJson(res, callbackResponse.ok ? 200 : 409, callbackBody);
+          return;
+        }
+      } catch (walletError) {
+        logger.error('Wallet MonCash alert routing failed', walletError);
+        if (req.method === 'POST') {
+          sendJson(res, 500, { ok: false, error: 'wallet-sync-failed' });
+          return;
+        }
+      }
+    }
+
       try {
         const result = await resolveAndSyncPayment({
           sessionId,
@@ -7085,6 +7310,67 @@ exports.getVendorDashboardOrders = onRequest(
         error: 'vendor-orders-failed',
         message: error?.message || 'Unable to load vendor orders'
       });
+    }
+  }
+);
+
+// Delivre un fichier digital uniquement après paiement confirme. Le produit
+// peut fournir un lien externe (retourne tel quel) ou un chemin Storage prive
+// (URL signee courte, jamais une URL publique permanente).
+exports.getDigitalDownload = onRequest(
+  { region: REGION },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+      return;
+    }
+    try {
+      const user = await verifyBearerUser(req);
+      if (!user?.uid) {
+        sendJson(res, 401, { ok: false, error: 'auth-required' });
+        return;
+      }
+      const query = req.method === 'GET' ? (req.query || {}) : parseBody(req);
+      const orderId = String(query.orderId || '').trim();
+      const productId = String(query.productId || '').trim();
+      if (!orderId || !productId) {
+        sendJson(res, 400, { ok: false, error: 'missing-order-or-product' });
+        return;
+      }
+      const orderSnap = await db.collection('clients').doc(user.uid).collection('orders').doc(orderId).get();
+      if (!orderSnap.exists || !isConfirmedOrder(orderSnap.data() || {})) {
+        sendJson(res, 403, { ok: false, error: 'order-not-paid' });
+        return;
+      }
+      const item = (Array.isArray(orderSnap.data()?.items) ? orderSnap.data().items : []).find((entry) =>
+        String(entry?.productId || '').trim() === productId && Boolean(entry?.isDigitalProduct)
+      );
+      if (!item) {
+        sendJson(res, 404, { ok: false, error: 'digital-product-not-in-order' });
+        return;
+      }
+      const externalLink = String(item.digitalDownloadLink || '').trim();
+      if (externalLink) {
+        sendJson(res, 200, { ok: true, url: externalLink, fileName: String(item.digitalDownloadFileName || '').trim(), expiresAt: null });
+        return;
+      }
+      const storagePath = String(item.digitalDownloadStoragePath || '').trim();
+      if (!storagePath || !storagePath.startsWith('marketplace-private/digital/')) {
+        sendJson(res, 404, { ok: false, error: 'digital-file-not-available' });
+        return;
+      }
+      const expiresAt = Date.now() + 15 * 60 * 1000;
+      const [url] = await admin.storage().bucket().file(storagePath).getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: expiresAt,
+        responseDisposition: `attachment; filename="${String(item.digitalDownloadFileName || 'download').replace(/["\\\r\n]/g, '_')}"`
+      });
+      sendJson(res, 200, { ok: true, url, fileName: String(item.digitalDownloadFileName || '').trim(), expiresAt: new Date(expiresAt).toISOString() });
+    } catch (error) {
+      logger.error('Digital download failed', error);
+      sendJson(res, 500, { ok: false, error: 'digital-download-failed' });
     }
   }
 );
@@ -8185,6 +8471,10 @@ const __marketplaceFunctions = require('./marketplace')(__sstInternals);
 for (const [name, fn] of Object.entries(__marketplaceFunctions)) {
   exports[`marketplace${name.charAt(0).toUpperCase()}${name.slice(1)}`] = fn;
 }
+// Export explicite requis par Firebase CLI pour détecter correctement le
+// déclencheur planifié (les exports générés dynamiquement peuvent être ignorés
+// lors de l’analyse statique des fonctions).
+exports.marketplaceAutoApproveDeliveries = __marketplaceFunctions.autoApproveDeliveries;
 
 // Smart Cut Health (pharmacie, medecins, laboratoires) — Phase 1: Pharmacie.
 // Chaque export est deja prefixe health* dans functions/health/index.js.
@@ -8198,3 +8488,20 @@ Object.assign(exports, require('./education/publisher')(__sstInternals));
 Object.assign(exports, require('./education/tutors')(__sstInternals));
 Object.assign(exports, require('./education/admin')(__sstInternals));
 Object.assign(exports, require('./education/operations')(__sstInternals));
+
+// Smart Wallet utilisateur : recharge, ledger et remboursements internes.
+// Les soldes vendeurs et professionnels restent dans leurs collections dédiées.
+const __walletFunctions = require('./wallet')(__sstInternals);
+for (const [name, fn] of Object.entries(__walletFunctions)) {
+  exports[`wallet${name.charAt(0).toUpperCase()}${name.slice(1)}`] = fn;
+}
+
+// Smart Cut Affiliate Program: liens sécurisés et tracking serveur.
+const __affiliateFunctions = require('./affiliate')(__sstInternals);
+for (const [name, fn] of Object.entries(__affiliateFunctions)) {
+  exports[name] = fn;
+}
+
+// Keep Firestore-trigger exports explicit so Firebase can target them by name.
+exports.walletWalletOrderRefund = __walletFunctions.walletOrderRefund;
+exports.walletWalletServiceRefund = __walletFunctions.walletServiceRefund;

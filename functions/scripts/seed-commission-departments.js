@@ -30,6 +30,8 @@ const admin = require('firebase-admin');
 
 const FORCE = process.argv.includes('--force');
 const TAXONOMY_PATH = path.resolve(__dirname, '..', '..', 'product-taxonomy.json');
+const AUTO_TAXONOMY_PATH = path.resolve(__dirname, '..', '..', 'auto-parts-taxonomy.json');
+const DIGITAL_TAXONOMY_PATH = path.resolve(__dirname, '..', '..', 'digital-download-taxonomy.json');
 const COLLECTION = 'commissionDepartments';
 
 function loadTaxonomy() {
@@ -37,6 +39,23 @@ function loadTaxonomy() {
   const data = JSON.parse(raw);
   if (!Array.isArray(data.departments) || !data.departments.length) {
     throw new Error('product-taxonomy.json has no departments');
+  }
+  for (const extraPath of [AUTO_TAXONOMY_PATH, DIGITAL_TAXONOMY_PATH]) {
+    if (!fs.existsSync(extraPath)) continue;
+    const extra = JSON.parse(fs.readFileSync(extraPath, 'utf8'));
+    if (!extra?.id) continue;
+    const existing = data.departments.find((department) => department.id === extra.id);
+    if (existing) {
+      // Keep the canonical department metadata/categories from the dedicated
+      // taxonomy file while preserving any existing product-taxonomy fields.
+      existing.label = extra.label || existing.label;
+      existing.commissionRate = Number.isFinite(Number(extra.commissionRate))
+        ? Number(extra.commissionRate)
+        : existing.commissionRate;
+      if (Array.isArray(extra.categories) && extra.categories.length) existing.categories = extra.categories;
+      continue;
+    }
+    data.departments.push(extra);
   }
   return data;
 }

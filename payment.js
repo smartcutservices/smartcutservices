@@ -1,5 +1,5 @@
 // ============= PAYMENT COMPONENT - PROCESSUS DE PAIEMENT =============
-import { db } from './firebase-init.js';
+import { db, auth } from './firebase-init.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { 
   collection, getDocs, addDoc, doc, query
@@ -67,6 +67,7 @@ class PaymentModal {
     this.extractedText = '';
     this.isSubmitted = false;
     this.isCompleted = false;
+    this.walletHold = null;
     
     this.init();
   }
@@ -646,6 +647,7 @@ class PaymentModal {
           </div>
         </form>
 
+        ${auth?.currentUser && !(this.options.cart || []).some((item) => item?.autoProgramType === 'auto_parts') ? `<button class="wallet-checkout-btn" id="walletCheckoutBtn" type="button" style="width:100%;margin:0 0 .75rem;padding:.85rem 1rem;border:1px solid #0d806c;border-radius:.75rem;background:#e8f7f3;color:#096a5a;font-weight:800;cursor:pointer;"><i class="fas fa-wallet"></i> Payer avec mon Smart Wallet</button>` : ''}
         <button class="next-step-btn launch-moncash-btn" id="launchMoncashBtn">
           Payer avec MonCash
         </button>
@@ -1002,6 +1004,9 @@ class PaymentModal {
       moncashBtn.addEventListener('click', () => this.startMoncashCheckout());
     }
 
+    const walletBtn = this.modal.querySelector('#walletCheckoutBtn');
+    if (walletBtn) walletBtn.addEventListener('click', () => this.startWalletCheckout());
+
     const nextBtn = this.modal.querySelector('#nextStepBtn');
     if (nextBtn) {
       nextBtn.addEventListener('click', () => this.handleNextStep());
@@ -1143,14 +1148,17 @@ class PaymentModal {
       logMoncashDebug('checkout:redirect-ready', {
         sessionId: response?.sessionId || '',
         orderId: response?.orderId || '',
-        hasCheckoutUrl: Boolean(response?.checkoutUrl)
+        hasCheckoutUrl: Boolean(response?.checkoutUrl),
+        affiliateDiscountAmount: Number(response?.affiliateDiscountAmount || 0),
+        finalAmount: Number(response?.amount || 0)
       });
 
       try {
         localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
           sessionId: response?.sessionId || '',
           orderId: response?.orderId || '',
-          amount: this.options.amount || 0,
+          amount: Number(response?.amount || this.options.amount || 0),
+          affiliateDiscountAmount: Number(response?.affiliateDiscountAmount || 0),
           customerName: customer.customerName,
           customerEmail: customer.customerEmail,
           startedAt: new Date().toISOString()
@@ -1172,6 +1180,47 @@ class PaymentModal {
         launchBtn.textContent = 'Payer avec MonCash';
       }
       alert(getSafeMoncashErrorMessage(error));
+    }
+  }
+
+  async startWalletCheckout() {
+    const button = this.modal.querySelector('#walletCheckoutBtn');
+    if (!auth?.currentUser) return alert('Connectez-vous pour utiliser votre Smart Wallet.');
+    if (button) { button.disabled = true; button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Vérification du solde…'; }
+    const referenceId = `checkout-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const amountMinor = Math.round(Number(this.options.amount || 0) * 100);
+      const response = await fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/walletCreateWalletHold', {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amountMinor, referenceId })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'Solde Wallet insuffisant.');
+      this.walletHold = { holdId: payload.holdId, referenceId };
+      this.selectedMethod = { id: 'smart-wallet', name: 'Smart Wallet', provider: 'wallet', gateway: 'wallet' };
+      const saved = await this.saveOrder('');
+      if (!saved) throw new Error('La commande n’a pas pu être enregistrée.');
+      const finalize = await fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/walletFinalizeWalletHold', {
+        method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ holdId: this.walletHold.holdId, action: 'CAPTURE' })
+      });
+      const finalizePayload = await finalize.json().catch(() => ({}));
+      if (!finalize.ok || !finalizePayload.ok) throw new Error(finalizePayload.message || 'Le paiement Wallet n’a pas pu être finalisé.');
+      this.isSubmitted = true;
+      this.isCompleted = true;
+      alert('Commande confirmée avec votre Smart Wallet.');
+      this.close();
+    } catch (error) {
+      if (this.walletHold?.holdId) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          await fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/walletFinalizeWalletHold', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ holdId: this.walletHold.holdId, action: 'RELEASE' }) });
+        } catch (_) { /* le job de réconciliation pourra libérer la réservation */ }
+      }
+      this.walletHold = null;
+      if (button) { button.disabled = false; button.innerHTML = '<i class="fas fa-wallet"></i> Payer avec mon Smart Wallet'; }
+      alert(error?.message || 'Paiement Wallet impossible.');
     }
   }
   
@@ -1376,9 +1425,13 @@ class PaymentModal {
               sourceCollection: item?.sourceCollection || '',
               isDigitalProduct: Boolean(item?.isDigitalProduct),
               digitalDownloadLink: item?.digitalDownloadLink || '',
+              digitalDownloadStoragePath: item?.digitalDownloadStoragePath || '',
+              digitalDownloadFileName: item?.digitalDownloadFileName || '',
+              digitalDownloadUrl: item?.digitalDownloadUrl || '',
               deliveryDelay: item?.deliveryDelay || '',
               autoBookingId: item?.autoBookingId || '',
               autoProgramType: item?.autoProgramType || ''
+              ,affiliateReferral: item?.affiliateReferral || null
             };
           })
         : [];
@@ -1393,6 +1446,9 @@ class PaymentModal {
         clientUid: this.options.client?.uid || '',
         methodId: this.selectedMethod?.id,
         methodName: this.selectedMethod?.name,
+        paymentMethod: this.selectedMethod?.provider || 'moncash',
+        walletHoldId: this.walletHold?.holdId || '',
+        walletReferenceId: this.walletHold?.referenceId || '',
         methodDetails: {
           name: this.selectedMethod?.name,
           accountName: this.selectedMethod?.accountName,

@@ -36,11 +36,13 @@ function normalizeService(input = {}, previous = {}) {
   const revisionsIncluded = Number(input.revisionsIncluded ?? previous.revisionsIncluded ?? 0);
   if (!Number.isInteger(deliveryDays) || deliveryDays < 1 || deliveryDays > 365) throw new Error('invalid-delivery-days');
   if (!Number.isInteger(revisionsIncluded) || revisionsIncluded < 0 || revisionsIncluded > 50) throw new Error('invalid-revisions');
+  const offers = normalizeOffers(input.offers ?? previous.offers, { pricingType, priceMinor, deliveryDays, revisionsIncluded, deliverables: input.deliverables ?? previous.deliverables });
   return {
     name, slug: slugify(input.slug || name), shortDescription: cleanText(input.shortDescription, 220),
     fullDescription: cleanText(input.fullDescription || input.description, 5000), categoryId: cleanText(input.categoryId, 80),
     subcategoryId: cleanText(input.subcategoryId, 80), pricingType, priceMinor, startingPriceMinor: pricingType === 'STARTING_AT' ? priceMinor : 0,
     currency: 'HTG', deliveryDays, revisionsIncluded,
+    offers,
     extraRevisionPriceMinor: asMinor(input.extraRevisionPriceMinor ?? 0, { allowZero: true }),
     serviceArea: cleanText(input.serviceArea || 'REMOTE', 40), deliveryType: cleanText(input.deliveryType || 'DIGITAL', 40),
     requirements: list(input.requirements, 20, 300), deliverables: list(input.deliverables, 20, 300), tags: list(input.tags, 12, 40),
@@ -48,6 +50,22 @@ function normalizeService(input = {}, previous = {}) {
     terms: cleanText(input.terms, 3000), visibility: previous.visibility || 'PRIVATE',
     publicationStatus: previous.publicationStatus || 'DRAFT', archived: false
   };
+}
+
+function normalizeOffers(value, fallback) {
+  const source = Array.isArray(value) && value.length ? value : [{ code: 'basic', name: 'Basic', ...fallback }];
+  const seen = new Set();
+  return source.slice(0, 3).map((raw, index) => {
+    const code = ['basic', 'standard', 'premium'].includes(String(raw?.code || '').toLowerCase()) ? String(raw.code).toLowerCase() : ['basic','standard','premium'][index];
+    if (seen.has(code)) return null; seen.add(code);
+    const pricingType = String(raw?.pricingType || fallback.pricingType || 'FIXED').toUpperCase();
+    const priceMinor = pricingType === 'CUSTOM_QUOTE' ? 0 : asMinor(raw?.priceMinor ?? fallback.priceMinor);
+    const deliveryDays = Number(raw?.deliveryDays ?? fallback.deliveryDays);
+    const revisionsIncluded = Number(raw?.revisionsIncluded ?? fallback.revisionsIncluded);
+    if (!Number.isInteger(deliveryDays) || deliveryDays < 1 || deliveryDays > 365) throw new Error('invalid-offer-delivery-days');
+    if (!Number.isInteger(revisionsIncluded) || revisionsIncluded < 0 || revisionsIncluded > 50) throw new Error('invalid-offer-revisions');
+    return { code, name: cleanText(raw?.name || code[0].toUpperCase()+code.slice(1), 60), description: cleanText(raw?.description, 300), pricingType, priceMinor, deliveryDays, revisionsIncluded, deliverables: list(raw?.deliverables ?? fallback.deliverables, 20, 300) };
+  }).filter(Boolean);
 }
 
 function list(value, maxItems, maxLength) {

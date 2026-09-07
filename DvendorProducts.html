@@ -2780,6 +2780,12 @@
                         </div>
                       </div>
                     </div>
+                    <div class="pe-grid-3 auto-parts-fields" data-auto-parts-only hidden>
+                      <div class="pe-field"><label for="productManufacturer">Marque / fabricant <span class="pe-opt">Auto &amp; Parts</span></label><input id="productManufacturer" class="form-input" maxlength="120" placeholder="Ex. Toyota"></div>
+                      <div class="pe-field"><label for="productPartNumber">Référence MPN <span class="pe-opt">Facultatif</span></label><input id="productPartNumber" class="form-input" maxlength="100" placeholder="Référence fabricant"></div>
+                      <div class="pe-field"><label for="productOemNumber">Numéro OEM <span class="pe-opt">Facultatif</span></label><input id="productOemNumber" class="form-input" maxlength="100" placeholder="Ex. 04465-0R010"></div>
+                      <div class="pe-field"><label for="productCondition">État</label><select id="productCondition" class="form-select"><option value="NEW">Neuf</option><option value="USED">Usagé</option><option value="REFURBISHED">Reconditionné</option></select></div>
+                    </div>
                     <div class="pe-field">
                       <label for="longDescription">Description compl&egrave;te <span class="pe-opt">Facultatif</span></label>
                       <textarea id="longDescription" class="form-textarea" rows="6" maxlength="4000" placeholder="Caract&eacute;ristiques, mati&egrave;res, usage, contenu de la bo&icirc;te&hellip;"></textarea>
@@ -2925,6 +2931,12 @@
                       </div>
                       <div id="taxonomyDynamicFieldsGrid" class="pe-grid-2"></div>
                     </div>
+                    <div id="autoPartsCompatibility" class="pe-dynamic-fields" hidden>
+                      <div class="pe-dynamic-fields__head"><strong>Compatibilité véhicule</strong><span>Indiquez les véhicules compatibles. Vous pouvez en ajouter plusieurs.</span></div>
+                      <div class="pe-field"><label for="autoCompatibilityType">Type de compatibilité</label><select id="autoCompatibilityType" class="form-select"><option value="SPECIFIC">Spécifique à des véhicules</option><option value="UNIVERSAL">Universel</option></select></div>
+                      <div id="autoCompatibleVehiclesList"></div>
+                      <button type="button" id="addAutoCompatibleVehicle" class="btn btn-secondary"><i class="fas fa-plus"></i> Ajouter un véhicule compatible</button>
+                    </div>
                     <details>
                       <summary class="pe-hint" style="cursor:pointer;">Attributs de filtrage catalogue (avanc&eacute;)</summary>
                       <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem;">
@@ -3035,7 +3047,12 @@
                       <div class="pe-field">
                         <label for="digitalDownloadLink">Lien de t&eacute;l&eacute;chargement</label>
                         <input type="url" id="digitalDownloadLink" class="form-input" placeholder="https://...">
-                        <span class="pe-hint">Le client re&ccedil;oit ce lien apr&egrave;s paiement. Aucun fichier n'est stock&eacute; sur Smart Cut.</span>
+                        <span class="pe-hint">Optionnel si vous envoyez le fichier directement ci-dessous.</span>
+                      </div>
+                      <div class="pe-field">
+                        <label for="digitalDownloadFile">Fichier principal</label>
+                        <input type="file" id="digitalDownloadFile" class="form-input" accept=".pdf,.zip,.docx,.xlsx,.pptx,.epub,.mobi,.mp4,.mp3">
+                        <span id="digitalDownloadFileStatus" class="pe-hint">PDF, ZIP, DOCX, XLSX, PPTX, EPUB, MOBI, MP4 ou MP3 · 100 Mo maximum.</span>
                       </div>
                     </div>
                   </div>
@@ -3229,7 +3246,7 @@
 
   <script type="module">
     // ========== CONFIGURATION FIREBASE ==========
-    import { uploadImageFile } from './firebase-storage.js';
+    import { uploadImageFile, uploadStorageFile, validateStorageFile } from './firebase-storage.js';
     import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signInWithCustomToken, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
     import { NotificationComponent } from './notification.js?v=20260901-1';
@@ -3291,6 +3308,53 @@
     const COMMISSION_RULES_COLLECTION = "vendorCommissionRules";
     const COMMISSION_DEPARTMENTS_COLLECTION = "commissionDepartments";
     const PRODUCT_TAXONOMY_URL = "./product-taxonomy.json";
+    const AUTO_PARTS_TAXONOMY_URL = "./auto-parts-taxonomy.json";
+    const DIGITAL_DOWNLOAD_TAXONOMY_URL = "./digital-download-taxonomy.json";
+    // Champs techniques ajoutés au niveau sous-catégorie automobile. Le JSON
+    // reste extensible : une sous-catégorie peut aussi fournir directement
+    // `dynamicFields` sans modifier le code de l'éditeur.
+    const AUTO_SUBCATEGORY_FIELD_RULES = [
+      { match: /pneu|pneus/i, fields: [
+        { key: 'dimension-pneu', label: 'Dimension (ex. 205/55 R16)', type: 'text', required: true },
+        { key: 'indice-charge-vitesse', label: 'Indice charge / vitesse', type: 'text' },
+        { key: 'saison-pneu', label: 'Saison', type: 'select', options: ['Été', 'Hiver', 'Toutes saisons'] }
+      ]},
+      { match: /jante/i, fields: [
+        { key: 'diametre-jante', label: 'Diamètre (pouces)', type: 'number', required: true },
+        { key: 'entraxe-jante', label: 'Entraxe / PCD', type: 'text' },
+        { key: 'deport-jante', label: 'Déport (ET)', type: 'text' }
+      ]},
+      { match: /plaquette|disque|etrier|frein/i, fields: [
+        { key: 'essieu-frein', label: 'Essieu', type: 'select', options: ['Avant', 'Arrière'] },
+        { key: 'diametre-disque', label: 'Diamètre disque (mm)', type: 'number' },
+        { key: 'temoin-usure', label: 'Témoin d’usure', type: 'select', options: ['Oui', 'Non'] }
+      ]},
+      { match: /batterie/i, fields: [
+        { key: 'capacite-batterie', label: 'Capacité (Ah)', type: 'number', required: true },
+        { key: 'tension-batterie', label: 'Tension (V)', type: 'number' },
+        { key: 'polarite-batterie', label: 'Polarité', type: 'text' }
+      ]},
+      { match: /autoradio|ecran|camera|dashcam/i, fields: [
+        { key: 'connectivite', label: 'Connectivité', type: 'text' },
+        { key: 'taille-ecran', label: 'Taille écran (pouces)', type: 'number' },
+        { key: 'resolution', label: 'Résolution', type: 'text' }
+      ]},
+      { match: /ampoule|phare|feu|eclairage/i, fields: [
+        { key: 'type-ampoule', label: 'Type d’ampoule', type: 'text', required: true },
+        { key: 'puissance-eclairage', label: 'Puissance (W)', type: 'number' },
+        { key: 'homologation', label: 'Homologation', type: 'text' }
+      ]},
+      { match: /huile|filtre/i, fields: [
+        { key: 'viscosite', label: 'Viscosité / référence', type: 'text', required: true },
+        { key: 'volume-capacite', label: 'Volume / capacité', type: 'text' },
+        { key: 'norme-produit', label: 'Norme constructeur', type: 'text' }
+      ]}
+    ];
+
+    function autoSubcategoryFields(label = '') {
+      const rule = AUTO_SUBCATEGORY_FIELD_RULES.find(item => item.match.test(String(label)));
+      return rule ? rule.fields.map(field => ({ ...field })) : [];
+    }
     const VENDOR_ANALYTICS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardAnalytics';
     const VENDOR_ORDERS_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getVendorDashboardOrders';
     const VENDOR_PAYOUT_REQUEST_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/requestVendorPayout';
@@ -3322,10 +3386,12 @@
         this.currentVariations = [];
         this.categorySelections = []; // [{ columnId, lineId }]
         this.dynamicAttributes = {};
+        this.compatibleVehicles = [];
         this.currentImages = {
           main: [], // Noms des images principales
           variations: {} // { variationIndex: [nomsImages] }
         };
+        this.digitalDownloadFile = { path: '', name: '', url: '' };
         this.editorMode = 'physical';
         this.vendorContext = null;
         
@@ -3357,6 +3423,18 @@
         this.setupRealtimeListener();
         this.setupLikesListener();
         this.updateVendorNotificationCard();
+        const launchParams = new URLSearchParams(window.location.search);
+        if (launchParams.get('add') === '1') {
+          this.newProduct();
+          const department = launchParams.get('department');
+          if (department && this.elements.taxonomyDepartmentSelect) {
+            this.elements.taxonomyDepartmentSelect.value = department;
+            this.onTaxonomyDepartmentChange();
+          }
+          launchParams.delete('add');
+          launchParams.delete('department');
+          window.history.replaceState({}, document.title, `${window.location.pathname}${launchParams.toString() ? `?${launchParams}` : ''}`);
+        }
       }
 
       async consumeVendorAccessToken() {
@@ -3766,6 +3844,8 @@
           configureDeliveryTabBtn: document.getElementById('configureDeliveryTabBtn'),
           isDigitalProduct: document.getElementById('isDigitalProduct'),
           digitalDownloadLink: document.getElementById('digitalDownloadLink'),
+          digitalDownloadFile: document.getElementById('digitalDownloadFile'),
+          digitalDownloadFileStatus: document.getElementById('digitalDownloadFileStatus'),
           deliveryDelay: document.getElementById('deliveryDelay'),
           discountType: document.getElementById('discountType'),
           discountValue: document.getElementById('discountValue'),
@@ -3781,6 +3861,15 @@
           departmentCommissionHint: document.getElementById('departmentCommissionHint'),
           taxonomyDynamicFields: document.getElementById('taxonomyDynamicFields'),
           taxonomyDynamicFieldsGrid: document.getElementById('taxonomyDynamicFieldsGrid'),
+          autoPartsFields: document.querySelector('[data-auto-parts-only]'),
+          productManufacturer: document.getElementById('productManufacturer'),
+          productPartNumber: document.getElementById('productPartNumber'),
+          productOemNumber: document.getElementById('productOemNumber'),
+          productCondition: document.getElementById('productCondition'),
+          autoPartsCompatibility: document.getElementById('autoPartsCompatibility'),
+          autoCompatibilityType: document.getElementById('autoCompatibilityType'),
+          autoCompatibleVehiclesList: document.getElementById('autoCompatibleVehiclesList'),
+          addAutoCompatibleVehicle: document.getElementById('addAutoCompatibleVehicle'),
           categorySelect: document.getElementById('categorySelect'),
           categoryAttributesContainer: document.getElementById('categoryAttributesContainer'),
           selectedLinesContainer: document.getElementById('selectedLinesContainer'),
@@ -3896,6 +3985,8 @@
         this.elements.railSaveBtn?.addEventListener('click', () => this.saveProduct());
         this.elements.productForm?.addEventListener('input', () => this.refreshEditorAside());
         this.elements.productForm?.addEventListener('change', () => this.refreshEditorAside());
+        this.elements.addAutoCompatibleVehicle?.addEventListener('click', () => { this.compatibleVehicles.push({ make:'', model:'', yearStart:'', yearEnd:'', engine:'' }); this.renderAutoCompatibleVehicles(); });
+        this.elements.autoCompatibilityType?.addEventListener('change', () => this.renderAutoCompatibleVehicles());
         this.setupEditorScrollspy();
 
         // Variations: quick combination generator
@@ -3910,6 +4001,7 @@
         this.elements.taxonomyCategorySelect?.addEventListener('change', () => this.onTaxonomyCategoryChange());
         this.elements.taxonomySubcategorySelect?.addEventListener('change', () => {
           this.taxonomySelection.subcategoryId = this.elements.taxonomySubcategorySelect.value || '';
+          this.renderTaxonomyDynamicFields(this.dynamicAttributes);
         });
         
         // Variation
@@ -3938,6 +4030,7 @@
         this.elements.isDigitalProduct?.addEventListener('change', () => {
           this.updateDigitalProductUi();
         });
+        this.elements.digitalDownloadFile?.addEventListener('change', () => this.uploadDigitalDownloadFile());
         this.elements.requestPayoutBtn?.addEventListener('click', async () => {
           try {
             this.elements.requestPayoutBtn.disabled = true;
@@ -4345,7 +4438,7 @@
           { key: 'dept', label: 'Département', done: Boolean(this.taxonomySelection.departmentId) && Number.isFinite(Number(this.getDepartmentCommissionRate(this.taxonomySelection.departmentId))), anchor: 'category' },
         ];
         if (digital) {
-          items.push({ key: 'link', label: 'Lien de téléchargement', done: Boolean(this.elements.digitalDownloadLink?.value?.trim()), anchor: 'digital' });
+          items.push({ key: 'link', label: 'Fichier ou lien de téléchargement', done: Boolean(this.elements.digitalDownloadLink?.value?.trim() || this.digitalDownloadFile?.path), anchor: 'digital' });
         } else {
           items.push({ key: 'zone', label: 'Au moins 1 zone de livraison', done: (this.collectProductDeliveryCoverage?.()?.zones || []).length > 0, anchor: 'delivery' });
         }
@@ -4485,9 +4578,48 @@
 
       async loadProductTaxonomy() {
         try {
-          const res = await fetch(PRODUCT_TAXONOMY_URL, { cache: 'no-store' });
+          const [res, autoRes, digitalRes] = await Promise.all([
+            fetch(PRODUCT_TAXONOMY_URL, { cache: 'no-store' }),
+            fetch(AUTO_PARTS_TAXONOMY_URL, { cache: 'no-store' }),
+            fetch(DIGITAL_DOWNLOAD_TAXONOMY_URL, { cache: 'no-store' })
+          ]);
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
+          const auto = autoRes.ok ? await autoRes.json() : null;
+          if (auto?.id && Array.isArray(auto.categories)) {
+            auto.categories = auto.categories.map(category => ({
+              ...category,
+              subcategories: (category.subcategories || []).map(subcategory => {
+                const normalized = typeof subcategory === 'string'
+                  ? { id: subcategory.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), label: subcategory }
+                  : { ...subcategory };
+                const generatedFields = autoSubcategoryFields(normalized.label);
+                if (generatedFields.length && !Array.isArray(normalized.dynamicFields)) normalized.dynamicFields = generatedFields;
+                return normalized;
+              })
+            }));
+            const existingAuto = (data.departments || []).find(department => department.id === auto.id);
+            if (existingAuto) {
+              existingAuto.categories = auto.categories;
+              existingAuto.label = auto.label || existingAuto.label;
+              existingAuto.commissionRate = Number(auto.commissionRate || existingAuto.commissionRate || 15);
+            } else {
+              data.departments = [...(Array.isArray(data.departments) ? data.departments : []), auto];
+            }
+            data.commissionByDepartment = { ...(data.commissionByDepartment || {}), [auto.id]: Number(auto.commissionRate || 0) };
+          }
+          const digital = digitalRes.ok ? await digitalRes.json() : null;
+          if (digital?.id && Array.isArray(digital.categories)) {
+            const existingDigital = (data.departments || []).find(department => department.id === digital.id);
+            if (existingDigital) {
+              existingDigital.categories = digital.categories;
+              existingDigital.label = digital.label || existingDigital.label;
+              existingDigital.commissionRate = Number(digital.commissionRate || existingDigital.commissionRate || 15);
+            } else {
+              data.departments = [...(Array.isArray(data.departments) ? data.departments : []), digital];
+            }
+            data.commissionByDepartment = { ...(data.commissionByDepartment || {}), [digital.id]: Number(digital.commissionRate || 15) };
+          }
           this.productTaxonomy = data && Array.isArray(data.departments) ? data : null;
         } catch (error) {
           console.error('Erreur chargement taxonomie produits:', error);
@@ -4590,11 +4722,17 @@
         const dynamicValues = opts.keepValues ? this.dynamicAttributes : {};
         if (!opts.keepValues) this.dynamicAttributes = {};
         this.renderTaxonomyDynamicFields(dynamicValues);
+        this.renderAutoCompatibleVehicles();
       }
 
       getSelectedTaxonomyCategory() {
         const dep = this.getTaxonomyDepartment(this.taxonomySelection.departmentId);
         return dep?.categories?.find(c => c.id === this.taxonomySelection.categoryId) || null;
+      }
+
+      getSelectedTaxonomySubcategory() {
+        const category = this.getSelectedTaxonomyCategory();
+        return category?.subcategories?.find(s => s.id === this.taxonomySelection.subcategoryId) || null;
       }
 
       getDynamicFieldOptions(field = {}) {
@@ -4617,7 +4755,17 @@
         const wrap = this.elements.taxonomyDynamicFields;
         const grid = this.elements.taxonomyDynamicFieldsGrid;
         if (!wrap || !grid) return;
-        const fields = this.getSelectedTaxonomyCategory()?.dynamicFields || [];
+        // Certains départements (tabac/vape notamment) ajoutent un bloc de
+        // conformité universel en plus des attributs propres à la catégorie.
+        const departmentFields = this.getTaxonomyDepartment(this.taxonomySelection.departmentId)?.complianceFields || [];
+        const categoryFields = this.getSelectedTaxonomyCategory()?.dynamicFields || [];
+        const subcategoryFields = this.getSelectedTaxonomySubcategory()?.dynamicFields || [];
+        const fields = [...departmentFields, ...categoryFields];
+        [...subcategoryFields].forEach(field => {
+          const index = fields.findIndex(existing => existing.key === field.key);
+          if (index === -1) fields.push(field);
+          else fields[index] = { ...fields[index], ...field };
+        });
         if (!fields.length) {
           wrap.hidden = true;
           grid.innerHTML = '';
@@ -4627,10 +4775,14 @@
         grid.innerHTML = fields.map(field => {
           const options = this.getDynamicFieldOptions(field);
           const value = values?.[field.key] || this.dynamicAttributes?.[field.key] || '';
+          const required = field.required === true;
+          const requiredAttr = required ? ' required' : '';
           const control = options.length
-            ? `<select id="dynamic-${this.escape(field.key)}" class="form-select" data-taxonomy-dynamic-key="${this.escape(field.key)}"><option value="">Choisir</option>${options.map(option => `<option value="${this.escape(option)}" ${String(value) === String(option) ? 'selected' : ''}>${this.escape(option)}</option>`).join('')}</select>`
-            : `<input id="dynamic-${this.escape(field.key)}" class="form-input" data-taxonomy-dynamic-key="${this.escape(field.key)}" type="text" value="${this.escape(value)}" placeholder="Renseigner selon l'étiquette du fabricant">`;
-          return `<div class="pe-field"><label for="dynamic-${this.escape(field.key)}">${this.escape(field.label)} <span class="pe-opt">Facultatif</span></label>${control}</div>`;
+            ? `<select id="dynamic-${this.escape(field.key)}" class="form-select" data-taxonomy-dynamic-key="${this.escape(field.key)}"${requiredAttr}><option value="">Choisir</option>${options.map(option => `<option value="${this.escape(option)}" ${String(value) === String(option) ? 'selected' : ''}>${this.escape(option)}</option>`).join('')}</select>`
+            : field.type === 'textarea'
+              ? `<textarea id="dynamic-${this.escape(field.key)}" class="form-input" data-taxonomy-dynamic-key="${this.escape(field.key)}"${requiredAttr} placeholder="Renseigner selon l'étiquette du fabricant">${this.escape(value)}</textarea>`
+              : `<input id="dynamic-${this.escape(field.key)}" class="form-input" data-taxonomy-dynamic-key="${this.escape(field.key)}" type="${field.type === 'number' ? 'number' : 'text'}" value="${this.escape(value)}"${requiredAttr} placeholder="Renseigner selon l'étiquette du fabricant">`;
+          return `<div class="pe-field"><label for="dynamic-${this.escape(field.key)}">${this.escape(field.label)} <span class="pe-opt">${required ? 'Obligatoire' : 'Facultatif'}</span></label>${control}</div>`;
         }).join('');
         grid.querySelectorAll('[data-taxonomy-dynamic-key]').forEach(input => {
           input.addEventListener('input', () => {
@@ -4639,11 +4791,36 @@
         });
       }
 
+      isAutoPartsDepartment() {
+        return String(this.taxonomySelection.departmentId || '') === 'automobile-pieces-accessoires';
+      }
+
+      renderAutoCompatibleVehicles() {
+        const wrap = this.elements.autoPartsCompatibility;
+        const list = this.elements.autoCompatibleVehiclesList;
+        const active = this.isAutoPartsDepartment();
+        this.elements.autoPartsFields?.toggleAttribute('hidden', !active);
+        wrap?.toggleAttribute('hidden', !active);
+        if (!active || !list) return;
+        const universal = this.elements.autoCompatibilityType?.value === 'UNIVERSAL';
+        list.innerHTML = universal ? '<p class="pe-hint">Ce produit est déclaré universel. Vérifiez toujours les dimensions avant l’achat.</p>' : (this.compatibleVehicles.length ? this.compatibleVehicles.map((vehicle, index) => `<div class="pe-grid-3 auto-vehicle-row" data-auto-vehicle-index="${index}"><div class="pe-field"><label>Marque</label><input class="form-input" data-auto-vehicle="make" value="${this.escape(vehicle.make)}" placeholder="Toyota"></div><div class="pe-field"><label>Modèle</label><input class="form-input" data-auto-vehicle="model" value="${this.escape(vehicle.model)}" placeholder="Corolla"></div><div class="pe-field"><label>Année début</label><input class="form-input" data-auto-vehicle="yearStart" type="number" min="1900" max="2100" value="${this.escape(vehicle.yearStart)}"></div><div class="pe-field"><label>Année fin</label><input class="form-input" data-auto-vehicle="yearEnd" type="number" min="1900" max="2100" value="${this.escape(vehicle.yearEnd)}"></div><div class="pe-field"><label>Motorisation</label><input class="form-input" data-auto-vehicle="engine" value="${this.escape(vehicle.engine)}" placeholder="1.8L Essence"></div><button type="button" class="btn btn-secondary" data-remove-auto-vehicle="${index}">Supprimer</button></div>`).join('') : '<p class="pe-hint">Ajoutez au moins un véhicule compatible pour préciser la pièce.</p>');
+        list.querySelectorAll('[data-auto-vehicle]').forEach(input => input.addEventListener('input', () => { const row = input.closest('[data-auto-vehicle-index]'); const index = Number(row?.dataset.autoVehicleIndex); if (this.compatibleVehicles[index]) this.compatibleVehicles[index][input.dataset.autoVehicle] = input.value.trim(); }));
+        list.querySelectorAll('[data-remove-auto-vehicle]').forEach(button => button.addEventListener('click', () => { this.compatibleVehicles.splice(Number(button.dataset.removeAutoVehicle), 1); this.renderAutoCompatibleVehicles(); }));
+      }
+
+      collectAutoCompatibility() {
+        if (!this.isAutoPartsDepartment()) return null;
+        const type = this.elements.autoCompatibilityType?.value === 'UNIVERSAL' ? 'UNIVERSAL' : 'SPECIFIC';
+        return { type, vehicles: type === 'UNIVERSAL' ? [] : this.compatibleVehicles.filter(v => v.make && v.model).map(v => ({ make:v.make, model:v.model, yearStart:Number(v.yearStart)||null, yearEnd:Number(v.yearEnd)||null, engine:v.engine || '' })) };
+      }
+
       collectTaxonomyDynamicFields() {
         const values = {};
+        this.missingDynamicFields = [];
         this.elements.taxonomyDynamicFieldsGrid?.querySelectorAll('[data-taxonomy-dynamic-key]').forEach(input => {
           const value = input.value.trim();
           if (value) values[input.dataset.taxonomyDynamicKey] = value;
+          if (input.required && !value) this.missingDynamicFields.push(input.previousElementSibling?.textContent?.replace(/Obligatoire|Facultatif/g, '').trim() || input.dataset.taxonomyDynamicKey);
         });
         this.dynamicAttributes = values;
         return values;
@@ -6427,6 +6604,7 @@
           main: [],
           variations: {}
         };
+        this.digitalDownloadFile = { path: '', name: '', url: '' };
         this.resetForm();
         this.setEditorMode('physical');
         this.switchView('editor');
@@ -6452,6 +6630,7 @@
           main: [],
           variations: {}
         };
+        this.digitalDownloadFile = { path: '', name: '', url: '' };
         this.resetForm();
         this.setEditorMode('digital');
         this.switchView('editor');
@@ -6497,6 +6676,11 @@
           this.elements.productId.value = this.currentProduct.id;
           this.elements.productName.value = this.currentProduct.name || '';
           this.elements.mainSku.value = this.currentProduct.sku || '';
+          this.elements.productManufacturer.value = this.currentProduct.manufacturer || this.currentProduct.brand || '';
+          this.elements.productPartNumber.value = this.currentProduct.partNumber || this.currentProduct.mpn || '';
+          this.elements.productOemNumber.value = this.currentProduct.oemNumber || '';
+          this.elements.productCondition.value = this.currentProduct.condition || 'NEW';
+          this.compatibleVehicles = Array.isArray(this.currentProduct.compatibility?.vehicles) ? this.currentProduct.compatibility.vehicles.map(v => ({...v})) : [];
           this.elements.shortDescription.value = this.currentProduct.shortDescription || '';
           this.elements.longDescription.value = this.currentProduct.longDescription || '';
           this.elements.basePrice.value = this.currentProduct.price || '';
@@ -6509,6 +6693,12 @@
           }
           this.elements.isDigitalProduct.checked = Boolean(this.currentProduct.isDigitalProduct);
           this.elements.digitalDownloadLink.value = this.currentProduct.digitalDownloadLink || '';
+          this.digitalDownloadFile = {
+            path: this.currentProduct.digitalDownloadStoragePath || '',
+            name: this.currentProduct.digitalDownloadFileName || '',
+            url: this.currentProduct.digitalDownloadUrl || ''
+          };
+          if (this.elements.digitalDownloadFileStatus && this.digitalDownloadFile.name) this.elements.digitalDownloadFileStatus.textContent = `Fichier actuel : ${this.digitalDownloadFile.name}`;
           this.elements.deliveryDelay.value = this.currentProduct.deliveryDelay || (this.currentProduct.isDigitalProduct ? 'Instantanee' : '');
           this.setEditorMode(this.currentProduct.isDigitalProduct ? 'digital' : 'physical');
           this.updateDigitalProductUi();
@@ -6521,6 +6711,8 @@
           }
           this.applyTaxonomySelectionFromProduct(this.currentProduct);
           this.renderTaxonomyDynamicFields(this.dynamicAttributes);
+          if (this.elements.autoCompatibilityType) this.elements.autoCompatibilityType.value = this.currentProduct.compatibility?.type || 'SPECIFIC';
+          this.renderAutoCompatibleVehicles();
 
           this.renderVariations();
           this.renderMainImages();
@@ -6542,6 +6734,12 @@
         this.elements.productId.value = '';
         this.elements.productName.value = '';
         this.elements.mainSku.value = '';
+        this.elements.productManufacturer.value = '';
+        this.elements.productPartNumber.value = '';
+        this.elements.productOemNumber.value = '';
+        this.elements.productCondition.value = 'NEW';
+        this.compatibleVehicles = [];
+        if (this.elements.autoCompatibilityType) this.elements.autoCompatibilityType.value = 'SPECIFIC';
         this.elements.shortDescription.value = '';
         this.elements.longDescription.value = '';
         this.elements.basePrice.value = '';
@@ -6550,6 +6748,9 @@
         this.renderProductDeliveryZones([]);
         this.elements.isDigitalProduct.checked = false;
         this.elements.digitalDownloadLink.value = '';
+        this.digitalDownloadFile = { path: '', name: '', url: '' };
+        if (this.elements.digitalDownloadFile) this.elements.digitalDownloadFile.value = '';
+        if (this.elements.digitalDownloadFileStatus) this.elements.digitalDownloadFileStatus.textContent = 'PDF, ZIP, DOCX, XLSX, PPTX, EPUB, MOBI, MP4 ou MP3 · 100 Mo maximum.';
         this.elements.deliveryDelay.value = '';
         this.updateDigitalProductUi();
         this.populateDiscountFields(null);
@@ -6559,6 +6760,7 @@
         this.resetTaxonomySelection();
         this.dynamicAttributes = {};
         this.renderTaxonomyDynamicFields();
+        this.renderAutoCompatibleVehicles();
         this.elements.categoryAttributesContainer.innerHTML = '';
         this.elements.selectedLinesList.innerHTML = '';
         this.elements.variationsContainer.innerHTML = '';
@@ -6591,15 +6793,20 @@
           this.showToast(discount.__error, 'error');
           return;
         }
-        const selectedCategoryId = String(this.elements.categorySelect.value || this.currentProduct?.categoryId || '').trim();
+        const selectedTaxonomyCategory = this.getSelectedTaxonomyCategory();
+        const selectedCategoryId = String(this.elements.categorySelect.value || this.currentProduct?.categoryId || this.taxonomySelection.categoryId || '').trim();
         const selectedCategory = this.getSelectedCategory(selectedCategoryId);
         const selectedCategoryName = String(
           selectedCategory?.name ||
+          selectedTaxonomyCategory?.label ||
           this.currentProduct?.category ||
           ''
         ).trim();
         const digitalDownloadLink = this.elements.digitalDownloadLink?.value?.trim() || '';
-        const isDigitalProduct = Boolean(this.elements.isDigitalProduct?.checked) || Boolean(digitalDownloadLink);
+        const digitalDownloadStoragePath = this.digitalDownloadFile?.path || this.currentProduct?.digitalDownloadStoragePath || '';
+        const digitalDownloadFileName = this.digitalDownloadFile?.name || this.currentProduct?.digitalDownloadFileName || '';
+        const digitalDownloadUrl = this.digitalDownloadFile?.url || this.currentProduct?.digitalDownloadUrl || '';
+        const isDigitalProduct = Boolean(this.elements.isDigitalProduct?.checked) || Boolean(digitalDownloadLink) || Boolean(digitalDownloadStoragePath);
         if (isDigitalProduct && this.elements.isDigitalProduct) {
           this.elements.isDigitalProduct.checked = true;
           this.updateDigitalProductUi();
@@ -6611,6 +6818,25 @@
         }
         const selectedDepartmentId = String(this.taxonomySelection.departmentId || '').trim();
         const selectedDepartment = this.getTaxonomyDepartment(selectedDepartmentId);
+        const autoCompatibility = this.collectAutoCompatibility();
+        const dynamicAttributes = this.collectTaxonomyDynamicFields();
+        if (this.missingDynamicFields?.length) {
+          this.showToast(`Complétez les champs obligatoires : ${this.missingDynamicFields.join(', ')}`, 'error');
+          this.switchEditorTab('category');
+          return;
+        }
+        if (selectedDepartmentId === 'automobile-pieces-accessoires') {
+          if (!this.elements.productManufacturer?.value.trim() || !this.elements.productPartNumber?.value.trim()) {
+            this.showToast('Pour une pièce automobile, renseignez la marque/fabricant et la référence MPN.', 'error');
+            this.switchEditorTab('general');
+            return;
+          }
+          if (autoCompatibility?.type === 'SPECIFIC' && !autoCompatibility.vehicles.length) {
+            this.showToast('Ajoutez au moins un véhicule compatible ou choisissez Produit universel.', 'error');
+            this.switchEditorTab('category');
+            return;
+          }
+        }
         const taxonomyReady = this.getTaxonomyDepartments().length > 0;
         if (taxonomyReady && !this.getManualCommissionOverride()
           && (!selectedDepartmentId || !Number.isFinite(Number(this.getDepartmentCommissionRate(selectedDepartmentId))))) {
@@ -6624,14 +6850,20 @@
         const productData = {
           name: this.elements.productName.value.trim(),
           sku: this.elements.mainSku.value.trim() || this.generateMainSku(),
+          manufacturer: this.elements.productManufacturer?.value.trim() || '',
+          partNumber: this.elements.productPartNumber?.value.trim() || '',
+          mpn: this.elements.productPartNumber?.value.trim() || '',
+          oemNumber: this.elements.productOemNumber?.value.trim() || '',
+          condition: this.elements.productCondition?.value || 'NEW',
           shortDescription: this.elements.shortDescription.value.trim(),
           longDescription: this.elements.longDescription.value.trim(),
           price: parseFloat(this.elements.basePrice.value) || 0,
           comparePrice: parseFloat(this.elements.comparePrice.value) || null,
           isDigitalProduct,
           digitalDownloadLink,
-          digitalDownloadStoragePath: '',
-          digitalDownloadFileName: '',
+          digitalDownloadStoragePath,
+          digitalDownloadFileName,
+          digitalDownloadUrl,
           deliveryDelay: isDigitalProduct
             ? 'Instantanee'
             : (this.elements.deliveryDelay?.value?.trim() || ''),
@@ -6651,11 +6883,13 @@
           categoryId: selectedCategoryId,
           category: selectedCategoryName,
           categorySelections: this.categorySelections,
-          dynamicAttributes: this.collectTaxonomyDynamicFields(),
+          dynamicAttributes,
           departmentId: selectedDepartmentId,
           department: selectedDepartment?.label || '',
           taxonomyCategoryId: String(this.taxonomySelection.categoryId || '').trim(),
           taxonomySubcategoryId: String(this.taxonomySelection.subcategoryId || '').trim(),
+          compatibility: autoCompatibility,
+          vertical: selectedDepartmentId === 'automobile-pieces-accessoires' ? 'auto_parts' : '',
           variations: isDigitalProduct ? [] : this.currentVariations.map((v, index) => ({
             ...v,
             images: this.currentImages.variations[index] || []
@@ -6700,8 +6934,8 @@
           return;
         }
 
-        if (productData.isDigitalProduct && !productData.digitalDownloadLink) {
-          this.showToast('Ajoutez le lien de telechargement pour cet article digital.', 'error');
+        if (productData.isDigitalProduct && !productData.digitalDownloadLink && !productData.digitalDownloadStoragePath) {
+          this.showToast('Ajoutez un lien ou envoyez le fichier principal pour cet article digital.', 'error');
           this.switchEditorTab('digital');
           return;
         }
@@ -7053,7 +7287,8 @@
 
       isDigitalModeActive() {
         return Boolean(this.elements.isDigitalProduct?.checked)
-          || Boolean(this.elements.digitalDownloadLink?.value?.trim());
+          || Boolean(this.elements.digitalDownloadLink?.value?.trim())
+          || Boolean(this.digitalDownloadFile?.path);
       }
 
       validateDigitalMainImages(incomingFiles = []) {
@@ -7139,6 +7374,24 @@
             currentProductId: this.currentProduct?.id || null
           });
           this.showToast(error?.message || 'Erreur pendant l upload des images.', 'error');
+        }
+      }
+
+      async uploadDigitalDownloadFile() {
+        const file = this.elements.digitalDownloadFile?.files?.[0];
+        if (!file) return;
+        const allowed = new Set(['application/pdf', 'application/zip', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/epub+zip', 'application/x-mobipocket-ebook', 'video/mp4', 'audio/mpeg']);
+        try {
+          validateStorageFile(file, { allowedTypes: allowed, maxSizeMb: 100, unsupportedMessage: 'Format digital non supporté.' });
+          await this.ensureUploadAuthReady();
+          this.showToast('Upload du fichier digital en cours...', 'info');
+          const upload = await uploadStorageFile(file, `marketplace-private/digital/${this.vendorContext?.uid || 'vendor'}`, { maxSizeMb: 100, allowedTypes: allowed, exposeDownloadUrl: true });
+          this.digitalDownloadFile = { path: upload.path || '', name: file.name, url: upload.url || '' };
+          if (this.elements.digitalDownloadFileStatus) this.elements.digitalDownloadFileStatus.textContent = `Fichier prêt : ${file.name}`;
+          this.showToast('Fichier digital envoyé.');
+        } catch (error) {
+          if (this.elements.digitalDownloadFile) this.elements.digitalDownloadFile.value = '';
+          this.showToast(error?.message || 'Impossible d’envoyer le fichier digital.', 'error');
         }
       }
       

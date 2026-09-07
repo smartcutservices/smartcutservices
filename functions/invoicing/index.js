@@ -194,7 +194,7 @@ function buildInvoicing(internals) {
     const profile = await db.collection('billingProfiles').doc(data.ownerUid).get();
     if (data.status === 'SENT') await doc.ref.set({ status: 'VIEWED', viewedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
     res.json({ ok: true, proforma: { id: doc.id, number: data.number, status: data.status === 'SENT' ? 'VIEWED' : data.status, issueDate: data.issueDate,
-      expiryDate: data.expiryDate, items: data.items, subtotalMinor: data.subtotalMinor, discountMinor: data.discountMinor, taxMinor: data.taxMinor,
+      expiryDate: data.expiryDate, marketplace: Boolean(data.marketplace), items: data.items, subtotalMinor: data.subtotalMinor, discountMinor: data.discountMinor, taxMinor: data.taxMinor,
       feeMinor: data.feeMinor, totalMinor: data.totalMinor, currency: data.currency, notes: data.notes, terms: data.terms,
       client: { name: data.clientSnapshot?.name || '', company: data.clientSnapshot?.company || '' },
       provider: { businessName: profile.data()?.businessName || 'Prestataire SmartCut', contactName: profile.data()?.contactName || '', logoUrl: profile.data()?.logoUrl || '' } } });
@@ -251,9 +251,13 @@ function buildInvoicing(internals) {
       const providerCreditMinor = verifiedMinor - commissionMinor;
       if (!Number.isSafeInteger(providerCreditMinor) || providerCreditMinor < 0) throw new ApiError(409, 'commission-invalid', 'Commission invalide.');
       tx.create ? tx.create(transactionRef, { intentId, createdAt: serverTimestamp() }) : tx.set(transactionRef, { intentId, createdAt: serverTimestamp() });
-      tx.set(ledgerRef, { ownerUid: intentSnap.data().ownerUid, type: 'PAYMENT_RECEIVED', amountMinor: verifiedMinor, grossMinor: verifiedMinor, commissionMinor, currency: 'HTG', direction: 'CREDIT', source: 'MONCASH', referenceId: intentId, transactionId: txId, createdAt: serverTimestamp() });
+      tx.set(ledgerRef, { ownerUid: intentSnap.data().ownerUid, type: marketplace ? 'ESCROW_HELD' : 'PAYMENT_RECEIVED', amountMinor: verifiedMinor, grossMinor: verifiedMinor, commissionMinor, currency: 'HTG', direction: 'CREDIT', source: marketplace ? 'MONCASH_ESCROW' : 'MONCASH', referenceId: intentId, transactionId: txId, createdAt: serverTimestamp() });
       if (commissionMinor) tx.set(db.collection('billingLedgerEntries').doc(`${intentId}_PLATFORM_COMMISSION`), { ownerUid: intentSnap.data().ownerUid, type: 'PLATFORM_COMMISSION', amountMinor: commissionMinor, currency: 'HTG', direction: 'DEBIT', source: 'SMARTCUT', referenceId: intentId, createdAt: serverTimestamp() });
-      tx.set(balanceRef, { ...current, availableMinor: Number(current.availableMinor || 0) + providerCreditMinor, currency: 'HTG', updatedAt: serverTimestamp() }, { merge: true });
+      tx.set(balanceRef, { ...current,
+        availableMinor: Number(current.availableMinor || 0) + (marketplace ? 0 : providerCreditMinor),
+        reservedMinor: Number(current.reservedMinor || 0) + (marketplace ? providerCreditMinor : 0),
+        currency: 'HTG', updatedAt: serverTimestamp()
+      }, { merge: true });
       tx.set(paymentRef, { ownerUid: intentSnap.data().ownerUid, buyerUid: intentSnap.data().buyerUid || null, proformaId: proformaRef.id, amountMinor: verifiedMinor, commissionMinor, netMinor: providerCreditMinor, currency: 'HTG', provider: 'MONCASH', providerTransactionId: txId, status: 'CONFIRMED', paidAt: serverTimestamp(), createdAt: serverTimestamp() });
       tx.set(invoiceRef, { ownerUid: intentSnap.data().ownerUid, proformaId: proformaRef.id, paymentId: paymentRef.id, number: invoiceNumber, verificationCode: randomToken(), amountMinor: verifiedMinor, currency: 'HTG', status: 'PAID', provider: 'MONCASH', providerTransactionId: txId, createdAt: serverTimestamp() });
       tx.set(proformaRef, { status: 'PAID', invoiceId: invoiceRef.id, paidAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
@@ -264,7 +268,7 @@ function buildInvoicing(internals) {
           serviceId: marketplace.serviceId, requestId: marketplace.requestId, proposalId: marketplace.proposalId, proformaId: proformaRef.id,
           invoiceId: invoiceRef.id, paymentId: paymentRef.id, serviceSnapshot: marketplace.serviceSnapshot || {}, providerSnapshot: marketplace.providerSnapshot || {},
           grossMinor: marketplace.grossMinor, paidMinor: verifiedMinor, commissionMinor, netMinor: providerCreditMinor, currency: 'HTG', paymentStatus: 'PAID',
-          status: 'PAID', revisionsIncluded: Number(marketplace.serviceSnapshot?.revisionsIncluded || 0), revisionsUsed: 0,
+          status: 'PAID', escrowStatus: 'HELD', fundsHeldMinor: providerCreditMinor, revisionsIncluded: Number(marketplace.serviceSnapshot?.revisionsIncluded || 0), revisionsUsed: 0,
           dueAt: new Date(Date.now() + Number(marketplace.serviceSnapshot?.deliveryDays || 1) * 86400000), createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         tx.set(db.collection('marketplaceNotifications').doc(`${intentId}_order_paid`), { recipientUid: marketplace.providerUid, type: 'ORDER_PAID', title: 'Commande payée', message: marketplace.serviceSnapshot?.name || 'Nouvelle commande', referenceId: intentId, read: false, createdAt: serverTimestamp() });
       }

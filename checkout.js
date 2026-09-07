@@ -247,6 +247,9 @@ class CheckoutModal {
         item.deliveryDelay = String(item.deliveryDelay || product.deliveryDelay || '').trim();
         item.isDigitalProduct = Boolean(item.isDigitalProduct || product.isDigitalProduct);
         item.digitalDownloadLink = String(item.digitalDownloadLink || product.digitalDownloadLink || '').trim();
+        item.digitalDownloadStoragePath = String(item.digitalDownloadStoragePath || product.digitalDownloadStoragePath || '').trim();
+        item.digitalDownloadFileName = String(item.digitalDownloadFileName || product.digitalDownloadFileName || '').trim();
+        item.digitalDownloadUrl = String(item.digitalDownloadUrl || product.digitalDownloadUrl || '').trim();
       } catch (error) {
         console.warn('[CHECKOUT_DELIVERY] Impossible de charger les zones produit', {
           productId: item?.productId || '',
@@ -1826,7 +1829,7 @@ class CheckoutModal {
         return;
       }
       await this.saveCheckoutDeliveryAddress();
-      const module = await import('./payment.js?v=20260901-1');
+      const module = await import('./payment.js?v=20260907-wallet-1');
       const PaymentModal = module.default;
       
       await this.close();

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#10243d">
+  <title>Smart Cut Affiliate Program</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="./affiliate.css?v=20260907-1">
+</head>
+<body>
+  <div id="affiliate-app" class="aff-shell"></div>
+  <a class="aff-global-home" href="./index.html"><i class="fas fa-house" aria-hidden="true"></i><span>Accueil Smart Cut</span></a>
+  <script>
+    (() => {
+      const moveHomeIntoHeader = () => {
+        const link = document.querySelector('.aff-global-home');
+        const actions = document.querySelector('.aff-header-actions');
+        if (!link || !actions || link.parentElement === actions) return;
+        actions.querySelectorAll('a[href="./index.html"]').forEach((candidate) => { if (candidate !== link) candidate.remove(); });
+        link.classList.remove('aff-global-home');
+        link.classList.add('aff-btn', 'aff-btn--light', 'aff-home-btn');
+        actions.insertBefore(link, actions.firstElementChild);
+      };
+      new MutationObserver(moveHomeIntoHeader).observe(document.getElementById('affiliate-app'), { childList: true, subtree: true });
+      moveHomeIntoHeader();
+    })();
+  </script>
+  <script type="module" src="./affiliate.js?v=20260907-1"></script>
+</body>
+</html>

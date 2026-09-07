@@ -220,6 +220,15 @@ class SierraHeaderNebula {
         transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
       }
 
+      /* Affiliate garde la même pastille de marque sur desktop et mobile. */
+      .desktop-nav-action.affiliate-nav-link,
+      .mobile-nav-item.affiliate-nav-link {
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: inset 0 0 0 1px rgba(184, 155, 123, 0.18);
+        color: #0f1111;
+        border-radius: 999px;
+      }
+
       .desktop-nav-action:hover,
       .mobile-nav-item:hover {
         background: rgba(198, 167, 94, 0.16);
@@ -544,6 +553,31 @@ class SierraHeaderNebula {
         font-size: 0.84rem;
         font-weight: 700;
         flex: 0 0 auto;
+      }
+
+      .mobile-nav-item.affiliate-nav-link {
+        padding: 0.55rem 0.78rem;
+      }
+
+      /* Pastille pleine : elle reste lisible sur le fond clair du sous-menu. */
+      .desktop-nav-action.affiliate-nav-link,
+      .mobile-nav-item.affiliate-nav-link {
+        background: #dff4ef !important;
+        color: #0e756b !important;
+        box-shadow: inset 0 0 0 1px rgba(14, 117, 107, 0.2), 0 3px 10px rgba(14, 117, 107, 0.12);
+      }
+      .desktop-nav-action.affiliate-nav-link:hover,
+      .mobile-nav-item.affiliate-nav-link:hover {
+        background: #c8ebe4 !important;
+        color: #0a5b54 !important;
+      }
+      /* Sélecteur de secours pour les rendus mobiles mis en cache ou réordonnés. */
+      .desktop-nav-items a[href="./affiliate.html"],
+      .mobile-nav-items a[href="./affiliate.html"] {
+        background: #dff4ef !important;
+        color: #0e756b !important;
+        border-radius: 999px !important;
+        box-shadow: inset 0 0 0 1px rgba(14, 117, 107, 0.2), 0 3px 10px rgba(14, 117, 107, 0.12) !important;
       }
 
       .mobile-nav-all { position: sticky; left: 0; z-index: 4; box-shadow: 0 5px 14px rgba(16, 25, 35, 0.1); }
@@ -1176,6 +1210,7 @@ class SierraHeaderNebula {
               </nav>
             </div>
             <a class="desktop-nav-action" href="./education.html">Smart Akademi</a>
+            <a class="desktop-nav-action affiliate-nav-link" href="./affiliate.html">Affiliation</a>
             <a class="desktop-nav-action" href="./services.html">Freelancer</a>
             <a class="desktop-nav-action" href="./health.html">Santé &amp; Pharmacie</a>
           </div>
@@ -1228,6 +1263,7 @@ class SierraHeaderNebula {
                 </nav>
               </details>
               <a class="mobile-nav-item" href="./education.html">Smart Akademi</a>
+              <a class="mobile-nav-item affiliate-nav-link" href="./affiliate.html">Affiliation</a>
               <a class="mobile-nav-item" href="./services.html">Freelancer</a>
               <a class="mobile-nav-item" href="./health.html">Santé &amp; Pharmacie</a>
             </div>

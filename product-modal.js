@@ -641,6 +641,41 @@ class ProductModal {
           border-color: #FFA41C !important;
           background: rgba(198, 167, 94, 0.1) !important;
         }
+
+        /* Variante active : le choix doit rester lisible même sans quantité. */
+        .variation-item {
+          position: relative;
+          transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease;
+        }
+        .variation-item:hover {
+          border-color: rgba(255, 164, 28, .62) !important;
+          background: #fffaf0 !important;
+          transform: translateY(-1px);
+        }
+        .variation-item:focus-visible {
+          outline: 3px solid rgba(37, 99, 235, .45);
+          outline-offset: 2px;
+        }
+        .variation-item.selected {
+          border-color: #f59e0b !important;
+          background: linear-gradient(180deg, #fffaf0 0%, #fff5dc 100%) !important;
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, .18), 0 8px 20px rgba(15, 23, 42, .1) !important;
+        }
+        .variation-item.selected::after {
+          content: '\\2713';
+          position: absolute;
+          top: .4rem;
+          right: .4rem;
+          display: grid;
+          place-items: center;
+          width: 1.35rem;
+          height: 1.35rem;
+          border-radius: 50%;
+          background: #f59e0b;
+          color: #16181d;
+          font-size: .75rem;
+          font-weight: 900;
+        }
         
         /* Scrollbar personnalisée */
         .product-modal-container-${this.uniqueId} ::-webkit-scrollbar {
@@ -693,7 +728,8 @@ class ProductModal {
         .desktop-image-item img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
+          background: #fff;
         }
 
         /* Photo principale de la variante choisie */
@@ -707,7 +743,7 @@ class ProductModal {
           outline: 3px solid #FFA41C;
           box-shadow: 0 14px 30px rgba(0,0,0,0.14);
         }
-        .desktop-image-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .desktop-image-hero img { width: 100%; height: 100%; object-fit: contain; object-position: center; background: #fff; display: block; }
         .variation-image-tag {
           position: absolute;
           top: 0.7rem;
@@ -716,16 +752,18 @@ class ProductModal {
           display: inline-flex;
           align-items: center;
           gap: 0.35rem;
-          background: #0F1111;
-          color: #ffffff;
+          background: rgba(255, 255, 255, 0.96);
+          color: #18212f;
           font-family: 'Amazon Ember', Arial, sans-serif;
           font-size: 0.72rem;
           font-weight: 800;
           letter-spacing: 0.03em;
-          padding: 0.32rem 0.62rem;
-          border-radius: 999px;
+          padding: 0.38rem 0.68rem;
+          border: 1px solid rgba(15, 17, 17, 0.1);
+          border-radius: 0.55rem;
+          box-shadow: 0 4px 14px rgba(15, 17, 17, 0.14);
         }
-        .variation-image-tag i { color: #FFA41C; }
+        .variation-image-tag i { color: #0f766e; }
         .desktop-image-item.is-variation-image {
           outline: 2px solid #FFA41C;
           outline-offset: -2px;
@@ -735,44 +773,60 @@ class ProductModal {
           position: absolute;
           top: 0.6rem;
           left: 0.6rem;
-          background: #0F1111;
+          background: #18212f;
           color: #fff;
           font-size: 0.68rem;
           font-weight: 800;
           padding: 0.25rem 0.55rem;
-          border-radius: 999px;
+          border-radius: 0.55rem;
         }
         .mobile-image-slide { position: relative; }
 
         /* Retour a la vue globale de la galerie */
         .gallery-scope-all {
-          display: inline-flex;
+          display: flex;
+          width: 100%;
           align-items: center;
-          gap: 0.45rem;
-          border: 1px solid rgba(15,17,17,0.14);
-          background: #ffffff;
-          color: #0F1111;
+          justify-content: space-between;
+          gap: 0.75rem;
+          border: 1px solid rgba(15,17,17,0.1);
+          background: #f8fafc;
+          color: #18212f;
           font-family: 'Amazon Ember', Arial, sans-serif;
-          font-size: 0.82rem;
+          font-size: 0.8rem;
           font-weight: 700;
-          padding: 0.5rem 0.9rem;
-          border-radius: 999px;
+          padding: 0.68rem 0.85rem;
+          border-radius: 0.7rem;
           cursor: pointer;
-          box-shadow: 0 6px 16px rgba(15,17,17,0.10);
-          transition: background 0.15s ease, transform 0.15s ease;
+          box-shadow: 0 2px 8px rgba(15,17,17,0.05);
+          transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
         }
-        .gallery-scope-all:hover { background: #F5F5F5; }
+        .gallery-scope-all::after {
+          content: '→';
+          color: #64748b;
+          font-size: 1rem;
+          line-height: 1;
+        }
+        .gallery-scope-all:hover {
+          background: #ffffff;
+          border-color: rgba(15, 118, 110, 0.35);
+        }
         .gallery-scope-all:active { transform: translateY(1px); }
-        .gallery-scope-all i { color: #FFA41C; }
+        .gallery-scope-all:focus-visible {
+          outline: 3px solid rgba(15, 118, 110, 0.25);
+          outline-offset: 2px;
+        }
+        .gallery-scope-all i { color: #0f766e; font-size: 0.95rem; }
         .gallery-scope-all--block { margin-bottom: 1rem; }
         .gallery-scope-all--float {
           position: absolute;
           top: 0.6rem;
           left: 0.6rem;
+          width: auto;
           z-index: 4;
           padding: 0.4rem 0.75rem;
           font-size: 0.76rem;
-          box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.16);
         }
 
         /* Carousel mobile */
@@ -800,13 +854,20 @@ class ProductModal {
           display: flex;
           align-items: center;
           justify-content: center;
+          overflow: hidden;
           cursor: pointer;
         }
-        
+
         .mobile-image-slide img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
+          width: auto !important;
+          height: auto !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          display: block;
+          box-sizing: border-box;
+          object-fit: contain !important;
+          object-position: center;
+          background: #fff;
         }
         
         .mobile-nav-btn {
@@ -870,8 +931,10 @@ class ProductModal {
         .related-products-carousel .related-product-image {
           width: 100%;
           height: 100%;
-          object-fit: cover;
-          transition: transform 0.3s;
+          object-fit: contain !important;
+          object-position: center;
+          background: #fff;
+          transition: none;
         }
         
         @media (min-width: 768px) {
@@ -886,7 +949,7 @@ class ProductModal {
           }
 
           .related-products-carousel .related-product-image {
-            object-fit: contain;
+            object-fit: contain !important;
           }
         }
         
@@ -895,7 +958,7 @@ class ProductModal {
         }
         
         .product-card:hover .related-product-image {
-          transform: scale(1.1);
+          transform: none;
         }
         
         /* Line clamp */
@@ -1109,7 +1172,10 @@ class ProductModal {
       el.textContent = String(safeQty);
     });
     this.modalElement.querySelectorAll(`.variation-item[data-variation-index="${variationIndex}"]`).forEach((el) => {
-      el.style.borderColor = safeQty > 0 ? '#FFA41C' : 'transparent';
+      // Keep the active variant highlighted even when its quantity is still zero.
+      el.style.borderColor = el.classList.contains('selected')
+        ? '#f59e0b'
+        : (safeQty > 0 ? '#FFA41C' : 'transparent');
       el.style.opacity = Number.isFinite(maxAllowed) && maxAllowed <= 0 && safeQty <= 0 ? '0.72' : '1';
     });
     this.modalElement.querySelectorAll(`.variation-stock-meta[data-variation-index="${variationIndex}"]`).forEach((el) => {
@@ -1417,6 +1483,7 @@ class ProductModal {
         </div>
         
         <!-- Description longue -->
+        ${this.renderAutoPartsCompatibility()}
         ${this.renderDynamicAttributes()}
         <div style="padding-top: 1rem; border-top: 1px solid rgba(198, 167, 94, 0.2);">
           <h3 style="font-weight: 500; margin-bottom: 0.5rem;">Description</h3>
@@ -1426,6 +1493,16 @@ class ProductModal {
         </div>
       </div>
     `;
+  }
+
+  renderAutoPartsCompatibility() {
+    const product = this.product || {};
+    const compatibility = product.compatibility;
+    if (!compatibility || typeof compatibility !== 'object') return '';
+    if (compatibility.type === 'UNIVERSAL') return '<section class="product-auto-compatibility" style="padding:1rem;border:1px solid rgba(13,118,101,.2);border-radius:.75rem;background:rgba(13,118,101,.06);"><strong>✓ Produit universel</strong><p style="margin:.35rem 0 0;color:#565959;font-size:.9rem;">Vérifiez les dimensions et les spécifications avant l’achat.</p></section>';
+    const vehicles = Array.isArray(compatibility.vehicles) ? compatibility.vehicles.filter(vehicle => vehicle?.make && vehicle?.model) : [];
+    if (!vehicles.length) return '';
+    return `<section class="product-auto-compatibility" style="padding:1rem;border:1px solid rgba(13,118,101,.2);border-radius:.75rem;background:rgba(13,118,101,.06);"><strong>Compatibilité véhicule</strong><ul style="margin:.5rem 0 0;padding-left:1.2rem;color:#565959;font-size:.9rem;">${vehicles.map(vehicle => `<li>${String(vehicle.make).replace(/[<>]/g,'')} ${String(vehicle.model).replace(/[<>]/g,'')}${vehicle.yearStart || vehicle.yearEnd ? ` · ${vehicle.yearStart || ''}${vehicle.yearEnd && vehicle.yearEnd !== vehicle.yearStart ? `–${vehicle.yearEnd}` : ''}` : ''}${vehicle.engine ? ` · ${String(vehicle.engine).replace(/[<>]/g,'')}` : ''}</li>`).join('')}</ul></section>`;
   }
 
   renderBoostPanel() {
@@ -1486,6 +1563,9 @@ class ProductModal {
               const qty = this.variationQuantities.get(index) || 0;
               return `
                 <div class="variation-item"
+                     role="option"
+                     tabindex="0"
+                     aria-selected="${qty > 0 ? 'true' : 'false'}"
                      data-type="variation"
                      data-value="${label}"
                      data-variation-index="${index}"
@@ -1810,6 +1890,20 @@ class ProductModal {
         this.currentVariationIndex = idx;
         this.forceFullGallery = false;
         const variation = this.product?.variations?.[idx];
+        this.modalElement.querySelectorAll('.variation-item').forEach((option) => {
+          const isSelected = option === item;
+          option.classList.toggle('selected', isSelected);
+          option.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+          // Inline fallback keeps the feedback visible if another page stylesheet wins.
+          option.style.borderColor = isSelected ? '#f59e0b' : 'transparent';
+          option.style.background = isSelected
+            ? 'linear-gradient(180deg, #fffaf0 0%, #fff5dc 100%)'
+            : 'white';
+          option.style.boxShadow = isSelected
+            ? '0 0 0 3px rgba(245, 158, 11, .18), 0 8px 20px rgba(15, 23, 42, .1)'
+            : 'none';
+          option.style.transform = isSelected ? 'translateY(-1px)' : '';
+        });
         this.selectedOptions.set('variation', {
           type: 'variation',
           value: item.dataset.value || this.getVariationLabel(variation),
@@ -1824,6 +1918,11 @@ class ProductModal {
         this.updateVariationQuantityUI(idx);
         this.refreshAddToCartButtons();
         this.saveToLocalStorage();
+      });
+      item.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        item.click();
       });
     });
 
@@ -2202,6 +2301,11 @@ class ProductModal {
   
  getVendorCartMeta(product = this.product) {
   const vendorId = String(product?.vendorId || '').trim();
+  let affiliateReferral = null;
+  try {
+    const stored = JSON.parse(localStorage.getItem('smartcut_affiliate_referral') || 'null');
+    if (stored?.productId && String(stored.productId) === String(product?.id)) affiliateReferral = stored;
+  } catch { affiliateReferral = null; }
   return {
     vendorId,
     vendorName: String(product?.vendorName || product?.shopName || '').trim(),
@@ -2223,6 +2327,10 @@ class ProductModal {
         : (Array.isArray(product?.vendorDeliveryZones) ? product.vendorDeliveryZones : [])),
     isDigitalProduct: Boolean(product?.isDigitalProduct),
     digitalDownloadLink: String(product?.digitalDownloadLink || '').trim(),
+    digitalDownloadStoragePath: String(product?.digitalDownloadStoragePath || '').trim(),
+    digitalDownloadFileName: String(product?.digitalDownloadFileName || '').trim(),
+    digitalDownloadUrl: String(product?.digitalDownloadUrl || '').trim(),
+    affiliateReferral,
     deliveryDelay: String(product?.deliveryDelay || (product?.isDigitalProduct ? 'Instantanee' : '')).trim()
   };
 }

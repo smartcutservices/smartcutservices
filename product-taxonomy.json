@@ -169,9 +169,215 @@
     "securite-et-protection": 15,
     "mobilier": 12,
     "accessoires-et-mode": 13,
-    "produits-scolaires": 10
+    "produits-scolaires": 10,
+    "telechargement-numerique": 15,
+    "automobile-pieces-accessoires": 15,
+    "tabac-vape-chicha-accessoires-fumeur": 15,
+    "boissons-alcoolisees": 15
   },
   "departments": [
+    {
+      "id": "telechargement-numerique",
+      "label": "Téléchargement numérique",
+      "order": 99,
+      "commissionRate": 15,
+      "categories": []
+    },
+    {
+      "id": "automobile-pieces-accessoires",
+      "label": "Automobile - Pièces & Accessoires",
+      "order": 100,
+      "commissionRate": 15,
+      "categories": []
+    },
+    {
+      "id": "tabac-vape-chicha-accessoires-fumeur",
+      "label": "Tabac, Vape, Chicha & Accessoires Fumeur",
+      "order": 101,
+      "commissionRate": 15,
+      "complianceFields": [
+        { "key": "produit-reglemente", "label": "Produit réglementé ?", "type": "select", "required": true, "options": ["Oui", "Non"] },
+        { "key": "contient-tabac", "label": "Contient du tabac ?", "type": "select", "required": true, "options": ["Oui", "Non"] },
+        { "key": "contient-nicotine", "label": "Contient de la nicotine ?", "type": "select", "required": true, "options": ["Oui", "Non"] },
+        { "key": "produit-reserve-age", "label": "Produit réservé par âge ?", "type": "select", "required": true, "options": ["Oui", "Non"] },
+        { "key": "avertissement-requis", "label": "Avertissement requis ?", "type": "select", "required": true, "options": ["Oui", "Non"] }
+      ],
+      "categories": [
+        {
+          "id": "cigarettes",
+          "label": "Cigarettes",
+          "variantAxes": ["Format", "Conditionnement", "Quantité"],
+          "subcategories": ["Cigarettes classiques", "Cigarettes blondes", "Cigarettes brunes", "Cigarettes mentholées", "Cigarettes aromatisées", "Cigarettes Slim", "Cigarettes Super Slim", "Cigarettes Light", "Cigarettes Premium", "Cigarettes sans tabac"],
+          "dynamicFields": [
+            { "key": "marque", "label": "Marque", "type": "text", "required": true },
+            { "key": "type-cigarette", "label": "Type de cigarette", "type": "text", "required": true },
+            { "key": "format", "label": "Format", "type": "text", "required": true },
+            { "key": "unites-paquet", "label": "Nombre d'unités par paquet", "type": "number", "required": true },
+            { "key": "conditionnement", "label": "Conditionnement", "type": "text", "required": true },
+            { "key": "filtre", "label": "Filtre", "type": "select", "options": ["Oui", "Non"] },
+            { "key": "saveur-arome", "label": "Saveur / arôme déclaré", "type": "text" },
+            { "key": "pays-origine", "label": "Pays d'origine", "type": "text" },
+            { "key": "infos-reglementaires", "label": "Informations réglementaires présentes sur emballage", "type": "select", "options": ["Oui", "Non"] }
+          ]
+        },
+        {
+          "id": "cigares-cigarillos",
+          "label": "Cigares & Cigarillos",
+          "variantAxes": ["Format", "Quantité", "Coffret"],
+          "subcategories": ["Cigares Premium", "Cigares classiques", "Cigares cubains", "Cigares dominicains", "Cigares artisanaux", "Cigares aromatisés", "Cigarillos", "Mini-cigares", "Coffrets de cigares"],
+          "dynamicFields": [
+            { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "type", "label": "Type", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text" }, { "key": "format", "label": "Format", "type": "text" }, { "key": "dimensions", "label": "Dimensions déclarées", "type": "text" }, { "key": "fabrication", "label": "Fabrication", "type": "select", "options": ["Main", "Machine"] }, { "key": "intensite", "label": "Intensité déclarée", "type": "text" }, { "key": "unites", "label": "Nombre d'unités", "type": "number" }, { "key": "emballage", "label": "Type d'emballage", "type": "text" }, { "key": "coffret", "label": "Coffret", "type": "select", "options": ["Oui", "Non"] }
+          ]
+        },
+        {
+          "id": "cigarettes-electroniques-vapes",
+          "label": "Cigarettes électroniques & Vapes",
+          "variantAxes": ["Couleur", "Modèle", "Conditionnement", "Saveur déclarée"],
+          "subcategories": ["Cigarettes électroniques", "Vapes jetables", "Vapes rechargeables", "Pod Systems", "Pods préremplis", "Pods rechargeables", "Kits de vape", "Appareils de vape sans nicotine", "Pièces de remplacement", "Accessoires pour vape"],
+          "dynamicFields": [
+            { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "modele", "label": "Modèle", "type": "text", "required": true }, { "key": "type-appareil", "label": "Type d'appareil", "type": "text", "required": true }, { "key": "jetable-rechargeable", "label": "Jetable / Rechargeable", "type": "select", "options": ["Jetable", "Rechargeable"], "required": true }, { "key": "nicotine", "label": "Contient de la nicotine", "type": "select", "options": ["Oui", "Non"], "required": true }, { "key": "eliquide", "label": "Présence d'e-liquide", "type": "select", "options": ["Oui", "Non"], "required": true }, { "key": "saveur", "label": "Saveur déclarée", "type": "text" }, { "key": "batterie-integree", "label": "Batterie intégrée", "type": "select", "options": ["Oui", "Non"] }, { "key": "batterie-rechargeable", "label": "Batterie rechargeable", "type": "select", "options": ["Oui", "Non"] }, { "key": "type-recharge", "label": "Type de recharge", "type": "text" }, { "key": "capacite-batterie", "label": "Capacité batterie déclarée (mAh)", "type": "number" }, { "key": "port-charge", "label": "Port de charge", "type": "text" }, { "key": "indicateur-batterie", "label": "Indicateur de batterie", "type": "select", "options": ["Oui", "Non"] }, { "key": "pod-inclus", "label": "Pod / cartouche inclus", "type": "select", "options": ["Oui", "Non"] }, { "key": "nombre-pods", "label": "Nombre de pods inclus", "type": "number" }, { "key": "couleur", "label": "Couleur", "type": "text" }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text" }, { "key": "compatibilite", "label": "Modèle / compatibilité des pièces", "type": "text" }
+          ]
+        },
+        {
+          "id": "tabac-chicha-hookah",
+          "label": "Tabac à chicha / Hookah",
+          "variantAxes": ["Poids", "Conditionnement", "Saveur"],
+          "subcategories": ["Tabac à chicha classique", "Tabac fruité", "Tabac mentholé", "Mélanges aromatisés", "Tabac Premium", "Dark Leaf", "Blonde Leaf", "Mélanges sans tabac", "Mélanges sans nicotine"],
+          "dynamicFields": [ { "key": "marque", "label": "Marque", "type": "text" }, { "key": "type-melange", "label": "Type de mélange", "type": "text" }, { "key": "poids-net", "label": "Poids net", "type": "number" }, { "key": "saveur", "label": "Saveur déclarée", "type": "text" }, { "key": "type-feuille", "label": "Type de feuille", "type": "text" }, { "key": "tabac", "label": "Contient du tabac", "type": "select", "options": ["Oui", "Non"] }, { "key": "nicotine", "label": "Contient de la nicotine", "type": "select", "options": ["Oui", "Non"] }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text" }, { "key": "conditionnement", "label": "Conditionnement", "type": "text" } ]
+        },
+        {
+          "id": "chichas-hookahs",
+          "label": "Chichas & Hookahs",
+          "variantAxes": ["Couleur", "Taille", "Modèle", "Kit"],
+          "subcategories": ["Chicha traditionnelle", "Chicha moderne", "Mini chicha", "Chicha portable", "Chicha Premium", "Chicha en verre", "Chicha en acier inoxydable", "Chicha multi-tuyaux", "Kits chicha"],
+          "dynamicFields": [ { "key": "marque", "label": "Marque", "type": "text" }, { "key": "modele", "label": "Modèle", "type": "text" }, { "key": "hauteur", "label": "Hauteur", "type": "text" }, { "key": "materiau", "label": "Matériau", "type": "text" }, { "key": "materiau-vase", "label": "Matériau du vase", "type": "text" }, { "key": "tuyaux", "label": "Nombre de tuyaux", "type": "number" }, { "key": "foyer", "label": "Foyer inclus", "type": "select", "options": ["Oui", "Non"] }, { "key": "tuyau", "label": "Tuyau inclus", "type": "select", "options": ["Oui", "Non"] }, { "key": "pince", "label": "Pince incluse", "type": "select", "options": ["Oui", "Non"] }, { "key": "kit-complet", "label": "Kit complet", "type": "select", "options": ["Oui", "Non"] }, { "key": "contenu-kit", "label": "Contenu du kit", "type": "text" } ]
+        },
+        {
+          "id": "tabac-a-rouler",
+          "label": "Tabac à rouler",
+          "variantAxes": ["Poids", "Conditionnement"],
+          "subcategories": ["Tabac blond", "Tabac brun", "Tabac classique", "Tabac aromatisé", "Tabac Premium", "Mélanges de tabac", "Tabac biologique"],
+          "dynamicFields": [ { "key": "marque", "label": "Marque", "type": "text" }, { "key": "type", "label": "Type", "type": "text" }, { "key": "poids-net", "label": "Poids net", "type": "number" }, { "key": "origine", "label": "Origine", "type": "text" }, { "key": "coupe", "label": "Coupe", "type": "text" }, { "key": "conditionnement", "label": "Conditionnement", "type": "text" }, { "key": "arome", "label": "Arôme déclaré", "type": "text" }, { "key": "reglementation", "label": "Informations réglementaires", "type": "text" } ]
+        },
+        {
+          "id": "tabac-a-pipe",
+          "label": "Tabac à pipe",
+          "variantAxes": ["Poids", "Mélange", "Conditionnement"],
+          "subcategories": ["Virginia", "Burley", "Oriental", "Cavendish", "Latakia", "Mélanges anglais", "Mélanges aromatiques", "Mélanges Premium", "Tabac classique"],
+          "dynamicFields": [ { "key": "marque", "label": "Marque", "type": "text" }, { "key": "type", "label": "Type", "type": "text" }, { "key": "melange", "label": "Mélange", "type": "text" }, { "key": "poids", "label": "Poids", "type": "number" }, { "key": "coupe", "label": "Coupe", "type": "text" }, { "key": "arome", "label": "Arôme déclaré", "type": "text" }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text" }, { "key": "conditionnement", "label": "Conditionnement", "type": "text" } ]
+        },
+        {
+          "id": "pipes-accessoires-pipe",
+          "label": "Pipes & Accessoires pour pipe",
+          "variantAxes": ["Couleur", "Taille", "Matériau", "Modèle"],
+          "subcategories": ["Pipes classiques", "Pipes en bois", "Pipes en bruyère", "Pipes en verre", "Pipes artisanales", "Pipes Premium", "Filtres pour pipe", "Nettoyeurs de pipe", "Étuis pour pipe", "Supports pour pipe"],
+          "dynamicFields": [ { "key": "marque", "label": "Marque", "type": "text" }, { "key": "modele", "label": "Modèle", "type": "text" }, { "key": "type-produit", "label": "Type de produit", "type": "text" }, { "key": "materiau", "label": "Matériau", "type": "text" }, { "key": "forme", "label": "Forme", "type": "text" }, { "key": "dimensions", "label": "Dimensions", "type": "text" }, { "key": "compatibilite", "label": "Compatibilité", "type": "text" }, { "key": "filtre-compatible", "label": "Filtre compatible", "type": "select", "options": ["Oui", "Non"] }, { "key": "accessoires-inclus", "label": "Accessoires inclus", "type": "text" } ]
+        },
+        {
+          "id": "papiers-rouler-filtres-accessoires",
+          "label": "Papiers à rouler, Filtres & Accessoires",
+          "variantAxes": ["Format", "Taille", "Quantité"],
+          "subcategories": ["Papier Regular", "Papier King Size", "Papier Slim", "Papier non blanchi", "Feuilles pré-roulées", "Filtres classiques", "Filtres Slim", "Filtres charbon actif", "Embouts / Tips", "Machines à rouler"],
+          "dynamicFields": [ { "key": "marque", "label": "Marque", "type": "text" }, { "key": "type-produit", "label": "Type de produit", "type": "text" }, { "key": "format", "label": "Format", "type": "text" }, { "key": "dimensions", "label": "Dimensions", "type": "text" }, { "key": "unites", "label": "Nombre d'unités", "type": "number" }, { "key": "materiau", "label": "Matériau", "type": "text" }, { "key": "non-blanchi", "label": "Non blanchi", "type": "select", "options": ["Oui", "Non"] }, { "key": "emballage", "label": "Type d'emballage", "type": "text" } ]
+        },
+        {
+          "id": "accessoires-fumeur-chicha",
+          "label": "Accessoires Fumeur & Chicha",
+          "variantAxes": ["Couleur", "Taille", "Matériau", "Quantité", "Modèle"],
+          "subcategories": ["Foyers pour chicha", "Tuyaux", "Embouts", "Vases", "Pinces", "Systèmes de gestion de chaleur", "Joints", "Adaptateurs", "Kits de nettoyage", "Briquets", "Coupe-cigares", "Cendriers", "Étuis à cigares", "Humidors", "Hygromètres", "Étuis à cigarettes"],
+          "dynamicFields": [ { "key": "type-accessoire", "label": "Type d'accessoire", "type": "text" }, { "key": "marque", "label": "Marque", "type": "text" }, { "key": "modele", "label": "Modèle", "type": "text" }, { "key": "materiau", "label": "Matériau", "type": "text" }, { "key": "dimensions", "label": "Dimensions", "type": "text" }, { "key": "compatibilite", "label": "Compatibilité", "type": "text" }, { "key": "quantite", "label": "Quantité", "type": "number" }, { "key": "reutilisable", "label": "Réutilisable", "type": "select", "options": ["Oui", "Non"] }, { "key": "accessoires-inclus", "label": "Accessoires inclus", "type": "text" } ]
+        }
+      ]
+    },
+    {
+      "id": "boissons-alcoolisees",
+      "label": "Boissons alcoolisées",
+      "order": 102,
+      "commissionRate": 15,
+      "requiresAdminApproval": true,
+      "complianceFields": [
+        { "key": "taux-alcool-abv", "label": "Taux d'alcool (ABV %)", "type": "number", "required": true },
+        { "key": "volume-net", "label": "Volume net", "type": "number", "required": true },
+        { "key": "unite-volume", "label": "Unité de volume", "type": "select", "required": true, "options": ["mL", "cL", "L"] },
+        { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true },
+        { "key": "fabricant-producteur", "label": "Fabricant / Producteur", "type": "text", "required": true },
+        { "key": "importateur-distributeur", "label": "Importateur / Distributeur", "type": "text" },
+        { "key": "avertissement-alcool", "label": "Avertissement relatif à l'alcool", "type": "text", "required": true },
+        { "key": "age-legal-requis", "label": "Produit réservé aux personnes ayant l'âge légal requis", "type": "select", "required": true, "options": ["Oui"] }
+      ],
+      "categories": [
+        {
+          "id": "bieres", "label": "Bières", "variantAxes": ["Volume", "Nombre d'unités", "Saveur", "Type de contenant"],
+          "subcategories": ["Bière blonde", "Bière brune", "Bière blanche", "Bière ambrée", "Bière IPA", "Bière Lager", "Bière Pilsner", "Bière Stout / Porter", "Bière artisanale", "Bière aromatisée", "Bière sans alcool / faible teneur"],
+          "dynamicFields": [
+            { "key": "style-biere", "label": "Style de bière", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "brasserie-marque", "label": "Brasserie / Marque", "type": "text", "required": true }, { "key": "fermentation", "label": "Type de fermentation", "type": "text" }, { "key": "couleur", "label": "Couleur", "type": "text" }, { "key": "ibu", "label": "Amertume / IBU", "type": "number" }, { "key": "saveurs-dominantes", "label": "Saveurs dominantes", "type": "text" }, { "key": "contenant", "label": "Type de contenant", "type": "select", "required": true, "options": ["Bouteille", "Canette", "Fût"] }, { "key": "unites-pack", "label": "Nombre d'unités par pack", "type": "number" }, { "key": "temperature-service", "label": "Température de service (°C)", "type": "number" }
+          ]
+        },
+        {
+          "id": "vins", "label": "Vins", "variantAxes": ["Millésime", "Volume", "Coffret", "Nombre de bouteilles"],
+          "subcategories": ["Vin rouge", "Vin blanc", "Vin rosé", "Vin mousseux", "Vin doux", "Vin sec", "Vin demi-sec", "Vin fortifié", "Vin biologique", "Vin sans alcool"],
+          "dynamicFields": [
+            { "key": "type-vin", "label": "Type de vin", "type": "text", "required": true }, { "key": "couleur", "label": "Couleur", "type": "text", "required": true }, { "key": "region-viticole", "label": "Région viticole", "type": "text" }, { "key": "domaine-producteur", "label": "Domaine / Producteur", "type": "text", "required": true }, { "key": "millesime", "label": "Millésime", "type": "number" }, { "key": "cepage", "label": "Cépage", "type": "text" }, { "key": "niveau-douceur", "label": "Niveau de douceur", "type": "select", "options": ["Sec", "Demi-sec", "Doux"] }, { "key": "appellation", "label": "Appellation", "type": "text" }, { "key": "notes-aromatiques", "label": "Notes aromatiques", "type": "text" }, { "key": "accords-mets-vins", "label": "Accords mets-vins", "type": "text" }, { "key": "temperature-service", "label": "Température de service (°C)", "type": "number" }
+          ]
+        },
+        {
+          "id": "champagnes-vins-effervescents", "label": "Champagnes & Vins effervescents", "variantAxes": ["Volume", "Millésime", "Coffret"],
+          "subcategories": ["Champagne Brut", "Champagne Extra Brut", "Champagne Demi-Sec", "Champagne Rosé", "Blanc de Blancs", "Blanc de Noirs", "Prosecco", "Cava", "Crémant", "Autres vins mousseux"],
+          "dynamicFields": [
+            { "key": "type-effervescent", "label": "Type d'effervescent", "type": "text", "required": true }, { "key": "marque-maison", "label": "Marque / Maison", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "region", "label": "Région", "type": "text" }, { "key": "appellation", "label": "Appellation", "type": "text" }, { "key": "niveau-brut", "label": "Brut / Extra Brut / Sec / Demi-Sec", "type": "select", "required": true, "options": ["Brut", "Extra Brut", "Sec", "Demi-Sec"] }, { "key": "millesime", "label": "Millésime", "type": "number" }, { "key": "cepages", "label": "Cépages", "type": "text" }, { "key": "coffret-cadeau", "label": "Coffret cadeau", "type": "select", "options": ["Oui", "Non"] }, { "key": "nombre-bouteilles", "label": "Nombre de bouteilles", "type": "number" }
+          ]
+        },
+        {
+          "id": "rhums", "label": "Rhums", "variantAxes": ["Volume", "Âge", "Édition"],
+          "subcategories": ["Rhum blanc", "Rhum brun", "Rhum ambré", "Rhum vieux", "Rhum agricole", "Rhum traditionnel", "Rhum épicé", "Rhum aromatisé", "Rhum premium", "Rhum overproof"],
+          "dynamicFields": [
+            { "key": "type-rhum", "label": "Type de rhum", "type": "text", "required": true }, { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "distillerie", "label": "Distillerie", "type": "text" }, { "key": "age", "label": "Âge", "type": "number" }, { "key": "vieillissement", "label": "Durée de vieillissement", "type": "text" }, { "key": "type-fut", "label": "Type de fût", "type": "text" }, { "key": "matiere-premiere", "label": "Matière première", "type": "select", "options": ["Canne", "Mélasse", "Jus de canne"] }, { "key": "rhum-agricole", "label": "Rhum agricole", "type": "select", "options": ["Oui", "Non"] }, { "key": "notes-aromatiques", "label": "Notes aromatiques", "type": "text" }, { "key": "edition-limitee", "label": "Édition limitée", "type": "select", "options": ["Oui", "Non"] }
+          ]
+        },
+        {
+          "id": "whiskies-whiskeys", "label": "Whiskies & Whiskeys", "variantAxes": ["Âge", "Volume", "Édition", "Coffret"],
+          "subcategories": ["Scotch Whisky", "Bourbon", "Irish Whiskey", "Canadian Whisky", "Japanese Whisky", "Single Malt", "Blended Whisky", "Rye Whiskey", "Tennessee Whiskey", "Whisky aromatisé"],
+          "dynamicFields": [
+            { "key": "type-whisky", "label": "Type de whisky", "type": "text", "required": true }, { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "distillerie", "label": "Distillerie", "type": "text" }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "region", "label": "Région", "type": "text" }, { "key": "age", "label": "Âge", "type": "number" }, { "key": "annee-distillation", "label": "Année de distillation", "type": "number" }, { "key": "type-fut", "label": "Type de fût", "type": "text" }, { "key": "single-malt-blend", "label": "Single Malt / Blend", "type": "select", "options": ["Single Malt", "Blend"] }, { "key": "cask-strength", "label": "Cask Strength", "type": "select", "options": ["Oui", "Non"] }, { "key": "notes-degustation", "label": "Notes de dégustation", "type": "text" }, { "key": "edition-limitee", "label": "Édition limitée", "type": "select", "options": ["Oui", "Non"] }, { "key": "coffret", "label": "Coffret", "type": "select", "options": ["Oui", "Non"] }
+          ]
+        },
+        {
+          "id": "vodkas", "label": "Vodkas", "variantAxes": ["Volume", "Saveur", "Coffret"],
+          "subcategories": ["Vodka classique", "Vodka premium", "Vodka aromatisée", "Vodka de blé", "Vodka de seigle", "Vodka de pomme de terre", "Vodka de maïs", "Vodka biologique", "Vodka artisanale"],
+          "dynamicFields": [
+            { "key": "type-vodka", "label": "Type de vodka", "type": "text", "required": true }, { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "base-distillation", "label": "Base de distillation", "type": "text" }, { "key": "nombre-distillations", "label": "Nombre de distillations", "type": "number" }, { "key": "nombre-filtrations", "label": "Nombre de filtrations", "type": "number" }, { "key": "saveur", "label": "Saveur", "type": "text" }, { "key": "premium", "label": "Premium", "type": "select", "options": ["Oui", "Non"] }, { "key": "biologique", "label": "Biologique", "type": "select", "options": ["Oui", "Non"] }
+          ]
+        },
+        {
+          "id": "gins", "label": "Gins", "variantAxes": ["Volume", "Saveur", "Édition"],
+          "subcategories": ["London Dry Gin", "Dry Gin", "Old Tom Gin", "Plymouth Gin", "Gin floral", "Gin fruité", "Gin épicé", "Gin aromatisé", "Gin artisanal", "Gin premium"],
+          "dynamicFields": [
+            { "key": "type-gin", "label": "Type de gin", "type": "text", "required": true }, { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "distillerie", "label": "Distillerie", "type": "text" }, { "key": "botaniques", "label": "Principaux botaniques", "type": "text" }, { "key": "profil-aromatique", "label": "Profil aromatique", "type": "text" }, { "key": "saveur", "label": "Saveur", "type": "text" }, { "key": "nombre-distillations", "label": "Nombre de distillations", "type": "number" }, { "key": "artisanal", "label": "Artisanal", "type": "select", "options": ["Oui", "Non"] }, { "key": "edition-limitee", "label": "Édition limitée", "type": "select", "options": ["Oui", "Non"] }
+          ]
+        },
+        {
+          "id": "tequilas-mezcals", "label": "Tequilas & Mezcals", "variantAxes": ["Classification", "Volume", "Coffret"],
+          "subcategories": ["Tequila Blanco", "Tequila Reposado", "Tequila Añejo", "Tequila Extra Añejo", "Tequila Joven / Gold", "Mezcal Joven", "Mezcal Reposado", "Mezcal Añejo", "Tequila premium", "Mezcal artisanal"],
+          "dynamicFields": [
+            { "key": "type-tequila-mezcal", "label": "Type", "type": "select", "required": true, "options": ["Tequila", "Mezcal"] }, { "key": "classification", "label": "Classification", "type": "text", "required": true }, { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "region", "label": "Région", "type": "text" }, { "key": "type-agave", "label": "Type d'agave", "type": "text" }, { "key": "pourcentage-agave", "label": "Pourcentage d'agave", "type": "number" }, { "key": "vieillissement", "label": "Durée de vieillissement", "type": "text" }, { "key": "type-fut", "label": "Type de fût", "type": "text" }, { "key": "methode-production", "label": "Méthode de production", "type": "text" }, { "key": "notes-degustation", "label": "Notes de dégustation", "type": "text" }
+          ]
+        },
+        {
+          "id": "cognacs-brandies-armagnacs", "label": "Cognacs, Brandies & Armagnacs", "variantAxes": ["Classification", "Âge", "Volume", "Coffret"],
+          "subcategories": ["Cognac VS", "Cognac VSOP", "Cognac XO", "Cognac XXO", "Armagnac", "Brandy", "Brandy de fruits", "Brandy premium"],
+          "dynamicFields": [
+            { "key": "type", "label": "Type", "type": "text", "required": true }, { "key": "classification", "label": "Classification", "type": "select", "required": true, "options": ["VS", "VSOP", "XO", "XXO"] }, { "key": "marque-maison", "label": "Marque / Maison", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "region", "label": "Région", "type": "text" }, { "key": "age", "label": "Âge", "type": "number" }, { "key": "cepages", "label": "Cépages", "type": "text" }, { "key": "vieillissement", "label": "Type de vieillissement", "type": "text" }, { "key": "type-fut", "label": "Type de fût", "type": "text" }, { "key": "notes-aromatiques", "label": "Notes aromatiques", "type": "text" }, { "key": "edition-collection", "label": "Édition / Collection", "type": "text" }
+          ]
+        },
+        {
+          "id": "liqueurs-aperitifs-digestifs", "label": "Liqueurs, Apéritifs & Digestifs", "variantAxes": ["Saveur", "Volume", "Pack"],
+          "subcategories": ["Liqueurs de fruits", "Liqueurs de café", "Liqueurs de crème", "Liqueurs aux herbes", "Liqueurs d'agrumes", "Liqueurs de chocolat", "Amers / Bitters", "Apéritifs", "Digestifs", "Vermouths"],
+          "dynamicFields": [
+            { "key": "type", "label": "Type", "type": "text", "required": true }, { "key": "marque", "label": "Marque", "type": "text", "required": true }, { "key": "pays-origine", "label": "Pays d'origine", "type": "text", "required": true }, { "key": "saveur-principale", "label": "Saveur principale", "type": "text", "required": true }, { "key": "ingredients-aromes", "label": "Ingrédients / Arômes principaux", "type": "text" }, { "key": "niveau-douceur", "label": "Niveau de douceur", "type": "select", "options": ["Sec", "Doux"] }, { "key": "couleur", "label": "Couleur", "type": "text" }, { "key": "creme-lait", "label": "Crème / lait présent", "type": "select", "options": ["Oui", "Non"] }, { "key": "allergenes", "label": "Allergènes", "type": "text" }, { "key": "mode-consommation", "label": "Mode de consommation", "type": "text" }, { "key": "temperature-service", "label": "Température de service (°C)", "type": "number" }
+          ]
+        }
+      ]
+    },
     {
       "id": "produits-cosmetiques-et-beaute",
       "label": "Produits cosmétiques & beauté",

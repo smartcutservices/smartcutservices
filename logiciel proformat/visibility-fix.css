@@ -290,6 +290,9 @@
   font-weight: 500;
   transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
+.offer-grid { grid-column: 1 / -1; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.offer-grid label { display:flex; flex-direction:column; gap:6px; }
+@media (max-width: 760px) { .offer-grid { grid-template-columns:1fr; } }
 
 #serviceForm.service-editor textarea {
   min-height: 82px;

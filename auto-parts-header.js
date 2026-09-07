@@ -25,7 +25,7 @@ export default class AutoPartsHeader {
         <nav class="aph-nav" aria-label="Navigation Auto & Parts">
           ${NAV_ITEMS.map(([href, label]) => `<a href="${href}" ${current === href.slice(2) ? 'aria-current="page"' : ''}>${label}</a>`).join('')}
         </nav>
-        <a class="aph-sell" href="./auto-parts-vendor.html">Vendre des pièces</a>
+        <a class="aph-sell" href="./DvendorProducts.html?department=automobile-pieces-accessoires&add=1">Ajouter une pièce</a>
       </header>`;
     const menu = this.root.querySelector('.aph-menu');
     const nav = this.root.querySelector('.aph-nav');

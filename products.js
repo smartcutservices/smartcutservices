@@ -301,6 +301,9 @@ class SierraProducts {
       deliveryMode: String(product?.deliveryMode || '').trim(),
       isDigitalProduct: Boolean(product?.isDigitalProduct),
       digitalDownloadLink: String(product?.digitalDownloadLink || '').trim(),
+      digitalDownloadStoragePath: String(product?.digitalDownloadStoragePath || '').trim(),
+      digitalDownloadFileName: String(product?.digitalDownloadFileName || '').trim(),
+      digitalDownloadUrl: String(product?.digitalDownloadUrl || '').trim(),
       deliveryDelay: String(product?.deliveryDelay || (product?.isDigitalProduct ? 'Instantanee' : '')).trim(),
       productDeliveryCoverage: product?.deliveryCoverage || product?.productDeliveryCoverage || null,
       productDeliveryZones: Array.isArray(product?.deliveryZones)
@@ -831,7 +834,7 @@ class SierraProducts {
               ${mainImage ? `
                 <img src="${this.getImagePath(mainImage)}" 
                      alt="${product.name || 'Produit'}" 
-                     class="product-main-image w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                     class="product-main-image w-full h-full object-contain"
                      data-product-id="${product.id}"
                      data-variation-index="${currentVariationIndex}"
                      data-image-index="${currentImageIndex}"

@@ -27,8 +27,8 @@ function normalizeVehicle(value = {}) {
 
 function normalizeFitment(value = {}) {
   const vehicle = normalizeVehicle(value);
-  const from = Number.parseInt(value.yearFrom ?? vehicle.year, 10);
-  const to = Number.parseInt(value.yearTo ?? vehicle.year, 10);
+  const from = Number.parseInt(value.yearFrom ?? value.yearStart ?? vehicle.year, 10);
+  const to = Number.parseInt(value.yearTo ?? value.yearEnd ?? vehicle.year, 10);
   return {
     type: vehicle.type,
     make: vehicle.make,

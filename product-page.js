@@ -1,4 +1,4 @@
-import ProductModal from './product-modal.js?v=20260906-2';
+import ProductModal from './product-modal.js?v=20260907-10';
 import { applySeoMeta } from './seo-meta.js?v=20260901-1';
 
 class ProductPage extends ProductModal {
@@ -22,10 +22,30 @@ class ProductPage extends ProductModal {
     }
 
     await this.loadProduct();
+    await this.trackAffiliateReferral();
     await this.loadRelatedProducts();
     this.render();
     this.attachEvents();
     this.loadFromLocalStorage();
+  }
+
+  async trackAffiliateReferral() {
+    const params = new URLSearchParams(window.location.search);
+    const referralToken = String(params.get('ref') || '').trim();
+    if (!referralToken) return;
+    try {
+      const response = await fetch(`https://us-central1-smartcutservices-9ce54.cloudfunctions.net/affiliateTrackClick?ref=${encodeURIComponent(referralToken)}&productId=${encodeURIComponent(this.options.productId)}`);
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && payload.ok) {
+        localStorage.setItem('smartcut_affiliate_referral', JSON.stringify({ ...payload, token: referralToken, savedAt: Date.now() }));
+      }
+    } catch (error) {
+      console.warn('[AFFILIATE] referral tracking unavailable', error);
+    } finally {
+      params.delete('ref');
+      const cleanQuery = params.toString();
+      window.history.replaceState({}, document.title, `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}${window.location.hash}`);
+    }
   }
 
   render() {
@@ -256,13 +276,90 @@ class ProductPage extends ProductModal {
             object-fit: cover;
           }
 
-          .mobile-image-carousel {
-            height: 100%;
+          .product-page-shell-${this.uniqueId} .gallery-scope-all {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .68rem .85rem;
+            border: 1px solid rgba(15, 17, 17, .1);
+            border-radius: .7rem;
+            background: #f8fafc;
+            color: #18212f;
+            font: 700 .8rem/1.2 'Amazon Ember', Arial, sans-serif;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(15, 17, 17, .05);
+            transition: background .15s ease, border-color .15s ease, transform .15s ease;
+          }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all::after {
+            content: '→';
+            color: #64748b;
+            font-size: 1rem;
+          }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all:hover {
+            background: #fff;
+            border-color: rgba(15, 118, 110, .35);
+          }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all:active { transform: translateY(1px); }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all:focus-visible {
+            outline: 3px solid rgba(15, 118, 110, .25);
+            outline-offset: 2px;
+          }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all i {
+            color: #0f766e;
+            font-size: .95rem;
+          }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all--block { margin-bottom: 1rem; }
+          .product-page-shell-${this.uniqueId} .gallery-scope-all--float {
+            position: absolute;
+            top: .6rem;
+            left: .6rem;
+            width: auto;
+            z-index: 4;
+            padding: .46rem .7rem;
+            font-size: .74rem;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, .16);
+          }
+          .product-page-shell-${this.uniqueId} .desktop-image-hero {
             position: relative;
+          }
+          .product-page-shell-${this.uniqueId} .desktop-image-hero img,
+          .product-page-shell-${this.uniqueId} .desktop-image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain !important;
+            object-position: center;
+            background: #fff;
+          }
+          .product-page-shell-${this.uniqueId} .variation-image-tag {
+            position: absolute;
+            top: .7rem;
+            left: .7rem;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .38rem .68rem;
+            border: 1px solid rgba(15, 17, 17, .1);
+            border-radius: .55rem;
+            background: rgba(255, 255, 255, .96);
+            color: #18212f;
+            font: 800 .72rem/1.2 'Amazon Ember', Arial, sans-serif;
+            box-shadow: 0 4px 14px rgba(15, 17, 17, .14);
+          }
+          .product-page-shell-${this.uniqueId} .variation-image-tag i { color: #0f766e; }
+
+          .mobile-image-carousel {
+            height: 100% !important;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
           }
 
           .mobile-image-container {
-            height: 100%;
+            height: 100% !important;
+            min-height: 0;
             display: flex;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
@@ -276,17 +373,24 @@ class ProductPage extends ProductModal {
 
           .mobile-image-slide {
             flex: 0 0 100%;
+            height: 100% !important;
+            min-height: 0;
             scroll-snap-align: start;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
             cursor: pointer;
           }
 
           .mobile-image-slide img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+            width: auto !important;
+            height: auto !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: contain !important;
+            object-position: center center !important;
+            background: #fff;
           }
 
           .mobile-nav-btn {
@@ -340,12 +444,14 @@ class ProductPage extends ProductModal {
           .related-products-carousel .related-product-image {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s;
+            object-fit: contain !important;
+            object-position: center;
+            background: #fff;
+            transition: none;
           }
 
           .product-card:hover .related-product-image {
-            transform: scale(1.06);
+            transform: none;
           }
 
           .line-clamp-2 {

@@ -49,6 +49,20 @@ service firebase.storage {
       allow write: if isSignedIn() && maxSize(20);
     }
 
+    // Fichiers principaux des produits numériques vendeur. Ils ne sont pas
+    // publics par défaut : le vendeur peut créer ses propres fichiers et le
+    // backend devra délivrer un accès contrôlé après paiement.
+    match /marketplace-private/digital/{vendorUid}/{allPaths=**} {
+      allow read: if isSignedIn() && request.auth.uid == vendorUid;
+      allow create: if isSignedIn() && request.auth.uid == vendorUid && maxSize(100) && (
+        isPdf() || hasContentType('application/zip') ||
+        hasContentType('application/vnd.openxmlformats-officedocument.*') ||
+        hasContentType('application/epub[+]zip') || hasContentType('application/x-mobipocket-ebook') ||
+        hasContentType('video/.*') || hasContentType('audio/.*')
+      );
+      allow update, delete: if false;
+    }
+
     // Photos des offres Auto & Parts. L'identite du vendeur est portee par le
     // premier segment du chemin; seules les images du vendeur connecte sont modifiables.
     match /auto-parts/vendors/{vendorUid}/{allPaths=**} {

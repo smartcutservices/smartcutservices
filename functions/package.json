@@ -6,7 +6,7 @@
     "node": "22"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 *.test.js invoicing/*.test.js marketplace/*.test.js auto-parts/*.test.js",
+    "test": "node --test --test-concurrency=1 *.test.js invoicing/*.test.js marketplace/*.test.js auto-parts/*.test.js affiliate/rules.test.js",
     "test:sst": "node --test smartsolutiontek/food.test.js smartsolutiontek/services.test.js smartsolutiontek/shops.test.js smartsolutiontek/lib/*.test.js",
     "test:rules": "node --test smartsolutiontek/rules.test.js",
     "test:storage-rules": "node --test smartsolutiontek/storage.rules.test.js",

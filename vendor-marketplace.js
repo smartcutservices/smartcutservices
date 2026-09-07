@@ -231,6 +231,9 @@ class VendorMarketplacePage {
             deliveryMode: product.deliveryMode || '',
             isDigitalProduct: Boolean(product.isDigitalProduct),
             digitalDownloadLink: product.digitalDownloadLink || '',
+            digitalDownloadStoragePath: product.digitalDownloadStoragePath || '',
+            digitalDownloadFileName: product.digitalDownloadFileName || '',
+            digitalDownloadUrl: product.digitalDownloadUrl || '',
             deliveryDelay: product.deliveryDelay || '',
             stockLimit: Number.isFinite(Number(product.stock)) ? Number(product.stock) : undefined,
             selectedOptions: [

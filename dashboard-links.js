@@ -19,6 +19,10 @@ export const VENDOR_DASHBOARD_URL = SITE_ORIGIN
   ? `${SITE_ORIGIN}/DvendorProducts.html`
   : '/DvendorProducts.html';
 
+export const WALLET_ADMIN_URL = SITE_ORIGIN
+  ? `${SITE_ORIGIN}/wallet-admin.html`
+  : '/wallet-admin.html';
+
 export async function getVendorDashboardAccessUrl(user) {
   if (!user?.getIdToken) {
     throw new Error('missing-auth-user');

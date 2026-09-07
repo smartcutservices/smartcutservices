@@ -237,7 +237,7 @@ export default class AutoPartsApp {
     try {
       const payload = await this.api('listGarage', { method: 'POST' });
       if (!payload.vehicles.length) { list.innerHTML = '<div class="ap-empty"><h3>Garage vide</h3><p>Enregistrez un véhicule depuis le sélecteur.</p></div>'; return; }
-      list.innerHTML = payload.vehicles.map((vehicle) => `<article class="ap-garage-item"><button type="button" data-use-garage="${this.escape(vehicle.id)}"><strong>${this.escape(vehicle.nickname || `${vehicle.make} ${vehicle.model}`)}</strong><span>${this.escape(`${vehicle.year} · ${vehicle.engine || vehicle.type}`)}</span></button><button type="button" data-delete-garage="${this.escape(vehicle.id)}" aria-label="Supprimer">×</button></article>`).join('');
+      list.innerHTML = payload.vehicles.map((vehicle) => `<article class="ap-garage-item"><button type="button" data-use-garage="${this.escape(vehicle.id)}"><strong>${this.escape(vehicle.nickname || `${vehicle.make} ${vehicle.model}`)} ${vehicle.isPrimary ? '· Principal' : ''}</strong><span>${this.escape(`${vehicle.year} · ${vehicle.engine || vehicle.type}`)}</span></button><div><button type="button" data-primary-garage="${this.escape(vehicle.id)}" aria-label="Définir comme véhicule principal">${vehicle.isPrimary ? '✓' : 'Principal'}</button><button type="button" data-delete-garage="${this.escape(vehicle.id)}" aria-label="Supprimer">×</button></div></article>`).join('');
       list.querySelectorAll('[data-use-garage]').forEach((button) => button.addEventListener('click', () => {
         const vehicle = payload.vehicles.find((entry) => entry.id === button.dataset.useGarage);
         this.vehicle = { type: vehicle.type, make: vehicle.make, model: vehicle.model, year: String(vehicle.year), engine: vehicle.engine || '' };
@@ -245,6 +245,10 @@ export default class AutoPartsApp {
       }));
       list.querySelectorAll('[data-delete-garage]').forEach((button) => button.addEventListener('click', async () => {
         await this.api('deleteGarageVehicle', { method: 'POST', data: { id: button.dataset.deleteGarage } });
+        this.openGarage();
+      }));
+      list.querySelectorAll('[data-primary-garage]').forEach((button) => button.addEventListener('click', async () => {
+        await this.api('saveGarageVehicle', { method: 'POST', data: { id: button.dataset.primaryGarage, isPrimary: true } });
         this.openGarage();
       }));
     } catch (error) {

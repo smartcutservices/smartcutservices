@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Administration Wallet | Smart Cut Services</title>
+  <link rel="stylesheet" href="./wallet-admin.css?v=20260907-1">
+</head>
+<body>
+  <main class="wallet-admin-shell">
+    <header class="wallet-admin-header">
+      <div><span class="eyebrow">Smart Cut Services</span><h1>Administration Wallet</h1><p>Supervision des soldes, limites et contrôles financiers.</p></div>
+      <a href="./index.html" class="back-link"><i class="fas fa-arrow-left"></i> Retour au site</a>
+    </header>
+    <div id="walletAdminNotice" class="notice" hidden></div>
+    <section class="wallet-admin-grid" id="walletAdminCards">
+      <article class="admin-card"><span>Statut</span><strong id="adminStatus">Vérification…</strong><small>Accès administrateur</small></article>
+      <article class="admin-card"><span>Wallets contrôlés</span><strong id="walletsChecked">—</strong><small>Dernière réconciliation</small></article>
+      <article class="admin-card"><span>Anomalies</span><strong id="walletDiscrepancies">—</strong><small>Écarts détectés</small></article>
+    </section>
+    <section class="admin-panel">
+      <div class="panel-heading"><div><span class="eyebrow">Configuration</span><h2>Limites de recharge</h2></div><span class="badge">HTG</span></div>
+      <form id="limitsForm" class="limits-form"><label>Minimum par recharge<input id="minTopUp" type="number" min="1" step="1" required><small>Valeur affichée en HTG</small></label><label>Maximum par recharge<input id="maxTopUp" type="number" min="1" step="1" required></label><label>Plafond du Wallet<input id="walletCap" type="number" min="1" step="1" required></label><button class="primary-btn" type="submit"><i class="fas fa-save"></i> Enregistrer les limites</button></form>
+    </section>
+    <section class="admin-panel admin-actions"><div class="panel-heading"><div><span class="eyebrow">Contrôle financier</span><h2>Réconciliation</h2></div><button id="reconcileBtn" class="secondary-btn"><i class="fas fa-arrows-rotate"></i> Lancer un contrôle</button></div><p>Compare les soldes disponibles et réservés avec le ledger immuable et les holds actifs.</p><pre id="reconcileOutput" class="reconcile-output">Aucun contrôle exécuté.</pre></section>
+    <section class="admin-panel"><div class="panel-heading"><div><span class="eyebrow">Sécurité</span><h2>Suspendre un Wallet</h2></div></div><form id="walletActionForm" class="action-form"><input id="actionUserId" type="text" placeholder="UID de l’utilisateur" required><select id="actionType"><option value="BLOCK">Suspendre</option><option value="UNBLOCK">Réactiver</option></select><input id="actionReason" type="text" placeholder="Motif obligatoire" required><button class="danger-btn" type="submit">Appliquer</button></form></section>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js" defer></script>
+  <script type="module" src="./wallet-admin.js?v=20260907-1"></script>
+</body>
+</html>
