@@ -5164,6 +5164,17 @@ exports.getPaymentLink = onRequest({ region: REGION }, async (req, res) => {
   return sendJson(res, 200, { ok: true, link: toPublicPaymentLink(snapshot.data() || {}) });
 });
 
+exports.paymentLinkSharePage = onRequest({ region: REGION }, async (req, res) => {
+  const reference = sanitizeText(req.query.ref, 100);
+  const snapshot = reference ? await db.collection(PAYMENT_LINKS_COLLECTION).doc(reference).get() : null;
+  if (!snapshot?.exists || !isPaymentLinkAvailable(snapshot.data() || {})) return res.status(404).send('Lien de paiement indisponible.');
+  const link = toPublicPaymentLink(snapshot.data() || {});
+  const title = `Paiement de ${link.amount} HTG | Smart Cut Services`;
+  const destination = `${SITE_BASE_URL}/payment-link.html?ref=${encodeURIComponent(reference)}`;
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type('html').send(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta property="og:type" content="website"><meta property="og:site_name" content="Smart Cut Services"><meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(link.description)}"><meta property="og:image" content="${escapeHtml(link.visualImage)}"><meta property="og:image:alt" content="${escapeHtml(link.visualAlt)}"><meta property="og:url" content="${escapeHtml(destination)}"><meta name="twitter:card" content="summary_large_image"><meta http-equiv="refresh" content="0;url=${escapeHtml(destination)}"><title>${escapeHtml(title)}</title></head><body><a href="${escapeHtml(destination)}">Continuer vers le paiement sécurisé</a></body></html>`);
+});
+
 exports.startPaymentLinkPayment = onRequest(
   { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
   async (req, res) => {
