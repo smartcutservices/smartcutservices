@@ -150,10 +150,13 @@ try {
   } else {
     logAuthDebug('firebase-singleton:create');
     app = initializeApp(firebaseConfig);
-    // Mobile networks and some proxies can terminate Firestore's streaming
-    // channel. Auto-detection falls back to long polling before surfacing a
-    // network error to the page.
-    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+    // Some mobile networks, privacy proxies, and performance auditors close
+    // Firestore's streaming Listen/channel request. Use HTTP long polling so
+    // public reads remain reliable instead of reporting a false network error.
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+      useFetchStreams: false
+    });
 
     // Opt-in only, never active unless the URL explicitly asks for it (used
     // by Playwright tests exercising the real repository/rules against a
