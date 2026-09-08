@@ -197,6 +197,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Les liens de paiement et leurs identifiants payeurs ne sont jamais lus
+    // directement depuis le navigateur. Les fonctions Cloud exposent seulement
+    // le résumé public nécessaire au paiement et l'admin passe par son API.
+    match /paymentLinks/{docId} {
+      allow read, write: if false;
+    }
+
     match /promoCodes/{docId} {
       allow read: if isAdmin() || isEcommerceManager();
       allow write: if isAdmin();

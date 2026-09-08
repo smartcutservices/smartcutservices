@@ -57,6 +57,9 @@ const JWETPRO_CONFIRM_PAYMENT_URL = process.env.JWETPRO_CONFIRM_PAYMENT_URL ||
 const SITE_COMMENTS_COLLECTION = 'siteComments';
 const SITE_COMMENT_RATE_LIMITS_COLLECTION = 'siteCommentRateLimits';
 const SITE_COMMENT_MIN_INTERVAL_MS = 15000;
+const PAYMENT_LINKS_COLLECTION = 'paymentLinks';
+const PAYMENT_LINK_DEFAULT_DESCRIPTION = 'Paiement sécurisé via Smart Cut Services.';
+const PAYMENT_LINK_MAX_AMOUNT = 10000000;
 const PRODUCT_BOOST_COLLECTION = 'productBoosts';
 const PRODUCT_BOOST_DURATIONS = Object.freeze({
   3: { amount: 250, label: '3 jours' },
@@ -98,6 +101,38 @@ function clampNumber(value, min, max, fallback) {
 
 function sanitizeText(value, maxLength = 240) {
   return String(value || '').trim().slice(0, maxLength);
+}
+
+function createPaymentLinkReference() {
+  return `pay_${crypto.randomBytes(18).toString('base64url')}`;
+}
+
+function normalizePaymentLinkAmount(value) {
+  const amount = Math.round(Number(value));
+  return Number.isSafeInteger(amount) && amount > 0 && amount <= PAYMENT_LINK_MAX_AMOUNT ? amount : 0;
+}
+
+function normalizePaymentLinkExpiry(value) {
+  const text = sanitizeText(value, 80);
+  if (!text) return '';
+  const time = Date.parse(text);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function isPaymentLinkAvailable(link = {}, now = Date.now()) {
+  if (String(link.status || '').toLowerCase() !== 'active') return false;
+  const expiresAt = Date.parse(String(link.expiresAt || ''));
+  return !Number.isFinite(expiresAt) || expiresAt > now;
+}
+
+function toPublicPaymentLink(link = {}) {
+  return {
+    reference: String(link.reference || ''),
+    amount: normalizePaymentLinkAmount(link.amount),
+    currency: MONCASH_CURRENCY,
+    description: sanitizeText(link.description || PAYMENT_LINK_DEFAULT_DESCRIPTION, 500),
+    expiresAt: String(link.expiresAt || '')
+  };
 }
 
 function getSafeMoncashPublicError(error) {
@@ -4270,6 +4305,56 @@ async function syncJwetproTicketPayment({ session, details, source = '' }) {
   };
 }
 
+async function syncPaymentLinkPayment({ session, details, source = '' }) {
+  const paymentStatus = derivePaymentStatus(details);
+  const sessionData = session?.data || {};
+  const paymentLinkId = String(sessionData.paymentLinkId || '').trim();
+  if (!session || !paymentLinkId) {
+    return { sessionId: session?.id || '', paymentStatus, updated: false, paymentType: 'payment_link' };
+  }
+
+  const linkRef = db.collection(PAYMENT_LINKS_COLLECTION).doc(paymentLinkId);
+  const now = new Date().toISOString();
+  await db.runTransaction(async (transaction) => {
+    const freshSession = await transaction.get(session.ref);
+    const freshLink = await transaction.get(linkRef);
+    const freshData = freshSession.data() || {};
+    const alreadySettled = Boolean(freshData.paymentLinkSettledAt) || String(freshData.status || '').toLowerCase() === 'paid';
+    const patch = {
+      status: paymentStatus,
+      providerOrderId: details?.orderId || freshData.orderId || '',
+      providerTransactionId: details?.transactionId || null,
+      payer: details?.payer || null,
+      providerMessage: details?.message || '',
+      providerResponse: details?.providerResponse || null,
+      updatedAt: now
+    };
+    if (paymentStatus === 'paid') {
+      patch.paidAt = freshData.paidAt || now;
+      patch.paymentLinkSettledAt = freshData.paymentLinkSettledAt || now;
+      if (!alreadySettled && freshLink.exists) {
+        transaction.set(linkRef, {
+          paymentCount: admin.firestore.FieldValue.increment(1),
+          paidTotal: admin.firestore.FieldValue.increment(normalizePaymentLinkAmount(freshData.amount)),
+          lastPaidAt: now,
+          lastPaymentSessionId: session.id,
+          updatedAt: now
+        }, { merge: true });
+      }
+    }
+    transaction.set(session.ref, patch, { merge: true });
+  });
+
+  return {
+    sessionId: session.id,
+    orderId: sessionData.orderId || details?.orderId || '',
+    paymentStatus,
+    paymentType: 'payment_link',
+    paymentLinkId,
+    updated: true
+  };
+}
+
 function derivePaymentStatus(details) {
   if (details?.ok) return 'paid';
 
@@ -4409,6 +4494,9 @@ async function syncMoncashPayment({ session, details, source = '' }) {
   }
   if (String(sessionData.paymentType || '').trim() === 'jwetpro_ticket') {
     return syncJwetproTicketPayment({ session, details, source });
+  }
+  if (String(sessionData.paymentType || '').trim() === 'payment_link') {
+    return syncPaymentLinkPayment({ session, details, source });
   }
   if (String(sessionData.paymentType || '').trim() === 'product_boost') {
     return syncProductBoostPayment({ session, details, source });
@@ -4726,6 +4814,12 @@ function buildStatusResponse({ session, details, syncResult, fallbackSessionId =
     vendorId: sessionData.vendorId || syncResult?.vendorId || '',
     transactionId: details?.transactionId || sessionData.providerTransactionId || '',
     uniqueCode: orderData.uniqueCode || sessionData.uniqueCode || '',
+    paymentLink: paymentType === 'payment_link' ? {
+      reference: String(sessionData.paymentLinkReference || ''),
+      description: sanitizeText(sessionData.paymentLinkDescription || PAYMENT_LINK_DEFAULT_DESCRIPTION, 500),
+      payerName: sanitizeText(sessionData.payerName, 160),
+      paidAt: String(sessionData.paidAt || '')
+    } : null,
     orderStatus: syncResult?.paymentStatus === 'paid' ? 'paid' : (sessionData.status || ''),
     paymentStatus: syncResult?.paymentStatus || sessionData.status || '',
     order: order ? { id: order.id, ...orderData } : null
@@ -4936,6 +5030,170 @@ exports.createJwetproTicketPayment = onRequest(
       return sendJson(res, 200, { ok: true, intentId, sessionId, checkoutUrl: redirect.checkoutUrl, returnUrl: externalReturnUrl });
     } catch (error) {
       await Promise.all([sessionRef.set({ status: 'server_error', errorMessage: error?.message || '', updatedAt: now }, { merge: true }), orderRef.set({ status: 'server_error', errorMessage: error?.message || '', updatedAt: now }, { merge: true })]);
+      const publicError = getSafeMoncashPublicError(error);
+      return sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
+    }
+  }
+);
+
+exports.managePaymentLinks = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  const user = await verifyBearerUser(req);
+  if (!user || !(await isAdminUser(user.uid))) return sendJson(res, 403, { ok: false, error: 'admin-required' });
+
+  const body = parseBody(req);
+  const action = String(body.action || req.query.action || 'list').trim().toLowerCase();
+  if (req.method === 'GET' || action === 'list') {
+    const snapshot = await db.collection(PAYMENT_LINKS_COLLECTION).limit(500).get();
+    const links = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+    return sendJson(res, 200, { ok: true, links, now: new Date().toISOString() });
+  }
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+
+  const reference = sanitizeText(body.reference, 100);
+  if (action === 'create') {
+    const title = sanitizeText(body.title, 160);
+    const amount = normalizePaymentLinkAmount(body.amount);
+    const description = sanitizeText(body.description, 500) || PAYMENT_LINK_DEFAULT_DESCRIPTION;
+    const expiresAt = normalizePaymentLinkExpiry(body.expiresAt);
+    if (!title || !amount || expiresAt === null) return sendJson(res, 400, { ok: false, error: 'invalid-payment-link' });
+    if (expiresAt && Date.parse(expiresAt) <= Date.now()) return sendJson(res, 400, { ok: false, error: 'expiry-must-be-future' });
+    const id = createPaymentLinkReference();
+    const now = new Date().toISOString();
+    const link = {
+      reference: id,
+      title,
+      description,
+      amount,
+      currency: MONCASH_CURRENCY,
+      status: 'active',
+      expiresAt: expiresAt || '',
+      paymentCount: 0,
+      paidTotal: 0,
+      createdAt: now,
+      createdBy: user.uid,
+      updatedAt: now,
+      updatedBy: user.uid
+    };
+    await db.collection(PAYMENT_LINKS_COLLECTION).doc(id).create(link);
+    return sendJson(res, 201, { ok: true, link: { id, ...link } });
+  }
+
+  if (!reference) return sendJson(res, 400, { ok: false, error: 'missing-payment-link-reference' });
+  const linkRef = db.collection(PAYMENT_LINKS_COLLECTION).doc(reference);
+  if (action === 'delete') {
+    const snapshot = await linkRef.get();
+    if (!snapshot.exists) return sendJson(res, 404, { ok: false, error: 'payment-link-not-found' });
+    await linkRef.set({ status: 'deleted', deletedAt: new Date().toISOString(), deletedBy: user.uid, updatedAt: new Date().toISOString(), updatedBy: user.uid }, { merge: true });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (action === 'update') {
+    const snapshot = await linkRef.get();
+    if (!snapshot.exists) return sendJson(res, 404, { ok: false, error: 'payment-link-not-found' });
+    if (String(snapshot.data()?.status || '').toLowerCase() === 'deleted') return sendJson(res, 409, { ok: false, error: 'payment-link-deleted' });
+    const title = sanitizeText(body.title, 160);
+    const amount = normalizePaymentLinkAmount(body.amount);
+    const description = sanitizeText(body.description, 500) || PAYMENT_LINK_DEFAULT_DESCRIPTION;
+    const expiresAt = normalizePaymentLinkExpiry(body.expiresAt);
+    if (!title || !amount || expiresAt === null) return sendJson(res, 400, { ok: false, error: 'invalid-payment-link' });
+    if (expiresAt && Date.parse(expiresAt) <= Date.now()) return sendJson(res, 400, { ok: false, error: 'expiry-must-be-future' });
+    await linkRef.set({ title, amount, description, expiresAt: expiresAt || '', updatedAt: new Date().toISOString(), updatedBy: user.uid }, { merge: true });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (action === 'payments') {
+    const status = sanitizeText(body.status, 30).toLowerCase();
+    const from = Date.parse(String(body.from || ''));
+    const to = Date.parse(String(body.to || ''));
+    const snapshot = await db.collection('paymentSessions').where('paymentLinkId', '==', reference).limit(1000).get();
+    const payments = snapshot.docs
+      .map((item) => ({ id: item.id, ...item.data() }))
+      .filter((item) => !status || String(item.status || '').toLowerCase() === status)
+      .filter((item) => {
+        const timestamp = Date.parse(String(item.paidAt || item.createdAt || ''));
+        return (!Number.isFinite(from) || timestamp >= from) && (!Number.isFinite(to) || timestamp <= to);
+      })
+      .sort((left, right) => String(right.paidAt || right.createdAt || '').localeCompare(String(left.paidAt || left.createdAt || '')))
+      .map((item) => ({
+        id: item.id,
+        payerName: sanitizeText(item.payerName, 160),
+        payerPhone: sanitizeText(item.payerPhone, 40),
+        amount: normalizePaymentLinkAmount(item.amount),
+        currency: item.currency || MONCASH_CURRENCY,
+        status: String(item.status || ''),
+        createdAt: String(item.createdAt || ''),
+        paidAt: String(item.paidAt || ''),
+        orderId: String(item.orderId || ''),
+        transactionId: String(item.providerTransactionId || ''),
+        providerMessage: sanitizeText(item.providerMessage, 240)
+      }));
+    return sendJson(res, 200, { ok: true, payments });
+  }
+
+  return sendJson(res, 400, { ok: false, error: 'unsupported-payment-link-action' });
+});
+
+exports.getPaymentLink = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const reference = sanitizeText(req.query.ref || req.query.reference, 100);
+  if (!reference) return sendJson(res, 400, { ok: false, error: 'missing-payment-link-reference' });
+  const snapshot = await db.collection(PAYMENT_LINKS_COLLECTION).doc(reference).get();
+  if (!snapshot.exists || !isPaymentLinkAvailable(snapshot.data() || {})) return sendJson(res, 404, { ok: false, error: 'payment-link-unavailable' });
+  return sendJson(res, 200, { ok: true, link: toPublicPaymentLink(snapshot.data() || {}) });
+});
+
+exports.startPaymentLinkPayment = onRequest(
+  { region: REGION, secrets: [MONCASH_CLIENT_ID, MONCASH_CLIENT_SECRET, MONCASH_SECRET_API_KEY, MONCASH_BUSINESS_KEY] },
+  async (req, res) => {
+    if (handleOptions(req, res)) return;
+    if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+    const body = parseBody(req);
+    const reference = sanitizeText(body.reference, 100);
+    const payerName = sanitizeText(body.payerName, 160);
+    const payerPhone = sanitizeText(body.payerPhone, 40);
+    if (!reference || payerName.length < 2 || payerPhone.replace(/[^0-9+]/g, '').length < 6) {
+      return sendJson(res, 400, { ok: false, error: 'invalid-payer-details', message: 'Indiquez votre nom complet et un numero de telephone valide.' });
+    }
+    const linkRef = db.collection(PAYMENT_LINKS_COLLECTION).doc(reference);
+    const linkSnapshot = await linkRef.get();
+    const link = linkSnapshot.data() || {};
+    if (!linkSnapshot.exists || !isPaymentLinkAvailable(link)) return sendJson(res, 404, { ok: false, error: 'payment-link-unavailable' });
+    const amount = normalizePaymentLinkAmount(link.amount);
+    if (!amount) return sendJson(res, 409, { ok: false, error: 'invalid-payment-link' });
+    const sessionId = createSessionId();
+    const orderId = `PAYLINK-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const now = new Date().toISOString();
+    const sessionRef = db.collection('paymentSessions').doc(sessionId);
+    const sessionData = {
+      identifier: sessionId,
+      paymentType: 'payment_link',
+      paymentLinkId: reference,
+      paymentLinkReference: reference,
+      paymentLinkTitle: sanitizeText(link.title, 160),
+      paymentLinkDescription: sanitizeText(link.description || PAYMENT_LINK_DEFAULT_DESCRIPTION, 500),
+      payerName,
+      payerPhone,
+      amount,
+      currency: MONCASH_CURRENCY,
+      orderId,
+      provider: 'moncash',
+      status: 'initiated',
+      returnUrl: DEFAULT_RETURN_URL,
+      alertUrl: DEFAULT_ALERT_URL,
+      createdAt: now,
+      updatedAt: now
+    };
+    try {
+      await sessionRef.create(sessionData);
+      const redirect = await createMoncashRedirect(orderId, amount);
+      await sessionRef.set({ status: 'redirect_ready', checkoutUrl: redirect.checkoutUrl, paymentToken: redirect.paymentToken || '', providerMode: redirect.providerMode || '', updatedAt: new Date().toISOString() }, { merge: true });
+      return sendJson(res, 200, { ok: true, sessionId, orderId, checkoutUrl: redirect.checkoutUrl });
+    } catch (error) {
+      await sessionRef.set({ ...sessionData, status: 'server_error', errorMessage: String(error?.message || ''), updatedAt: new Date().toISOString() }, { merge: true });
       const publicError = getSafeMoncashPublicError(error);
       return sendJson(res, publicError.status, { ok: false, error: publicError.error, message: publicError.message });
     }

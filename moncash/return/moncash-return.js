@@ -117,6 +117,7 @@ async function pollPaymentStatus(reference, pending) {
         window.setTimeout(() => window.location.replace(payload.externalReturnUrl), 900);
         return;
       }
+      const isPaymentLink = payload?.paymentType === 'payment_link' || pending?.paymentType === 'payment_link';
       if (payload?.paymentType !== 'vendor_service_fee' && pending?.paymentType !== 'vendor_service_fee') {
         clearCartStorage();
       }
@@ -124,11 +125,15 @@ async function pollPaymentStatus(reference, pending) {
       setDownloadButton(payload?.order || null);
       const isVendorServiceFee = payload?.paymentType === 'vendor_service_fee' || pending?.paymentType === 'vendor_service_fee';
       setState({
-        title: 'Paiement confirme',
-        copy: isVendorServiceFee
+        title: isPaymentLink ? 'Paiement confirmé' : 'Paiement confirme',
+        copy: isPaymentLink
+          ? `Merci${payload?.paymentLink?.payerName ? ` ${payload.paymentLink.payerName}` : ''}. Votre paiement a été confirmé avec succès.`
+          : isVendorServiceFee
           ? 'Votre frais de service mensuel MonCash a bien ete confirme. Votre store vendeur est reactif automatiquement.'
           : 'Votre transaction MonCash a bien ete confirmee et votre commande est enregistree.',
-        detail: `${isVendorServiceFee ? 'Frais mensuel' : 'Commande'} ${payload?.uniqueCode || payload?.orderId || ''} valide pour ${formatAmount(payload?.amount || pending?.amount || 0)}.`,
+        detail: isPaymentLink
+          ? `${payload?.paymentLink?.description || 'Paiement Smart Cut'} · Référence ${payload?.orderId || ''} · ${formatAmount(payload?.amount || pending?.amount || 0)}.`
+          : `${isVendorServiceFee ? 'Frais mensuel' : 'Commande'} ${payload?.uniqueCode || payload?.orderId || ''} valide pour ${formatAmount(payload?.amount || pending?.amount || 0)}.`,
         tone: 'paid',
         meta: buildMeta(payload, pending)
       });
