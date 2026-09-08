@@ -78,6 +78,14 @@
       {
         "source": "/p/**",
         "function": "productSharePage"
+      },
+      {
+        "source": "/pay",
+        "function": "paymentLinkSharePage"
+      },
+      {
+        "source": "/pay/**",
+        "function": "paymentLinkSharePage"
       }
     ]
   },
