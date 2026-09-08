@@ -21,7 +21,9 @@ function normalizePosterFileName(value = '') {
 function buildPosterUrl(fileName = '') {
   const raw = normalizePosterFileName(fileName);
   if (!raw) return '';
-  if (raw.toLowerCase().includes('bannermobile.jpg')) return './bannermobile.webp';
+  // The legacy name still exists in older hero documents. Point it to the
+  // optimized file that is actually published instead of a missing WebP.
+  if (raw.toLowerCase().includes('bannermobile.jpg')) return './bannermobile1.jpg';
   if (/^https?:\/\//i.test(raw)) return raw;
   if (raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/')) return raw;
   return `./${raw}`;
@@ -351,7 +353,10 @@ class SierraHero {
 
   init() {
     this.injectStyles();
-    this.renderLoading();
+    // Keep the server-rendered fallback in place until Firebase returns the
+    // active hero. On slower phones this image is the LCP and must not be
+    // removed by hydration before it has painted.
+    if (!this.container.querySelector('.hero-lcp-fallback')) this.renderLoading();
     this.bindLifecycle();
     this.loadHero();
   }
