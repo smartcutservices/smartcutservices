@@ -13,6 +13,8 @@ import {
 
 const DIGITAL_DOWNLOAD_FUNCTION_URL = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getDigitalDownload';
 
+function logCartRuntime() {}
+
 class CartManager {
   constructor(options = {}) {
     this.options = {
@@ -183,7 +185,7 @@ class CartManager {
     }
 
     localStorage.setItem(this.getGuestStorageKey(), guestId);
-    console.info('[CART] Session invite resolue', {
+    logCartRuntime('[CART] Session invite resolue', {
       guestId,
       isAnonymous: Boolean(guestUser?.isAnonymous)
     });
@@ -288,7 +290,7 @@ class CartManager {
   }
   
   async handleAuthChange(user) {
-    console.info('[CART] handleAuthChange', {
+    logCartRuntime('[CART] handleAuthChange', {
       version: '20260523-6',
       isAuthenticated: Boolean(user),
       uid: user?.uid || null,
@@ -303,14 +305,14 @@ class CartManager {
     if (user) {
       await this.loadOrCreateClient(user);
       if (this.currentClient) {
-        console.info('[CART] Client pret apres auth', {
+        logCartRuntime('[CART] Client pret apres auth', {
           clientId: this.currentClient.id,
           email: this.currentClient.email || null
         });
         this.loadCustomerOrders(this.currentClient.id);
       }
     } else {
-      console.info('[CART] handleAuthChange:null-user cleanup', {
+      logCartRuntime('[CART] handleAuthChange:null-user cleanup', {
         authManagerReady: this.auth?.isAuthReady ?? null,
         firebaseUid: auth?.currentUser?.uid || null,
         hadCurrentClient: Boolean(this.currentClient?.id),
@@ -344,14 +346,14 @@ class CartManager {
     }
     
     try {
-      console.info('[CART] loadOrCreateClient:start', {
+      logCartRuntime('[CART] loadOrCreateClient:start', {
         uid: user?.uid || null,
         email: user?.email || null
       });
       const clientRef = doc(db, 'clients', user.uid);
       const snapshot = await getDoc(clientRef);
       const now = new Date().toISOString();
-      console.info('[CART] loadOrCreateClient:snapshot', {
+      logCartRuntime('[CART] loadOrCreateClient:snapshot', {
         uid: user.uid,
         exists: snapshot.exists()
       });
@@ -372,7 +374,7 @@ class CartManager {
 
         await setDoc(clientRef, clientData, { merge: true });
         this.currentClient = { id: user.uid, ...clientData };
-        console.info('[CART] Client cree en base', {
+        logCartRuntime('[CART] Client cree en base', {
           clientId: this.currentClient.id,
           email: this.currentClient.email || null
         });
@@ -394,7 +396,7 @@ class CartManager {
 
         await setDoc(clientRef, mergedData, { merge: true });
         this.currentClient = { id: user.uid, ...mergedData };
-        console.info('[CART] Client charge depuis base', {
+        logCartRuntime('[CART] Client charge depuis base', {
           clientId: this.currentClient.id,
           email: this.currentClient.email || null
         });
@@ -422,7 +424,7 @@ class CartManager {
         detail: { client: this.currentClient }
       });
       document.dispatchEvent(event);
-      console.info('[CART] Fallback client local active', {
+      logCartRuntime('[CART] Fallback client local active', {
         clientId: this.currentClient.id,
         uid: this.currentClient.uid,
         email: this.currentClient.email || null
@@ -726,7 +728,7 @@ class CartManager {
     this.updateTimeout = requestAnimationFrame(() => {
       const count = this.getTotalItems();
       const total = this.getTotalPrice();
-      console.info('[CART] Emission cartUpdated', {
+      logCartRuntime('[CART] Emission cartUpdated', {
         items: this.cart.length,
         count,
         total
@@ -784,7 +786,7 @@ class CartManager {
   async openCheckout(cartData) {
     let checkoutClient = null;
     const isGuestMode = cartData?.mode === 'guest';
-    console.info('[CART] openCheckout:start', {
+    logCartRuntime('[CART] openCheckout:start', {
       mode: cartData?.mode || 'authenticated',
       cartItems: (cartData?.cart || this.cart || []).length,
       currentClientId: this.currentClient?.id || null,
@@ -802,7 +804,7 @@ class CartManager {
 
       const user = this.auth?.getCurrentUser?.();
       if (!this.currentClient && user) {
-        console.info('[CART] openCheckout: loadOrCreateClient avant checkout', { uid: user.uid });
+        logCartRuntime('[CART] openCheckout: loadOrCreateClient avant checkout', { uid: user.uid });
         await this.loadOrCreateClient(user);
       }
       checkoutClient = this.currentClient;
@@ -816,7 +818,7 @@ class CartManager {
       this.showNotification('Impossible de charger le client. Réessayez.');
       return;
     }
-    console.info('[CART] openCheckout: client resolu', {
+    logCartRuntime('[CART] openCheckout: client resolu', {
       clientId: checkoutClient.id || null,
       uid: checkoutClient.uid || null,
       email: checkoutClient.email || null

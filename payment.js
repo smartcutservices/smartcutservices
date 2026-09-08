@@ -31,11 +31,7 @@ function getSafeMoncashErrorMessage(error) {
 }
 
 function logMoncashDebug(stage, data = {}) {
-  try {
-    console.info('[MONCASH_DEBUG]', stage, data);
-  } catch (_) {
-    // Debug logging must never block payment.
-  }
+  // Les traces de diagnostic restent désactivées en production.
 }
 
 class PaymentModal {

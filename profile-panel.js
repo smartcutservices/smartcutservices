@@ -108,16 +108,8 @@ class ProfilePanel {
   }
 
   async ensureProfileClientLoaded() {
-    console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:start', {
-      version: '20260523-6',
-      isAuthenticated: this.authManager.isAuthenticated(),
-      authReady: this.authManager.isAuthReady,
-      authUid: this.authManager.getCurrentUser()?.uid || null,
-      firebaseUid: auth?.currentUser?.uid || null
-    });
     if (!this.authManager.isAuthenticated()) {
       this.profileClient = null;
-      console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:skip-not-authenticated');
       return;
     }
 
@@ -126,10 +118,6 @@ class ProfilePanel {
 
     try {
       const clientSnap = await getDoc(doc(db, 'clients', user.uid));
-      console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:snapshot', {
-        uid: user.uid,
-        exists: clientSnap.exists()
-      });
       if (clientSnap.exists()) {
         this.profileClient = { id: user.uid, ...(clientSnap.data() || {}) };
         this.cartManager.currentClient = {
@@ -139,10 +127,6 @@ class ProfilePanel {
       }
     } catch (error) {
       console.error('Erreur chargement informations personnelles:', error);
-      console.info('[PROFILE_DEBUG] ensureProfileClientLoaded:error', {
-        code: error?.code || null,
-        message: error?.message || String(error)
-      });
     }
   }
 
@@ -319,24 +303,12 @@ class ProfilePanel {
 
   async preloadPanelData() {
     this.isBootstrapping = true;
-    console.info('[PROFILE_DEBUG] preload:start', {
-      version: '20260523-6',
-      authReady: this.authManager.isAuthReady,
-      authUid: this.authManager.getCurrentUser()?.uid || null,
-      firebaseUid: auth?.currentUser?.uid || null
-    });
     if (this.modal) this.render();
 
     try {
       if (typeof this.authManager.waitForAuthReady === 'function') {
         await this.authManager.waitForAuthReady();
       }
-      console.info('[PROFILE_DEBUG] preload:after-auth-ready', {
-        authReady: this.authManager.isAuthReady,
-        isAuthenticated: this.authManager.isAuthenticated(),
-        authUid: this.authManager.getCurrentUser()?.uid || null,
-        firebaseUid: auth?.currentUser?.uid || null
-      });
       await Promise.all([
         this.ensureAuthenticatedOrdersLoaded(),
         this.ensureGuestOrdersLoaded(),
@@ -346,11 +318,6 @@ class ProfilePanel {
       ]);
     } finally {
       this.isBootstrapping = false;
-      console.info('[PROFILE_DEBUG] preload:done', {
-        isAuthenticated: this.authManager.isAuthenticated(),
-        orders: this.cartManager.orders.length,
-        hasProfileClient: Boolean(this.profileClient?.id)
-      });
       if (this.modal) this.render();
     }
   }
@@ -375,13 +342,6 @@ class ProfilePanel {
     this.activeView = 'account';
     this.openedAt = Date.now();
     this.isBootstrapping = true;
-    console.info('[PROFILE_DEBUG] open', {
-      version: '20260523-6',
-      authReady: this.authManager.isAuthReady,
-      isAuthenticated: this.authManager.isAuthenticated(),
-      authUid: this.authManager.getCurrentUser()?.uid || null,
-      firebaseUid: auth?.currentUser?.uid || null
-    });
     this.modal = document.createElement('div');
     this.modal.className = `profile-panel-${this.uniqueId}`;
     this.render();
@@ -1474,22 +1434,8 @@ class ProfilePanel {
     loginBtn?.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      console.info('[PROFILE_DEBUG] login-click', {
-        version: '20260523-6',
-        authReady: this.authManager.isAuthReady,
-        isAuthenticated: this.authManager.isAuthenticated(),
-        authUid: this.authManager.getCurrentUser()?.uid || null,
-        firebaseUid: auth?.currentUser?.uid || null
-      });
       this.close();
       window.setTimeout(() => {
-        console.info('[PROFILE_DEBUG] opening-auth-after-profile-close', {
-          version: '20260523-6',
-          authReady: this.authManager.isAuthReady,
-          isAuthenticated: this.authManager.isAuthenticated(),
-          authUid: this.authManager.getCurrentUser()?.uid || null,
-          firebaseUid: auth?.currentUser?.uid || null
-        });
         this.authManager.openAuthModal('login');
       }, 160);
     });
@@ -1499,12 +1445,6 @@ class ProfilePanel {
       event.stopPropagation();
       const ageMs = Date.now() - this.openedAt;
       if (ageMs < 900) {
-        console.warn('[PROFILE_DEBUG] logout-click ignored right after open', {
-          version: '20260523-6',
-          ageMs,
-          authUid: this.authManager.getCurrentUser()?.uid || null,
-          firebaseUid: auth?.currentUser?.uid || null
-        });
         return;
       }
       await this.authManager.logout();

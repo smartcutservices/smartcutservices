@@ -1,14 +1,8 @@
 const PROJECT_ID = 'smartcutservices-9ce54';
 const REGION = 'us-central1';
 const FUNCTION_BASE_URL = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net`;
-const MONCASH_DEBUG_TAG = '[MONCASH_DEBUG]';
-
 function logMoncashDebug(stage, data = {}) {
-  try {
-    console.info(MONCASH_DEBUG_TAG, stage, data);
-  } catch (_) {
-    // Debug logging must never block payment.
-  }
+  // Les traces de diagnostic restent désactivées en production.
 }
 
 function sanitizeMoncashClientMessage(message) {

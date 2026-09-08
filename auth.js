@@ -96,7 +96,6 @@ class AuthManager {
     // Écouter les changements d'authentification
     onAuthStateChanged(auth, async (user) => {
       if (!this.isAuthReady && !user) {
-        console.info('[AUTH] State null ignore avant persistence');
         logAuthDebug('state:null-ignored-before-ready');
         return;
       }
@@ -951,11 +950,6 @@ class AuthManager {
         if (accessError?.code === 'auth/smart-management-account') throw accessError;
         console.warn('[AUTH] Vérification du compte Smart Management indisponible', accessError);
       }
-      console.info('[AUTH] Login email reussi', {
-        uid: userCredential?.user?.uid || null,
-        email: userCredential?.user?.email || null,
-        currentUid: auth?.currentUser?.uid || null
-      });
       logAuthDebug('login:success', {
         uid: userCredential?.user?.uid || null,
         email: userCredential?.user?.email || null,
@@ -1560,4 +1554,3 @@ export function getAuthManager(options = {}) {
 }
 
 export default AuthManager;
-

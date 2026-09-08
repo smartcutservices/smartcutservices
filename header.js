@@ -12,6 +12,8 @@ import { applyNavPreference } from './nav-preference.js?v=20260901-1';
 // Auto & Parts…) ne doit réordonner ses liens.
 const MAIN_NAV_PREF_KEY = 'sc:navOrder:main:v1';
 
+function logHeaderRuntime() {}
+
 function isHomePage() {
   const path = String(window.location.pathname || '').replace(/\/+$/, '');
   return path === '' || /\/index\.html?$/i.test(path);
@@ -273,9 +275,11 @@ class SierraHeaderNebula {
       }
 
       .currency-selector {
-        border: 1px solid rgba(184, 155, 123, 0.2);
-        background: rgba(255, 255, 255, 0.78);
-        color: #0f1111;
+        /* Contrôle indépendant du thème : le header est dynamique, mais ce
+           sélecteur doit toujours rester opaque et contrasté. */
+        border: 1px solid #cbd5e1 !important;
+        background-color: #f8fafc !important;
+        color: #1f2937 !important;
         border-radius: 999px;
         min-height: 44px;
         padding: 0 0.75rem;
@@ -287,8 +291,14 @@ class SierraHeaderNebula {
       }
 
       .currency-selector:focus {
-        box-shadow: 0 0 0 3px rgba(198, 167, 94, 0.18);
+        background-color: #eef2f7 !important;
+        border-color: #94a3b8 !important;
+        color: #111827 !important;
+        box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.3);
       }
+
+      .currency-selector:hover { background-color: #eef2f7 !important; color: #111827 !important; }
+      .currency-selector option { background: #fff; color: #17212b; }
 
       .desktop-icon-button,
       .mobile-icon-button {
@@ -391,6 +401,8 @@ class SierraHeaderNebula {
         touch-action: manipulation;
         -webkit-tap-highlight-color: transparent;
       }
+      .cart-icon-shell .desktop-icon,
+      .cart-icon-shell .mobile-icon { font-size: 1.4rem; }
 
       .cart-count-badge {
         position: absolute;
@@ -1474,6 +1486,13 @@ class SierraHeaderNebula {
       if (!smartPanel || !smartSummary) return;
       event.preventDefault();
       event.stopPropagation();
+      // Le summary est piloté manuellement pour pouvoir déplacer le panneau
+      // au-dessus du header sur iOS. Un second clic doit donc reproduire le
+      // comportement natif de <details> et refermer le menu.
+      if (smartPanel.classList.contains('is-ios-portal') || smartMenu?.hasAttribute('open')) {
+        closeSmartPanel();
+        return;
+      }
       if (!smartPanelHome) smartPanelHome = smartMenu;
       const rect = smartSummary.getBoundingClientRect();
       if (smartPanel.parentElement !== document.body) document.body.appendChild(smartPanel);
@@ -1859,7 +1878,7 @@ class SierraHeaderNebula {
   getCartCount() {
     if (this.cartManager && typeof this.cartManager.getTotalItems === 'function') {
       const count = this.cartManager.getTotalItems();
-      console.info('[HEADER] getCartCount via cartManager', { count });
+      logHeaderRuntime('[HEADER] getCartCount via cartManager', { count });
       return count;
     }
 
@@ -1869,7 +1888,7 @@ class SierraHeaderNebula {
       const count = Array.isArray(cart)
         ? cart.reduce((total, item) => total + (Number(item?.quantity) || 1), 0)
         : 0;
-      console.info('[HEADER] getCartCount via localStorage', {
+      logHeaderRuntime('[HEADER] getCartCount via localStorage', {
         hasRaw: Boolean(raw),
         items: Array.isArray(cart) ? cart.length : 0,
         count
@@ -1891,7 +1910,7 @@ class SierraHeaderNebula {
       badge.textContent = label;
       badge.style.display = safeCount > 0 ? 'inline-flex' : 'none';
     });
-    console.info('[HEADER] updateCartBadge', {
+    logHeaderRuntime('[HEADER] updateCartBadge', {
       count: safeCount,
       label
     });
@@ -1899,11 +1918,11 @@ class SierraHeaderNebula {
 
   setupCartBadge() {
     this.updateCartBadge();
-    console.info('[HEADER] setupCartBadge: listeners attaches');
+    logHeaderRuntime('[HEADER] setupCartBadge: listeners attaches');
 
     this.handleCartUpdated = (event) => {
       const nextCount = Number(event?.detail?.count);
-      console.info('[HEADER] cartUpdated recu', {
+      logHeaderRuntime('[HEADER] cartUpdated recu', {
         nextCount,
         detail: event?.detail || null
       });
@@ -1912,7 +1931,7 @@ class SierraHeaderNebula {
 
     this.handleStorageSync = (event) => {
       if (!event.key || event.key === 'veltrixa_cart') {
-        console.info('[HEADER] storage sync panier', {
+        logHeaderRuntime('[HEADER] storage sync panier', {
           key: event.key || null
         });
         this.updateCartBadge();
