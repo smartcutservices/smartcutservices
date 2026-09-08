@@ -1,6 +1,6 @@
 // ============= FIREBASE INIT - MODULAR V9 =============
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
-import { getFirestore, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { initializeFirestore, getFirestore, connectFirestoreEmulator } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import {
   getAuth,
   setPersistence,
@@ -114,10 +114,6 @@ function waitForFirstAuthState(authInstance) {
       try {
         unsubscribe?.();
       } catch (_) {}
-      console.info('[AUTH] Etat initial Firebase resolu', {
-        uid: user?.uid || null,
-        isAnonymous: Boolean(user?.isAnonymous)
-      });
       logAuthDebug('initial-state:resolved', {
         uid: user?.uid || null,
         isAnonymous: Boolean(user?.isAnonymous)
@@ -150,12 +146,14 @@ try {
     googleProvider = firebaseState.googleProvider;
     storage = firebaseState.storage;
     authReadyPromise = firebaseState.authReadyPromise || Promise.resolve(auth?.currentUser || null);
-    console.info('[AUTH] Firebase singleton reutilise');
     logAuthDebug('firebase-singleton:reused');
   } else {
     logAuthDebug('firebase-singleton:create');
     app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
+    // Mobile networks and some proxies can terminate Firestore's streaming
+    // channel. Auto-detection falls back to long polling before surfacing a
+    // network error to the page.
+    db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 
     // Opt-in only, never active unless the URL explicitly asks for it (used
     // by Playwright tests exercising the real repository/rules against a

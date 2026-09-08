@@ -5172,7 +5172,7 @@ exports.getPublicHeroLcp = onRequest({ region: REGION }, async (req, res) => {
   const slide = slides.find((item) => item?.isActive !== false) || slides[0] || {};
   const toUrl = (value) => {
     const raw = String(value || '').trim();
-    if (!raw) return `${SITE_BASE_URL}/bannermobile.webp`;
+    if (!raw) return `${SITE_BASE_URL}/bannermobile1.jpg`;
     if (/^https?:\/\//i.test(raw)) return raw;
     return `${SITE_BASE_URL}/${raw.replace(/^\.?(\/|\\)/, '')}`;
   };
