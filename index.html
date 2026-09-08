@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+  <link rel="preload" as="image" href="./bannermobile.webp" fetchpriority="high">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -73,7 +74,7 @@
   <link rel="modulepreload" href="./hero.js?v=20260906-1">
   <link rel="modulepreload" href="./categories.js?v=20260906-1">
   <link rel="stylesheet" href="./tailwind-site.css?v=20260901-1">
-  <link rel="stylesheet" href="./site-foundation.css?v=20260903-21">
+  <link rel="stylesheet" href="./site-foundation.css?v=20260908-3">
   <link rel="preload" as="style" href="./health-teaser.css?v=20260901-1" onload="this.onload=null;this.rel='stylesheet'">
   <link rel="preload" as="style" href="./services-teaser.css?v=20260901-2" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="./health-teaser.css?v=20260901-1"><link rel="stylesheet" href="./services-teaser.css?v=20260901-2"></noscript>
@@ -152,6 +153,8 @@
       min-height: 360px;
       padding-top: 0;
     }
+    .hero-lcp-fallback { display:block; width:100%; min-height:300px; background:#fff; overflow:hidden; }
+    .hero-lcp-fallback img { width:100%; height:clamp(300px,44vh,460px); object-fit:cover; }
 
     /* Overlays / modales: base mobile-first robuste */
     [class*="product-modal-overlay-"],
@@ -361,7 +364,7 @@
   <main id="main-content">
   <!-- 2–3. Hero et catégories sur un même fond dégradé -->
   <div id="home-hero-categories-shell">
-    <div id="sierra-hero-root"></div>
+    <div id="sierra-hero-root"><picture class="hero-lcp-fallback"><source media="(min-width: 768px)" srcset="./bannermobile.webp"><img src="./bannermobile.webp" alt="Smart Cut Services" width="900" height="700" fetchpriority="high" decoding="async"></picture></div>
     <div id="sierra-home-categories-root"></div>
   </div>
 
@@ -405,20 +408,19 @@
 <div id="sierra-footer-root" class="mt-auto"></div>
   <!-- Scripts principaux -->
   <script type="module">
-    const ASSET_VERSION = '20260908-1';
+    const ASSET_VERSION = '20260908-7';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
-    /* Les traces *_DEBUG sont utiles en développement mais ne doivent pas
-       polluer la console de production (ni les audits Lighthouse). */
-    const silentConsoleTags = ['DEBUG', '[AUTH]', '[HEADER]', '[CART]', '[FIREBASE]', '[STORAGE]', '[PROFILE_'];
-    for (const method of ['log', 'info', 'debug', 'warn', 'error']) {
-      const original = console[method];
-      if (typeof original !== 'function') continue;
-      console[method] = (...args) => {
-        const firstArg = String(args[0] || '');
-        if (silentConsoleTags.some((tag) => firstArg.includes(tag))) return;
-        original.apply(console, args);
-      };
-    }
+    // Fetch only the active visual first; this avoids making Firebase a prerequisite for LCP.
+    fetch('https://us-central1-smartcutservices-9ce54.cloudfunctions.net/getPublicHeroLcp', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        const hero = payload?.hero;
+        const fallback = document.querySelector('#sierra-hero-root .hero-lcp-fallback');
+        if (!hero || !fallback) return;
+        const source = fallback.querySelector('source'); const image = fallback.querySelector('img');
+        if (source && hero.desktop) source.srcset = hero.desktop;
+        if (image && hero.mobile) { image.src = hero.mobile; image.alt = hero.alt || 'Affiche Smart Cut Services'; }
+      }).catch(() => null);
     try {
       const versionKey = 'smartcut_asset_version';
       const previousVersion = localStorage.getItem(versionKey);

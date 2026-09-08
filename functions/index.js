@@ -5164,6 +5164,26 @@ exports.getPaymentLink = onRequest({ region: REGION }, async (req, res) => {
   return sendJson(res, 200, { ok: true, link: toPublicPaymentLink(snapshot.data() || {}) });
 });
 
+// Public, tiny hero manifest: keeps Firebase out of the critical visual path.
+exports.getPublicHeroLcp = onRequest({ region: REGION }, async (req, res) => {
+  const snapshot = await db.collection('heroSectionControlMatrix9472').doc('heroPrimaryBlock8391').get();
+  const data = snapshot.exists ? (snapshot.data() || {}) : {};
+  const slides = Array.isArray(data.posterSlides) ? data.posterSlides : [];
+  const slide = slides.find((item) => item?.isActive !== false) || slides[0] || {};
+  const toUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return `${SITE_BASE_URL}/bannermobile.webp`;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return `${SITE_BASE_URL}/${raw.replace(/^\.?(\/|\\)/, '')}`;
+  };
+  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  return sendJson(res, 200, { ok: true, hero: {
+    mobile: toUrl(slide.mobileFileName || slide.fileName || slide.desktopFileName),
+    desktop: toUrl(slide.desktopFileName || slide.fileName || slide.mobileFileName),
+    alt: sanitizeText(slide.altText || 'Affiche Smart Cut Services', 180)
+  } });
+});
+
 exports.paymentLinkSharePage = onRequest({ region: REGION }, async (req, res) => {
   const reference = sanitizeText(req.query.ref, 100);
   const snapshot = reference ? await db.collection(PAYMENT_LINKS_COLLECTION).doc(reference).get() : null;
