@@ -1757,7 +1757,7 @@ class CheckoutModal {
     }
 
     try {
-      const { previewPromoCode } = await import('./promo-client.js?v=20260901-1');
+      const { previewPromoCode } = await import('./promo-client.js?v=20260908-11');
       const response = await previewPromoCode({
         code: normalizedCode,
         clientId: this.client?.id || '',

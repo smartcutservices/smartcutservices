@@ -1,8 +1,8 @@
-import { db } from './firebase-init.js?v=20260901-1';
+import { db } from './firebase-init.js?v=20260908-11';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js?v=20260902-2';
 import Navbar from './navbar.js?v=20260902-1';
-import { getAuthManager } from './auth.js?v=20260901-1';
+import { getAuthManager } from './auth.js?v=20260908-11';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
 import { applyNavPreference } from './nav-preference.js?v=20260901-1';
@@ -1389,7 +1389,7 @@ class SierraHeaderNebula {
 
   async getCartManager() {
     if (!this.cartManagerPromise) {
-      this.cartManagerPromise = import('./cart.js?v=20260901-1')
+      this.cartManagerPromise = import('./cart.js?v=20260908-11')
         .then(({ getCartManager }) => {
           this.cartManager = getCartManager({ imageBasePath: './' });
           return this.cartManager;
@@ -1400,7 +1400,7 @@ class SierraHeaderNebula {
 
   async getProfilePanel() {
     if (!this.profilePanelPromise) {
-      this.profilePanelPromise = import('./profile-panel.js?v=20260901-6')
+      this.profilePanelPromise = import('./profile-panel.js?v=20260908-11')
         .then(({ getProfilePanel }) => getProfilePanel());
     }
     return this.profilePanelPromise;
