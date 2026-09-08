@@ -22,11 +22,19 @@
     "test:health-emulator": "node --test --test-concurrency=1 health/rules.test.js health/storage.rules.test.js",
     "serve": "firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "images:audit": "node scripts/optimize-existing-product-images.js",
+    "images:optimize": "node scripts/optimize-existing-product-images.js --apply",
+    "static-images:audit": "node scripts/optimize-static-assets.js",
+    "static-images:optimize": "node scripts/optimize-static-assets.js --apply",
+    "images:paths-audit": "node scripts/migrate-product-image-paths.js",
+    "images:paths-migrate": "node scripts/migrate-product-image-paths.js --apply",
+    "images:paths-storage": "node scripts/migrate-product-image-paths.js --apply"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
-    "firebase-functions": "^5.1.1"
+    "firebase-functions": "^5.1.1",
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2"

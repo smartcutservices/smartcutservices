@@ -4,6 +4,8 @@ const logger = require('firebase-functions/logger');
 const { defineSecret } = require('firebase-functions/params');
 const { onRequest } = require('firebase-functions/v2/https');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { onObjectFinalized } = require('firebase-functions/v2/storage');
+const sharp = require('sharp');
 const { reserveStockValue } = require('./auto-parts/core');
 const {
   DEFAULT_COMMISSION_RATE: DEFAULT_JWETPRO_COMMISSION_RATE,
@@ -67,6 +69,9 @@ const FREELANCER_SUBSCRIPTION_PLANS = Object.freeze({
   6: { amount: 2800, label: '6 mois' },
   12: { amount: 5000, label: '12 mois' }
 });
+
+const PRODUCT_IMAGE_MAX_DIMENSION = 2000;
+const PRODUCT_IMAGE_QUALITY = 84;
 
 const MONCASH_CLIENT_ID = defineSecret('MONCASH_CLIENT_ID');
 const MONCASH_CLIENT_SECRET = defineSecret('MONCASH_CLIENT_SECRET');
@@ -8501,6 +8506,53 @@ const __affiliateFunctions = require('./affiliate')(__sstInternals);
 for (const [name, fn] of Object.entries(__affiliateFunctions)) {
   exports[name] = fn;
 }
+
+// Filet de sécurité serveur pour les images produits déposées directement
+// dans Storage. Les uploads officiels sont déjà optimisés par firebase-storage.js,
+// mais ce trigger protège aussi les autres clients et anciennes interfaces.
+exports.optimizeVendorProductImage = onObjectFinalized({
+  region: REGION,
+  bucket: 'smartcutservices-9ce54.firebasestorage.app',
+  memory: '1GiB',
+  timeoutSeconds: 120,
+  retry: false
+}, async (event) => {
+  const object = event.data || {};
+  const name = String(object.name || '');
+  const contentType = String(object.contentType || '').toLowerCase();
+  const metadata = object.metadata || {};
+  if (!name.startsWith('products/') || !contentType.startsWith('image/')) return null;
+  if (metadata.imageOptimized === 'true' || contentType === 'image/gif' || contentType === 'image/svg+xml') return null;
+
+  const bucket = admin.storage().bucket(object.bucket);
+  const file = bucket.file(name);
+  const [source] = await file.download();
+  const output = await sharp(source)
+    .rotate()
+    .resize({ width: PRODUCT_IMAGE_MAX_DIMENSION, height: PRODUCT_IMAGE_MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: PRODUCT_IMAGE_QUALITY })
+    .toBuffer();
+
+  if (!output.length) return null;
+  await file.save(output, {
+    resumable: false,
+    metadata: {
+      contentType: 'image/webp',
+      cacheControl: 'public,max-age=31536000,immutable',
+      metadata: {
+        ...metadata,
+        imageOptimized: 'true',
+        optimizedFormat: 'webp',
+        originalContentType: contentType,
+        originalSize: String(source.length),
+        optimizedSize: String(output.length),
+        optimizedAt: new Date().toISOString()
+      }
+    }
+  });
+  logger.info('vendor-product-image-optimized', { name, originalSize: source.length, optimizedSize: output.length });
+  return null;
+});
 
 // Keep Firestore-trigger exports explicit so Firebase can target them by name.
 exports.walletWalletOrderRefund = __walletFunctions.walletOrderRefund;

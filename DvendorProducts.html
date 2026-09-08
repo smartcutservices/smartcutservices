@@ -2803,7 +2803,7 @@
                     <span class="pe-card__icon"><i class="fas fa-images"></i></span>
                     <div class="pe-card__titles">
                       <div class="pe-card__title">Photos</div>
-                      <div class="pe-card__sub">La 1re image est la couverture. Carr&eacute; 1200&times;1200, 5&nbsp;Mo max.</div>
+                      <div class="pe-card__sub">La 1re image est la couverture. JPG, PNG ou WebP. Optimisation automatique jusqu’à 8&nbsp;Mo.</div>
                     </div>
                   </div>
                   <div class="pe-card__body">
@@ -7360,7 +7360,12 @@
             }
           }
 
-          this.showToast(`${uploads.length} image(s) envoyee(s) dans Firebase Storage.`);
+          const optimizedCount = uploads.filter((item) => item.optimizedFormat === 'webp').length;
+          const savedBytes = uploads.reduce((total, item) => total + Math.max(0, Number(item.originalSize || 0) - Number(item.optimizedSize || 0)), 0);
+          const savedLabel = savedBytes > 1024 * 1024
+            ? `${(savedBytes / (1024 * 1024)).toFixed(1)} Mo économisés`
+            : savedBytes > 1024 ? `${Math.round(savedBytes / 1024)} Ko économisés` : '';
+          this.showToast(`${uploads.length} image(s) envoyée(s)${optimizedCount ? ` · ${optimizedCount} en WebP` : ''}${savedLabel ? ` · ${savedLabel}` : ''}.`);
         } catch (error) {
           console.error('Erreur Erreur upload Storage:', error);
           console.error('[VENDOR] uploadSelectedImages:error:details', {

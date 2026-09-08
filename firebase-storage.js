@@ -18,6 +18,9 @@ const PDF_TYPES = new Set([
   'application/pdf'
 ]);
 
+const DEFAULT_IMAGE_MAX_DIMENSION = 2000;
+const DEFAULT_IMAGE_QUALITY = 0.84;
+
 function sanitizeSegment(value, fallback = 'file') {
   return String(value || fallback)
     .normalize('NFD')
@@ -98,7 +101,68 @@ export function validateStorageFile(file, {
 
 export async function uploadImageFile(file, folder = 'misc', options = {}) {
   validateImageFile(file, options);
-  return uploadStorageFile(file, folder, options);
+  const normalized = await optimizeImageFile(file, options);
+  const result = await uploadStorageFile(normalized.file, folder, {
+    ...options,
+    maxSizeMb: options.optimizedMaxSizeMb || 8
+  });
+  return {
+    ...result,
+    originalName: file.name || '',
+    originalSize: Number(file.size || 0),
+    optimizedSize: Number(normalized.file.size || 0),
+    optimizedFormat: normalized.converted ? 'webp' : String(file.type || '').replace('image/', '')
+  };
+}
+
+async function optimizeImageFile(file, options = {}) {
+  const type = String(file?.type || '').toLowerCase();
+  // Les SVG et GIF animés doivent conserver leur format et leur animation.
+  if (type === 'image/svg+xml' || type === 'image/gif') {
+    return { file, converted: false };
+  }
+
+  const maxDimension = Math.max(320, Number(options.maxDimension || DEFAULT_IMAGE_MAX_DIMENSION));
+  const quality = Math.min(1, Math.max(.55, Number(options.quality || DEFAULT_IMAGE_QUALITY)));
+  let bitmap;
+  try {
+    if (typeof createImageBitmap === 'function') {
+      bitmap = await createImageBitmap(file);
+    } else {
+      bitmap = await new Promise((resolve, reject) => {
+        const image = new Image();
+        const url = URL.createObjectURL(file);
+        image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+        image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image illisible.')); };
+        image.src = url;
+      });
+    }
+  } catch (_) {
+    // Si un navigateur ne sait pas décoder l’image, on conserve le fichier
+    // original plutôt que de bloquer l’upload.
+    return { file, converted: false };
+  }
+
+  const sourceWidth = Number(bitmap.width || bitmap.naturalWidth || 0);
+  const sourceHeight = Number(bitmap.height || bitmap.naturalHeight || 0);
+  if (!sourceWidth || !sourceHeight) return { file, converted: false };
+  const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { alpha: true });
+  if (!context) return { file, converted: false };
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+  if (!blob) return { file, converted: false };
+  const baseName = String(file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+  return { file: new File([blob], `${baseName}.webp`, { type: 'image/webp', lastModified: Date.now() }), converted: true };
 }
 
 export async function uploadStorageFile(file, folder = 'misc', options = {}) {

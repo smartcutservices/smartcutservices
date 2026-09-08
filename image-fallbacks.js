@@ -25,8 +25,29 @@ export function resolveImagePath(filename, basePath = './') {
   if (!filename) return '';
   const value = String(filename).trim();
   if (!value) return '';
-  if (/^(https?:|data:|blob:)/i.test(value)) return value;
-  return `${basePath}${value.split('/').pop()}`;
+  // Les images produit Firebase ont maintenant un chemin WebP dédié. Les
+  // anciens documents peuvent encore contenir une URL terminant par .png/.jpg;
+  // on la réécrit côté client pour éviter de continuer à télécharger l'ancien
+  // format, sans toucher aux URLs d'autres ressources.
+  if (/^https?:/i.test(value)) {
+    if (/\/o\/products(?:%2F|\/)/i.test(value)) {
+      return value.replace(/\.(jpe?g|png)(?=[?#]|$)/i, '.webp');
+    }
+    return value;
+  }
+  if (/^(data:|blob:)/i.test(value)) return value;
+  const hasPath = /[\\/]/.test(value);
+  const sourcePath = value.replaceAll('\\', '/');
+  const basename = sourcePath.split('/').pop();
+  const extension = basename.match(/\.(jpe?g|png)$/i);
+  // Les assets statiques migrés possèdent désormais un voisin WebP. Les URLs
+  // distantes et les formats non concernés restent inchangés.
+  const optimizedPath = extension
+    ? `${sourcePath.slice(0, -extension[0].length)}.webp`
+    : sourcePath;
+  // Les références contenant déjà un dossier (par exemple assets/foo.png)
+  // doivent conserver ce dossier. Les noms simples utilisent imageBasePath.
+  return hasPath ? optimizedPath : `${basePath}${optimizedPath}`;
 }
 
 function getKeywordPool(product = {}) {
