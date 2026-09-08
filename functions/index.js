@@ -131,7 +131,9 @@ function toPublicPaymentLink(link = {}) {
     amount: normalizePaymentLinkAmount(link.amount),
     currency: MONCASH_CURRENCY,
     description: sanitizeText(link.description || PAYMENT_LINK_DEFAULT_DESCRIPTION, 500),
-    expiresAt: String(link.expiresAt || '')
+    expiresAt: String(link.expiresAt || ''),
+    visualImage: sanitizeText(link.visualImage || `${SITE_BASE_URL}/logo.png`, 1200),
+    visualAlt: sanitizeText(link.visualAlt || 'Smart Cut Services', 180)
   };
 }
 
@@ -5053,10 +5055,22 @@ exports.managePaymentLinks = onRequest({ region: REGION }, async (req, res) => {
   if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
 
   const reference = sanitizeText(body.reference, 100);
+  if (action === 'products') {
+    const search = sanitizeText(body.search, 120).toLowerCase();
+    const [productsSnap, vendorProductsSnap] = await Promise.all([db.collection('products').limit(500).get(), db.collection('vendorProducts').limit(500).get()]);
+    const seen = new Set();
+    const products = [...productsSnap.docs, ...vendorProductsSnap.docs].map((item) => {
+      const product = item.data() || {}; const image = getPrimaryProductImage(product);
+      return { id: item.id, name: sanitizeText(product.name || product.title || product.productName || 'Produit', 180), sku: sanitizeText(product.sku || product.code || '', 100), category: sanitizeText(product.categoryName || product.category || '', 120), image: sanitizeText(image || `${SITE_BASE_URL}/logo.png`, 1200) };
+    }).filter((product) => { const key = `${product.name}|${product.image}`; const haystack = `${product.name} ${product.sku} ${product.category}`.toLowerCase(); return !seen.has(key) && seen.add(key) && (!search || haystack.includes(search)); }).slice(0, 120);
+    return sendJson(res, 200, { ok: true, products });
+  }
   if (action === 'create') {
     const title = sanitizeText(body.title, 160);
     const amount = normalizePaymentLinkAmount(body.amount);
     const description = sanitizeText(body.description, 500) || PAYMENT_LINK_DEFAULT_DESCRIPTION;
+    const visualImage = sanitizeText(body.visualImage || `${SITE_BASE_URL}/logo.png`, 1200);
+    const visualAlt = sanitizeText(body.visualAlt || 'Smart Cut Services', 180);
     const expiresAt = normalizePaymentLinkExpiry(body.expiresAt);
     if (!title || !amount || expiresAt === null) return sendJson(res, 400, { ok: false, error: 'invalid-payment-link' });
     if (expiresAt && Date.parse(expiresAt) <= Date.now()) return sendJson(res, 400, { ok: false, error: 'expiry-must-be-future' });
@@ -5066,6 +5080,8 @@ exports.managePaymentLinks = onRequest({ region: REGION }, async (req, res) => {
       reference: id,
       title,
       description,
+      visualImage,
+      visualAlt,
       amount,
       currency: MONCASH_CURRENCY,
       status: 'active',
@@ -5097,10 +5113,12 @@ exports.managePaymentLinks = onRequest({ region: REGION }, async (req, res) => {
     const title = sanitizeText(body.title, 160);
     const amount = normalizePaymentLinkAmount(body.amount);
     const description = sanitizeText(body.description, 500) || PAYMENT_LINK_DEFAULT_DESCRIPTION;
+    const visualImage = sanitizeText(body.visualImage || `${SITE_BASE_URL}/logo.png`, 1200);
+    const visualAlt = sanitizeText(body.visualAlt || 'Smart Cut Services', 180);
     const expiresAt = normalizePaymentLinkExpiry(body.expiresAt);
     if (!title || !amount || expiresAt === null) return sendJson(res, 400, { ok: false, error: 'invalid-payment-link' });
     if (expiresAt && Date.parse(expiresAt) <= Date.now()) return sendJson(res, 400, { ok: false, error: 'expiry-must-be-future' });
-    await linkRef.set({ title, amount, description, expiresAt: expiresAt || '', updatedAt: new Date().toISOString(), updatedBy: user.uid }, { merge: true });
+    await linkRef.set({ title, amount, description, visualImage, visualAlt, expiresAt: expiresAt || '', updatedAt: new Date().toISOString(), updatedBy: user.uid }, { merge: true });
     return sendJson(res, 200, { ok: true });
   }
 
@@ -5175,6 +5193,8 @@ exports.startPaymentLinkPayment = onRequest(
       paymentLinkReference: reference,
       paymentLinkTitle: sanitizeText(link.title, 160),
       paymentLinkDescription: sanitizeText(link.description || PAYMENT_LINK_DEFAULT_DESCRIPTION, 500),
+      paymentLinkVisualImage: sanitizeText(link.visualImage || `${SITE_BASE_URL}/logo.png`, 1200),
+      paymentLinkVisualAlt: sanitizeText(link.visualAlt || 'Smart Cut Services', 180),
       payerName,
       payerPhone,
       amount,
