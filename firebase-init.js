@@ -80,7 +80,6 @@ async function configureAuthPersistence(authInstance) {
   for (const candidate of candidates) {
     try {
       await setPersistence(authInstance, candidate.value);
-      console.info('[AUTH] Persistence activee', { mode: candidate.label });
       logAuthDebug('persistence:active', { mode: candidate.label });
       return candidate.label;
     } catch (error) {
@@ -167,7 +166,6 @@ try {
     if (emulatorParams?.get('useFirestoreEmulator') === '1' || useAllEmulators) {
       try {
         connectFirestoreEmulator(db, '127.0.0.1', 8080);
-        console.info('[FIREBASE] Connecté à l’émulateur Firestore local (127.0.0.1:8080)');
       } catch (error) {
         console.warn('[FIREBASE] Connexion à l’émulateur Firestore impossible:', error);
       }

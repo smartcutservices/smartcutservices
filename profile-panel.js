@@ -1,8 +1,8 @@
-import { auth, db } from './firebase-init.js?v=20260908-11';
+import { auth, db } from './firebase-init.js?v=20260908-12';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import { getAuthManager } from './auth.js?v=20260908-11';
-import { getCartManager } from './cart.js?v=20260908-11';
+import { getAuthManager } from './auth.js?v=20260908-12';
+import { getCartManager } from './cart.js?v=20260908-12';
 import { getLikeManager } from './like.js';
 import { VENDOR_DASHBOARD_URL } from './dashboard-links.js';
 
