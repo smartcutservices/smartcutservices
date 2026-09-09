@@ -42,5 +42,6 @@ test('sends one confirmation only when WhatsApp consent or number is newly activ
   assert.equal(_test.shouldSendOptInConfirmation({}, { phone: '50934913988', serviceOptIn: true }), true);
   assert.equal(_test.shouldSendOptInConfirmation({ phone: '50934913988', serviceOptIn: true }, { phone: '50934913988', serviceOptIn: true }), false);
   assert.equal(_test.shouldSendOptInConfirmation({ phone: '50934913988', serviceOptIn: true }, { phone: '5093818852', serviceOptIn: true }), true);
+  assert.equal(_test.shouldSendOptInConfirmation({}, { phone: '50934913988', marketingOptIn: true }), false);
   assert.equal(_test.shouldSendOptInConfirmation({ phone: '50934913988', serviceOptIn: false }, { phone: '50934913988', serviceOptIn: false }), false);
 });

@@ -46,9 +46,8 @@ function isActiveProduct(data = {}) {
     || data.publicationStatus === 'published';
 }
 function shouldSendOptInConfirmation(previous = {}, next = {}) {
-  const wasActive = Boolean(previous.serviceOptIn || previous.marketingOptIn);
-  const isActive = Boolean(next.serviceOptIn || next.marketingOptIn);
-  return isActive && (!wasActive || String(previous.phone || '') !== String(next.phone || ''));
+  return Boolean(next.serviceOptIn)
+    && (!previous.serviceOptIn || String(previous.phone || '') !== String(next.phone || ''));
 }
 function parseWebhook(payload = {}) {
   const incoming = [];
