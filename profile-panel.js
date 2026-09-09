@@ -362,7 +362,19 @@ class ProfilePanel {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) throw new Error(payload.message || 'La recharge n’a pas pu être démarrée.');
-      if (payload.transaction?.checkoutUrl) window.location.href = payload.transaction.checkoutUrl;
+      if (payload.transaction?.checkoutUrl) {
+        try {
+          localStorage.setItem('smartcut_wallet_topup_payment', JSON.stringify({
+            orderId: payload.transaction.id,
+            amount: Number(payload.transaction.walletCreditMinor || payload.transaction.amountMinor || 0) / 100,
+            paymentType: 'wallet_topup',
+            createdAt: Date.now()
+          }));
+        } catch (_) {
+          // The server-side order reference remains sufficient for confirmation.
+        }
+        window.location.href = payload.transaction.checkoutUrl;
+      }
     } catch (error) {
       this.walletError = error?.message || 'La recharge n’a pas pu être démarrée.';
       this.walletLoading = false;

@@ -115,7 +115,7 @@ function buildWallet(internals) {
   const paymentCallback = endpoint(async (req, res) => {
     const intentId = text(req.query?.orderId || req.body?.orderId || req.query?.transactionId, 180);
     const transactionId = text(req.query?.transactionId || req.body?.transactionId, 180);
-    if (!intentId || !transactionId) throw new WalletError(400, 'payment-reference-required', 'Référence de paiement manquante.');
+    if (!intentId) throw new WalletError(400, 'payment-reference-required', 'Référence de paiement manquante.');
     const intentRef = db.collection('walletTransactions').doc(intentId);
     const intentSnap = await intentRef.get();
     if (!intentSnap.exists) throw new WalletError(404, 'wallet-transaction-not-found', 'Recharge introuvable.');
@@ -125,7 +125,9 @@ function buildWallet(internals) {
     if (!verification.ok) throw new WalletError(409, 'payment-not-confirmed', 'Le paiement n’est pas encore confirmé.');
     const verifiedMinor = Math.round(Number(verification.amount) * 100);
     if (verifiedMinor !== Number(intent.grossAmountMinor)) throw new WalletError(409, 'amount-mismatch', 'Le montant confirmé est invalide.');
-    const providerTx = crypto.createHash('sha256').update(transactionId).digest('hex');
+    const verifiedTransactionId = text(verification.transactionId || transactionId, 180);
+    if (!verifiedTransactionId) throw new WalletError(409, 'payment-reference-required', 'MonCash n’a pas encore fourni la référence de transaction.');
+    const providerTx = crypto.createHash('sha256').update(verifiedTransactionId).digest('hex');
     const providerRef = db.collection('walletProviderTransactions').doc(providerTx);
     const walletRef = db.collection('wallets').doc(intent.walletId);
     const ledgerRef = db.collection('walletLedger').doc(`${intentId}_CASH_IN`);
@@ -137,10 +139,11 @@ function buildWallet(internals) {
       const wallet = walletSnap.exists ? walletSnap.data() : { availableMinor: 0, reservedMinor: 0, status: 'ACTIVE' };
       if (wallet.status !== 'ACTIVE') throw new WalletError(423, 'wallet-blocked', 'Ce Wallet est temporairement suspendu.');
       if (Number(wallet.availableMinor || 0) + Number(wallet.reservedMinor || 0) + Number(intent.walletCreditMinor) > limits.walletCapMinor) throw new WalletError(409, 'wallet-cap-exceeded', 'Le plafond du Wallet est dépassé.');
-      tx.create(providerRef, { transactionId: intentId, createdAt: serverTimestamp() });
-      tx.create(ledgerRef, { walletId: intent.walletId, userId: intent.userId, type: 'CASH_IN', direction: 'CREDIT', amountMinor: intent.walletCreditMinor, currency: 'HTG', referenceId: intentId, provider: 'MONCASH', providerTransactionId: transactionId, status: 'COMPLETED', createdAt: serverTimestamp() });
+      tx.create(providerRef, { transactionId: verifiedTransactionId, orderId: intentId, createdAt: serverTimestamp() });
+      tx.create(ledgerRef, { walletId: intent.walletId, userId: intent.userId, type: 'CASH_IN', direction: 'CREDIT', amountMinor: intent.walletCreditMinor, currency: 'HTG', referenceId: intentId, provider: 'MONCASH', providerTransactionId: verifiedTransactionId, status: 'COMPLETED', createdAt: serverTimestamp() });
       tx.set(walletRef, { availableMinor: Number(wallet.availableMinor || 0) + Number(intent.walletCreditMinor), updatedAt: serverTimestamp() }, { merge: true });
-      tx.set(intentRef, { status: 'COMPLETED', providerTransactionId: transactionId, completedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+      tx.set(intentRef, { status: 'COMPLETED', providerTransactionId: verifiedTransactionId, completedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+      tx.set(db.collection('walletNotifications').doc(`${intentId}_CASH_IN`), { userId: intent.userId, type: 'WALLET_TOP_UP', title: 'Recharge créditée', message: `${(Number(intent.walletCreditMinor) / 100).toLocaleString('fr-FR')} HTG ont été ajoutés à votre Smart Wallet.`, referenceId: intentId, createdAt: serverTimestamp() });
     });
     res.json({ ok: true, status: 'COMPLETED', walletCreditMinor: intent.walletCreditMinor });
   }, { moncash: true });

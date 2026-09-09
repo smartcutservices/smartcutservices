@@ -2,6 +2,7 @@ import { getMoncashPaymentStatus } from '../../moncash-client.js';
 import { downloadOrderPdfReceipt } from '../../order-pdf.js';
 
 const PENDING_PAYMENT_KEY = 'smartcut_pending_moncash_payment';
+const WALLET_TOPUP_KEY = 'smartcut_wallet_topup_payment';
 const BILLING_PAYMENT_KEY = 'smartcut_billing_payment';
 const HEALTH_PAYMENT_KEY = 'smartcut_health_payment';
 const CART_STORAGE_KEY = 'veltrixa_cart';
@@ -26,6 +27,23 @@ function readPendingPayment() {
 function clearPendingPayment() {
   try {
     localStorage.removeItem(PENDING_PAYMENT_KEY);
+  } catch (_) {
+    // Ignore storage issues.
+  }
+}
+
+function readWalletTopUp() {
+  try {
+    const raw = localStorage.getItem(WALLET_TOPUP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function clearWalletTopUp() {
+  try {
+    localStorage.removeItem(WALLET_TOPUP_KEY);
   } catch (_) {
     // Ignore storage issues.
   }
@@ -74,29 +92,30 @@ function setDownloadButton(order) {
   downloadPdfBtn.classList.toggle('btn-hidden', !latestOrder);
 }
 
-function buildReference(params, pending) {
+function buildReference(params, pending, walletTopUp = null) {
   return {
     sessionId: params.get('session_id') || params.get('sessionId') || pending?.sessionId || '',
     transactionId: params.get('transactionId') || params.get('transaction_id') || '',
-    orderId: params.get('orderId') || params.get('order_id') || params.get('reference') || pending?.orderId || '',
+    orderId: params.get('orderId') || params.get('order_id') || params.get('reference') || pending?.orderId || walletTopUp?.orderId || '',
     forcedStatus: params.get('status') || '',
     pending
   };
 }
 
-function buildMeta(payload, pending) {
+function buildMeta(payload, pending, walletTopUp = null) {
   const code = payload?.uniqueCode || payload?.orderId || pending?.orderId || '';
-  const amount = payload?.amount || pending?.amount || 0;
+  const amount = payload?.amount || walletTopUp?.amount || pending?.amount || 0;
   const email = pending?.customerEmail || '';
-  const paymentType = payload?.paymentType || pending?.paymentType || '';
+  const paymentType = payload?.paymentType || walletTopUp?.paymentType || pending?.paymentType || '';
   return [
-    code ? `${paymentType === 'vendor_service_fee' ? 'Reference paiement' : 'Reference de commande'} : ${code}` : '',
+    code ? `${paymentType === 'wallet_topup' ? 'Reference de recharge' : paymentType === 'vendor_service_fee' ? 'Reference paiement' : 'Reference de commande'} : ${code}` : '',
     amount ? `Montant : ${formatAmount(amount)}` : '',
     email ? `Email : ${email}` : ''
   ];
 }
 
 async function pollPaymentStatus(reference, pending) {
+  const walletTopUp = readWalletTopUp();
   const attempts = 6;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -104,6 +123,19 @@ async function pollPaymentStatus(reference, pending) {
     const status = String(payload?.status || payload?.paymentStatus || '').toLowerCase();
 
     if (status === 'paid') {
+      const isWalletTopUp = payload?.paymentType === 'wallet_topup' || walletTopUp?.paymentType === 'wallet_topup';
+      if (isWalletTopUp) {
+        clearWalletTopUp();
+        setDownloadButton(null);
+        setState({
+          title: 'Recharge Wallet créditée',
+          copy: 'Votre paiement MonCash est confirmé et votre Smart Wallet a été crédité.',
+          detail: `${formatAmount(payload?.amount || walletTopUp?.amount || 0)} sont maintenant disponibles dans votre Wallet.`,
+          tone: 'paid',
+          meta: buildMeta(payload, pending, walletTopUp)
+        });
+        return;
+      }
       const isJwetproTicket = payload?.paymentType === 'jwetpro_ticket' || pending?.paymentType === 'jwetpro_ticket';
       if (isJwetproTicket && payload?.externalReturnUrl) {
         setState({
@@ -135,7 +167,7 @@ async function pollPaymentStatus(reference, pending) {
           ? `${payload?.paymentLink?.description || 'Paiement Smart Cut'} · Référence ${payload?.orderId || ''} · ${formatAmount(payload?.amount || pending?.amount || 0)}.`
           : `${isVendorServiceFee ? 'Frais mensuel' : 'Commande'} ${payload?.uniqueCode || payload?.orderId || ''} valide pour ${formatAmount(payload?.amount || pending?.amount || 0)}.`,
         tone: 'paid',
-        meta: buildMeta(payload, pending)
+        meta: buildMeta(payload, pending, walletTopUp)
       });
       return;
     }
@@ -157,7 +189,7 @@ async function pollPaymentStatus(reference, pending) {
       copy: 'Nous verifions encore la confirmation definitive aupres de MonCash.',
       detail: `Verification automatique ${attempt + 1}/${attempts}. Merci de patienter quelques secondes.`,
       tone: 'pending',
-      meta: buildMeta(payload, pending)
+      meta: buildMeta(payload, pending, walletTopUp)
     });
 
     if (attempt < attempts - 1) {
@@ -177,7 +209,8 @@ async function pollPaymentStatus(reference, pending) {
 async function runStatusCheck() {
   const params = new URLSearchParams(window.location.search);
   const pending = readPendingPayment();
-  const reference = buildReference(params, pending);
+  const walletTopUp = readWalletTopUp();
+  const reference = buildReference(params, pending, walletTopUp);
 
   if (reference.forcedStatus === 'cancelled') {
     clearPendingPayment();

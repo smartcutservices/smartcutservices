@@ -7162,6 +7162,37 @@ exports.getMoncashPaymentStatus = onRequest(
     }
 
     try {
+      // Une recharge Wallet n'est pas une commande e-commerce. La page de retour
+      // demande ce statut après MonCash : route-la vers le callback Wallet afin
+      // que le crédit soit réellement écrit avant d'annoncer un succès au client.
+      if (orderId) {
+        const walletIntentRef = db.collection('walletTransactions').doc(orderId);
+        const walletIntentSnap = await walletIntentRef.get();
+        if (walletIntentSnap.exists) {
+          const callbackUrl = `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/walletPaymentCallback`;
+          const callbackResponse = await fetch(callbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, transactionId })
+          });
+          const callbackBody = await callbackResponse.json().catch(() => ({}));
+          const refreshedIntent = (await walletIntentRef.get()).data() || walletIntentSnap.data() || {};
+          const completed = callbackResponse.ok && String(callbackBody.status || refreshedIntent.status || '').toUpperCase() === 'COMPLETED';
+          sendJson(res, 200, {
+            ok: true,
+            paymentType: 'wallet_topup',
+            status: completed ? 'paid' : 'pending',
+            paymentStatus: completed ? 'paid' : 'pending',
+            orderId,
+            transactionId: refreshedIntent.providerTransactionId || transactionId,
+            amount: Number(refreshedIntent.grossAmountMinor || 0) / 100,
+            walletCreditMinor: Number(refreshedIntent.walletCreditMinor || 0),
+            message: completed ? 'Recharge Wallet créditée.' : (callbackBody.message || 'Confirmation MonCash en cours.')
+          });
+          return;
+        }
+      }
+
       let session = null;
       if (sessionId) session = await findSessionBySessionId(sessionId);
       if (!session && transactionId) session = await findSessionByTransactionId(transactionId);
