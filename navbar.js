@@ -212,7 +212,7 @@ class Navbar {
       const categoriesRef = collection(db, 'categories_list');
       const q = query(categoriesRef);
       const snapshot = await getDocs(q);
-      this.categories = snapshot.docs.map(doc => {
+      const firestoreDepartments = snapshot.docs.map(doc => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -223,6 +223,37 @@ class Navbar {
           ...data
         };
       });
+
+      // La modal « Départements » ne doit afficher que les entrées de premier
+      // niveau de la taxonomie vendeur, jamais les catégories/sous-catégories.
+      const taxonomyUrls = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
+      const taxonomyDepartments = [];
+      const responses = await Promise.all(taxonomyUrls.map(url => fetch(url, { cache: 'no-store' }).catch(() => null)));
+      for (const response of responses) {
+        if (!response?.ok) continue;
+        const data = await response.json().catch(() => null);
+        if (data?.id && data?.label) taxonomyDepartments.push(data);
+        if (Array.isArray(data?.departments)) taxonomyDepartments.push(...data.departments);
+      }
+      const uniqueTaxonomyDepartments = [...new Map(taxonomyDepartments
+        .filter(department => department?.id)
+        .map(department => [String(department.id), department])).values()];
+      const firestoreById = new Map(firestoreDepartments.map(department => [department.id, department]));
+      this.categories = uniqueTaxonomyDepartments.length
+        ? uniqueTaxonomyDepartments.map(department => {
+            const id = String(department.id || '').trim();
+            const saved = firestoreById.get(id) || {};
+            return {
+              ...department,
+              ...saved,
+              id,
+              name: saved.name || department.label || department.name || id,
+              image: saved.image || department.image || department.imageUrl || null,
+              description: saved.description || department.description || null,
+              order: saved.order ?? department.order ?? 0
+            };
+          })
+        : firestoreDepartments;
 
       this.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
       const visibleHeaderCategories = this.categories.filter((cat) => cat.showInHeader === true);

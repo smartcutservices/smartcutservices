@@ -30,9 +30,11 @@
     .profile-panel-page .profile-container > div:first-child h2 { color: #131921 !important; font-size: clamp(1.45rem, 2vw, 2rem) !important; letter-spacing: -.035em; }
     .profile-panel-page .profile-container > div:first-child p { color: #687581 !important; }
     .profile-panel-page .profile-container > div:first-child [style*="color:#FFA41C"] { color: #a8772f !important; }
-    .profile-panel-page .profile-container > div:first-child { position:sticky !important; top:0; z-index:20; min-height:150px; display:flex; align-items:center; background: radial-gradient(circle at 7% 35%, rgba(255,183,43,.38), transparent 23%), radial-gradient(circle at 94% 80%, rgba(255,224,151,.42), transparent 30%), linear-gradient(115deg, #fff8e7 0%, #fff 47%, #fffaf0 100%) !important; border:1px solid #f2dfb8; border-radius:22px 22px 0 0; box-shadow:0 8px 22px rgba(22,39,66,.08); }
+    .profile-panel-page .profile-container > div:first-child { position:relative !important; top:auto; z-index:20; min-height:150px; flex:0 0 150px; display:flex; align-items:center; background: radial-gradient(circle at 7% 35%, rgba(255,183,43,.38), transparent 23%), radial-gradient(circle at 94% 80%, rgba(255,224,151,.42), transparent 30%), linear-gradient(115deg, #fff8e7 0%, #fff 47%, #fffaf0 100%) !important; border:1px solid #f2dfb8; border-radius:22px 22px 0 0; box-shadow:0 8px 22px rgba(22,39,66,.08); }
     .profile-panel-page .profile-container > div:first-child > div { width:100%; }
-    .profile-panel-page .profile-container > div:first-child h2 { font-size: clamp(1.7rem, 3vw, 2.65rem) !important; }
+    /* Garder le bandeau compact : un titre trop grand débordait du bandeau
+       de 150px et était coupé lorsque le module WhatsApp était sélectionné. */
+    .profile-panel-page .profile-container > div:first-child h2 { font-size: clamp(1.55rem, 2.2vw, 2rem) !important; line-height:1.15; }
     .profile-panel-page .profile-verified-badge { display:inline-grid; place-items:center; width:30px; height:30px; margin-left:8px; border-radius:50%; background:#ffb21c; color:#fff; font-size:.85rem; vertical-align:middle; }
     .profile-panel-page .profile-home-btn,
     .profile-panel-page .profile-settings-btn,
@@ -51,7 +53,9 @@
     .profile-panel-page .profile-container > div:nth-child(2) .likes-header,
     .profile-panel-page .profile-container > div:nth-child(2) .orders-header { padding: 2px 0 10px; border-bottom: 1px solid #e3e7e9; }
     .profile-panel-page .profile-workspace { display:flex; min-height:560px; background:#f6f7f8; }
-    .profile-panel-page .profile-sidebar { width:clamp(220px,22vw,340px); flex:0 0 clamp(220px,22vw,340px); align-self:stretch; position:sticky; top:0; height:fit-content; min-height:560px; display:flex; flex-direction:column; padding:26px 20px; background:linear-gradient(180deg,#fffaf0 0%,#fff 58%); border-right:1px solid #f0dfbd; }
+    .profile-panel-page .profile-sidebar { width:clamp(220px,22vw,340px); flex:0 0 clamp(220px,22vw,340px); align-self:stretch; position:relative; top:auto; height:100%; max-height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-gutter:stable; display:flex; flex-direction:column; padding:26px 20px; background:linear-gradient(180deg,#fffaf0 0%,#fff 58%); border-right:1px solid #f0dfbd; }
+    .profile-panel-page .profile-sidebar::-webkit-scrollbar { width:7px; }
+    .profile-panel-page .profile-sidebar::-webkit-scrollbar-thumb { border-radius:99px; background:#cbd5df; }
     .profile-panel-page .profile-sidebar-label { margin:0 10px 10px; color:#89939c; font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
     .profile-panel-page .profile-sidebar-link { display:flex; align-items:center; gap:10px; width:100%; padding:11px 10px; margin:3px 0; border:0; border-radius:8px; background:transparent; color:#53616d; font:700 .84rem Inter,system-ui,sans-serif; text-align:left; text-decoration:none; cursor:pointer; }
     .profile-panel-page .profile-sidebar-link i { width:17px; color:#8b6c2f; text-align:center; }
@@ -62,7 +66,7 @@
     .profile-panel-page .profile-sidebar-help p { margin:8px 0 12px; font-size:.76rem; line-height:1.45; }
     .profile-panel-page .profile-sidebar-help a { display:block; padding:8px 10px; border:1px solid #f0d7ad; border-radius:7px; color:#d98308; background:#fff; font-size:.78rem; font-weight:800; text-align:center; text-decoration:none; }
     .profile-panel-page .profile-content { min-width:0; min-height:0; }
-    .profile-panel-page .profile-workspace { min-height:0; height:calc(100vh - 150px); overflow:hidden; }
+    .profile-panel-page .profile-workspace { min-height:0; height:calc(100vh - 150px); flex:1 1 auto; overflow:hidden; }
     .profile-panel-page .profile-content { height:100%; overflow-y:auto !important; overflow-x:hidden !important; overscroll-behavior:contain; scrollbar-gutter:stable; }
     .profile-panel-page .profile-content > * { max-width:none; }
     .profile-professional-access { margin:0 0 1.2rem; padding:1.15rem; border:1px solid #eadfca; border-radius:14px; background:linear-gradient(135deg,#fffaf0,#fff); }
@@ -179,13 +183,18 @@
     .wallet-topup-submit { width:100%; border:0; border-radius:11px; padding:.85rem 1rem; background:#0d806c; color:#fff; font-weight:850; cursor:pointer; }
     .wallet-topup-submit:hover { background:#096a5a; }
     @media (min-width: 701px) {
-      html, body { height:100%; overflow:hidden !important; }
-      .profile-page-main { width: 100%; margin: 0 auto 56px; }
-      .profile-panel-page .profile-container { border-radius: 0; border-left: 0; border-right: 0; }
+      html, body { width:100%; height:100%; overflow:hidden !important; }
+      .profile-page-main { width: 100%; height:100dvh; margin:0; overflow:hidden; }
+      .profile-panel-page { position:fixed; inset:0; width:100%; height:100dvh; overflow:hidden; }
+      .profile-panel-page .profile-container { position:fixed !important; inset:0 !important; width:100% !important; height:100dvh !important; min-height:0 !important; margin:0 !important; display:grid !important; grid-template-rows:170px minmax(0,1fr); border-radius:0; border-left:0; border-right:0; overflow:hidden !important; }
+      .profile-panel-page .profile-container > div:first-child { box-sizing:border-box !important; min-height:0; height:170px; flex:none; overflow:visible; }
+      .profile-panel-page .profile-workspace { height:auto; min-height:0; overflow:hidden; }
       .profile-panel-page .profile-content { overflow-y: auto !important; overflow-x: hidden !important; }
     }
     @media (max-width: 700px) {
-      .profile-panel-page .profile-container > div:first-child { min-height: 0; padding-top:16px !important; padding-bottom:16px !important; border-radius:16px 16px 0 0; }
+      .profile-panel-page { position:relative; inset:auto; width:100%; height:auto; min-height:0; overflow:visible; }
+      .profile-panel-page .profile-container { display:flex !important; grid-template-rows:none; }
+      .profile-panel-page .profile-container > div:first-child { min-height: 0; flex:0 0 auto; padding-top:16px !important; padding-bottom:16px !important; border-radius:16px 16px 0 0; }
       .profile-panel-page .profile-container > div:first-child > div > div:last-child { flex-wrap:wrap; }
       .profile-panel-page .profile-container > div:first-child > div > div:last-child a,
       .profile-panel-page .profile-container > div:first-child > div > div:last-child button { min-height:44px; padding-inline:.7rem !important; font-size:.78rem !important; }
@@ -199,7 +208,7 @@
       .profile-panel-page .profile-avatar { left:20px; }
       .profile-panel-page .profile-workspace { display:block; }
       .profile-panel-page .profile-workspace { height:auto; overflow:visible; }
-      .profile-panel-page .profile-sidebar { position:static; width:auto; min-height:0; padding:12px 14px; border-right:0; border-bottom:1px solid #e1e5e8; display:flex; flex-direction:row; gap:5px; overflow-x:auto; }
+      .profile-panel-page .profile-sidebar { position:static; width:auto; height:auto; max-height:none; min-height:0; padding:12px 14px; border-right:0; border-bottom:1px solid #e1e5e8; display:flex; flex-direction:row; gap:5px; overflow-x:auto; overflow-y:hidden; }
       .profile-panel-page .profile-sidebar-help { display:none; }
       .profile-panel-page .profile-sidebar-label { display:none; }
       .profile-panel-page .profile-sidebar-link { width:auto; flex:0 0 auto; margin:0; white-space:nowrap; }

@@ -183,6 +183,11 @@ class CategoriesDisplay {
           display: flex;
           gap: 1rem;
           overflow-x: auto;
+          overflow-y: hidden;
+          /* Autorise le navigateur à transmettre un geste vertical à la
+             page même lorsque le doigt commence sur une carte. */
+          touch-action: pan-x pan-y;
+          overscroll-behavior-x: contain;
           padding-bottom: 0.35rem;
           scrollbar-width: none;
           -ms-overflow-style: none;
@@ -198,6 +203,11 @@ class CategoriesDisplay {
           cursor: grabbing;
           user-select: none;
           scroll-behavior: auto;
+        }
+
+        .categories-row .category-card,
+        .categories-row .category-card * {
+          touch-action: pan-x pan-y;
         }
 
         @media (min-width: 640px) {
