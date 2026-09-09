@@ -186,7 +186,7 @@ class CategoriesDisplay {
           overflow-y: hidden;
           /* Autorise le navigateur à transmettre un geste vertical à la
              page même lorsque le doigt commence sur une carte. */
-          touch-action: pan-x pan-y;
+          touch-action: pan-x pan-y !important;
           overscroll-behavior-x: contain;
           padding-bottom: 0.35rem;
           scrollbar-width: none;
@@ -207,7 +207,13 @@ class CategoriesDisplay {
 
         .categories-row .category-card,
         .categories-row .category-card * {
-          touch-action: pan-x pan-y;
+          touch-action: pan-x pan-y !important;
+        }
+
+        /* Priorité supérieure au style de compatibilité injecté par la page :
+           un rail horizontal doit aussi laisser passer le geste vertical. */
+        #sierra-home-categories-root .categories-row {
+          touch-action: pan-x pan-y !important;
         }
 
         @media (min-width: 640px) {

@@ -572,6 +572,8 @@ class SierraHero {
           document.head.appendChild(themeMeta);
         }
         themeMeta.setAttribute('content', color);
+        document.querySelector('meta[name="msapplication-navbutton-color"]')?.setAttribute('content', color);
+        globalThis.updateBrowserChromeColor?.();
         if (rightCount) {
           document.documentElement.style.setProperty('--hero-secondary-color', `rgb(${Math.round(rr / rightCount)}, ${Math.round(gg / rightCount)}, ${Math.round(bb / rightCount)})`);
         }

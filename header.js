@@ -14,6 +14,40 @@ const MAIN_NAV_PREF_KEY = 'sc:navOrder:main:v1';
 
 function logHeaderRuntime() {}
 
+// Synchronise la couleur de la barre d'état mobile avec le thème actif.
+// `theme-color` accepte une couleur unie : on privilégie donc la couleur de
+// marque calculée par le thème (celle utilisée par le hero/header), puis la
+// couleur effectivement rendue du header comme solution de secours.
+function updateBrowserChromeColor() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) return;
+
+  const rootStyle = getComputedStyle(document.documentElement);
+  const header = document.getElementById('headerNebulaX92');
+  const headerStyle = header ? getComputedStyle(header) : null;
+  const candidates = [
+    rootStyle.getPropertyValue('--hero-dominant-color').trim(),
+    rootStyle.getPropertyValue('--primary-color').trim(),
+    rootStyle.getPropertyValue('--sc-brand').trim(),
+    headerStyle?.backgroundColor?.trim(),
+    rootStyle.getPropertyValue('--bg-general').trim(),
+  ];
+
+  // Ignore transparent/invalid values so the browser never receives an
+  // unusable theme-color value (which would make the status bar black).
+  const color = candidates.find((value) => {
+    if (!value || value.includes('var(') || value === 'transparent' || value === 'initial' || value === 'inherit') return false;
+    if (value.startsWith('rgba(') && /,\s*0\s*\)$/.test(value)) return false;
+    return CSS.supports?.('color', value) !== false;
+  });
+  if (color) {
+    meta.setAttribute('content', color);
+    document.querySelector('meta[name="msapplication-navbutton-color"]')?.setAttribute('content', color);
+  }
+}
+
+globalThis.updateBrowserChromeColor = updateBrowserChromeColor;
+
 function isHomePage() {
   const path = String(window.location.pathname || '').replace(/\/+$/, '');
   return path === '' || /\/index\.html?$/i.test(path);
@@ -34,6 +68,7 @@ class SierraHeaderNebula {
 
     this.injectStyles();
     this.render();
+    updateBrowserChromeColor();
     this.init();
   }
 
@@ -1742,6 +1777,10 @@ class SierraHeaderNebula {
       if (this.navbar && typeof this.navbar.applyConfig === 'function') {
         this.navbar.applyConfig(config);
       }
+
+      // La configuration est chargée après le rendu : la couleur du chrome
+      // mobile doit être rafraîchie une fois les couleurs dynamiques posées.
+      updateBrowserChromeColor();
     } catch (error) {
       console.error('Erreur chargement config header:', error);
     }
