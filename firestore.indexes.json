@@ -1,6 +1,15 @@
 {
   "indexes": [
     {
+      "collectionGroup": "whatsappSubscriptions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "marketingOptIn", "order": "ASCENDING" },
+        { "fieldPath": "marketingCategories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "vendorProducts",
       "queryScope": "COLLECTION",
       "fields": [

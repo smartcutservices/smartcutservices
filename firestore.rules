@@ -118,6 +118,25 @@ service cloud.firestore {
       );
     }
 
+    // WhatsApp phone numbers, consent evidence, conversations and delivery
+    // history are private. They can only be accessed through authenticated
+    // Cloud Functions, which additionally enforce ownership/admin checks.
+    match /whatsappSubscriptions/{docId} {
+      allow read, write: if false;
+    }
+    match /whatsappDeliveries/{docId} {
+      allow read, write: if false;
+    }
+    match /whatsappCampaigns/{docId} {
+      allow read, write: if false;
+    }
+    match /whatsappInbox/{docId} {
+      allow read, write: if false;
+    }
+    match /whatsappSettings/{docId} {
+      allow read, write: if false;
+    }
+
     match /categories_list/{docId} {
       allow read: if true;
       allow write: if isAdmin();

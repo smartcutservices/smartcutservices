@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-init.js?v=20260908-12';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { collection, doc, getDoc, getDocs, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js?v=20260908-12';
 import { getCartManager } from './cart.js?v=20260908-12';
 import { getLikeManager } from './like.js';
@@ -34,6 +34,9 @@ class ProfilePanel {
     this.profileClient = null;
     this.isEditingPersonalInfo = false;
     this.additionalAddressForms = 0;
+    this.whatsappState = null;
+    this.whatsappCategories = [];
+    this.whatsappLoading = false;
     this.vendorAccess = {
       uid: '',
       checked: false,
@@ -62,6 +65,85 @@ class ProfilePanel {
 
   getThemeFonts() {
     return this.cartManager.getThemeFonts();
+  }
+
+  getFunctionsUrl(name) {
+    return `https://us-central1-smartcutservices-9ce54.cloudfunctions.net/${name}`;
+  }
+
+  async callWhatsAppPreferences(options = {}) {
+    const user = this.authManager.getCurrentUser?.();
+    if (!user) throw new Error('Connexion requise.');
+    const token = await user.getIdToken();
+    const response = await fetch(this.getFunctionsUrl('whatsappPreferences'), {
+      method: options.method || 'GET',
+      headers: { Authorization: `Bearer ${token}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.ok === false) throw new Error(payload?.error || 'Impossible de gérer vos préférences WhatsApp.');
+    return payload;
+  }
+
+  async loadWhatsAppPreferences() {
+    if (this.whatsappLoading) return;
+    this.whatsappLoading = true;
+    try {
+      const [preferences, categories] = await Promise.all([
+        this.callWhatsAppPreferences(),
+        getDocs(collection(db, 'categories_list'))
+      ]);
+      this.whatsappState = preferences.subscription || {};
+      this.whatsappCategories = categories.docs
+        .map((item) => ({ id: item.id, label: String(item.data()?.name || item.data()?.categoryName || item.data()?.label || item.id) }))
+        .filter((item) => item.id && item.label)
+        .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
+        .slice(0, 60);
+    } catch (error) {
+      console.error('Chargement WhatsApp impossible:', error);
+      this.whatsappState = { error: error.message || 'Impossible de charger vos préférences.' };
+    } finally {
+      this.whatsappLoading = false;
+      if (this.modal && this.activeView === 'whatsapp') this.render();
+    }
+  }
+
+  renderWhatsAppView(colors, fonts) {
+    if (this.whatsappLoading || !this.whatsappState) {
+      return `<section style="padding:1rem;border:1px solid #D5D9D9;border-radius:1rem;background:${colors.background.card};color:${colors.text.body};"><i class="fas fa-circle-notch fa-spin"></i> Chargement de vos préférences WhatsApp...</section>`;
+    }
+    if (this.whatsappState.error) return `<section style="padding:1rem;border:1px solid #f2b8b5;border-radius:1rem;background:#fff8f7;color:#8d1c13;">${this.escape(this.whatsappState.error)}</section>`;
+    const state = this.whatsappState;
+    const selected = new Set(Array.isArray(state.marketingCategories) ? state.marketingCategories : []);
+    const categoryChoices = this.whatsappCategories.map((category) => `<label style="display:flex;align-items:center;gap:.45rem;font-size:.86rem;color:${colors.text.body};"><input type="checkbox" name="whatsapp-category" value="${this.escape(category.id)}" ${selected.has(category.id) ? 'checked' : ''}> ${this.escape(category.label)}</label>`).join('') || `<p style="margin:0;color:${colors.text.body};font-size:.88rem;">Les catégories seront disponibles dès que le catalogue sera chargé.</p>`;
+    const sourcePhone = state.phone || this.profileClient?.phone || this.cartManager.currentClient?.phone || '';
+    return `
+      <section style="display:grid;gap:1rem;max-width:760px;">
+        <header style="border:1px solid #bde6d6;border-radius:1rem;background:linear-gradient(135deg,#f3fcf8,#fff);padding:1.25rem;">
+          <span style="display:inline-grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#d9f5e8;color:#087b53;font-size:1.2rem;"><i class="fab fa-whatsapp"></i></span>
+          <h3 style="margin:.75rem 0 .25rem;font-family:${fonts.primary};font-size:1.35rem;color:${colors.text.title};">Notifications WhatsApp</h3>
+          <p style="margin:0;color:${colors.text.body};line-height:1.55;">Choisissez les messages que Smart Cut Services peut vous envoyer. La publicité reste facultative et peut être arrêtée à tout moment.</p>
+        </header>
+        <form class="profile-whatsapp-form" style="display:grid;gap:1rem;">
+          <label style="display:grid;gap:.4rem;"><span style="font-weight:800;color:${colors.text.title};">Votre numéro WhatsApp</span><input id="profileWhatsappPhone" type="tel" value="${this.escape(sourcePhone)}" placeholder="Ex. +509 3491 3988" style="${this.profileFieldStyle(colors)}"><small style="color:${colors.text.body};">Utilisez un numéro joignable sur WhatsApp, avec l’indicatif pays.</small></label>
+          <label style="display:flex;align-items:flex-start;gap:.7rem;border:1px solid #D5D9D9;border-radius:.9rem;background:${colors.background.card};padding:1rem;cursor:pointer;"><input id="profileWhatsappService" type="checkbox" ${state.serviceOptIn ? 'checked' : ''} style="margin-top:.2rem"><span><strong style="display:block;color:${colors.text.title};">Notifications de service</strong><small style="display:block;margin-top:.2rem;color:${colors.text.body};line-height:1.45;">Recevoir les confirmations de commande et de paiement.</small></span></label>
+          <label style="display:flex;align-items:flex-start;gap:.7rem;border:1px solid #D5D9D9;border-radius:.9rem;background:${colors.background.card};padding:1rem;cursor:pointer;"><input id="profileWhatsappMarketing" type="checkbox" ${state.marketingOptIn ? 'checked' : ''} style="margin-top:.2rem"><span><strong style="display:block;color:${colors.text.title};">Nouveautés et offres personnalisées</strong><small style="display:block;margin-top:.2rem;color:${colors.text.body};line-height:1.45;">Recevoir au maximum une campagne par semaine selon vos catégories préférées.</small></span></label>
+          <fieldset id="profileWhatsappCategories" style="display:${state.marketingOptIn ? 'grid' : 'none'};gap:.6rem;border:1px solid #D5D9D9;border-radius:.9rem;background:${colors.background.card};padding:1rem;"><legend style="padding:0 .35rem;font-weight:800;color:${colors.text.title};">Catégories qui vous intéressent</legend><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.55rem;max-height:230px;overflow:auto;">${categoryChoices}</div></fieldset>
+          <p style="margin:0;color:${colors.text.body};font-size:.78rem;line-height:1.5;">En enregistrant, vous confirmez votre choix. Vous pouvez désactiver la publicité ici ou répondre <strong>STOP</strong> à tout message WhatsApp.</p>
+          <div style="display:flex;gap:.7rem;flex-wrap:wrap;"><button type="submit" style="border:0;border-radius:8px;background:#075e54;color:#fff;padding:.9rem 1.1rem;font-weight:800;cursor:pointer;"><i class="fab fa-whatsapp"></i> Enregistrer mes préférences</button>${state.status === 'active' ? '<button type="button" data-whatsapp-unsubscribe style="border:1px solid #D5D9D9;border-radius:8px;background:#fff;color:#6b1d16;padding:.9rem 1.1rem;font-weight:800;cursor:pointer;">Tout désactiver</button>' : ''}</div>
+        </form>
+      </section>`;
+  }
+
+  async saveWhatsAppPreferences({ unsubscribe = false } = {}) {
+    const phone = this.modal.querySelector('#profileWhatsappPhone')?.value?.trim() || '';
+    const serviceOptIn = !unsubscribe && Boolean(this.modal.querySelector('#profileWhatsappService')?.checked);
+    const marketingOptIn = !unsubscribe && Boolean(this.modal.querySelector('#profileWhatsappMarketing')?.checked);
+    const marketingCategories = Array.from(this.modal.querySelectorAll('[name="whatsapp-category"]:checked')).map((input) => input.value);
+    const result = await this.callWhatsAppPreferences({ method: 'POST', body: { phone, serviceOptIn, marketingOptIn, marketingCategories } });
+    this.whatsappState = result.subscription || {};
+    this.authManager.showToast(unsubscribe ? 'Notifications WhatsApp désactivées.' : 'Préférences WhatsApp enregistrées.', 'success');
+    this.render();
   }
 
   getStoredGuestId() {
@@ -1144,6 +1226,7 @@ class ProfilePanel {
     const isPersonalView = isAuthenticated && this.activeView === 'personal';
     const isCollectionView = isAuthenticated && (this.activeView === 'likes' || this.activeView === 'orders');
     const isWalletView = isAuthenticated && this.activeView === 'wallet';
+    const isWhatsAppView = isAuthenticated && this.activeView === 'whatsapp';
     const isMounted = document.body.contains(this.modal);
 
     this.modal.innerHTML = `
@@ -1220,9 +1303,9 @@ class ProfilePanel {
                 color:#FFFFFF;
                 line-height:1.25;
                 word-break:break-word;
-              ">${isPersonalView ? 'Informations personnelles' : isWalletView ? 'Mon Smart Wallet' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')} ${isAuthenticated && !isPersonalView ? '<span class="profile-verified-badge" aria-label="Compte vérifié"><i class="fas fa-check"></i></span>' : ''}</h2>
+              ">${isPersonalView ? 'Informations personnelles' : isWalletView ? 'Mon Smart Wallet' : isWhatsAppView ? 'Notifications WhatsApp' : isAuthResolving ? 'Chargement du profil' : isAuthenticated ? this.getUserLabel(user) : (this.getVisibleOrders().length > 0 ? 'Profil invité' : 'Mon compte')} ${isAuthenticated && !isPersonalView && !isWhatsAppView ? '<span class="profile-verified-badge" aria-label="Compte vérifié"><i class="fas fa-check"></i></span>' : ''}</h2>
               <p style="margin:0.4rem 0 0;color:rgba(255,255,255,0.65);font-size:0.82rem;line-height:1.45;">
-                ${isPersonalView ? 'Vos informations de compte' : isWalletView ? 'Solde, recharges et remboursements Smart Cut' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
+                ${isPersonalView ? 'Vos informations de compte' : isWalletView ? 'Solde, recharges et remboursements Smart Cut' : isWhatsAppView ? 'Gérez vos consentements et préférences de communication.' : isAuthResolving ? 'Vérification de votre session en cours...' : isAuthenticated ? (user?.email || 'Compte connecté') : (this.getVisibleOrders().length > 0 ? 'Historique invité disponible sur cet appareil' : 'Connexion, favoris, commandes et historique')}
               </p>
             </div>
 
@@ -1267,6 +1350,7 @@ class ProfilePanel {
               <button type="button" class="profile-sidebar-link${this.activeView === 'likes' ? ' is-active' : ''}" data-profile-nav="likes"><i class="fas fa-heart"></i><span>Favoris</span></button>
               <button type="button" class="profile-sidebar-link${this.activeView === 'orders' ? ' is-active' : ''}" data-profile-nav="orders"><i class="fas fa-receipt"></i><span>Commandes</span></button>
               <button type="button" class="profile-sidebar-link${isWalletView ? ' is-active' : ''}" data-profile-nav="wallet"><i class="fas fa-wallet"></i><span>Mon Wallet</span></button>
+              <button type="button" class="profile-sidebar-link${isWhatsAppView ? ' is-active' : ''}" data-profile-nav="whatsapp"><i class="fab fa-whatsapp"></i><span>Notifications WhatsApp</span></button>
               <div class="profile-sidebar-help"><i class="fas fa-headset"></i><strong>Besoin d’aide ?</strong><p>Notre équipe est là pour vous aider.</p><a href="https://wa.me/50934913988?text=Bonjour%20Smart%20Cut%20Services%2C%20j%27ai%20besoin%20d%27aide." target="_blank" rel="noopener noreferrer">Nous contacter</a></div>
             </aside>
           ` : ''}
@@ -1283,7 +1367,7 @@ class ProfilePanel {
               <strong style="display:block;color:${colors.text.title};margin-bottom:0.35rem;">Session en cours de vérification</strong>
               Votre compte est en cours de restauration. Le profil apparaîtra automatiquement.
             </div>
-          ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isWalletView ? this.renderWalletView() : isCollectionView ? (this.activeView === 'likes' ? this.cartManager.renderLikedSection(colors, fonts) : this.cartManager.renderOrdersSection(colors, fonts)) : isAuthenticated ? `
+          ` : isPersonalView ? this.renderPersonalInfoView(colors, fonts, user) : isWalletView ? this.renderWalletView() : isWhatsAppView ? this.renderWhatsAppView(colors, fonts) : isCollectionView ? (this.activeView === 'likes' ? this.cartManager.renderLikedSection(colors, fonts) : this.cartManager.renderOrdersSection(colors, fonts)) : isAuthenticated ? `
             ${this.isBootstrapping ? `
               <div style="
                 margin-bottom:1rem;
@@ -1412,7 +1496,34 @@ class ProfilePanel {
           this.loadWalletData();
           return;
         }
+        if (target === 'whatsapp') {
+          this.activeView = 'whatsapp';
+          this.isEditingPersonalInfo = false;
+          this.render();
+          this.loadWhatsAppPreferences();
+          return;
+        }
       });
+    });
+
+    this.modal.querySelector('.profile-whatsapp-form')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await this.saveWhatsAppPreferences();
+      } catch (error) {
+        this.authManager.showToast(error.message || 'Impossible d’enregistrer vos préférences WhatsApp.', 'error');
+      }
+    });
+    this.modal.querySelector('#profileWhatsappMarketing')?.addEventListener('change', (event) => {
+      const categories = this.modal.querySelector('#profileWhatsappCategories');
+      if (categories) categories.style.display = event.target.checked ? 'grid' : 'none';
+    });
+    this.modal.querySelector('[data-whatsapp-unsubscribe]')?.addEventListener('click', async () => {
+      try {
+        await this.saveWhatsAppPreferences({ unsubscribe: true });
+      } catch (error) {
+        this.authManager.showToast(error.message || 'Impossible de désactiver les notifications.', 'error');
+      }
     });
 
     this.modal.querySelector('[data-wallet-topup]')?.addEventListener('click', () => this.openWalletTopUpDialog());

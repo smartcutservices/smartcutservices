@@ -8983,3 +8983,22 @@ exports.optimizeVendorProductImage = onObjectFinalized({
 // Keep Firestore-trigger exports explicit so Firebase can target them by name.
 exports.walletWalletOrderRefund = __walletFunctions.walletOrderRefund;
 exports.walletWalletServiceRefund = __walletFunctions.walletServiceRefund;
+
+// WhatsApp Business Cloud API: consent, templates, webhooks and campaigns.
+// Exports are explicit so Firebase CLI can discover every HTTP, Firestore and
+// scheduler trigger without relying on dynamic export analysis.
+const __whatsappFunctions = require('./whatsapp')({
+  admin,
+  db,
+  logger,
+  REGION,
+  verifyBearerUser,
+  isAdminUser
+});
+exports.whatsappPreferences = __whatsappFunctions.whatsappPreferences;
+exports.whatsappWebhook = __whatsappFunctions.whatsappWebhook;
+exports.whatsappAdmin = __whatsappFunctions.whatsappAdmin;
+exports.whatsappOrderNotification = __whatsappFunctions.whatsappOrderNotification;
+exports.whatsappNewVendorProductCampaign = __whatsappFunctions.whatsappNewVendorProductCampaign;
+exports.whatsappNewSmartcutProductCampaign = __whatsappFunctions.whatsappNewSmartcutProductCampaign;
+exports.whatsappProcessMarketingCampaigns = __whatsappFunctions.whatsappProcessMarketingCampaigns;
