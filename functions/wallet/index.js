@@ -272,6 +272,77 @@ function buildWallet(internals) {
     res.json({ ok: true, limits: { minTopUpMinor, maxTopUpMinor, walletCapMinor, currency: 'HTG' } });
   });
 
+  const adminOverview = endpoint(async (req, res) => {
+    if (req.method !== 'GET') throw new WalletError(405, 'method-not-allowed', 'GET requis.');
+    await requireAdmin(req);
+
+    const query = text(req.query?.q, 120).toLocaleLowerCase('fr');
+    const selectedUserId = text(req.query?.userId, 180);
+    const [walletSnap, clientSnap] = await Promise.all([
+      db.collection('wallets').get(),
+      db.collection('clients').limit(2000).get()
+    ]);
+    const toIso = (value) => value?.toDate ? value.toDate().toISOString() : (value?.seconds ? new Date(value.seconds * 1000).toISOString() : (value || ''));
+    const clients = new Map(clientSnap.docs.map((snap) => {
+      const data = snap.data() || {};
+      return [snap.id, {
+        id: snap.id,
+        name: text(data.fullName || data.displayName || data.name || `${data.firstName || ''} ${data.lastName || ''}`.trim(), 160),
+        email: text(data.email, 180),
+        phone: text(data.phone || data.telephone, 80)
+      }];
+    }));
+    const wallets = walletSnap.docs.map((snap) => {
+      const data = snap.data() || {};
+      const userId = text(data.userId || snap.id, 180);
+      const client = clients.get(userId) || { id: userId, name: '', email: '', phone: '' };
+      return {
+        userId,
+        status: text(data.status || 'ACTIVE', 30),
+        availableMinor: Number(data.availableMinor || 0),
+        reservedMinor: Number(data.reservedMinor || 0),
+        updatedAt: toIso(data.updatedAt),
+        client
+      };
+    });
+    const overview = wallets.reduce((total, wallet) => ({
+      walletCount: total.walletCount + 1,
+      activeWalletCount: total.activeWalletCount + (wallet.status === 'ACTIVE' ? 1 : 0),
+      availableMinor: total.availableMinor + wallet.availableMinor,
+      reservedMinor: total.reservedMinor + wallet.reservedMinor
+    }), { walletCount: 0, activeWalletCount: 0, availableMinor: 0, reservedMinor: 0 });
+    overview.totalMinor = overview.availableMinor + overview.reservedMinor;
+
+    const matches = wallets.filter((wallet) => {
+      if (!query) return true;
+      const haystack = [wallet.userId, wallet.client.name, wallet.client.email, wallet.client.phone].join(' ').toLocaleLowerCase('fr');
+      return haystack.includes(query);
+    }).sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))).slice(0, 50);
+
+    let detail = null;
+    if (selectedUserId) {
+      const wallet = wallets.find((item) => item.userId === selectedUserId);
+      if (!wallet) throw new WalletError(404, 'wallet-not-found', 'Wallet introuvable.');
+      const [ledgerSnap, holdsSnap, topupsSnap] = await Promise.all([
+        db.collection('walletLedger').where('walletId', '==', selectedUserId).orderBy('createdAt', 'desc').limit(100).get(),
+        db.collection('walletHolds').where('walletId', '==', selectedUserId).limit(100).get(),
+        db.collection('walletTransactions').where('walletId', '==', selectedUserId).limit(100).get()
+      ]);
+      const mapEntry = (snap) => {
+        const data = snap.data() || {};
+        return { id: snap.id, type: text(data.type || data.status || 'MOUVEMENT', 60), direction: text(data.direction, 30), amountMinor: Number(data.amountMinor || data.walletCreditMinor || 0), status: text(data.status || '', 30), referenceId: text(data.referenceId || data.providerTransactionId || '', 180), provider: text(data.provider || '', 40), createdAt: toIso(data.createdAt || data.completedAt || data.updatedAt), expiresAt: toIso(data.expiresAt) };
+      };
+      detail = {
+        wallet,
+        ledger: ledgerSnap.docs.map(mapEntry),
+        holds: holdsSnap.docs.map(mapEntry),
+        topups: topupsSnap.docs.map(mapEntry)
+      };
+    }
+
+    res.json({ ok: true, overview, wallets: matches, detail, generatedAt: new Date().toISOString() });
+  });
+
   const adminWalletAction = endpoint(async (req, res) => {
     if (req.method !== 'POST') throw new WalletError(405, 'method-not-allowed', 'POST requis.');
     const actor = await requireAdmin(req);
@@ -422,7 +493,7 @@ function buildWallet(internals) {
     });
   });
 
-  return { getWallet, startWalletTopUp, paymentCallback, refundToWallet, createWalletHold, finalizeWalletHold, payServiceProformaWithWallet, adminWalletSettings, adminWalletAction, adminWalletReconcile, requestAccountClosure, adminConfirmAccountClosureRefund, releaseExpiredWalletHolds, walletOrderRefund, walletServiceRefund };
+  return { getWallet, startWalletTopUp, paymentCallback, refundToWallet, createWalletHold, finalizeWalletHold, payServiceProformaWithWallet, adminWalletSettings, adminOverview, adminWalletAction, adminWalletReconcile, requestAccountClosure, adminConfirmAccountClosureRefund, releaseExpiredWalletHolds, walletOrderRefund, walletServiceRefund };
 }
 
 module.exports = buildWallet;
