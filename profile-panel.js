@@ -1367,7 +1367,12 @@ class ProfilePanel {
           </div>
         </div>
 
-        <div class="profile-workspace">
+        <div class="profile-workspace" style="
+          display:flex;
+          flex:1;
+          min-height:0;
+          overflow:hidden;
+        ">
           ${isAuthenticated ? `
             <aside class="profile-sidebar" aria-label="Navigation du profil">
               <button type="button" class="profile-sidebar-link${this.activeView === 'account' ? ' is-active' : ''}" data-profile-nav="overview"><i class="fas fa-table-cells-large"></i><span>Vue d’ensemble</span></button>
@@ -1379,7 +1384,7 @@ class ProfilePanel {
               <div class="profile-sidebar-help"><i class="fas fa-headset"></i><strong>Besoin d’aide ?</strong><p>Notre équipe est là pour vous aider.</p><a href="https://wa.me/50934913988?text=Bonjour%20Smart%20Cut%20Services%2C%20j%27ai%20besoin%20d%27aide." target="_blank" rel="noopener noreferrer">Nous contacter</a></div>
             </aside>
           ` : ''}
-          <main class="profile-content${isAuthenticated && this.activeView === 'account' ? ' profile-overview-view' : ''}" style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem 1.5rem;">
+          <main class="profile-content${isAuthenticated && this.activeView === 'account' ? ' profile-overview-view' : ''}" style="flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:1.25rem 1.5rem 1.5rem;">
           ${isAuthResolving ? `
             <div style="
               border:1px solid #D5D9D9;
