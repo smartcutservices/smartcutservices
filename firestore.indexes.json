@@ -5,7 +5,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "marketingOptIn", "order": "ASCENDING" },
-        { "fieldPath": "marketingCategories", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "marketingDepartments", "arrayConfig": "CONTAINS" },
         { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     },

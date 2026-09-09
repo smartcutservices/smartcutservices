@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-init.js?v=20260908-12';
 import { sendPasswordResetEmail, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-import { collection, doc, getDoc, getDocs, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { getAuthManager } from './auth.js?v=20260908-12';
 import { getCartManager } from './cart.js?v=20260908-12';
 import { getLikeManager } from './like.js';
@@ -35,7 +35,7 @@ class ProfilePanel {
     this.isEditingPersonalInfo = false;
     this.additionalAddressForms = 0;
     this.whatsappState = null;
-    this.whatsappCategories = [];
+    this.whatsappDepartments = [];
     this.whatsappLoading = false;
     this.vendorAccess = {
       uid: '',
@@ -89,16 +89,12 @@ class ProfilePanel {
     if (this.whatsappLoading) return;
     this.whatsappLoading = true;
     try {
-      const [preferences, categories] = await Promise.all([
+      const [preferences, departments] = await Promise.all([
         this.callWhatsAppPreferences(),
-        getDocs(collection(db, 'categories_list'))
+        this.loadWhatsAppDepartments()
       ]);
       this.whatsappState = preferences.subscription || {};
-      this.whatsappCategories = categories.docs
-        .map((item) => ({ id: item.id, label: String(item.data()?.name || item.data()?.categoryName || item.data()?.label || item.id) }))
-        .filter((item) => item.id && item.label)
-        .sort((a, b) => a.label.localeCompare(b.label, 'fr'))
-        .slice(0, 60);
+      this.whatsappDepartments = departments;
     } catch (error) {
       console.error('Chargement WhatsApp impossible:', error);
       this.whatsappState = { error: error.message || 'Impossible de charger vos préférences.' };
@@ -108,29 +104,53 @@ class ProfilePanel {
     }
   }
 
+  async loadWhatsAppDepartments() {
+    const sources = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
+    try {
+      const responses = await Promise.all(sources.map((url) => fetch(url, { cache: 'no-store' })));
+      const documents = await Promise.all(responses.map(async (response) => response.ok ? response.json() : null));
+      const departments = new Map();
+      documents.forEach((document) => {
+        const list = Array.isArray(document?.departments) ? document.departments : document?.id ? [document] : [];
+        list.forEach((department) => {
+          const id = String(department?.id || '').trim();
+          const label = String(department?.label || '').trim();
+          if (id && label) departments.set(id, { id, label });
+        });
+      });
+      return [...departments.values()].sort((a, b) => a.label.localeCompare(b.label, 'fr'));
+    } catch (error) {
+      console.error('Chargement des départements WhatsApp impossible:', error);
+      return [];
+    }
+  }
+
   renderWhatsAppView(colors, fonts) {
     if (this.whatsappLoading || !this.whatsappState) {
-      return `<section style="padding:1rem;border:1px solid #D5D9D9;border-radius:1rem;background:${colors.background.card};color:${colors.text.body};"><i class="fas fa-circle-notch fa-spin"></i> Chargement de vos préférences WhatsApp...</section>`;
+      return `<section class="sc-wa-loading"><i class="fas fa-circle-notch fa-spin"></i> Chargement de vos préférences WhatsApp...</section>`;
     }
-    if (this.whatsappState.error) return `<section style="padding:1rem;border:1px solid #f2b8b5;border-radius:1rem;background:#fff8f7;color:#8d1c13;">${this.escape(this.whatsappState.error)}</section>`;
+    if (this.whatsappState.error) return `<section class="sc-wa-error">${this.escape(this.whatsappState.error)}</section>`;
     const state = this.whatsappState;
-    const selected = new Set(Array.isArray(state.marketingCategories) ? state.marketingCategories : []);
-    const categoryChoices = this.whatsappCategories.map((category) => `<label style="display:flex;align-items:center;gap:.45rem;font-size:.86rem;color:${colors.text.body};"><input type="checkbox" name="whatsapp-category" value="${this.escape(category.id)}" ${selected.has(category.id) ? 'checked' : ''}> ${this.escape(category.label)}</label>`).join('') || `<p style="margin:0;color:${colors.text.body};font-size:.88rem;">Les catégories seront disponibles dès que le catalogue sera chargé.</p>`;
+    const selected = new Set(Array.isArray(state.marketingDepartments) ? state.marketingDepartments : (state.marketingCategories || []));
+    const departmentChoices = this.whatsappDepartments.map((department) => `
+      <label class="sc-wa-department">
+        <input type="checkbox" name="whatsapp-department" value="${this.escape(department.id)}" ${selected.has(department.id) ? 'checked' : ''}>
+        <span>${this.escape(department.label)}</span>
+      </label>`).join('') || '<p class="sc-wa-empty">Les départements seront disponibles dès que le catalogue sera chargé.</p>';
     const sourcePhone = state.phone || this.profileClient?.phone || this.cartManager.currentClient?.phone || '';
     return `
-      <section style="display:grid;gap:1rem;max-width:760px;">
-        <header style="border:1px solid #bde6d6;border-radius:1rem;background:linear-gradient(135deg,#f3fcf8,#fff);padding:1.25rem;">
-          <span style="display:inline-grid;place-items:center;width:42px;height:42px;border-radius:50%;background:#d9f5e8;color:#087b53;font-size:1.2rem;"><i class="fab fa-whatsapp"></i></span>
-          <h3 style="margin:.75rem 0 .25rem;font-family:${fonts.primary};font-size:1.35rem;color:${colors.text.title};">Notifications WhatsApp</h3>
-          <p style="margin:0;color:${colors.text.body};line-height:1.55;">Choisissez les messages que Smart Cut Services peut vous envoyer. La publicité reste facultative et peut être arrêtée à tout moment.</p>
-        </header>
-        <form class="profile-whatsapp-form" style="display:grid;gap:1rem;">
-          <label style="display:grid;gap:.4rem;"><span style="font-weight:800;color:${colors.text.title};">Votre numéro WhatsApp</span><input id="profileWhatsappPhone" type="tel" value="${this.escape(sourcePhone)}" placeholder="Ex. +509 3491 3988" style="${this.profileFieldStyle(colors)}"><small style="color:${colors.text.body};">Utilisez un numéro joignable sur WhatsApp, avec l’indicatif pays.</small></label>
-          <label style="display:flex;align-items:flex-start;gap:.7rem;border:1px solid #D5D9D9;border-radius:.9rem;background:${colors.background.card};padding:1rem;cursor:pointer;"><input id="profileWhatsappService" type="checkbox" ${state.serviceOptIn ? 'checked' : ''} style="margin-top:.2rem"><span><strong style="display:block;color:${colors.text.title};">Notifications de service</strong><small style="display:block;margin-top:.2rem;color:${colors.text.body};line-height:1.45;">Recevoir les confirmations de commande et de paiement.</small></span></label>
-          <label style="display:flex;align-items:flex-start;gap:.7rem;border:1px solid #D5D9D9;border-radius:.9rem;background:${colors.background.card};padding:1rem;cursor:pointer;"><input id="profileWhatsappMarketing" type="checkbox" ${state.marketingOptIn ? 'checked' : ''} style="margin-top:.2rem"><span><strong style="display:block;color:${colors.text.title};">Nouveautés et offres personnalisées</strong><small style="display:block;margin-top:.2rem;color:${colors.text.body};line-height:1.45;">Recevoir au maximum une campagne par semaine selon vos catégories préférées.</small></span></label>
-          <fieldset id="profileWhatsappCategories" style="display:${state.marketingOptIn ? 'grid' : 'none'};gap:.6rem;border:1px solid #D5D9D9;border-radius:.9rem;background:${colors.background.card};padding:1rem;"><legend style="padding:0 .35rem;font-weight:800;color:${colors.text.title};">Catégories qui vous intéressent</legend><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.55rem;max-height:230px;overflow:auto;">${categoryChoices}</div></fieldset>
-          <p style="margin:0;color:${colors.text.body};font-size:.78rem;line-height:1.5;">En enregistrant, vous confirmez votre choix. Vous pouvez désactiver la publicité ici ou répondre <strong>STOP</strong> à tout message WhatsApp.</p>
-          <div style="display:flex;gap:.7rem;flex-wrap:wrap;"><button type="submit" style="border:0;border-radius:8px;background:#075e54;color:#fff;padding:.9rem 1.1rem;font-weight:800;cursor:pointer;"><i class="fab fa-whatsapp"></i> Enregistrer mes préférences</button>${state.status === 'active' ? '<button type="button" data-whatsapp-unsubscribe style="border:1px solid #D5D9D9;border-radius:8px;background:#fff;color:#6b1d16;padding:.9rem 1.1rem;font-weight:800;cursor:pointer;">Tout désactiver</button>' : ''}</div>
+      <section class="sc-wa-preferences" style="--sc-wa-title:${colors.text.title};--sc-wa-body:${colors.text.body};--sc-wa-font:${fonts.primary};">
+        <style>
+          .sc-wa-preferences{max-width:840px;display:grid;gap:18px;color:#152238}.sc-wa-loading,.sc-wa-error{padding:18px;border-radius:16px;background:#fff;border:1px solid #dce5ee;color:#334155}.sc-wa-error{border-color:#fecaca;background:#fff7f7;color:#991b1b}.sc-wa-hero{padding:clamp(22px,5vw,38px);border-radius:24px;background:radial-gradient(circle at 88% 15%,rgba(37,211,102,.22),transparent 28%),linear-gradient(135deg,#0d2038,#12365b);color:#fff;box-shadow:0 18px 38px rgba(15,38,65,.18)}.sc-wa-eyebrow{margin:0 0 12px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#9ed4ff}.sc-wa-title{margin:0;font:700 clamp(1.75rem,7vw,2.55rem)/1.05 var(--sc-wa-font),Georgia,serif;letter-spacing:-.035em}.sc-wa-lead{max-width:52ch;margin:13px 0 0;color:#d7e5f5;line-height:1.6}.sc-wa-status{display:inline-flex;gap:8px;align-items:center;margin-top:20px;padding:8px 11px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(255,255,255,.1);font-size:12px;font-weight:700}.sc-wa-status i{color:#25d366}.sc-wa-form{display:grid;gap:14px}.sc-wa-card{padding:18px;border:1px solid #dce5ee;border-radius:18px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.04)}.sc-wa-label{display:block;margin-bottom:8px;font-size:13px;font-weight:800;color:var(--sc-wa-title)}.sc-wa-input{box-sizing:border-box;width:100%;min-height:52px;padding:0 14px;border:1px solid #cbd8e6;border-radius:12px;background:#fff;color:#142238;font:inherit;outline:0}.sc-wa-input:focus{border-color:#1769aa;box-shadow:0 0 0 4px rgba(23,105,170,.12)}.sc-wa-help,.sc-wa-legal{margin:8px 0 0;font-size:12px;line-height:1.55;color:var(--sc-wa-body)}.sc-wa-option{display:flex;gap:13px;align-items:flex-start;padding:17px;border:1px solid #dce5ee;border-radius:18px;background:#fff;cursor:pointer;transition:border-color .18s,box-shadow .18s}.sc-wa-option:has(input:checked){border-color:#0f7a59;box-shadow:0 0 0 3px rgba(15,122,89,.1)}.sc-wa-option input{position:absolute;opacity:0}.sc-wa-icon{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:12px;background:#eaf3ff;color:#1769aa}.sc-wa-option:nth-of-type(2) .sc-wa-icon{background:#e9f9ef;color:#087b53}.sc-wa-option strong{display:block;color:var(--sc-wa-title);font-size:15px}.sc-wa-option small{display:block;margin-top:4px;line-height:1.5;color:var(--sc-wa-body)}.sc-wa-check{display:grid;place-items:center;flex:0 0 19px;width:19px;height:19px;margin-left:auto;border:1.5px solid #9cadbf;border-radius:50%;color:transparent}.sc-wa-option input:checked~.sc-wa-check{border-color:#0f7a59;background:#0f7a59;color:#fff}.sc-wa-departments{display:${state.marketingOptIn ? 'grid' : 'none'};gap:13px}.sc-wa-departments-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.sc-wa-departments h4{margin:0;color:var(--sc-wa-title);font-size:16px}.sc-wa-departments p{margin:4px 0 0;color:var(--sc-wa-body);font-size:13px;line-height:1.5}.sc-wa-department-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.sc-wa-department{position:relative;display:block;cursor:pointer}.sc-wa-department input{position:absolute;opacity:0}.sc-wa-department span{display:flex;align-items:center;min-height:48px;padding:8px 11px;border:1px solid #d6e0eb;border-radius:12px;background:#fff;color:#31445b;font-size:13px;font-weight:700;line-height:1.25}.sc-wa-department input:checked+span{border-color:#1769aa;background:#eef7ff;color:#0d5e9f;box-shadow:0 0 0 2px rgba(23,105,170,.11)}.sc-wa-empty{margin:0;color:var(--sc-wa-body);font-size:13px}.sc-wa-actions{display:flex;gap:10px;flex-wrap:wrap}.sc-wa-save,.sc-wa-disable{min-height:50px;padding:0 17px;border-radius:12px;font:800 14px/1 inherit;cursor:pointer}.sc-wa-save{border:0;background:#102d4e;color:#fff}.sc-wa-save:hover{background:#0c2440}.sc-wa-disable{border:1px solid #d4dee8;background:#fff;color:#9f2432}@media(max-width:560px){.sc-wa-preferences{gap:14px}.sc-wa-hero{border-radius:20px}.sc-wa-card{padding:15px}.sc-wa-department-grid{grid-template-columns:1fr}.sc-wa-actions>*{width:100%}.sc-wa-option{padding:15px}.sc-wa-departments-head{display:block}}
+        </style>
+        <header class="sc-wa-hero"><p class="sc-wa-eyebrow">Centre de préférences</p><h3 class="sc-wa-title">Vos messages,<br>votre choix.</h3><p class="sc-wa-lead">Recevez le suivi essentiel de vos commandes. Les nouveautés restent totalement facultatives et sont contrôlées par vous.</p><span class="sc-wa-status"><i class="fas fa-circle"></i>${state.status === 'active' ? 'Préférences actives' : 'Aucune notification active'}</span></header>
+        <form class="profile-whatsapp-form sc-wa-form">
+          <section class="sc-wa-card"><label class="sc-wa-label" for="profileWhatsappPhone">Numéro WhatsApp</label><input class="sc-wa-input" id="profileWhatsappPhone" type="tel" inputmode="tel" autocomplete="tel" value="${this.escape(sourcePhone)}" placeholder="Ex. +509 3491 3988"><p class="sc-wa-help">Utilisez un numéro actif sur WhatsApp, avec l’indicatif pays.</p></section>
+          <label class="sc-wa-option"><input id="profileWhatsappService" type="checkbox" ${state.serviceOptIn ? 'checked' : ''}><span class="sc-wa-icon"><i class="fas fa-receipt"></i></span><span><strong>Suivi de commandes</strong><small>Confirmations de paiement, évolution de livraison et informations essentielles.</small></span><span class="sc-wa-check"><i class="fas fa-check"></i></span></label>
+          <label class="sc-wa-option"><input id="profileWhatsappMarketing" type="checkbox" ${state.marketingOptIn ? 'checked' : ''}><span class="sc-wa-icon"><i class="fas fa-sparkles"></i></span><span><strong>Nouveautés adaptées à vos intérêts</strong><small>Au maximum une communication par semaine, selon les départements choisis.</small></span><span class="sc-wa-check"><i class="fas fa-check"></i></span></label>
+          <section id="profileWhatsappDepartments" class="sc-wa-card sc-wa-departments"><div class="sc-wa-departments-head"><div><h4>Départements qui vous intéressent</h4><p>Choisissez les univers de produits dont vous souhaitez recevoir les nouveautés.</p></div></div><div class="sc-wa-department-grid">${departmentChoices}</div></section>
+          <p class="sc-wa-legal">Vous pouvez modifier vos choix à tout moment. Pour arrêter les messages promotionnels par WhatsApp, répondez <strong>STOP</strong>.</p>
+          <div class="sc-wa-actions"><button class="sc-wa-save" type="submit"><i class="fab fa-whatsapp"></i> Enregistrer mes préférences</button>${state.status === 'active' ? '<button class="sc-wa-disable" type="button" data-whatsapp-unsubscribe>Tout désactiver</button>' : ''}</div>
         </form>
       </section>`;
   }
@@ -139,8 +159,8 @@ class ProfilePanel {
     const phone = this.modal.querySelector('#profileWhatsappPhone')?.value?.trim() || '';
     const serviceOptIn = !unsubscribe && Boolean(this.modal.querySelector('#profileWhatsappService')?.checked);
     const marketingOptIn = !unsubscribe && Boolean(this.modal.querySelector('#profileWhatsappMarketing')?.checked);
-    const marketingCategories = Array.from(this.modal.querySelectorAll('[name="whatsapp-category"]:checked')).map((input) => input.value);
-    const result = await this.callWhatsAppPreferences({ method: 'POST', body: { phone, serviceOptIn, marketingOptIn, marketingCategories } });
+    const marketingDepartments = Array.from(this.modal.querySelectorAll('[name="whatsapp-department"]:checked')).map((input) => input.value);
+    const result = await this.callWhatsAppPreferences({ method: 'POST', body: { phone, serviceOptIn, marketingOptIn, marketingDepartments } });
     this.whatsappState = result.subscription || {};
       const confirmationStatus = result.confirmation?.status;
       const message = unsubscribe ? 'Notifications WhatsApp désactivées.'
@@ -1519,10 +1539,10 @@ class ProfilePanel {
         this.authManager.showToast(error.message || 'Impossible d’enregistrer vos préférences WhatsApp.', 'error');
       }
     });
-    this.modal.querySelector('#profileWhatsappMarketing')?.addEventListener('change', (event) => {
-      const categories = this.modal.querySelector('#profileWhatsappCategories');
-      if (categories) categories.style.display = event.target.checked ? 'grid' : 'none';
-    });
+      this.modal.querySelector('#profileWhatsappMarketing')?.addEventListener('change', (event) => {
+        const departments = this.modal.querySelector('#profileWhatsappDepartments');
+        if (departments) departments.style.display = event.target.checked ? 'grid' : 'none';
+      });
     this.modal.querySelector('[data-whatsapp-unsubscribe]')?.addEventListener('click', async () => {
       try {
         await this.saveWhatsAppPreferences({ unsubscribe: true });

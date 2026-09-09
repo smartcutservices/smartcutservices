@@ -169,12 +169,12 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
   }
   async function queueProductCampaign(productId, product, source) {
     if (!isActiveProduct(product)) return null;
-    const categoryId = String(product.categoryId || product.taxonomyCategoryId || product.category || '').trim();
-    if (!categoryId) return null;
+    const departmentId = String(product.departmentId || product.commissionRule?.departmentId || '').trim();
+    if (!departmentId) return null;
     const ref = db.collection(CAMPAIGNS).doc(`product_${source}_${productId}`);
     const existing = await ref.get();
     if (existing.exists) return null;
-    await ref.create({ type: 'new_product', status: 'pending', source, productId, categoryId, productName: String(product.name || 'Nouveau produit'), productPrice: Number(product.price || 0), productUrl: `https://smartcutservices.com/product.html?id=${encodeURIComponent(productId)}`, createdAt: isoNow(), updatedAt: isoNow(), cursor: '' });
+    await ref.create({ type: 'new_product', status: 'pending', source, productId, departmentId, departmentLabel: String(product.department || '').trim(), productName: String(product.name || 'Nouveau produit'), productPrice: Number(product.price || 0), productUrl: `https://smartcutservices.com/product.html?id=${encodeURIComponent(productId)}`, createdAt: isoNow(), updatedAt: isoNow(), cursor: '' });
     return ref.id;
   }
   async function processCampaign(campaignDoc) {
@@ -187,7 +187,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     const cursor = String(campaign.cursor || '');
     let query = db.collection(SUBSCRIPTIONS)
       .where('marketingOptIn', '==', true)
-      .where('marketingCategories', 'array-contains', String(campaign.categoryId || ''))
+      .where('marketingDepartments', 'array-contains', String(campaign.departmentId || ''))
       .orderBy(admin.firestore.FieldPath.documentId())
       .limit(25);
     if (cursor) query = query.startAfter(cursor);
@@ -201,7 +201,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
         id: `campaign_${campaignDoc.id}_${subDoc.id}`, uid: subDoc.id, phone: sub.phone, kind: 'marketing',
         template: settings.templates.marketingNewProduct,
         values: [campaign.productName || 'Nouveau produit', String(campaign.productPrice || ''), campaign.productUrl || ''],
-        campaignId: campaignDoc.id, metadata: { productId: campaign.productId, categoryId: campaign.categoryId }
+        campaignId: campaignDoc.id, metadata: { productId: campaign.productId, departmentId: campaign.departmentId }
       });
       if (delivery.status === 'sent') {
         sent += 1;
@@ -218,21 +218,21 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     const ref = db.collection(SUBSCRIPTIONS).doc(user.uid);
     if (req.method === 'GET') {
       const data = (await ref.get()).data() || {};
-      return json(res, 200, { ok: true, subscription: { phone: data.phone || '', serviceOptIn: Boolean(data.serviceOptIn), marketingOptIn: Boolean(data.marketingOptIn), marketingCategories: Array.isArray(data.marketingCategories) ? data.marketingCategories : [], status: data.status || 'inactive', updatedAt: data.updatedAt || '' } });
+      return json(res, 200, { ok: true, subscription: { phone: data.phone || '', serviceOptIn: Boolean(data.serviceOptIn), marketingOptIn: Boolean(data.marketingOptIn), marketingDepartments: Array.isArray(data.marketingDepartments) ? data.marketingDepartments : (Array.isArray(data.marketingCategories) ? data.marketingCategories : []), status: data.status || 'inactive', updatedAt: data.updatedAt || '' } });
     }
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method_not_allowed' });
     const body = req.body || {};
     const phone = normalizePhone(body.phone);
     const serviceOptIn = isTruthy(body.serviceOptIn);
     const marketingOptIn = isTruthy(body.marketingOptIn);
-    const marketingCategories = Array.from(new Set((Array.isArray(body.marketingCategories) ? body.marketingCategories : []).map((value) => String(value || '').trim()).filter(Boolean))).slice(0, 20);
+    const marketingDepartments = Array.from(new Set((Array.isArray(body.marketingDepartments) ? body.marketingDepartments : (Array.isArray(body.marketingCategories) ? body.marketingCategories : [])).map((value) => String(value || '').trim()).filter(Boolean))).slice(0, 20);
     if ((serviceOptIn || marketingOptIn) && !phone) return json(res, 400, { ok: false, error: 'invalid_whatsapp_number' });
-    if (marketingOptIn && !marketingCategories.length) return json(res, 400, { ok: false, error: 'marketing_categories_required' });
+    if (marketingOptIn && !marketingDepartments.length) return json(res, 400, { ok: false, error: 'marketing_departments_required' });
     const previous = (await ref.get()).data() || {};
     const now = isoNow();
     const active = serviceOptIn || marketingOptIn;
     const nextSubscription = { phone, serviceOptIn, marketingOptIn };
-    await ref.set({ uid: user.uid, phone, phoneMasked: maskPhone(phone), serviceOptIn, marketingOptIn, marketingCategories, status: active ? 'active' : 'unsubscribed', consentVersion: CONSENT_VERSION, consentedAt: active ? now : (previous.consentedAt || ''), consentSource: 'profile', consentIp: String(req.headers['x-forwarded-for'] || '').split(',')[0].trim().slice(0, 80), revokedAt: active ? '' : now, updatedAt: now, createdAt: previous.createdAt || now }, { merge: true });
+    await ref.set({ uid: user.uid, phone, phoneMasked: maskPhone(phone), serviceOptIn, marketingOptIn, marketingDepartments, status: active ? 'active' : 'unsubscribed', consentVersion: CONSENT_VERSION, consentedAt: active ? now : (previous.consentedAt || ''), consentSource: 'profile', consentIp: String(req.headers['x-forwarded-for'] || '').split(',')[0].trim().slice(0, 80), revokedAt: active ? '' : now, updatedAt: now, createdAt: previous.createdAt || now }, { merge: true });
 
     let confirmation = { status: 'not_needed' };
     const settings = await getSettings();
@@ -252,7 +252,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
         confirmation = { status: delivery.status || 'queued' };
       }
     }
-    return json(res, 200, { ok: true, subscription: { phone, serviceOptIn, marketingOptIn, marketingCategories, status: active ? 'active' : 'unsubscribed', updatedAt: now }, confirmation });
+    return json(res, 200, { ok: true, subscription: { phone, serviceOptIn, marketingOptIn, marketingDepartments, status: active ? 'active' : 'unsubscribed', updatedAt: now }, confirmation });
   });
 
   const whatsappWebhook = onRequest({ region: REGION, secrets: [WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN] }, async (req, res) => {
@@ -273,7 +273,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
       const subscription = subscriptionSnap.docs[0];
       const stopped = STOP_WORDS.has(message.text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim());
       await db.collection(INBOX).doc(message.messageId).create({ ...message, phone: message.from, phoneMasked: maskPhone(message.from), uid: subscription?.id || '', stopped, receivedAt: isoNow(), status: 'open' });
-      if (subscription) await subscription.ref.set({ lastInboundAt: isoNow(), updatedAt: isoNow(), ...(stopped ? { marketingOptIn: false, marketingCategories: [], status: subscription.data()?.serviceOptIn ? 'active' : 'unsubscribed', marketingRevokedAt: isoNow(), marketingRevokedSource: 'whatsapp_stop' } : {}) }, { merge: true });
+      if (subscription) await subscription.ref.set({ lastInboundAt: isoNow(), updatedAt: isoNow(), ...(stopped ? { marketingOptIn: false, marketingDepartments: [], status: subscription.data()?.serviceOptIn ? 'active' : 'unsubscribed', marketingRevokedAt: isoNow(), marketingRevokedSource: 'whatsapp_stop' } : {}) }, { merge: true });
     }
     for (const update of statuses) {
       const match = await db.collection(DELIVERIES).where('metaMessageId', '==', update.messageId).limit(1).get();
