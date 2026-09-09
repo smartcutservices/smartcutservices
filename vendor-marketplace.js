@@ -4,6 +4,7 @@ import { getProductPricing } from './product-display-utils.js';
 import { buildProductPageUrl } from './product-links.js';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 import { getAuthManager } from './auth.js';
+import { applyVendorPublicVisibility } from './catalog-products.js';
 
 class VendorMarketplacePage {
   constructor(containerId = 'vendor-marketplace-root') {
@@ -45,10 +46,12 @@ class VendorMarketplacePage {
     ]);
 
     this.vendors = new Map(vendorSnapshot.docs.map((entry) => [entry.id, { id: entry.id, ...entry.data() }]));
-    this.products = productSnapshot.docs
-      .map((entry) => ({ id: entry.id, ...entry.data() }))
+    // Keep the store page subject to the same public Plan Pro policy as the catalogue.
+    // A Basic or expired vendor remains public, but only its five newest products are visible.
+    this.products = applyVendorPublicVisibility(productSnapshot.docs
+      .map((entry) => ({ id: entry.id, sourceCollection: 'vendorProducts', ...entry.data() }))
       .filter((item) => this.vendors.has(item.vendorId))
-      .sort((a, b) => this.getProPriority(b) - this.getProPriority(a) || String(a.name || '').localeCompare(String(b.name || '')));
+    ).sort((a, b) => this.getProPriority(b) - this.getProPriority(a) || String(a.name || '').localeCompare(String(b.name || '')));
 
     if (this.selectedVendorId) {
       this.products = this.products.filter((item) => String(item.vendorId) === String(this.selectedVendorId));
