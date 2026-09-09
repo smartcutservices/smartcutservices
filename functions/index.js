@@ -4145,7 +4145,9 @@ async function downgradeExpiredVendorProToBasic({ vendorId = '', vendor = {}, ne
   const normalizedVendorId = String(vendorId || '').trim();
   if (!normalizedVendorId || !isVendorProPlan(vendor)) return null;
   const dueMs = toDateMs(nextDueAt || vendor.serviceFeeNextDueAt || '');
-  if (!dueMs || dueMs > Date.now()) return null;
+  // Legacy Pro accounts can lack an end date. They must follow the same
+  // Basic fallback as an explicitly expired plan, never remain unlimited.
+  if (dueMs && dueMs > Date.now()) return null;
 
   const now = new Date().toISOString();
   const patch = {
@@ -5759,6 +5761,14 @@ exports.requestVendorServiceFee = onRequest(
 
       const activePending = await findLatestOpenVendorServiceFee(vendorId);
       if (activePending) {
+        const expiredPro = isVendorProPlan(vendor) && (!nextDueMs || nextDueMs <= Date.now());
+        if (expiredPro) {
+          await downgradeExpiredVendorProToBasic({
+            vendorId,
+            vendor,
+            nextDueAt: latestPaid?.data?.nextDueAt || vendor?.serviceFeeNextDueAt || ''
+          });
+        }
         sendJson(res, 200, {
           ok: true,
           alreadyRequested: true,
@@ -5780,7 +5790,17 @@ exports.requestVendorServiceFee = onRequest(
         offer: applicableOffer
       });
 
-      await updateVendorProductsServiceStatus(vendorId, 'suspended');
+      // A payment request is a reminder, not a store suspension. An expired
+      // Pro seller falls back to the existing Basic visibility policy: five
+      // public products, no Pro badge, and no sponsored placement.
+      const expiredPro = isVendorProPlan(vendor) && (!nextDueMs || nextDueMs <= Date.now());
+      if (expiredPro) {
+        await downgradeExpiredVendorProToBasic({
+          vendorId,
+          vendor,
+          nextDueAt: latestPaid?.data?.nextDueAt || vendor?.serviceFeeNextDueAt || ''
+        });
+      }
 
       sendJson(res, 200, {
         ok: true,
