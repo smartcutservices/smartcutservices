@@ -24,6 +24,12 @@ service firebase.storage {
       return hasContentType('video/.*');
     }
 
+    function isAdminRequester() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/clients/$(request.auth.uid)) &&
+        firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.role == 'admin';
+    }
+
     function maxSize(megabytes) {
       return request.resource != null
         && request.resource.size <= megabytes * 1024 * 1024;
@@ -47,6 +53,14 @@ service firebase.storage {
     match /products/{productId}/{allPaths=**} {
       allow read: if true;
       allow write: if isSignedIn() && maxSize(20);
+    }
+
+    // Visuels de la taxonomie publique. Le dashboard Départements est réservé
+    // aux admins, mais les images doivent rester affichables par le catalogue.
+    match /departments/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isAdminRequester() && isImage() && maxSize(8);
+      allow delete: if isAdminRequester();
     }
 
     // Fichiers principaux des produits numériques vendeur. Ils ne sont pas
@@ -204,11 +218,7 @@ service firebase.storage {
     // Smart Cut Health — Phase 1 (Pharmacy). Additive only.
     // ============================================================
 
-    function isHealthAdminRequester() {
-      return isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/clients/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.role == 'admin';
-    }
+    function isHealthAdminRequester() { return isAdminRequester(); }
 
     // Prescription uploads carry real health data — the FIRST genuinely private
     // (non-`allow read: if true`) path in this file. The path segment is
