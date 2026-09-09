@@ -1,6 +1,6 @@
 import { db } from './firebase-init.js?v=20260908-12';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js?v=20260902-2';
+import './search.js?v=20260908-12';
 import Navbar from './navbar.js?v=20260902-1';
 import { getAuthManager } from './auth.js?v=20260908-12';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';

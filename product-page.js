@@ -1,5 +1,6 @@
 import ProductModal from './product-modal.js?v=20260907-10';
 import { applySeoMeta } from './seo-meta.js?v=20260901-1';
+import ProductReviews from './product-reviews.js?v=20260908-12';
 
 class ProductPage extends ProductModal {
   constructor(containerId, options = {}) {
@@ -26,7 +27,13 @@ class ProductPage extends ProductModal {
     await this.loadRelatedProducts();
     this.render();
     this.attachEvents();
+    this.mountProductReviews();
     this.loadFromLocalStorage();
+  }
+
+  mountProductReviews() {
+    const roots = this.options.renderTarget?.querySelectorAll('[data-product-reviews]') || [];
+    roots.forEach((root) => new ProductReviews(root, this.options.productId).init());
   }
 
   async trackAffiliateReferral() {
@@ -106,6 +113,7 @@ class ProductPage extends ProductModal {
               <div class="product-page-desktop-info" style="width: 50%; padding: 1.15rem 1.25rem 1.4rem;">
                 ${this.renderProductInfo()}
                 ${this.renderRelatedProducts()}
+                <div data-product-reviews="desktop"></div>
               </div>
             </div>
 
@@ -142,6 +150,7 @@ class ProductPage extends ProductModal {
                   ">
                     ${this.renderProductInfo()}
                     ${this.renderRelatedProducts()}
+                    <div data-product-reviews="mobile"></div>
                   </div>
                 </div>
               </div>

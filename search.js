@@ -1352,16 +1352,11 @@ class SearchComponent {
         this.close();
         
         if (type === 'product') {
-          try {
-            const module = await import('./product-modal.js?v=20260901-1');
-            const ProductModal = module.default;
-            
-            new ProductModal({
-              productId: id,
-              imageBasePath: this.options.imageBasePath
-            });
-          } catch (error) {
-            console.error('❌ Erreur ouverture produit:', error);
+          // Les résultats de recherche doivent ouvrir la page produit complète,
+          // comme le catalogue, afin de conserver l'URL partageable et tout le
+          // parcours produit (variantes, galerie, panier et recommandations).
+          if (id) {
+            window.location.href = `./product.html?product=${encodeURIComponent(id)}`;
           }
         } else if (type === 'presentation' && articleId) {
           const event = new CustomEvent('openArticle', {

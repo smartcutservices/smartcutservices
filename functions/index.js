@@ -57,6 +57,8 @@ const JWETPRO_CONFIRM_PAYMENT_URL = process.env.JWETPRO_CONFIRM_PAYMENT_URL ||
 const SITE_COMMENTS_COLLECTION = 'siteComments';
 const SITE_COMMENT_RATE_LIMITS_COLLECTION = 'siteCommentRateLimits';
 const SITE_COMMENT_MIN_INTERVAL_MS = 15000;
+const PRODUCT_REVIEWS_COLLECTION = 'productReviews';
+const PRODUCT_REVIEW_RATE_LIMIT_MS = 30000;
 const PAYMENT_LINKS_COLLECTION = 'paymentLinks';
 const PAYMENT_LINK_DEFAULT_DESCRIPTION = 'Paiement sécurisé via Smart Cut Services.';
 const PAYMENT_LINK_MAX_AMOUNT = 10000000;
@@ -8590,6 +8592,75 @@ exports.getWebsiteAnalytics = onRequest(
     }
   }
 );
+
+exports.listProductReviews = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'GET') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const productId = sanitizeText(req.query?.productId, 160);
+  if (!productId || productId.includes('/')) return sendJson(res, 400, { ok: false, error: 'invalid-product-id' });
+  try {
+    const snapshot = await db.collection(PRODUCT_REVIEWS_COLLECTION)
+      .where('productId', '==', productId).limit(100).get();
+    const reviews = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() || {}) }))
+      .filter((review) => review.status === 'PUBLISHED' && Number(review.rating) >= 1 && String(review.text || '').trim())
+      .sort((a, b) => Number(b.createdAt?.toMillis?.() || 0) - Number(a.createdAt?.toMillis?.() || 0))
+      .map((review) => ({
+        id: review.id,
+        rating: Number(review.rating),
+        title: sanitizeText(review.title, 100),
+        text: sanitizeText(review.text, 1200),
+        authorName: sanitizeText(review.authorName, 80) || 'Client Smart Cut',
+        verifiedPurchase: Boolean(review.verifiedPurchase),
+        createdAt: review.createdAt?.toDate?.()?.toISOString?.() || null
+      }));
+    return sendJson(res, 200, { ok: true, reviews });
+  } catch (error) {
+    logger.error('List product reviews failed', error);
+    return sendJson(res, 500, { ok: false, error: 'product-reviews-load-failed' });
+  }
+});
+
+exports.submitProductReview = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  try {
+    const user = await verifyBearerUser(req);
+    if (!user?.uid) return sendJson(res, 401, { ok: false, error: 'auth-required', message: 'Connectez-vous pour publier un avis.' });
+    const body = parseBody(req);
+    const productId = sanitizeText(body.productId, 160);
+    const title = sanitizeText(body.title, 100);
+    const text = sanitizeText(body.text, 1200);
+    const rating = Number(body.rating);
+    if (!productId || productId.includes('/') || !Number.isInteger(rating) || rating < 1 || rating > 5 || text.length < 3) {
+      return sendJson(res, 400, { ok: false, error: 'invalid-product-review', message: 'Ajoutez une note et un commentaire valides.' });
+    }
+    const reviewRef = db.collection(PRODUCT_REVIEWS_COLLECTION).doc();
+    const rateRef = db.collection('productReviewRateLimits').doc(`${user.uid}_${productId}`);
+    const now = Date.now();
+    await db.runTransaction(async (transaction) => {
+      const rateSnapshot = await transaction.get(rateRef);
+      const lastSubmittedAtMs = Number(rateSnapshot.data()?.lastSubmittedAtMs || 0);
+      if (lastSubmittedAtMs && now - lastSubmittedAtMs < PRODUCT_REVIEW_RATE_LIMIT_MS) {
+        const error = new Error('review-rate-limited');
+        error.code = 'review-rate-limited';
+        throw error;
+      }
+      const authorName = sanitizeText(user.name || user.email?.split('@')?.[0] || 'Client Smart Cut', 80);
+      transaction.set(reviewRef, {
+        productId, rating, title, text, authorUid: user.uid, authorName,
+        verifiedPurchase: false, status: 'PUBLISHED',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      transaction.set(rateRef, { lastSubmittedAtMs: now, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    });
+    return sendJson(res, 201, { ok: true, id: reviewRef.id });
+  } catch (error) {
+    if (error?.code === 'review-rate-limited') return sendJson(res, 429, { ok: false, error: 'review-rate-limited', message: 'Veuillez patienter avant de publier un nouvel avis.' });
+    logger.error('Submit product review failed', error);
+    return sendJson(res, 500, { ok: false, error: 'product-review-save-failed' });
+  }
+});
 
 exports.listSiteComments = onRequest({ region: REGION }, async (req, res) => {
   if (handleOptions(req, res)) return;
