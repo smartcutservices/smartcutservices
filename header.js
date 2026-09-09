@@ -1162,6 +1162,49 @@ class SierraHeaderNebula {
         .desktop-header-inner { display: grid !important; }
         .mobile-header-inner { display: none !important; }
       }
+
+      /* Départements : panneau de navigation en grille, proche du visuel
+         marketplace et adaptable à chaque largeur d'écran. */
+      #mobileMenuFullscreenOrion99 {
+        inset: 1rem !important;
+        width: auto !important;
+        height: calc(100dvh - 2rem) !important;
+        top: 1rem !important;
+        left: 1rem !important;
+        transform: none !important;
+        border: 1px solid #dbe3ec !important;
+        border-radius: 1.15rem !important;
+        background: #fff !important;
+        box-shadow: 0 24px 70px rgba(15,23,42,.24), 0 0 0 100vmax rgba(15,23,42,.55) !important;
+      }
+      #mobileMenuFullscreenOrion99.is-open { transform: none !important; }
+      .mobile-menu-header { padding: 1.7rem 2rem 1rem !important; }
+      .mobile-menu-heading { display: grid; gap: .25rem; }
+      .mobile-menu-title { font-family: var(--secondary-font), Arial, sans-serif !important; font-size: clamp(1.8rem, 3vw, 2.55rem) !important; color: #111827 !important; letter-spacing: -.035em !important; }
+      .mobile-menu-title::after { display: none !important; }
+      .mobile-menu-subtitle { color: #64748b; font-size: .95rem; }
+      .mobile-menu-close { width: 2.6rem !important; height: 2.6rem !important; border: 0 !important; box-shadow: none !important; color: #64748b !important; font-size: 1.25rem !important; }
+      .mobile-menu-close:hover { background: #f1f5f9 !important; color: #111827 !important; }
+      .mobile-categories-section { padding: 0 2rem 1.4rem !important; }
+      .mobile-category-carousel { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: .9rem !important; margin: .35rem 0 1.1rem !important; }
+      .mobile-category-card { display: block !important; min-height: 0 !important; padding: 0 !important; border: 1px solid #dbe3ec !important; border-radius: .75rem !important; background: #fff !important; box-shadow: 0 2px 8px rgba(15,23,42,.06) !important; text-align: left !important; }
+      .mobile-category-image-wrap { width: 100% !important; height: clamp(7rem, 10vw, 10.5rem) !important; margin: 0 !important; border: 0 !important; border-radius: .75rem .75rem 0 0 !important; background: #eaf1f5 !important; box-shadow: none !important; }
+      .mobile-category-name { display: block !important; max-width: none !important; padding: .6rem 2rem .65rem .75rem !important; font-family: var(--secondary-font), Arial, sans-serif !important; font-size: .98rem !important; font-weight: 700 !important; line-height: 1.2 !important; color: #17212b !important; }
+      .mobile-category-name::after { display: none !important; }
+      .mobile-category-arrow { top: auto !important; right: .65rem !important; bottom: .65rem !important; width: 1.25rem !important; height: 1.25rem !important; border: 0 !important; background: transparent !important; color: #17212b !important; font-size: .8rem !important; }
+
+      @media (max-width: 767px) {
+        #mobileMenuFullscreenOrion99 { inset: .45rem !important; top: .45rem !important; left: .45rem !important; height: calc(100dvh - .9rem) !important; border-radius: 1rem !important; }
+        .mobile-menu-header { padding: 1.2rem 1rem .75rem !important; }
+        .mobile-categories-section { padding: 0 1rem 1rem !important; }
+        .mobile-category-carousel { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: .65rem !important; }
+        .mobile-category-image-wrap { height: 7.2rem !important; }
+        .mobile-category-name { font-size: .86rem !important; }
+      }
+
+      @media (min-width: 768px) and (max-width: 1100px) {
+        .mobile-category-carousel { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+      }
     `;
 
     document.head.appendChild(style);
@@ -1204,9 +1247,9 @@ class SierraHeaderNebula {
           </div>
         </div>
         <div class="desktop-nav-row">
-          <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les catégories">
+          <button id="desktopAllNavBtn" class="desktop-all-button" type="button" aria-label="Afficher les départements">
             <i class="fas fa-bars"></i>
-            <span>Catégories</span>
+            <span>Départements</span>
           </button>
           <div class="desktop-nav-items">
             <a class="desktop-nav-action" href="./printing-hub.html">Imprimerie</a>
@@ -1256,9 +1299,9 @@ class SierraHeaderNebula {
           </div>
           </div>
           <div class="mobile-nav-scroll">
-            <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Afficher les catégories">
+            <button id="mobileNavAllBtn" class="mobile-nav-all" type="button" aria-label="Afficher les départements">
               <i class="fas fa-bars"></i>
-              <span>Catégories</span>
+              <span>Départements</span>
             </button>
             <button id="mobileNavScrollLeft" class="mobile-nav-arrow" type="button" aria-label="Voir les liens précédents" hidden><i class="fas fa-chevron-left"></i></button>
             <div class="mobile-nav-items">
@@ -1297,9 +1340,12 @@ class SierraHeaderNebula {
         </div>
       </div>
 
-      <div id="mobileMenuFullscreenOrion99" role="dialog" aria-modal="true" aria-label="Catégories" aria-hidden="true">
+      <div id="mobileMenuFullscreenOrion99" role="dialog" aria-modal="true" aria-label="Départements" aria-hidden="true">
         <div class="mobile-menu-header">
-          <span class="mobile-menu-title">Catégories</span>
+        <div class="mobile-menu-heading">
+          <span class="mobile-menu-title">Départements</span>
+          <span class="mobile-menu-subtitle">Explorez tous nos univers de produits et services</span>
+        </div>
           <button id="closeMobileMenuBtn" class="mobile-menu-close" type="button" aria-label="Fermer le menu">
             <i class="fas fa-times"></i>
           </button>

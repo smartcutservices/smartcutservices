@@ -409,7 +409,7 @@ class MobileMenu {
       
       const title = document.createElement('h4');
       title.className = 'mobile-column-title font-medium text-lg mb-3';
-      title.textContent = column.columnName || 'Sans titre';
+      title.innerHTML = `${column.image ? `<img src="${this.escapeHtml(this.resolveImageUrl(column.image))}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:.55rem;">` : ''}<span>${this.escapeHtml(column.columnName || 'Sans titre')}</span>`;
       colDiv.appendChild(title);
       
       const linesContainer = document.createElement('div');

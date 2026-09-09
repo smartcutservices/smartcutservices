@@ -24,6 +24,19 @@ class MegaMenu {
   formatPriceHTG(value) {
     return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
+
+  escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[char]));
+  }
+
+  resolveImageUrl(value) {
+    const source = String(value ?? '').trim();
+    if (!source) return '';
+    if (/^(https?:|data:|blob:|gs:)/i.test(source)) return source;
+    return `./${source.replace(/^\.\//, '').replace(/^\/+/, '')}`;
+  }
   
   applyTheme() {
     if (!this.menuElement) return;
@@ -293,7 +306,8 @@ class MegaMenu {
       
       const titleEl = document.createElement('h4');
       titleEl.className = 'mega-column-title';
-      titleEl.textContent = column.columnName || 'Sans titre';
+      const columnImage = column.image ? this.escapeHtml(this.resolveImageUrl(column.image)) : '';
+      titleEl.innerHTML = `${columnImage ? `<img src="${columnImage}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:.55rem;">` : ''}<span>${this.escapeHtml(column.columnName || 'Sans titre')}</span>`;
       columnEl.appendChild(titleEl);
       
       const linesContainer = document.createElement('div');
