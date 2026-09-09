@@ -45,6 +45,11 @@ function isActiveProduct(data = {}) {
   return String(data.status || data.publicationStatus || '').toLowerCase() === 'active'
     || data.publicationStatus === 'published';
 }
+function shouldSendOptInConfirmation(previous = {}, next = {}) {
+  const wasActive = Boolean(previous.serviceOptIn || previous.marketingOptIn);
+  const isActive = Boolean(next.serviceOptIn || next.marketingOptIn);
+  return isActive && (!wasActive || String(previous.phone || '') !== String(next.phone || ''));
+}
 function parseWebhook(payload = {}) {
   const incoming = [];
   const statuses = [];
@@ -109,7 +114,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
   const defaultSettings = () => ({
     marketingEnabled: false,
     language: 'fr',
-    templates: { utilityOrderConfirmation: '', marketingNewProduct: '', supportFollowup: '' },
+    templates: { utilityOptInConfirmation: '', utilityOrderConfirmation: '', marketingNewProduct: '', supportFollowup: '' },
     updatedAt: ''
   });
   const getSettings = async () => ({ ...defaultSettings(), ...((await settingsRef().get()).data() || {}) });
@@ -227,8 +232,28 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     const previous = (await ref.get()).data() || {};
     const now = isoNow();
     const active = serviceOptIn || marketingOptIn;
+    const nextSubscription = { phone, serviceOptIn, marketingOptIn };
     await ref.set({ uid: user.uid, phone, phoneMasked: maskPhone(phone), serviceOptIn, marketingOptIn, marketingCategories, status: active ? 'active' : 'unsubscribed', consentVersion: CONSENT_VERSION, consentedAt: active ? now : (previous.consentedAt || ''), consentSource: 'profile', consentIp: String(req.headers['x-forwarded-for'] || '').split(',')[0].trim().slice(0, 80), revokedAt: active ? '' : now, updatedAt: now, createdAt: previous.createdAt || now }, { merge: true });
-    return json(res, 200, { ok: true, subscription: { phone, serviceOptIn, marketingOptIn, marketingCategories, status: active ? 'active' : 'unsubscribed', updatedAt: now } });
+
+    let confirmation = { status: 'not_needed' };
+    const settings = await getSettings();
+    if (shouldSendOptInConfirmation(previous, nextSubscription)) {
+      if (!settings.templates?.utilityOptInConfirmation) {
+        confirmation = { status: 'template_not_configured' };
+      } else {
+        const delivery = await deliverTemplate({
+          id: `optin_${user.uid}_${Date.now()}`,
+          uid: user.uid,
+          phone,
+          kind: 'utility_opt_in_confirmation',
+          template: settings.templates.utilityOptInConfirmation,
+          values: [],
+          metadata: { consentVersion: CONSENT_VERSION, source: 'profile' }
+        });
+        confirmation = { status: delivery.status || 'queued' };
+      }
+    }
+    return json(res, 200, { ok: true, subscription: { phone, serviceOptIn, marketingOptIn, marketingCategories, status: active ? 'active' : 'unsubscribed', updatedAt: now }, confirmation });
   });
 
   const whatsappWebhook = onRequest({ region: REGION, secrets: [WHATSAPP_APP_SECRET, WHATSAPP_VERIFY_TOKEN] }, async (req, res) => {
@@ -269,7 +294,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     }
     if (action === 'settings') {
       const templates = body.templates || {};
-      const safeTemplates = ['utilityOrderConfirmation', 'marketingNewProduct', 'supportFollowup'].reduce((out, key) => { out[key] = String(templates[key] || '').trim().replace(/[^a-zA-Z0-9_]/g, '').slice(0, 128); return out; }, {});
+      const safeTemplates = ['utilityOptInConfirmation', 'utilityOrderConfirmation', 'marketingNewProduct', 'supportFollowup'].reduce((out, key) => { out[key] = String(templates[key] || '').trim().replace(/[^a-zA-Z0-9_]/g, '').slice(0, 128); return out; }, {});
       await settingsRef().set({ marketingEnabled: body.marketingEnabled === true, language: String(body.language || 'fr').slice(0, 12), templates: safeTemplates, updatedAt: isoNow(), updatedBy: adminUser.uid }, { merge: true });
       return json(res, 200, { ok: true });
     }
@@ -315,4 +340,4 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
   return { whatsappPreferences, whatsappWebhook, whatsappAdmin, whatsappOrderNotification, whatsappNewVendorProductCampaign: whatsappProductCampaign('vendorProducts', 'vendorProducts/{productId}'), whatsappNewSmartcutProductCampaign: whatsappProductCampaign('products', 'products/{productId}'), whatsappProcessMarketingCampaigns };
 };
 
-module.exports._test = { normalizePhone, parseWebhook, verifySignature, isPaidOrder, isActiveProduct, STOP_WORDS };
+module.exports._test = { normalizePhone, parseWebhook, verifySignature, isPaidOrder, isActiveProduct, shouldSendOptInConfirmation, STOP_WORDS };

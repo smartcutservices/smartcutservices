@@ -37,3 +37,10 @@ test('recognizes only completed payments and public products', () => {
   assert.equal(_test.isActiveProduct({ publicationStatus: 'published' }), true);
   assert.equal(_test.isActiveProduct({ status: 'draft' }), false);
 });
+
+test('sends one confirmation only when WhatsApp consent or number is newly activated', () => {
+  assert.equal(_test.shouldSendOptInConfirmation({}, { phone: '50934913988', serviceOptIn: true }), true);
+  assert.equal(_test.shouldSendOptInConfirmation({ phone: '50934913988', serviceOptIn: true }, { phone: '50934913988', serviceOptIn: true }), false);
+  assert.equal(_test.shouldSendOptInConfirmation({ phone: '50934913988', serviceOptIn: true }, { phone: '5093818852', serviceOptIn: true }), true);
+  assert.equal(_test.shouldSendOptInConfirmation({ phone: '50934913988', serviceOptIn: false }, { phone: '50934913988', serviceOptIn: false }), false);
+});

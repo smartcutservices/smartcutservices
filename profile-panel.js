@@ -142,7 +142,12 @@ class ProfilePanel {
     const marketingCategories = Array.from(this.modal.querySelectorAll('[name="whatsapp-category"]:checked')).map((input) => input.value);
     const result = await this.callWhatsAppPreferences({ method: 'POST', body: { phone, serviceOptIn, marketingOptIn, marketingCategories } });
     this.whatsappState = result.subscription || {};
-    this.authManager.showToast(unsubscribe ? 'Notifications WhatsApp désactivées.' : 'Préférences WhatsApp enregistrées.', 'success');
+      const confirmationStatus = result.confirmation?.status;
+      const message = unsubscribe ? 'Notifications WhatsApp désactivées.'
+        : confirmationStatus === 'sent' ? 'Préférences enregistrées. Confirmation WhatsApp envoyée.'
+          : confirmationStatus === 'template_not_configured' ? 'Préférences enregistrées. La confirmation WhatsApp sera disponible après la configuration Meta.'
+            : 'Préférences WhatsApp enregistrées.';
+      this.authManager.showToast(message, 'success');
     this.render();
   }
 
