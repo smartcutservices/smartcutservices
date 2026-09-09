@@ -4984,9 +4984,22 @@ exports.createJwetproTicketPayment = onRequest(
     if (Number.isFinite(registrationDeadlineMs) && registrationDeadlineMs <= Date.now()) {
       return sendJson(res, 409, { ok: false, error: 'registration-deadline-passed' });
     }
+    const currentTicketPrice = Math.max(0, Number(ticket.price) || 0);
+    const signedTicketPrice = Math.max(0, Number(body.ticketPrice ?? body.grossAmount ?? body.amount) || 0);
+    const signedDiscountAmount = Math.max(0, Number(body.discountAmount) || 0);
     const signedAmount = Math.max(0, Number(body.amount) || 0);
-    if (!signedAmount || Math.abs(signedAmount - Number(ticket.price || 0)) > 0.01) {
-      return sendJson(res, 409, { ok: false, error: 'ticket-price-changed', currentPrice: ticket.price || 0 });
+    const expectedAmount = Math.max(0, signedTicketPrice - signedDiscountAmount);
+    const hasValidSignedPricing =
+      signedAmount > 0 &&
+      Math.abs(signedTicketPrice - currentTicketPrice) <= 0.01 &&
+      signedDiscountAmount <= signedTicketPrice &&
+      Math.abs(signedAmount - expectedAmount) <= 0.01;
+    if (!hasValidSignedPricing) {
+      return sendJson(res, 409, {
+        ok: false,
+        error: 'ticket-price-changed',
+        currentPrice: currentTicketPrice
+      });
     }
     const orderRef = db.collection(JWETPRO_ORDERS_COLLECTION).doc(intentId);
     const existing = await orderRef.get();
@@ -5017,6 +5030,9 @@ exports.createJwetproTicketPayment = onRequest(
       orderId: providerOrderId,
       amount: signedAmount,
       grossAmount: signedAmount,
+      ticketPrice: signedTicketPrice,
+      discountAmount: signedDiscountAmount,
+      couponId: sanitizeText(body.couponId, 150),
       commissionRate,
       currency: ticket.currency || MONCASH_CURRENCY,
       status: 'initiated',

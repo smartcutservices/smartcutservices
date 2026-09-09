@@ -5055,14 +5055,6 @@
         const button = this.elements.vendorServiceFeePayBtn;
         const method = this.elements.vendorServiceFeeMethod?.value || 'moncash';
         const action = button?.dataset?.serviceFeeAction || 'renew_pro';
-        console.info('[VENDOR_PRO_DEBUG] payment:start', {
-          method,
-          action,
-          planId: this.vendorContext?.planId || '',
-          currentFeeStatus: this.vendorServiceFee?.currentFee?.status || '',
-          proPlanPrice: this.vendorServiceFee?.proPlan?.price || this.vendorContext?.planPrice || 1750
-        });
-
         try {
           if (button) {
             button.disabled = true;
@@ -5079,25 +5071,11 @@
             body: JSON.stringify({ method, action })
           });
           const payload = await response.json().catch(() => ({}));
-          console.info('[VENDOR_PRO_DEBUG] payment:response', {
-            status: response.status,
-            ok: response.ok,
-            payloadOk: payload?.ok,
-            error: payload?.error || '',
-            message: payload?.message || '',
-            hasCheckoutUrl: Boolean(payload?.checkoutUrl),
-            amount: payload?.amount || 0
-          });
           if (!response.ok || payload?.ok === false) {
             throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
           }
 
           if (method === 'moncash' && payload.checkoutUrl) {
-            console.info('[VENDOR_PRO_DEBUG] payment:redirect', {
-              sessionId: payload.sessionId || '',
-              orderId: payload.orderId || '',
-              amount: payload.amount || 0
-            });
             try {
               localStorage.setItem('smartcut_pending_moncash_payment', JSON.stringify({
                 paymentType: 'vendor_service_fee',
@@ -5117,9 +5095,6 @@
           await this.loadVendorServiceFeeStatus();
         } catch (error) {
           console.error('Erreur paiement frais mensuel vendeur:', error);
-          console.info('[VENDOR_PRO_DEBUG] payment:error', {
-            message: error?.message || ''
-          });
           this.showToast(error?.message || 'Impossible de lancer le paiement du frais mensuel.', 'error');
         } finally {
           if (button) {
@@ -5762,49 +5737,13 @@
           if (img.dataset.debugAttached === 'true') return;
           img.dataset.debugAttached = 'true';
 
-          console.info('[VENDOR_IMAGE_DEBUG] render', {
-            context: img.dataset.imageDebug,
-            productId: img.dataset.productId || null,
-            variationIndex: img.dataset.variationIndex || null,
-            url: img.dataset.imageUrl || img.currentSrc || img.src || null
-          });
-
-          img.addEventListener('load', () => {
-            console.info('[VENDOR_IMAGE_DEBUG] load', {
-              context: img.dataset.imageDebug,
-              productId: img.dataset.productId || null,
-              variationIndex: img.dataset.variationIndex || null,
-              url: img.currentSrc || img.src || null
-            });
-          });
-
           img.addEventListener('error', () => {
-            console.error('[VENDOR_IMAGE_DEBUG] error', {
-              context: img.dataset.imageDebug,
-              productId: img.dataset.productId || null,
-              variationIndex: img.dataset.variationIndex || null,
-              url: img.currentSrc || img.src || img.dataset.imageUrl || null
-            });
             img.style.display = 'none';
             img.parentNode.innerHTML = '<i class="fas fa-image text-xs"></i>';
           });
 
           if (img.complete) {
-            if (img.naturalWidth > 0) {
-              console.info('[VENDOR_IMAGE_DEBUG] load-cached', {
-                context: img.dataset.imageDebug,
-                productId: img.dataset.productId || null,
-                variationIndex: img.dataset.variationIndex || null,
-                url: img.currentSrc || img.src || null
-              });
-            } else {
-              console.error('[VENDOR_IMAGE_DEBUG] error-cached', {
-                context: img.dataset.imageDebug,
-                productId: img.dataset.productId || null,
-                variationIndex: img.dataset.variationIndex || null,
-                url: img.currentSrc || img.src || img.dataset.imageUrl || null
-              });
-            }
+            if (img.naturalWidth === 0) img.dispatchEvent(new Event('error'));
           }
         });
       }
@@ -5855,12 +5794,6 @@
         img.referrerPolicy = 'no-referrer';
         img.src = imagePath;
         img.addEventListener('error', () => {
-          console.error('[VENDOR_IMAGE_DEBUG] editor-preview-error', {
-            type,
-            index,
-            imagePath,
-            originalValue: filename
-          });
           img.remove();
           const fallback = document.createElement('i');
           fallback.className = 'fas fa-image text-2xl text-secondary';
@@ -6919,16 +6852,6 @@
           updatedAt: now
         };
 
-        console.info('[VENDOR_IMAGE_DEBUG] save-payload', {
-          productId: this.currentProduct?.id || null,
-          mainImages: productData.images,
-          variations: productData.variations.map((variation, index) => ({
-            index,
-            sku: variation.sku || null,
-            images: variation.images || []
-          }))
-        });
-
         if (!productData.name) {
           this.showToast('Le nom du produit est requis', 'error');
           return;
@@ -7333,14 +7256,6 @@
           const uploads = await Promise.all(
             files.map((file) => uploadImageFile(file, this.getStorageFolder(type)))
           );
-
-          console.info('[VENDOR_IMAGE_DEBUG] upload-result', {
-            type,
-            folder: this.getStorageFolder(type),
-            productId: this.currentProduct?.id || null,
-            variationIndex: type === 'variation' ? parseInt(this.elements.variationIndex.value, 10) : null,
-            uploads
-          });
 
           if (type === 'main') {
             this.currentImages.main.push(...uploads.map((item) => item.url));

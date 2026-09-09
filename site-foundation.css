@@ -409,6 +409,14 @@ body {
 #headerNebulaX92 .cart-icon-shell:hover { border-color: #fff !important; transform: none !important; }
 #headerNebulaX92 .desktop-icon,
 #headerNebulaX92 .mobile-icon { color: var(--sc-orange) !important; }
+#headerNebulaX92 .cart-icon-shell {
+  width: 48px !important;
+  height: 48px !important;
+}
+#headerNebulaX92 .cart-icon-shell .desktop-icon,
+#headerNebulaX92 .cart-icon-shell .mobile-icon {
+  font-size: 1.4rem !important;
+}
 #headerNebulaX92 .desktop-nav-row {
   margin-inline: -1.25rem !important;
   margin-top: .65rem !important;
@@ -1624,6 +1632,36 @@ body {
 [class^="footer-links-"] a,
 [class^="footer-contact-item-"] a { min-height: 44px; display: inline-flex; align-items: center; }
 
+/* Devise HTG/USD : fond volontairement opaque pour rester visible même quand
+   la couleur dynamique du header est identique à celle du bouton. Cette règle
+   s'applique à toutes les tailles d'écran et aux deux sélecteurs. */
+#headerNebulaX92 #desktopCurrencySelector,
+#headerNebulaX92 #mobileCurrencySelector,
+#headerNebulaX92 .currency-selector {
+  background-color: #f8fafc !important;
+  color: #1f2937 !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .14) !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #1f2937 !important;
+}
+
+@media (max-width: 370px) {
+  #headerNebulaX92 .cart-icon-shell { width: 42px !important; height: 42px !important; }
+  #headerNebulaX92 .cart-icon-shell .mobile-icon { font-size: 1.25rem !important; }
+}
+#headerNebulaX92 .currency-selector:hover,
+#headerNebulaX92 .currency-selector:focus {
+  background-color: #eef2f7 !important;
+  border-color: #94a3b8 !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+#headerNebulaX92 .currency-selector option {
+  background: #fff !important;
+  color: #17212b !important;
+}
+
 @media (max-width: 1024px) {
   #headerNebulaX92 .mobile-header-inner { padding: .45rem .65rem !important; gap: .4rem !important; }
   #headerNebulaX92 .mobile-nav-scroll {
@@ -1658,6 +1696,15 @@ body {
     color: var(--sc-ink) !important;
   }
   #headerNebulaX92 .mobile-nav-all { background: #ffe3a3 !important; }
+  #headerNebulaX92 .mobile-nav-items > a.affiliate-nav-link,
+  #headerNebulaX92 .mobile-nav-items > a[href*="affiliate"] {
+    background: #dff4ef !important;
+    color: #0e756b !important;
+    border-color: rgba(14,117,107,.24) !important;
+    box-shadow: 0 3px 10px rgba(14,117,107,.12) !important;
+  }
+  #headerNebulaX92 .cart-icon-shell { width: 46px !important; height: 46px !important; }
+  #headerNebulaX92 .cart-icon-shell .mobile-icon { font-size: 1.35rem !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="printing"] { background: #e8ddff !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="vendor"] { background: #ffe0bd !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="auto-parts"] { background: #cfe7ff !important; }
@@ -1665,6 +1712,13 @@ body {
   #headerNebulaX92 .mobile-nav-items > a[href*="services.html"] { background: #d9e8ff !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="health"] { background: #f3d8e8 !important; }
   #headerNebulaX92 .mobile-smartsolution-menu > summary { background: #d9f3e5 !important; color: var(--sc-ink) !important; }
+  #headerNebulaX92 .mobile-smartsolution-menu > summary.mobile-nav-item:hover,
+  #headerNebulaX92 .mobile-smartsolution-menu[open] > summary.mobile-nav-item {
+    background: #bfe8d2 !important;
+    color: #145c3a !important;
+    border-color: rgba(20,92,58,.28) !important;
+    box-shadow: 0 3px 10px rgba(20,92,58,.12) !important;
+  }
 }
 
 @media (max-width: 767px) {
@@ -1717,6 +1771,20 @@ body {
     color: #fff !important;
   }
   #headerNebulaX92 .mobile-nav-all { background: #ffe3a3 !important; color: var(--sc-ink) !important; border-color: rgba(15,17,17,.14) !important; }
+  /* L'affiliation doit rester une pastille colorée sur mobile : le style
+     générique de la rangée ne doit pas la rendre transparente. */
+  #headerNebulaX92 .mobile-nav-items > a.affiliate-nav-link,
+  #headerNebulaX92 .mobile-nav-items > a[href*="affiliate"] {
+    background: #dff4ef !important;
+    color: #0e756b !important;
+    border-color: rgba(14,117,107,.24) !important;
+    box-shadow: 0 3px 10px rgba(14,117,107,.12) !important;
+  }
+  #headerNebulaX92 .mobile-nav-items > a.affiliate-nav-link:hover,
+  #headerNebulaX92 .mobile-nav-items > a[href*="affiliate"]:hover {
+    background: #c8ebe4 !important;
+    color: #0a5b54 !important;
+  }
   #headerNebulaX92 .mobile-nav-items > a[href*="printing"] { background: #e8ddff !important; color: var(--sc-ink) !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="vendor"] { background: #ffe0bd !important; color: var(--sc-ink) !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="auto-parts"] { background: #cfe7ff !important; color: var(--sc-ink) !important; }
@@ -1724,6 +1792,13 @@ body {
   #headerNebulaX92 .mobile-nav-items > a[href*="services.html"] { background: #d9e8ff !important; color: var(--sc-ink) !important; }
   #headerNebulaX92 .mobile-nav-items > a[href*="health"] { background: #f3d8e8 !important; color: var(--sc-ink) !important; }
   #headerNebulaX92 .mobile-smartsolution-menu > summary { background: #d9f3e5 !important; color: var(--sc-ink) !important; }
+  #headerNebulaX92 .mobile-smartsolution-menu > summary.mobile-nav-item:hover,
+  #headerNebulaX92 .mobile-smartsolution-menu[open] > summary.mobile-nav-item {
+    background: #bfe8d2 !important;
+    color: #145c3a !important;
+    border-color: rgba(20,92,58,.28) !important;
+    box-shadow: 0 3px 10px rgba(20,92,58,.12) !important;
+  }
   /* Match the desktop "Catégories" button tone on mobile. */
   #headerNebulaX92 .mobile-nav-all { background: #ffe3a3 !important; color: var(--sc-ink) !important; border-color: rgba(15,17,17,.14) !important; }
   #home-hero-categories-shell { overflow: visible !important; }
@@ -1803,4 +1878,9 @@ body {
     margin-inline: -2rem !important;
     padding: 0.85rem 2rem !important;
   }
+}
+
+@media (max-width: 370px) {
+  #headerNebulaX92 .cart-icon-shell { width: 42px !important; height: 42px !important; }
+  #headerNebulaX92 .cart-icon-shell .mobile-icon { font-size: 1.25rem !important; }
 }
