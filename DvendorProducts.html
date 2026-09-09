@@ -6770,10 +6770,8 @@
             return;
           }
         }
-        const taxonomyReady = this.getTaxonomyDepartments().length > 0;
-        if (taxonomyReady && !this.getManualCommissionOverride()
-          && (!selectedDepartmentId || !Number.isFinite(Number(this.getDepartmentCommissionRate(selectedDepartmentId))))) {
-          this.showToast('Choisissez le departement du produit : la commission Smart Cut Services est fixee par departement.', 'error');
+        if (!selectedDepartmentId || !Number.isFinite(Number(this.getDepartmentCommissionRate(selectedDepartmentId)))) {
+          this.showToast('Choisissez un département valide : la commission Smart Cut Services est fixée par département.', 'error');
           this.switchEditorTab('category');
           return;
         }
