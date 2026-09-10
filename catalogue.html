@@ -47,10 +47,28 @@
       overflow: hidden;
       padding-top: 0;
     }
-    #catalogue-section-root { height: 100%; min-height: 0; overflow: hidden; }
+    #catalogue-section-root { flex: 1; min-height: 0; overflow: hidden; }
+    #taxonomy-browser-root { position: relative; z-index: 2; }
+    .taxonomy-browser { max-width: 1440px; margin: 0 auto; padding: 20px 24px 12px; background: #fffdf8; border-bottom: 1px solid #eadfcd; }
+    .taxonomy-browser header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; }
+    .taxonomy-browser header p { margin: 0; color: #a06b13; font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .taxonomy-browser h1 { margin: 0; color: #172129; font-size: clamp(1.25rem, 2vw, 1.7rem); letter-spacing: -.03em; }
+    .taxonomy-browser header span { color: #68737a; font-size: .8rem; }
+    .taxonomy-back { border: 0; padding: 0; background: transparent; color: #425057; font: inherit; font-size: .82rem; cursor: pointer; }
+    .taxonomy-back:hover { color: #a06b13; }
+    .taxonomy-categories { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
+    .taxonomy-category { flex: 0 0 min(290px, 78vw); padding: 10px; border: 1px solid #eee3d4; border-radius: 12px; background: #fff; }
+    .taxonomy-category > button { display: flex; width: 100%; justify-content: space-between; gap: 10px; border: 0; padding: 0; background: transparent; color: #172129; text-align: left; cursor: pointer; font: inherit; font-size: .84rem; }
+    .taxonomy-category > button i { color: #b57b18; }
+    .taxonomy-category > div { display: flex; gap: 6px; overflow: hidden; margin-top: 9px; }
+    .taxonomy-subcategory { overflow: hidden; flex: 0 1 auto; max-width: 150px; border: 0; border-radius: 999px; padding: 5px 8px; background: #f5f1ea; color: #59656b; cursor: pointer; font: inherit; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+    .taxonomy-subcategory:hover, .taxonomy-subcategory.active { background: #173f3a; color: #fff; }
     .catalogue-shell {
       width: 100%;
-      padding: 0 0 3rem;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
     }
     /* La grille catalogue commence directement par les produits et filtres. */
     #catalogue-page-root .catalogue-header { display: none !important; }
@@ -72,18 +90,21 @@
   <div id="sierra-header-root"></div>
   <main id="catalogue-page-root">
     <div class="catalogue-shell">
+      <div id="taxonomy-browser-root"></div>
       <div id="catalogue-section-root"></div>
     </div>
   </main>
   <div id="sierra-footer-root"></div>
 
   <script type="module">
-    const ASSET_VERSION = '20260901-1';
+    const ASSET_VERSION = '20260910-1';
     window.SMART_CUT_ASSET_VERSION = ASSET_VERSION;
     await import(`./firebase-init.js?v=${ASSET_VERSION}`);
 
     const params = new URLSearchParams(window.location.search);
     const initialCategory = params.get('category') || 'all';
+    const initialDepartment = params.get('department') || '';
+    const initialSubcategory = params.get('subcategory') || '';
     const initialLineKey = params.get('line') || '';
     const openFiltersOnInit = params.get('filters') === 'open';
     const legacyProductId = params.get('product') || '';
@@ -110,10 +131,17 @@
       collectionName: 'products',
       productsPerPage: 12,
       initialCategory,
+      initialDepartment,
+      initialSubcategory,
       initialLineKey,
       openFiltersOnInit,
       imageBasePath: './',
       isInModal: false
+    });
+    mount('taxonomy-browser-root', () => import(`./taxonomy-browser.js?v=${ASSET_VERSION}`), {
+      initialDepartment,
+      initialCategory,
+      initialSubcategory
     });
     mount('sierra-footer-root', () => import(`./footer.js?v=${ASSET_VERSION}`), {
       imageBasePath: './',

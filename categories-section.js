@@ -25,6 +25,8 @@ class CategoriesSection {
             collectionName: options.collectionName || 'products',
             productsPerPage: options.productsPerPage || 12,
             initialCategory: options.initialCategory || 'all',
+            initialDepartment: options.initialDepartment || '',
+            initialSubcategory: options.initialSubcategory || '',
             initialLineKey: options.initialLineKey || '',
             openFiltersOnInit: options.openFiltersOnInit || false,
             imageBasePath: options.imageBasePath || './',
@@ -46,6 +48,8 @@ class CategoriesSection {
             structureByCategoryId: {},
             variants: [],
             selectedCategory: this.options.initialCategory,
+            selectedDepartment: this.options.initialDepartment,
+            selectedSubcategory: this.options.initialSubcategory,
             searchQuery: '',
             priceRange: { min: 0, max: Infinity },
             selectedColors: [],
@@ -201,6 +205,30 @@ class CategoriesSection {
             product.categoryName, product.categoryId,
             product.departmentName, product.departmentId,
             product.departementName, product.departement
+        ].some((value) => normalize(value) === expected);
+    }
+
+    matchesSelectedDepartment(product, selectedDepartment) {
+        if (!selectedDepartment) return true;
+        const normalize = (value) => String(value ?? '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+        const expected = normalize(selectedDepartment);
+        return [
+            product.departmentId, product.departementId, product.department, product.departement,
+            product.departmentName, product.departementName
+        ].some((value) => normalize(value) === expected);
+    }
+
+    matchesSelectedSubcategory(product, selectedSubcategory) {
+        if (!selectedSubcategory) return true;
+        const normalize = (value) => String(value ?? '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+        const expected = normalize(selectedSubcategory);
+        const selections = Array.isArray(product.categorySelections) ? product.categorySelections : [];
+        return [
+            product.subcategoryId, product.subCategoryId, product.subcategory, product.subCategory,
+            product.subcategoryName, product.subCategoryName,
+            ...selections.map((item) => item?.id || item?.name || item?.label)
         ].some((value) => normalize(value) === expected);
     }
 
@@ -1512,6 +1540,8 @@ class CategoriesSection {
                             categoryId: data.categoryId || null,
                             departmentId: data.departmentId || data.departementId || data.department || data.departement || null,
                             departmentName: data.departmentName || data.departementName || (typeof data.department === 'string' ? data.department : null),
+                            subcategoryId: data.subcategoryId || data.subCategoryId || data.subcategory || data.subCategory || null,
+                            subcategoryName: data.subcategoryName || data.subCategoryName || null,
                             categoryName: data.categoryName
                                 || (data.categoryId ? this.state.categoryNamesById[data.categoryId] : null)
                                 || data.categoryId
@@ -1904,6 +1934,14 @@ class CategoriesSection {
         
         if (this.state.selectedCategory !== 'all') {
             filtered = filtered.filter(p => this.matchesSelectedCategory(p, this.state.selectedCategory));
+        }
+
+        if (this.state.selectedDepartment) {
+            filtered = filtered.filter(p => this.matchesSelectedDepartment(p, this.state.selectedDepartment));
+        }
+
+        if (this.state.selectedSubcategory) {
+            filtered = filtered.filter(p => this.matchesSelectedSubcategory(p, this.state.selectedSubcategory));
         }
         
         if (this.state.searchQuery) {

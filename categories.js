@@ -1,5 +1,8 @@
 import { db } from './firebase-init.js';
-import { collection, query, getDocs, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+import { loadPublicProducts } from './catalog-products.js';
+
+const TAXONOMY_URLS = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
 
 class CategoriesDisplay {
   constructor(containerId, options = {}) {
@@ -23,6 +26,7 @@ class CategoriesDisplay {
     this.availableCategoryIds = new Set();
     this.availableCategoryNames = new Set();
     this.productFallbackItems = [];
+    this.taxonomyDepartments = [];
     this.productsLoaded = false;
     this.categoryObserver = null;
     this.isPointerDown = false;
@@ -256,6 +260,25 @@ class CategoriesDisplay {
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
         }
 
+        .categories-row .department-card {
+          flex-basis: min(190px, 57vw);
+          border: 1px solid rgba(20, 33, 41, 0.09);
+          border-radius: 14px;
+          box-shadow: none;
+        }
+
+        .department-card .category-image-container {
+          aspect-ratio: 16 / 9;
+        }
+
+        .department-card .category-name {
+          padding: 0.7rem 0.8rem 0.8rem;
+          text-align: left;
+          font-size: 0.86rem;
+          font-weight: 700;
+          letter-spacing: 0;
+        }
+
         .categories-row .category-card {
           flex: 0 0 min(230px, 70vw);
         }
@@ -395,14 +418,14 @@ class CategoriesDisplay {
 
   async loadData() {
     const categoriesRef = collection(db, this.collectionName);
-    const productsRef = collection(db, 'products');
 
     try {
       // The homepage only needs a current snapshot. Keeping two realtime
       // listeners open was consuming significant data on every visit.
-      const [categoriesSnapshot, productsSnapshot] = await Promise.all([
+      const [categoriesSnapshot, publicProducts, ...taxonomyResponses] = await Promise.all([
         getDocs(query(categoriesRef)),
-        getDocs(query(productsRef, limit(200)))
+        loadPublicProducts({ maxPerCollection: 200 }),
+        ...TAXONOMY_URLS.map((url) => fetch(url, { cache: 'no-store' }).catch(() => null))
       ]);
 
       this.rawCategories = categoriesSnapshot.docs.map((doc) => ({
@@ -415,8 +438,15 @@ class CategoriesDisplay {
       this.availableCategoryNames.clear();
       this.productFallbackItems = [];
 
-      productsSnapshot.forEach((doc) => {
-        const data = doc.data();
+      const taxonomy = [];
+      for (const response of taxonomyResponses) {
+        const data = response?.ok ? await response.json().catch(() => null) : null;
+        if (data?.id) taxonomy.push(data);
+        if (Array.isArray(data?.departments)) taxonomy.push(...data.departments);
+      }
+      this.taxonomyDepartments = [...new Map(taxonomy.filter((item) => item?.id).map((item) => [String(item.id), item])).values()];
+
+      publicProducts.forEach((data) => {
         const firstImage = this.getFirstProductImage(data);
         const categoryId = String(data?.categoryId || data?.category || '').trim();
         const categoryName = String(data?.categoryName || data?.category || '').trim().toLowerCase();
@@ -498,40 +528,26 @@ class CategoriesDisplay {
       return;
     }
 
-    const sortedCategories = [...this.rawCategories].sort((a, b) => {
-      const aTime = this.getDateMs(a?.updatedAt || a?.createdAt);
-      const bTime = this.getDateMs(b?.updatedAt || b?.createdAt);
-      return bTime - aTime;
-    });
+    const savedById = new Map(this.rawCategories.map((item) => [String(item.id), item]));
+    this.items = this.taxonomyDepartments.map((department) => {
+      const id = String(department.id || '').trim();
+      const saved = savedById.get(id) || {};
+      return {
+        id,
+        name: saved.name || department.label || department.name || id,
+        image: this.resolveImagePath(saved.image || department.image || department.imageUrl || ''),
+        department: true
+      };
+    }).filter((item) => item.id && item.name);
 
-    sortedCategories.forEach((category) => {
-      const categoryName = category?.name || '';
-      if (!categoryName) return;
-      const categoryId = String(category.id || '').trim();
-      const categoryKey = categoryName.trim().toLowerCase();
-      if (this.availableCategoryIds.size && !this.availableCategoryIds.has(categoryId) && !this.availableCategoryNames.has(categoryKey)) return;
-
-      const imageFromCategory = this.resolveImagePath(category?.image || '');
-      const imageFromProducts = this.resolveImagePath(this.firstProductImageByCategoryId.get(categoryId) || '');
-
-      this.items.push({
+    // Keep the older category rail functional until every taxonomy document is present.
+    if (!this.items.length) {
+      this.items = this.rawCategories.map((category) => ({
         id: category.id,
-        name: categoryName,
-        image: imageFromCategory || imageFromProducts
-      });
-    });
-
-    const ecosystems = [
-      { id: 'health', name: 'Smart Health', description: 'Santé, pharmacies et consultations', image: './assets/health/home-health-visual-v2.webp', href: './health.html' },
-      { id: 'academy', name: 'Smart Akademi', description: 'Cours en ligne, formations et tuteurs', image: './assets/education/hero-learning-v2.webp', href: './education.html' },
-      { id: 'auto', name: 'Auto & Parts', description: 'Pièces, véhicules et équipements auto', image: './assets/auto-parts/hero-auto-parts-v1.webp', href: './auto-parts.html' },
-      { id: 'solutions', name: 'SmartSolutionTek', description: 'Outils, inscriptions et mini-boutiques', image: './assets/smartsolutiontek/mini-boutique-premium.jpg', href: './smartsolutiontek/dashboard.html' },
-    ];
-    ecosystems.sort(() => Math.random() - 0.5);
-    this.items.push(...ecosystems.map((item) => ({ ...item, ecosystem: true })));
-    if (this.items.length < 12) this.items.push(...this.productFallbackItems.slice(0, 12 - this.items.length));
-    this.items.sort(() => Math.random() - 0.5);
-    this.items = this.items.slice(0, 12);
+        name: category.name || '',
+        image: this.resolveImagePath(category.image || this.firstProductImageByCategoryId.get(category.id) || '')
+      })).filter((item) => item.name);
+    }
 
     this.renderCategories();
   }
@@ -594,7 +610,7 @@ class CategoriesDisplay {
 
   createCategoryCard(item, index) {
     const card = document.createElement('div');
-    card.className = 'category-card scroll-hidden';
+    card.className = `category-card scroll-hidden ${item.department ? 'department-card' : ''}`;
     card.style.transitionDelay = `${Math.min(index * 110, 660)}ms`;
     card.dataset.categoryName = item.name;
     card.dataset.categoryId = item.id;
@@ -612,7 +628,9 @@ class CategoriesDisplay {
       <div class="category-name">${item.name}${item.ecosystem && item.description ? `<small class="ecosystem-description">${item.description}</small>` : ''}</div>
     `;
 
-    card.addEventListener('click', () => item.ecosystem ? window.location.assign(item.href) : this.redirectToCatalogue({ categoryName: item.name }));
+    card.addEventListener('click', () => item.department
+      ? this.redirectToCatalogue({ departmentId: item.id })
+      : (item.ecosystem ? window.location.assign(item.href) : this.redirectToCatalogue({ categoryName: item.name })));
 
     return card;
   }
@@ -681,8 +699,9 @@ class CategoriesDisplay {
     cards.forEach((card) => this.categoryObserver.observe(card));
   }
 
-  redirectToCatalogue({ categoryId, categoryName, columnId, lineId, openFilters = false } = {}) {
+  redirectToCatalogue({ departmentId, categoryId, categoryName, columnId, lineId, openFilters = false } = {}) {
     const params = new URLSearchParams();
+    if (departmentId) params.set('department', departmentId);
     const resolvedCategory = categoryName || categoryId || '';
 
     if (resolvedCategory) {
