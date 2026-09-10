@@ -882,6 +882,46 @@
       justify-content: center;
       overflow: hidden;
     }
+
+    /* Vue produits : lignes horizontales, comme un tableau de gestion. */
+    #products-grid.product-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+    }
+    #products-grid.product-list .product-card {
+      display: grid;
+      grid-template-columns: 64px minmax(220px, 2fr) minmax(130px, 1fr) 110px 100px 120px 110px;
+      align-items: center;
+      gap: 1rem;
+      min-width: 920px;
+      min-height: 82px;
+      padding: .75rem 1rem;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      background: var(--surface);
+    }
+    #products-grid.product-list .product-card:last-child { border-bottom: 0; }
+    #products-grid.product-list .product-card:hover { transform: none; box-shadow: inset 3px 0 0 var(--secondary); }
+    .product-list__image { width: 56px; height: 56px; border-radius: 8px; overflow: hidden; background: var(--background); display:flex; align-items:center; justify-content:center; }
+    .product-list__image img { width:100%; height:100%; object-fit:cover; display:block; }
+    .product-list__name { min-width:0; }
+    .product-list__name strong, .product-list__name span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .product-list__name strong { font-size:.92rem; }
+    .product-list__name span, .product-list__muted { color:var(--text-secondary); font-size:.78rem; }
+    .product-list__cell { min-width:0; font-size:.86rem; }
+    .product-list__actions { display:flex; justify-content:flex-end; gap:.4rem; }
+    .product-list__dates { font-size:.75rem; color:var(--text-secondary); line-height:1.45; }
+    .product-list__header { display:grid; grid-template-columns:64px minmax(220px, 2fr) minmax(130px, 1fr) 110px 100px 120px 110px; gap:1rem; min-width:920px; padding:.7rem 1rem; color:var(--text-secondary); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; background:#f7f8f8; border-bottom:1px solid var(--border); }
+    @media (max-width: 760px) {
+      #products-grid.product-list .product-card { min-width: 760px; grid-template-columns:56px minmax(180px, 2fr) 110px 95px 90px 105px 100px; gap:.65rem; }
+      .product-list__header { min-width:760px; grid-template-columns:56px minmax(180px, 2fr) 110px 95px 90px 105px 100px; gap:.65rem; }
+    }
     
     /* ========== VARIATION CARD ========== */
     .variation-card {
@@ -2707,7 +2747,7 @@
           </div>
 
           <!-- Liste des produits -->
-          <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div id="products-grid" class="product-list">
             <!-- Injecté par JS -->
           </div>
         </div>
@@ -5378,7 +5418,11 @@
           return;
         }
 
-        this.elements.productsGrid.innerHTML = filtered.map(product => {
+        this.elements.productsGrid.innerHTML = `
+          <div class="product-list__header" aria-hidden="true">
+            <span></span><span>Produit</span><span>Catégorie</span><span>Prix</span><span>Stock</span><span>Statut</span><span>Actions</span>
+          </div>
+          ${filtered.map(product => {
           const hasVariations = product.variations && product.variations.length > 0;
           const likes = this.getProductLikes(product.id);
           const statusLabel = product.status === 'active'
@@ -5400,54 +5444,32 @@
             : product.stock || 0;
           
           const imageUrl = product.images?.[0] ? this.getImagePath(product.images[0]) : null;
+          const categoryLabel = typeof product.category === 'string'
+            ? product.category
+            : (product.category?.name || product.categoryName || product.department || 'Non classé');
           
           return `
             <div class="product-card" data-id="${product.id}">
-              <div class="product-image">
+              <div class="product-list__image">
                 ${imageUrl ? 
-                  `<img src="${this.escapeAttribute(imageUrl)}" alt="${this.escapeAttribute(product.name || 'Image produit')}" class="w-full h-full object-cover" data-image-debug="product-card" data-product-id="${this.escapeAttribute(product.id)}" data-image-url="${this.escapeAttribute(imageUrl)}">` : 
-                  `<i class="fas fa-image text-3xl text-secondary"></i>`
+                  `<img src="${this.escapeAttribute(imageUrl)}" alt="${this.escapeAttribute(product.name || 'Image produit')}" data-image-debug="product-card" data-product-id="${this.escapeAttribute(product.id)}" data-image-url="${this.escapeAttribute(imageUrl)}">` :
+                  `<i class="fas fa-image text-secondary"></i>`
                 }
               </div>
-              <div class="p-4">
-                <div class="flex justify-between items-start mb-2">
-                  <h3 class="font-semibold">${product.name || 'Sans nom'}</h3>
-                  <span class="status-badge ${statusClass}">
-                    ${statusLabel}
-                  </span>
-                </div>
-                <p class="text-sm text-text-secondary mb-2">${product.sku || 'SKU non défini'}</p>
-                <div class="flex justify-between items-center text-sm">
-                  <span>${product.price ? new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(product.price)) : 'Prix non défini'}</span>
-                  <span class="text-text-secondary">${product.isDigitalProduct ? 'Produit digital' : `Stock: ${totalStock}`}</span>
-                </div>
-                <div class="flex justify-between items-center text-sm mt-2">
-                  <span class="text-text-secondary">
-                    <i class="fas fa-heart text-danger"></i>
-                    ${likes.length} like(s)
-                  </span>
-                  <button class="view-likes btn-icon" data-id="${product.id}" title="Voir qui a liké">
-                    <i class="fas fa-users"></i>
-                  </button>
-                </div>
-                <div class="mt-3 pt-3 border-t border-border text-xs text-text-secondary space-y-1">
-                  <p>Upload: ${this.formatDateTime(product.submittedAt || product.createdAt)}</p>
-                  <p>Mise a jour: ${this.formatDateTime(product.updatedAt || product.createdAt)}</p>
-                  ${product.isDigitalProduct ? '<p><i class="fas fa-bolt text-secondary"></i> Article digital - livraison instantanee</p>' : ''}
-                  ${product.deliveryDelay ? `<p>Delai: ${this.escape(product.deliveryDelay)}</p>` : ''}
-                </div>
-                <div class="flex justify-end gap-2 mt-3 pt-3 border-t border-border">
-                  <button class="edit-product btn-icon" data-id="${product.id}">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button class="delete-product btn-icon text-danger" data-id="${product.id}">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
+              <div class="product-list__name"><strong>${this.escape(product.name || 'Sans nom')}</strong><span>${this.escape(product.sku || 'SKU non défini')} · ${likes.length} like(s)</span></div>
+              <div class="product-list__cell">${this.escape(categoryLabel)}</div>
+              <div class="product-list__cell">${product.price ? new Intl.NumberFormat('fr-HT', { style: 'currency', currency: 'HTG', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(product.price)) : 'Non défini'}</div>
+              <div class="product-list__cell">${product.isDigitalProduct ? 'Digital' : totalStock}</div>
+              <div class="product-list__cell"><span class="status-badge ${statusClass}">${statusLabel}</span></div>
+              <div class="product-list__actions">
+                <button class="view-likes btn-icon" data-id="${product.id}" title="Voir qui a liké"><i class="fas fa-users"></i></button>
+                <button class="edit-product btn-icon" data-id="${product.id}" title="Modifier"><i class="fas fa-edit"></i></button>
+                <button class="delete-product btn-icon text-danger" data-id="${product.id}" title="Supprimer"><i class="fas fa-trash"></i></button>
               </div>
             </div>
           `;
-        }).join('');
+          }).join('')}
+        `;
 
         // Attacher événements
         this.attachImageDebugListeners(this.elements.productsGrid);

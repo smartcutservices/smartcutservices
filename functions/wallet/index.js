@@ -324,9 +324,11 @@ function buildWallet(internals) {
       const wallet = wallets.find((item) => item.userId === selectedUserId);
       if (!wallet) throw new WalletError(404, 'wallet-not-found', 'Wallet introuvable.');
       const [ledgerSnap, holdsSnap, topupsSnap] = await Promise.all([
-        db.collection('walletLedger').where('walletId', '==', selectedUserId).orderBy('createdAt', 'desc').limit(100).get(),
+        // Éviter de rendre le détail dépendant d'un index composite
+        // walletId + createdAt (l'absence de cet index provoquait une 500).
+        db.collection('walletLedger').where('walletId', '==', selectedUserId).limit(100).get(),
         db.collection('walletHolds').where('walletId', '==', selectedUserId).limit(100).get(),
-        db.collection('walletTransactions').where('walletId', '==', selectedUserId).limit(100).get()
+        db.collection('walletTransactions').where('userId', '==', selectedUserId).limit(100).get()
       ]);
       const mapEntry = (snap) => {
         const data = snap.data() || {};
@@ -334,9 +336,9 @@ function buildWallet(internals) {
       };
       detail = {
         wallet,
-        ledger: ledgerSnap.docs.map(mapEntry),
-        holds: holdsSnap.docs.map(mapEntry),
-        topups: topupsSnap.docs.map(mapEntry)
+        ledger: ledgerSnap.docs.map(mapEntry).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))),
+        holds: holdsSnap.docs.map(mapEntry).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))),
+        topups: topupsSnap.docs.map(mapEntry).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
       };
     }
 
