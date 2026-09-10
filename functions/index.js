@@ -4345,6 +4345,34 @@ exports.bootstrapDashboardStorageAccess = onRequest({ region: REGION }, async (r
   return sendJson(res, 200, { ok: true });
 });
 
+exports.createDepartmentImageUploadUrl = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const user = await verifyBearerUser(req);
+  if (!user?.uid) return sendJson(res, 401, { ok: false, error: 'auth-required' });
+  if (!(await getDashboardAdminProfile(user.uid))) return sendJson(res, 403, { ok: false, error: 'admin-required' });
+
+  const body = parseBody(req);
+  const requestedFolder = String(body.folder || '').trim().replace(/^\/+|\/+$/g, '');
+  const contentType = String(body.contentType || '').trim().toLowerCase();
+  if (!['departments', 'departments/categories', 'departments/subcategories'].includes(requestedFolder)) {
+    return sendJson(res, 400, { ok: false, error: 'invalid-folder' });
+  }
+  if (!/^image\/(jpeg|png|webp|gif|svg\+xml)$/.test(contentType)) {
+    return sendJson(res, 400, { ok: false, error: 'invalid-image-type' });
+  }
+  const extension = contentType === 'image/svg+xml' ? 'svg' : (contentType.split('/')[1] || 'webp');
+  const fileName = `${Date.now()}-${crypto.randomBytes(10).toString('hex')}.${extension}`;
+  const objectPath = `${requestedFolder}/${fileName}`;
+  const [uploadUrl] = await admin.storage().bucket().file(objectPath).getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + (10 * 60 * 1000),
+    contentType
+  });
+  return sendJson(res, 200, { ok: true, uploadUrl, objectPath, expiresInSeconds: 600 });
+});
+
 async function syncPaymentLinkPayment({ session, details, source = '' }) {
   const paymentStatus = derivePaymentStatus(details);
   const sessionData = session?.data || {};
