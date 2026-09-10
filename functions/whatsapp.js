@@ -46,8 +46,10 @@ function isActiveProduct(data = {}) {
     || data.publicationStatus === 'published';
 }
 function shouldSendOptInConfirmation(previous = {}, next = {}) {
-  return Boolean(next.serviceOptIn)
-    && (!previous.serviceOptIn || String(previous.phone || '') !== String(next.phone || ''));
+  const wasOptedIn = Boolean(previous.serviceOptIn || previous.marketingOptIn);
+  const isOptedIn = Boolean(next.serviceOptIn || next.marketingOptIn);
+  return isOptedIn
+    && (!wasOptedIn || String(previous.phone || '') !== String(next.phone || ''));
 }
 function parseWebhook(payload = {}) {
   const incoming = [];
@@ -212,7 +214,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     await campaignDoc.ref.set({ status: complete ? 'completed' : 'processing', cursor: complete ? '' : subscriptions.docs.at(-1).id, sentCount: admin.firestore.FieldValue.increment(sent), completedAt: complete ? isoNow() : '', updatedAt: isoNow() }, { merge: true });
   }
 
-  const whatsappPreferences = onRequest({ region: REGION, cors: true }, async (req, res) => {
+  const whatsappPreferences = onRequest({ region: REGION, cors: true, secrets: [WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_GRAPH_API_VERSION] }, async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
     const user = await requireUser(req, res); if (!user) return;
     const ref = db.collection(SUBSCRIPTIONS).doc(user.uid);
@@ -222,10 +224,16 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     }
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: 'method_not_allowed' });
     const body = req.body || {};
+    const requestConfirmation = isTruthy(body.requestConfirmation);
     const phone = normalizePhone(body.phone);
     const serviceOptIn = isTruthy(body.serviceOptIn);
     const marketingOptIn = isTruthy(body.marketingOptIn);
-    const marketingDepartments = Array.from(new Set((Array.isArray(body.marketingDepartments) ? body.marketingDepartments : (Array.isArray(body.marketingCategories) ? body.marketingCategories : [])).map((value) => String(value || '').trim()).filter(Boolean))).slice(0, 20);
+    const rawMarketingDepartments = Array.isArray(body.marketingDepartments)
+      ? body.marketingDepartments
+      : (Array.isArray(body.marketingCategories)
+        ? body.marketingCategories
+        : (Array.isArray(body.marketing_categories) ? body.marketing_categories : []));
+    const marketingDepartments = Array.from(new Set(rawMarketingDepartments.map((value) => String(value || '').trim()).filter(Boolean))).slice(0, 20);
     if ((serviceOptIn || marketingOptIn) && !phone) return json(res, 400, { ok: false, error: 'invalid_whatsapp_number' });
     if (marketingOptIn && !marketingDepartments.length) return json(res, 400, { ok: false, error: 'marketing_departments_required' });
     const previous = (await ref.get()).data() || {};
@@ -236,7 +244,9 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
 
     let confirmation = { status: 'not_needed' };
     const settings = await getSettings();
-    if (shouldSendOptInConfirmation(previous, nextSubscription)) {
+    const confirmationRequired = shouldSendOptInConfirmation(previous, nextSubscription)
+      || (requestConfirmation && active && Boolean(phone));
+    if (confirmationRequired) {
       if (!settings.templates?.utilityOptInConfirmation) {
         confirmation = { status: 'template_not_configured' };
       } else {
@@ -247,7 +257,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
           kind: 'utility_opt_in_confirmation',
           template: settings.templates.utilityOptInConfirmation,
           values: [],
-          metadata: { consentVersion: CONSENT_VERSION, source: 'profile' }
+          metadata: { consentVersion: CONSENT_VERSION, source: requestConfirmation ? 'profile_confirmation_request' : 'profile' }
         });
         confirmation = { status: delivery.status || 'queued' };
       }

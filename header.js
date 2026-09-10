@@ -1484,7 +1484,7 @@ class SierraHeaderNebula {
 
   async getProfilePanel() {
     if (!this.profilePanelPromise) {
-      this.profilePanelPromise = import('./profile-panel.js?v=20260908-12')
+      this.profilePanelPromise = import('./profile-panel.js?v=20260910-1')
         .then(({ getProfilePanel }) => getProfilePanel());
     }
     return this.profilePanelPromise;
