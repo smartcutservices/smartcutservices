@@ -289,7 +289,24 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
     if (action === 'overview') {
       const [settings, subscriptions, inbox, deliveries, campaigns] = await Promise.all([getSettings(), db.collection(SUBSCRIPTIONS).limit(100).get(), db.collection(INBOX).orderBy('receivedAt', 'desc').limit(80).get(), db.collection(DELIVERIES).orderBy('createdAt', 'desc').limit(100).get(), db.collection(CAMPAIGNS).orderBy('createdAt', 'desc').limit(40).get()]);
       const list = (snap) => snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      return json(res, 200, { ok: true, settings: { marketingEnabled: Boolean(settings.marketingEnabled), language: settings.language || 'fr', templates: settings.templates || {} }, subscriptions: list(subscriptions).map(({ phone, ...item }) => item), inbox: list(inbox).map(({ phone, ...item }) => item), deliveries: list(deliveries).map(({ phone, ...item }) => item), campaigns: list(campaigns) });
+      const subscriptionList = list(subscriptions);
+      // The admin inbox must identify consented customers without exposing phone numbers.
+      const profiles = await Promise.all(subscriptionList.map(async (subscription) => {
+        try {
+          const profile = await db.collection('clients').doc(subscription.id).get();
+          const data = profile.data() || {};
+          return [subscription.id, String(data.displayName || data.name || data.fullName || data.username || data.email || '').trim()];
+        } catch (_) { return [subscription.id, '']; }
+      }));
+      const profileNames = Object.fromEntries(profiles);
+      return json(res, 200, {
+        ok: true,
+        settings: { marketingEnabled: Boolean(settings.marketingEnabled), language: settings.language || 'fr', templates: settings.templates || {} },
+        subscriptions: subscriptionList.map(({ phone, ...item }) => ({ ...item, profileName: profileNames[item.id] || '' })),
+        inbox: list(inbox).map(({ phone, ...item }) => item),
+        deliveries: list(deliveries).map(({ phone, ...item }) => item),
+        campaigns: list(campaigns)
+      });
     }
     if (action === 'settings') {
       const templates = body.templates || {};
