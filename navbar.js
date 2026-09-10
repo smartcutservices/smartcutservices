@@ -3,7 +3,7 @@ import { db } from './firebase-init.js';
 import { collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import theme from './theme-root.js';
 import MegaMenu from './mega-menu.js';
-import MobileMenu from './mobile-menu.js?v=20260910-2';
+import MobileMenu from './mobile-menu.js?v=20260910-4';
 import { getSearchManager } from './search.js?v=20260902-2';
 
 class Navbar {
@@ -226,7 +226,7 @@ class Navbar {
 
       // La modal « Départements » ne doit afficher que les entrées de premier
       // niveau de la taxonomie vendeur, jamais les catégories/sous-catégories.
-      const taxonomyUrls = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
+      const taxonomyUrls = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json', './hair-taxonomy.json'];
       const taxonomyDepartments = [];
       const responses = await Promise.all(taxonomyUrls.map(url => fetch(url, { cache: 'no-store' }).catch(() => null)));
       for (const response of responses) {
