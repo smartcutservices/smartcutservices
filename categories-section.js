@@ -8,7 +8,7 @@ import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './
 import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js?v=20260906-1';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
-const TAXONOMY_URLS = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
+const TAXONOMY_URLS = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json', './hair-taxonomy.json'];
 
 // Import Firebase
 import { db } from './firebase-init.js';

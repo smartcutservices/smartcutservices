@@ -2,7 +2,7 @@ import { db } from './firebase-init.js';
 import { collection, query, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { loadPublicProducts } from './catalog-products.js';
 
-const TAXONOMY_URLS = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
+const TAXONOMY_URLS = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json', './hair-taxonomy.json'];
 
 class CategoriesDisplay {
   constructor(containerId, options = {}) {

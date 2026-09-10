@@ -3350,6 +3350,7 @@
     const PRODUCT_TAXONOMY_URL = "./product-taxonomy.json";
     const AUTO_PARTS_TAXONOMY_URL = "./auto-parts-taxonomy.json";
     const DIGITAL_DOWNLOAD_TAXONOMY_URL = "./digital-download-taxonomy.json";
+    const HAIR_TAXONOMY_URL = "./hair-taxonomy.json";
     // Champs techniques ajoutés au niveau sous-catégorie automobile. Le JSON
     // reste extensible : une sous-catégorie peut aussi fournir directement
     // `dynamicFields` sans modifier le code de l'éditeur.
@@ -4618,10 +4619,11 @@
 
       async loadProductTaxonomy() {
         try {
-          const [res, autoRes, digitalRes] = await Promise.all([
+          const [res, autoRes, digitalRes, hairRes] = await Promise.all([
             fetch(PRODUCT_TAXONOMY_URL, { cache: 'no-store' }),
             fetch(AUTO_PARTS_TAXONOMY_URL, { cache: 'no-store' }),
-            fetch(DIGITAL_DOWNLOAD_TAXONOMY_URL, { cache: 'no-store' })
+            fetch(DIGITAL_DOWNLOAD_TAXONOMY_URL, { cache: 'no-store' }),
+            fetch(HAIR_TAXONOMY_URL, { cache: 'no-store' })
           ]);
           if (!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
@@ -4659,6 +4661,18 @@
               data.departments = [...(Array.isArray(data.departments) ? data.departments : []), digital];
             }
             data.commissionByDepartment = { ...(data.commissionByDepartment || {}), [digital.id]: Number(digital.commissionRate || 15) };
+          }
+          const hair = hairRes.ok ? await hairRes.json() : null;
+          if (hair?.id && Array.isArray(hair.categories)) {
+            const existingHair = (data.departments || []).find(department => department.id === hair.id);
+            if (existingHair) {
+              existingHair.categories = hair.categories;
+              existingHair.label = hair.label || existingHair.label;
+              existingHair.commissionRate = Number(hair.commissionRate || existingHair.commissionRate || 15);
+            } else {
+              data.departments = [...(Array.isArray(data.departments) ? data.departments : []), hair];
+            }
+            data.commissionByDepartment = { ...(data.commissionByDepartment || {}), [hair.id]: Number(hair.commissionRate || 15) };
           }
           this.productTaxonomy = data && Array.isArray(data.departments) ? data : null;
         } catch (error) {
