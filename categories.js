@@ -529,7 +529,7 @@ class CategoriesDisplay {
     }
 
     const savedById = new Map(this.rawCategories.map((item) => [String(item.id), item]));
-    this.items = this.taxonomyDepartments.map((department) => {
+    const departments = this.taxonomyDepartments.map((department) => {
       const id = String(department.id || '').trim();
       const saved = savedById.get(id) || {};
       return {
@@ -541,12 +541,27 @@ class CategoriesDisplay {
     }).filter((item) => item.id && item.name);
 
     // Keep the older category rail functional until every taxonomy document is present.
-    if (!this.items.length) {
-      this.items = this.rawCategories.map((category) => ({
+    if (!departments.length) {
+      departments.push(...this.rawCategories.map((category) => ({
         id: category.id,
         name: category.name || '',
         image: this.resolveImagePath(category.image || this.firstProductImageByCategoryId.get(category.id) || '')
-      })).filter((item) => item.name);
+      })).filter((item) => item.name));
+    }
+
+    const ecosystems = [
+      { id: 'health', name: 'Smart Health', description: 'Santé, pharmacies et consultations', image: './assets/health/home-health-visual-v2.webp', href: './health.html', ecosystem: true },
+      { id: 'academy', name: 'Smart Akademi', description: 'Cours en ligne, formations et tuteurs', image: './assets/education/hero-learning-v2.webp', href: './education.html', ecosystem: true },
+      { id: 'auto', name: 'Auto & Parts', description: 'Pièces, véhicules et équipements auto', image: './assets/auto-parts/hero-auto-parts-v1.webp', href: './auto-parts.html', ecosystem: true },
+      { id: 'solutions', name: 'SmartSolutionTek', description: 'Outils, inscriptions et mini-boutiques', image: './assets/smartsolutiontek/mini-boutique-premium.jpg', href: './smartsolutiontek/dashboard.html', ecosystem: true }
+    ];
+    const products = this.productFallbackItems.slice(0, 8);
+    const sources = [departments, ecosystems, products];
+    this.items = [];
+    for (let index = 0; this.items.length < 12 && sources.some((items) => index < items.length); index += 1) {
+      sources.forEach((items) => {
+        if (this.items.length < 12 && items[index]) this.items.push(items[index]);
+      });
     }
 
     this.renderCategories();
@@ -646,7 +661,9 @@ class CategoriesDisplay {
       ? item.href
       : item.product
         ? `./product.html?product=${encodeURIComponent(item.id)}`
-        : `./catalogue.html?category=${encodeURIComponent(item.name)}`;
+        : item.department
+          ? `./catalogue.html?department=${encodeURIComponent(item.id)}`
+          : `./catalogue.html?category=${encodeURIComponent(item.name)}`;
     const linkImage = (item, imageIndex) => `<a class="category-group-link" href="${href(item)}" aria-label="Voir ${item.name}">${image(item, imageIndex)}</a>`;
     const names = items.map((item) => item.name).filter(Boolean).join(' · ');
     card.innerHTML = `
@@ -659,6 +676,7 @@ class CategoriesDisplay {
       const item = items[0];
       if (item.ecosystem) window.location.assign(item.href);
       else if (item.product) window.location.assign(`./product.html?product=${encodeURIComponent(item.id)}`);
+      else if (item.department) this.redirectToCatalogue({ departmentId: item.id });
       else this.redirectToCatalogue({ categoryName: item.name });
     });
     return card;
