@@ -10,6 +10,7 @@ class MobileMenu {
   constructor() {
     this.menuElement = document.getElementById('mobileMenuFullscreenOrion99');
     this.categories = [];
+    this.showAllCategories = false;
     this.currentCategoryId = null;
     this.currentCategoryName = '';
     this.categoryPreviewProductsPromise = null;
@@ -146,6 +147,7 @@ class MobileMenu {
     const navAllBtn = document.getElementById('mobileNavAllBtn');
     const closeBtn = document.getElementById('closeMobileMenuBtn');
     const footerCloseBtn = document.getElementById('mobileMenuFooterCloseBtn');
+    const viewAllBtn = document.getElementById('departmentsViewAllBtn');
     
     if (hamburger) {
       hamburger.addEventListener('click', () => this.open());
@@ -164,6 +166,13 @@ class MobileMenu {
     }
     if (footerCloseBtn) {
       footerCloseBtn.addEventListener('click', () => this.close());
+    }
+    if (viewAllBtn) {
+      viewAllBtn.addEventListener('click', () => {
+        this.showAllCategories = true;
+        this.renderCategories();
+        viewAllBtn.hidden = true;
+      });
     }
     
     // Niveaux de navigation
@@ -208,7 +217,16 @@ class MobileMenu {
     
     container.innerHTML = '';
     
-    this.categories.forEach(cat => {
+    // Garder une grille courte tout en mettant en avant les deux départements
+    // récemment ajoutés (ils se trouvent en fin de taxonomie et seraient
+    // sinon masqués par la limite initiale).
+    const featuredIds = new Set(['tabac-vape-chicha-accessoires-fumeur', 'boissons-alcoolisees']);
+    const initialCategories = [
+      ...this.categories.filter((cat) => !featuredIds.has(String(cat.id))).slice(0, 6),
+      ...this.categories.filter((cat) => featuredIds.has(String(cat.id)))
+    ];
+    const visibleCategories = this.showAllCategories ? this.categories : initialCategories;
+    visibleCategories.forEach(cat => {
       const card = document.createElement('button');
       card.type = 'button';
       card.className = 'mobile-category-card';
@@ -227,7 +245,13 @@ class MobileMenu {
         <span class="mobile-category-name">${this.escapeHtml(cat.name)}</span>
       `;
       
-      card.addEventListener('click', () => this.showColumnsLevel(cat.id, cat.name));
+      // Un département ouvre directement le catalogue filtré afin que
+      // l'utilisateur voie tous ses produits, même si aucune colonne n'est
+      // configurée dans la navigation secondaire.
+      card.addEventListener('click', () => {
+        this.close();
+        window.location.assign(this.buildCatalogueUrl({ categoryId: cat.id, categoryName: cat.name }));
+      });
       container.appendChild(card);
 
       if (!configuredImage) {
@@ -322,6 +346,7 @@ class MobileMenu {
   open() {
     if (!this.menuElement) return;
     this.previouslyFocusedElement = document.activeElement;
+    this.showAllCategories = false;
     
     document.getElementById('mobileCategoriesLevel').style.display = 'block';
     document.getElementById('mobileColumnsLevel').style.display = 'none';
@@ -340,6 +365,8 @@ class MobileMenu {
     
     // Bloquer le scroll du body
     document.body.style.overflow = 'hidden';
+    const viewAllBtn = document.getElementById('departmentsViewAllBtn');
+    if (viewAllBtn) viewAllBtn.hidden = this.categories.length <= 8;
   }
   
   close() {
@@ -379,7 +406,7 @@ class MobileMenu {
     
     await Promise.all([
       this.loadColumns(categoryId),
-      this.loadMobileFeaturedProducts(categoryId)
+      this.loadMobileFeaturedProducts(categoryId, categoryName)
     ]);
   }
   
@@ -469,7 +496,7 @@ class MobileMenu {
     }
   }
   
-  async loadMobileFeaturedProducts(categoryId) {
+  async loadMobileFeaturedProducts(categoryId, categoryName = '') {
     try {
       if (!categoryId) {
         this.renderMobileNoProducts();
@@ -478,15 +505,20 @@ class MobileMenu {
       
       
       const productsRef = collection(db, 'products');
-      const q = query(
-        productsRef,
-        where('categoryId', '==', categoryId),
-        limit(20)
-      );
-      
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs
+      const [byCategory, byDepartment, recent] = await Promise.all([
+        getDocs(query(productsRef, where('categoryId', '==', categoryId), limit(20))),
+        getDocs(query(productsRef, where('departmentId', '==', categoryId), limit(20))),
+        getDocs(query(productsRef, limit(100)))
+      ]);
+      const expected = [categoryId, categoryName].map((value) => this.normalizeCategoryValue(value)).filter(Boolean);
+      const matchesDepartment = (item) => {
+        const values = [item.categoryId, item.departmentId, item.department, item.departement, item.departmentName, item.departementName]
+          .map((value) => this.normalizeCategoryValue(value));
+        return values.some((value) => value && expected.includes(value));
+      };
+      const products = [...byCategory.docs, ...byDepartment.docs, ...recent.docs.filter((doc) => matchesDepartment(doc.data()))]
         .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
         .sort((a, b) => {
           const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
           const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();

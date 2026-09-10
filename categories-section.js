@@ -194,7 +194,14 @@ class CategoriesSection {
     matchesSelectedCategory(product, selectedCategory) {
         if (selectedCategory === 'all') return true;
         if (!product) return false;
-        return product.categoryName === selectedCategory || product.categoryId === selectedCategory;
+        const normalize = (value) => String(value ?? '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+        const expected = normalize(selectedCategory);
+        return [
+            product.categoryName, product.categoryId,
+            product.departmentName, product.departmentId,
+            product.departementName, product.departement
+        ].some((value) => normalize(value) === expected);
     }
 
     getSelectedCategoryId() {
@@ -1503,6 +1510,8 @@ class CategoriesSection {
                             sourceCollection: data.sourceCollection || this.options.collectionName,
                             name: data.name || 'Sans nom',
                             categoryId: data.categoryId || null,
+                            departmentId: data.departmentId || data.departementId || data.department || data.departement || null,
+                            departmentName: data.departmentName || data.departementName || (typeof data.department === 'string' ? data.department : null),
                             categoryName: data.categoryName
                                 || (data.categoryId ? this.state.categoryNamesById[data.categoryId] : null)
                                 || data.categoryId

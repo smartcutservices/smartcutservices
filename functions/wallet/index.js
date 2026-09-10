@@ -446,7 +446,14 @@ function buildWallet(internals) {
     if (!refundStatuses.has(nextStatus) || refundStatuses.has(previousStatus) || !wasPaid) return;
     const userId = String(after.clientUid || after.clientId || event.params?.clientId || '').trim();
     if (!userId) return;
-    const amountMinor = Math.round(Number(after.amount || 0) * 100);
+    // Les anciennes commandes stockent `amount` en HTG, tandis que certaines
+    // interfaces récentes utilisent `amountMinor` directement. Accepter les
+    // deux formats évite qu'un remboursement valide soit ignoré par le trigger.
+    const rawAmountMinor = Number(after.amountMinor);
+    const rawAmount = Number(after.amount ?? after.totalAmount ?? after.total ?? 0);
+    const amountMinor = Number.isSafeInteger(rawAmountMinor) && rawAmountMinor > 0
+      ? rawAmountMinor
+      : Math.round(rawAmount * 100);
     if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) return;
     const orderId = String(event.params?.orderId || '').trim();
     const walletRef = db.collection('wallets').doc(userId);

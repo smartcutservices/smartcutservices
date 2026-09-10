@@ -375,15 +375,19 @@ class MegaMenu {
       
       
       const productsRef = collection(db, 'products');
-      const q = query(
-        productsRef, 
-        where('categoryId', '==', categoryId),
-        limit(20)
-      );
-      
-      const snapshot = await getDocs(q);
-      const products = snapshot.docs
+      const categoryName = this.getCategoryName(categoryId);
+      const [byCategory, byDepartment, recent] = await Promise.all([
+        getDocs(query(productsRef, where('categoryId', '==', categoryId), limit(20))),
+        getDocs(query(productsRef, where('departmentId', '==', categoryId), limit(20))),
+        getDocs(query(productsRef, limit(100)))
+      ]);
+      const normalize = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+      const expected = [categoryId, categoryName].map(normalize).filter(Boolean);
+      const matchesDepartment = (item) => [item.categoryId, item.departmentId, item.department, item.departement, item.departmentName, item.departementName]
+        .map(normalize).some((value) => value && expected.includes(value));
+      const products = [...byCategory.docs, ...byDepartment.docs, ...recent.docs.filter((doc) => matchesDepartment(doc.data()))]
         .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
         .sort((a, b) => {
           const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime();
           const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime();

@@ -1227,6 +1227,8 @@ class SierraHeaderNebula {
       .mobile-category-name { display: block !important; max-width: none !important; padding: .6rem 2rem .65rem .75rem !important; font-family: var(--secondary-font), Arial, sans-serif !important; font-size: .98rem !important; font-weight: 700 !important; line-height: 1.2 !important; color: #17212b !important; }
       .mobile-category-name::after { display: none !important; }
       .mobile-category-arrow { top: auto !important; right: .65rem !important; bottom: .65rem !important; width: 1.25rem !important; height: 1.25rem !important; border: 0 !important; background: transparent !important; color: #17212b !important; font-size: .8rem !important; }
+      .departments-view-all { width: 100%; min-height: 3rem; margin-top: .35rem; padding: .7rem 1rem; border: 1px solid #c9d9e8; border-radius: .75rem; background: #eaf4ff; color: #1464a0; font: 800 .95rem/1.2 var(--secondary-font), Arial, sans-serif; cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
+      .departments-view-all:hover { background: #dceeff; border-color: #9fc7e8; transform: translateY(-1px); }
 
       @media (max-width: 767px) {
         #mobileMenuFullscreenOrion99 { inset: .45rem !important; top: .45rem !important; left: .45rem !important; height: calc(100dvh - .9rem) !important; border-radius: 1rem !important; }
@@ -1389,6 +1391,7 @@ class SierraHeaderNebula {
         <div id="mobileMenuContent">
           <div id="mobileCategoriesLevel" class="mobile-categories-section">
             <div id="mobileCategoryCarousel" class="mobile-category-carousel"></div>
+            <button id="departmentsViewAllBtn" class="departments-view-all" type="button">Voir tous les départements <i class="fas fa-arrow-right" aria-hidden="true"></i></button>
           </div>
 
           <div id="mobileColumnsLevel" style="display: none;">
