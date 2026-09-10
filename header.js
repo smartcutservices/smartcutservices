@@ -1,7 +1,7 @@
 import { db } from './firebase-init.js?v=20260908-12';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
-import './search.js?v=20260908-12';
-import Navbar from './navbar.js?v=20260910-3';
+import './search.js?v=20260910-1';
+import Navbar from './navbar.js?v=20260910-4';
 import { getAuthManager } from './auth.js?v=20260908-12';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
@@ -1594,7 +1594,10 @@ class SierraHeaderNebula {
     smartSummary?.addEventListener('click', openSmartPanel, { passive: false });
     smartPanel?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSmartPanel));
     document.addEventListener('click', (event) => {
-      if (smartPanel?.classList.contains('is-ios-portal') && !smartPanel.contains(event.target) && event.target !== smartSummary) closeSmartPanel();
+      if (smartPanel && smartPanel.classList.contains('is-ios-portal') &&
+          !smartPanel.contains(event.target) && event.target !== smartSummary) {
+        closeSmartPanel();
+      }
     });
     let idleTimer = null;
     const showArrows = () => {

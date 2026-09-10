@@ -7,11 +7,22 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import { marketplaceApi } from './marketplace-api.js?v=20260901-1';
 import theme from './theme-root.js';
+import SMARTCUT_SEARCH_MANIFEST from './search-manifest.js?v=20260910-1';
 
 const SMARTCUT_SEARCH_HISTORY_KEY = 'smartcut_search_history';
 const HEALTH_FN_BASE = 'https://us-central1-smartcutservices-9ce54.cloudfunctions.net';
 const SEARCH_SOURCE_TTL = 5 * 60 * 1000; // une source n'est retéléchargée qu'une fois par tranche de 5 min
 let _searchHistoryMemory = [];
+const SEARCH_SYNONYMS = Object.freeze({
+  parfum: ['fragrance', 'perfume', 'mist'], parfun: ['parfum', 'fragrance'],
+  medecin: ['médecin', 'docteur'], docteur: ['médecin'],
+  voiture: ['auto', 'automobile'], auto: ['voiture', 'automobile'],
+  cours: ['formation', 'leçon'], formation: ['cours', 'éducation'],
+  tuteur: ['tutorat', 'enseignant', 'professeur'],
+  freelanceur: ['freelance', 'prestataire'],
+  pharmacie: ['médicament', 'ordonnance'],
+  smarthealth: ['smart health', 'santé'], smartakademi: ['smart akademi', 'éducation']
+});
 
 function scEscapeHtml(value) {
   return String(value || '')
@@ -97,6 +108,63 @@ function saveSmartcutSearchTerm(term) {
   }
 }
 
+function scLevenshtein(a, b) {
+  const left = String(a || '');
+  const right = String(b || '');
+  if (!left) return right.length;
+  if (!right) return left.length;
+  let previous = Array.from({ length: right.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= left.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= right.length; j += 1) {
+      current[j] = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1)
+      );
+    }
+    previous = current;
+  }
+  return previous[right.length];
+}
+
+function scTokenScore(token, candidate) {
+  const queryToken = scNormalize(token);
+  const words = scTokenize(candidate);
+  if (!queryToken || !words.length) return 0;
+  let best = 0;
+  words.forEach((word) => {
+    if (word === queryToken) best = Math.max(best, 100);
+    else if (word.startsWith(queryToken) || queryToken.startsWith(word)) best = Math.max(best, 82);
+    else if (word.includes(queryToken) || queryToken.includes(word)) best = Math.max(best, 68);
+    else {
+      const distance = scLevenshtein(queryToken, word);
+      const tolerance = queryToken.length >= 7 ? 2 : queryToken.length >= 4 ? 1 : 0;
+      if (distance <= tolerance) best = Math.max(best, 52 - (distance * 8));
+    }
+  });
+  return best;
+}
+
+function scRelevance(query, fields = [], basePriority = 0) {
+  const tokens = scTokenize(query);
+  const values = fields.filter(Boolean).map((value) => String(value));
+  if (!tokens.length || !values.length) return 0;
+  const title = scNormalize(values[0]);
+  const searchable = values.join(' ');
+  let score = basePriority;
+  let matched = 0;
+  tokens.forEach((token) => {
+    const alternatives = [token, ...(SEARCH_SYNONYMS[token] || [])];
+    const tokenScore = Math.max(...alternatives.map((candidate) => scTokenScore(candidate, searchable)));
+    if (tokenScore > 0) matched += 1;
+    score += tokenScore;
+    if (title === scNormalize(query)) score += 120;
+    else if (title.startsWith(scNormalize(query))) score += 55;
+  });
+  return matched === tokens.length ? score : 0;
+}
+
 function removeSmartcutSearchTerm(term) {
   const normalized = scNormalize(term);
   _searchHistoryMemory = getSmartcutSearchHistory(20)
@@ -136,7 +204,8 @@ class SearchComponent {
       presentations: [],
       health: [],
       services: [],
-      formations: []
+      formations: [],
+      global: []
     };
     
     this.theme = theme;
@@ -955,17 +1024,16 @@ class SearchComponent {
     
     try {
       saveSmartcutSearchTerm(searchTerm);
-      const searchLower = searchTerm.toLowerCase();
-      
-      const [products, presentations, health, services, formations] = await Promise.all([
+      const [products, presentations, health, services, formations, global] = await Promise.all([
         this.searchProducts(searchTerm),
         this.searchPresentations(searchTerm),
         this.searchHealth(searchTerm),
         this.searchServices(searchTerm),
-        this.searchFormations(searchTerm)
+        this.searchFormations(searchTerm),
+        this.searchGlobal(searchTerm)
       ]);
 
-      this.currentResults = { products, presentations, health, services, formations };
+      this.currentResults = { products, presentations, health, services, formations, global };
       if (requestId !== this.searchRequestId) return;
       this.renderResults(contentDiv, searchTerm);
       
@@ -996,15 +1064,77 @@ class SearchComponent {
     }
 
     return products
-      .filter((product) => isPublicProductVisible(product) && scMatchesAll(
-        [product.name, product.shortDescription, product.description, product.sku,
-         product.categoryName, product.vendorName, product.shopName]
-          .filter(Boolean).join(' '),
-        tokens
-      ))
-      .sort((a, b) => this.getSearchPriority(b) - this.getSearchPriority(a)
-        || String(a.name || '').localeCompare(String(b.name || '')))
+      .map((product) => ({ product, score: scRelevance(searchTerm, [
+        product.name, product.shortDescription, product.description, product.sku,
+        product.categoryName, product.vendorName, product.shopName,
+        ...(Array.isArray(product.keywords) ? product.keywords : []),
+        ...(Array.isArray(product.tags) ? product.tags : [])
+      ], this.getSearchPriority(product)) }))
+      .filter(({ product, score }) => isPublicProductVisible(product) && score > 0)
+      .sort((a, b) => b.score - a.score || String(a.product.name || '').localeCompare(String(b.product.name || '')))
+      .map(({ product }) => product)
       .slice(0, this.options.maxResults);
+  }
+
+  async searchGlobal(searchTerm) {
+    const tokens = scTokenize(searchTerm);
+    if (!tokens.length) return [];
+
+    let remoteEntries = [];
+    try {
+      remoteEntries = await cachedSearchSource('global-index', async () => {
+        const response = await fetch(`${HEALTH_FN_BASE}/getPublicSearchIndex`, {
+          headers: { Accept: 'application/json' }, cache: 'no-store'
+        });
+        if (!response.ok) return [];
+        const payload = await response.json().catch(() => ({}));
+        return Array.isArray(payload?.entries) ? payload.entries : [];
+      });
+    } catch (_) {
+      remoteEntries = [];
+    }
+
+    const entries = [...SMARTCUT_SEARCH_MANIFEST, ...remoteEntries];
+    const seen = new Set();
+    return entries
+      .map((entry) => {
+        const fields = [entry.title, entry.description, ...(entry.keywords || []), ...(entry.aliases || [])];
+        return { entry, score: scRelevance(searchTerm, fields, Number(entry.priority) || 0) };
+      })
+      .filter(({ entry, score }) => {
+        if (['product', 'service', 'formation', 'doctor', 'pharmacy', 'laboratory', 'exam', 'article'].includes(String(entry.type || '').toLowerCase())) return false;
+        const key = `${entry.type || 'page'}:${entry.id || entry.entityId || entry.route}`;
+        if (score <= 0 || !entry.active || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, this.options.maxResults * 2)
+      .map(({ entry }) => ({
+        ...entry,
+        icon: entry.icon || this.iconForSearchType(entry.type),
+        badge: entry.badge || this.labelForSearchType(entry.type),
+        title: entry.title || 'Résultat',
+        subtitle: String(entry.description || entry.subtitle || '').slice(0, 90),
+        href: entry.route || entry.href || './index.html'
+      }));
+  }
+
+  iconForSearchType(type) {
+    return {
+      ecosystem: 'fa-layer-group', service: 'fa-briefcase', formation: 'fa-graduation-cap',
+      tutor: 'fa-chalkboard-user', doctor: 'fa-user-doctor', pharmacy: 'fa-pills',
+      laboratory: 'fa-flask-vial', exam: 'fa-vial', freelance: 'fa-user-tie',
+      affiliate: 'fa-share-nodes', category: 'fa-tags', article: 'fa-newspaper', product: 'fa-box'
+    }[type] || 'fa-arrow-right';
+  }
+
+  labelForSearchType(type) {
+    return {
+      ecosystem: 'Écosystème', service: 'Service', formation: 'Formation', tutor: 'Tutorat',
+      doctor: 'Médecin', pharmacy: 'Pharmacie', laboratory: 'Laboratoire', exam: 'Examen',
+      freelance: 'Freelance', affiliate: 'Affiliation', category: 'Catégorie', article: 'Article'
+    }[type] || 'Lien';
   }
 
   isProVendorProduct(product = {}) {
@@ -1049,10 +1179,10 @@ class SearchComponent {
     }
 
     return entries
-      .filter((entry) => scMatchesAll(
-        [entry.title, entry.subtitle, entry.content].filter(Boolean).join(' '),
-        tokens
-      ))
+      .map((entry) => ({ entry, score: scRelevance(searchTerm, [entry.title, entry.subtitle, entry.content]) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ entry }) => entry)
       .slice(0, this.options.presentationsPerPage);
   }
 
@@ -1085,19 +1215,19 @@ class SearchComponent {
 
     const rows = [];
     (data.doctors || []).forEach((d) => {
-      if (scMatchesAll([d.name, d.specialty, d.facility, d.commune, d.department].filter(Boolean).join(' '), tokens)) {
+      if (scRelevance(searchTerm, [d.name, d.specialty, d.facility, d.commune, d.department]) > 0) {
         rows.push({ kind: 'doctor', id: d.id, title: d.name || 'Médecin',
           subtitle: [d.specialty, d.commune].filter(Boolean).join(' · '), href: './health-medecins.html' });
       }
     });
     (data.laboratories || []).forEach((l) => {
-      if (scMatchesAll([l.name, l.commune, l.department, l.address].filter(Boolean).join(' '), tokens)) {
+      if (scRelevance(searchTerm, [l.name, l.commune, l.department, l.address]) > 0) {
         rows.push({ kind: 'lab', id: l.id, title: l.name || 'Laboratoire',
           subtitle: [l.commune, l.department].filter(Boolean).join(' · '), href: './health-laboratoires.html' });
       }
     });
     (data.exams || []).forEach((e) => {
-      if (scMatchesAll([e.name, e.description, e.specimen].filter(Boolean).join(' '), tokens)) {
+      if (scRelevance(searchTerm, [e.name, e.description, e.specimen]) > 0) {
         rows.push({ kind: 'exam', id: e.id, title: e.name || 'Examen',
           subtitle: e.description ? String(e.description).slice(0, 60) : 'Examen de laboratoire',
           href: './health-laboratoires.html' });
@@ -1121,10 +1251,10 @@ class SearchComponent {
     }
 
     return services
-      .filter((s) => scMatchesAll(
-        [s.name, s.title, s.summary, s.shortDescription, s.description, s.categoryId].filter(Boolean).join(' '),
-        tokens
-      ))
+      .map((s) => ({ service: s, score: scRelevance(searchTerm, [s.name, s.title, s.summary, s.shortDescription, s.description, s.categoryId]) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ service }) => service)
       .slice(0, this.options.maxResults)
       .map((s) => ({
         icon: 'fa-briefcase',
@@ -1151,10 +1281,10 @@ class SearchComponent {
     }
 
     return programs
-      .filter((p) => scMatchesAll(
-        [p.title, p.shortDescription, p.fullDescription, p.level, p.commune, p.department].filter(Boolean).join(' '),
-        tokens
-      ))
+      .map((p) => ({ program: p, score: scRelevance(searchTerm, [p.title, p.shortDescription, p.fullDescription, p.level, p.commune, p.department]) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ program }) => program)
       .slice(0, this.options.maxResults)
       .map((p) => ({
         icon: 'fa-graduation-cap',
@@ -1170,24 +1300,56 @@ class SearchComponent {
   }
   
   renderResults(container, searchTerm) {
-    const { products, presentations, health, services, formations } = this.currentResults;
+    const { products, presentations, health, services, formations, global } = this.currentResults;
     const healthRows = Array.isArray(health) ? health : [];
     const serviceRows = Array.isArray(services) ? services : [];
     const formationRows = Array.isArray(formations) ? formations : [];
+    const globalRows = Array.isArray(global) ? global : [];
     const totalResults = products.length + presentations.length + healthRows.length
-      + serviceRows.length + formationRows.length;
+      + serviceRows.length + formationRows.length + globalRows.length;
     
     if (totalResults === 0) {
+      const suggestions = [...new Set([
+        'parfum', 'médecin', 'pharmacie', 'téléconsultation', 'formation', 'tuteur',
+        'freelance', 'affiliation', 'automobile', 'Smart Health', 'Smart Akademi',
+        ...SMARTCUT_SEARCH_MANIFEST.flatMap((entry) => [entry.title, ...(entry.keywords || []), ...(entry.aliases || [])])
+      ])]
+        .map((value) => ({ value, distance: scLevenshtein(scNormalize(searchTerm), scNormalize(value)) }))
+        .filter((item) => item.distance <= Math.max(2, Math.floor(scNormalize(searchTerm).length / 3)))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 3);
+      const suggestionHtml = suggestions.length
+        ? `<div class="search-suggestions-${this.uniqueId}" style="margin-top:1rem"><span>Suggestions :</span>${suggestions.map((item) => `<button type="button" class="search-suggestion-${this.uniqueId}" data-suggest="${scEscapeHtml(item.value)}">${scEscapeHtml(item.value)}</button>`).join('')}</div>`
+        : '';
       container.innerHTML = `
         <div class="search-empty-${this.uniqueId}">
           <i class="fas fa-search"></i>
           <p>Aucun résultat pour « ${String(searchTerm).replace(/[<>]/g, '')} ». Essayez un autre mot ou vérifiez l'orthographe.</p>
+          ${suggestionHtml}
         </div>
       `;
+      container.querySelectorAll('[data-suggest]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const input = this.modal?.querySelector(`#searchInput-${this.uniqueId}`);
+          if (input) input.value = button.dataset.suggest || '';
+          this.performSearch(button.dataset.suggest || '');
+        });
+      });
       return;
     }
     
     let html = '';
+
+    if (globalRows.length > 0) {
+      html += `
+        <div class="search-section-${this.uniqueId}">
+          <h3 class="search-section-title-${this.uniqueId}">Écosystèmes et pages (${globalRows.length})</h3>
+          <div class="search-grid-${this.uniqueId}">
+            ${globalRows.map(row => this.renderLinkCard(row)).join('')}
+          </div>
+        </div>
+      `;
+    }
     
     if (products.length > 0) {
       html += `

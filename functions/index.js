@@ -21,6 +21,7 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+const searchIndexFunctions = require('./search-index');
 const PROJECT_ID = 'smartcutservices-9ce54';
 const REGION = process.env.FUNCTION_REGION || 'us-central1';
 const SITE_BASE_URL = normalizeBaseUrl(process.env.PUBLIC_SITE_URL || 'https://smartcutservices.com');
@@ -9095,3 +9096,11 @@ exports.whatsappOrderNotification = __whatsappFunctions.whatsappOrderNotificatio
 exports.whatsappNewVendorProductCampaign = __whatsappFunctions.whatsappNewVendorProductCampaign;
 exports.whatsappNewSmartcutProductCampaign = __whatsappFunctions.whatsappNewSmartcutProductCampaign;
 exports.whatsappProcessMarketingCampaigns = __whatsappFunctions.whatsappProcessMarketingCampaigns;
+
+// Global public search index: ecosystems, pages and dynamic catalog entities.
+exports.getPublicSearchIndex = searchIndexFunctions.getPublicSearchIndex;
+exports.rebuildPublicSearchIndex = searchIndexFunctions.rebuildPublicSearchIndex;
+exports.syncSearchProduct = searchIndexFunctions.syncSearchProduct;
+exports.syncSearchVendorProduct = searchIndexFunctions.syncSearchVendorProduct;
+exports.syncSearchService = searchIndexFunctions.syncSearchService;
+exports.syncSearchProfessionalService = searchIndexFunctions.syncSearchProfessionalService;

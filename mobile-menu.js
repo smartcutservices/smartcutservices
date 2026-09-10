@@ -24,18 +24,21 @@ class MobileMenu {
     return formatPriceDual(value, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   }
 
-  buildCatalogueUrl({ categoryId, categoryName, columnId, lineId, openFilters = false, productId } = {}) {
+  buildCatalogueUrl({ categoryId, categoryName, departmentId, columnId, lineId, openFilters = false, productId } = {}) {
     if (productId) {
       return buildProductPageUrl(productId);
     }
 
     const params = new URLSearchParams();
-    const resolvedCategory = categoryName || categoryId || '';
-
-    if (resolvedCategory) {
-      params.set('category', resolvedCategory);
+    // Les cartes du panneau « Départements » doivent utiliser le filtre
+    // département (et non le filtre catégorie), afin d’inclure toutes les
+    // catégories et sous-catégories rattachées à cet univers.
+    if (departmentId) {
+      params.set('department', departmentId);
+    } else {
+      const resolvedCategory = categoryName || categoryId || '';
+      if (resolvedCategory) params.set('category', resolvedCategory);
     }
-
     if (categoryId && columnId && lineId) {
       params.set('line', `${categoryId}::${columnId}::${lineId}`);
     }
@@ -250,7 +253,7 @@ class MobileMenu {
       // configurée dans la navigation secondaire.
       card.addEventListener('click', () => {
         this.close();
-        window.location.assign(this.buildCatalogueUrl({ categoryId: cat.id, categoryName: cat.name }));
+        window.location.assign(this.buildCatalogueUrl({ departmentId: cat.id, categoryName: cat.name }));
       });
       container.appendChild(card);
 
