@@ -25,9 +25,19 @@ service firebase.storage {
     }
 
     function isAdminRequester() {
-      return isSignedIn() &&
-        firestore.exists(/databases/(default)/documents/clients/$(request.auth.uid)) &&
-        firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.role == 'admin';
+      return isSignedIn() && (
+        (
+          firestore.exists(/databases/(default)/documents/clients/$(request.auth.uid)) &&
+          (
+            firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.role == 'admin' ||
+            firestore.get(/databases/(default)/documents/clients/$(request.auth.uid)).data.dashboardAccess == true
+          )
+        ) ||
+        (
+          firestore.exists(/databases/(default)/documents/storageAdminUsers/$(request.auth.uid)) &&
+          firestore.get(/databases/(default)/documents/storageAdminUsers/$(request.auth.uid)).data.active == true
+        )
+      );
     }
 
     function maxSize(megabytes) {

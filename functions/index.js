@@ -4311,6 +4311,40 @@ async function syncJwetproTicketPayment({ session, details, source = '' }) {
   };
 }
 
+// Some legacy dashboard profiles use an arbitrary Firestore document id while
+// storing the Firebase UID in `uid`. Storage rules can only look up known
+// document paths, so this endpoint verifies that legacy profile server-side
+// and writes a canonical, UID-keyed grant for Storage to read.
+async function getDashboardAdminProfile(uid) {
+  if (!uid) return null;
+  const direct = await db.collection('clients').doc(uid).get();
+  const candidates = direct.exists
+    ? [direct]
+    : (await db.collection('clients').where('uid', '==', uid).limit(1).get()).docs;
+  const profile = candidates[0];
+  if (!profile) return null;
+  const data = profile.data() || {};
+  const allowed = String(data.role || '').toLowerCase() === 'admin' || data.dashboardAccess === true;
+  return allowed ? { id: profile.id, data } : null;
+}
+
+exports.bootstrapDashboardStorageAccess = onRequest({ region: REGION }, async (req, res) => {
+  if (handleOptions(req, res)) return;
+  if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: 'method-not-allowed' });
+  const user = await verifyBearerUser(req);
+  if (!user?.uid) return sendJson(res, 401, { ok: false, error: 'auth-required' });
+  const profile = await getDashboardAdminProfile(user.uid);
+  if (!profile) return sendJson(res, 403, { ok: false, error: 'admin-required' });
+  await db.collection('storageAdminUsers').doc(user.uid).set({
+    active: true,
+    uid: user.uid,
+    profileId: profile.id,
+    grantedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  return sendJson(res, 200, { ok: true });
+});
+
 async function syncPaymentLinkPayment({ session, details, source = '' }) {
   const paymentStatus = derivePaymentStatus(details);
   const sessionData = session?.data || {};
