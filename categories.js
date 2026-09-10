@@ -450,7 +450,7 @@ class CategoriesDisplay {
         const firstImage = this.getFirstProductImage(data);
         const categoryId = String(data?.categoryId || data?.category || '').trim();
         const categoryName = String(data?.categoryName || data?.category || '').trim().toLowerCase();
-        if (firstImage) this.productFallbackItems.push({ id: doc.id, name: data?.name || 'Produit populaire', image: firstImage, product: true });
+        if (firstImage) this.productFallbackItems.push({ id: data?.id || '', name: data?.name || 'Produit populaire', image: firstImage, product: true });
         if (categoryId) this.availableCategoryIds.add(categoryId);
         if (categoryName) this.availableCategoryNames.add(categoryName);
         if (!firstImage) return;
