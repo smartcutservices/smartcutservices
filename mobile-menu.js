@@ -239,7 +239,7 @@ class MobileMenu {
       card.innerHTML = `
         <span class="mobile-category-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
         <span class="mobile-category-image-wrap">
-          <img src="${this.escapeHtml(imageUrl)}" class="mobile-category-image" alt="${this.escapeHtml(cat.name)}" onerror="this.onerror=null; this.parentElement.classList.add('is-fallback');">
+          <img src="${this.escapeHtml(imageUrl)}" class="mobile-category-image" alt="${this.escapeHtml(cat.name)}" style="width:100%;height:100%;max-width:none;object-fit:contain;object-position:center;" onerror="this.onerror=null; this.parentElement.classList.add('is-fallback');">
           <i class="${categoryIcon} mobile-category-fallback-icon" aria-hidden="true"></i>
         </span>
         <span class="mobile-category-name">${this.escapeHtml(cat.name)}</span>

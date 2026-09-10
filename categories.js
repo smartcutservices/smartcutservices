@@ -268,7 +268,7 @@ class CategoriesDisplay {
         }
 
         .department-card .category-image-container {
-          aspect-ratio: 16 / 9;
+          aspect-ratio: 3 / 2;
         }
 
         .department-card .category-name {
@@ -308,7 +308,12 @@ class CategoriesDisplay {
         .category-image {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          /* Les visuels de départements sont déjà optimisés en WebP côté
+             dashboard. Contain évite de couper une image dont le ratio source
+             diffère légèrement du cadre de la carte. */
+          object-fit: contain;
+          object-position: center;
+          background: #eef2f4;
           transition: transform 0.6s ease;
         }
 

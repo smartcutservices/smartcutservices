@@ -1,7 +1,7 @@
 import { db } from './firebase-init.js?v=20260908-12';
 import { doc, getDoc, collection, query, orderBy, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 import './search.js?v=20260908-12';
-import Navbar from './navbar.js?v=20260902-1';
+import Navbar from './navbar.js?v=20260910-3';
 import { getAuthManager } from './auth.js?v=20260908-12';
 import { getWebsiteAnalyticsTracker } from './analytics-tracker.js';
 import { getUserDisplayCurrency, loadCurrencySettings, setUserDisplayCurrency } from './currency-utils.js';
@@ -868,9 +868,13 @@ class SierraHeaderNebula {
       }
 
       .mobile-category-image {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+        width: 100% !important;
+        height: 100% !important;
+        /* Afficher l’intégralité du visuel WebP sans recadrage agressif. */
+        object-fit: contain !important;
+        object-position: center;
+        background: #eaf1f5;
+        max-width: none !important;
         display: block;
         border-radius: inherit;
       }
@@ -1223,8 +1227,8 @@ class SierraHeaderNebula {
       .mobile-categories-section { padding: 0 2rem 1.4rem !important; }
       .mobile-category-carousel { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: .9rem !important; margin: .35rem 0 1.1rem !important; }
       .mobile-category-card { display: block !important; min-height: 0 !important; padding: 0 !important; border: 1px solid #dbe3ec !important; border-radius: .75rem !important; background: #fff !important; box-shadow: 0 2px 8px rgba(15,23,42,.06) !important; text-align: left !important; }
-      .mobile-category-image-wrap { width: 100% !important; height: clamp(7rem, 10vw, 10.5rem) !important; margin: 0 !important; border: 0 !important; border-radius: .75rem .75rem 0 0 !important; background: #eaf1f5 !important; box-shadow: none !important; }
-      .mobile-category-name { display: block !important; max-width: none !important; padding: .6rem 2rem .65rem .75rem !important; font-family: var(--secondary-font), Arial, sans-serif !important; font-size: .98rem !important; font-weight: 700 !important; line-height: 1.2 !important; color: #17212b !important; }
+      .mobile-category-image-wrap { width: 100% !important; height: auto !important; aspect-ratio: 3 / 2 !important; margin: 0 !important; border: 0 !important; border-radius: .75rem .75rem 0 0 !important; background: #eaf1f5 !important; box-shadow: none !important; overflow: hidden !important; }
+      .mobile-category-name { display: flex !important; align-items: center !important; min-height: 3.05rem !important; max-width: none !important; padding: .6rem 2rem .65rem .75rem !important; font-family: var(--secondary-font), Arial, sans-serif !important; font-size: .98rem !important; font-weight: 700 !important; line-height: 1.2 !important; color: #17212b !important; }
       .mobile-category-name::after { display: none !important; }
       .mobile-category-arrow { top: auto !important; right: .65rem !important; bottom: .65rem !important; width: 1.25rem !important; height: 1.25rem !important; border: 0 !important; background: transparent !important; color: #17212b !important; font-size: .8rem !important; }
       .departments-view-all { width: 100%; min-height: 3rem; margin-top: .35rem; padding: .7rem 1rem; border: 1px solid #c9d9e8; border-radius: .75rem; background: #eaf4ff; color: #1464a0; font: 800 .95rem/1.2 var(--secondary-font), Arial, sans-serif; cursor: pointer; transition: background .2s, border-color .2s, transform .2s; }
@@ -1235,7 +1239,7 @@ class SierraHeaderNebula {
         .mobile-menu-header { padding: 1.2rem 1rem .75rem !important; }
         .mobile-categories-section { padding: 0 1rem 1rem !important; }
         .mobile-category-carousel { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: .65rem !important; }
-        .mobile-category-image-wrap { height: 7.2rem !important; }
+        .mobile-category-image-wrap { height: auto !important; aspect-ratio: 3 / 2 !important; }
         .mobile-category-name { font-size: .86rem !important; }
       }
 
