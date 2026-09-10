@@ -8,6 +8,8 @@ import { getProductPriceRange, getProductPricing, getProductStoreMeta } from './
 import { isPublicProductVisible, subscribePublicProducts } from './catalog-products.js?v=20260906-1';
 import { formatPriceDual, loadCurrencySettings } from './currency-utils.js';
 
+const TAXONOMY_URLS = ['./product-taxonomy.json', './auto-parts-taxonomy.json', './digital-download-taxonomy.json'];
+
 // Import Firebase
 import { db } from './firebase-init.js';
 import { collection, query, onSnapshot, getDocs, limit } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
@@ -46,6 +48,7 @@ class CategoriesSection {
             categoryNamesById: {},
             columnNamesByCategoryId: {},
             structureByCategoryId: {},
+            departmentByCategory: {},
             variants: [],
             selectedCategory: this.options.initialCategory,
             selectedDepartment: this.options.initialDepartment,
@@ -213,10 +216,13 @@ class CategoriesSection {
         const normalize = (value) => String(value ?? '')
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
         const expected = normalize(selectedDepartment);
-        return [
+        const directMatch = [
             product.departmentId, product.departementId, product.department, product.departement,
             product.departmentName, product.departementName
         ].some((value) => normalize(value) === expected);
+        if (directMatch) return true;
+        const categoryKeys = [product.categoryId, product.categoryName, product.category];
+        return categoryKeys.some((value) => this.state.departmentByCategory[normalize(value)] === expected);
     }
 
     matchesSelectedSubcategory(product, selectedSubcategory) {
@@ -392,12 +398,37 @@ class CategoriesSection {
         this.renderStructure();
         this.addStyles();
         this.loadCategoryNames();
+        this.loadDepartmentTaxonomy();
         this.loadProducts();
         this.addEventListeners();
         this.listenForModalEvents();
 
         if (this.options.openFiltersOnInit && window.innerWidth <= 768) {
             setTimeout(() => this.openDrawer(), 120);
+        }
+    }
+
+    async loadDepartmentTaxonomy() {
+        const normalize = (value) => String(value ?? '')
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+        try {
+            const responses = await Promise.all(TAXONOMY_URLS.map((url) => fetch(url, { cache: 'no-store' }).catch(() => null)));
+            const index = {};
+            for (const response of responses) {
+                const data = response?.ok ? await response.json().catch(() => null) : null;
+                const departments = data?.id ? [data] : (Array.isArray(data?.departments) ? data.departments : []);
+                departments.forEach((department) => (department?.categories || []).forEach((category) => {
+                    const departmentId = normalize(department.id);
+                    [category?.id, category?.label, category?.name].forEach((value) => {
+                        const key = normalize(value);
+                        if (key) index[key] = departmentId;
+                    });
+                }));
+            }
+            this.state.departmentByCategory = index;
+            if (this.state.allProducts.length) this.applyFilters();
+        } catch (error) {
+            console.warn('Taxonomie des départements indisponible :', error);
         }
     }
 
