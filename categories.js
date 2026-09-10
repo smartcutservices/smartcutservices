@@ -555,8 +555,10 @@ class CategoriesDisplay {
       { id: 'auto', name: 'Auto & Parts', description: 'Pièces, véhicules et équipements auto', image: './assets/auto-parts/hero-auto-parts-v1.webp', href: './auto-parts.html', ecosystem: true },
       { id: 'solutions', name: 'SmartSolutionTek', description: 'Outils, inscriptions et mini-boutiques', image: './assets/smartsolutiontek/mini-boutique-premium.jpg', href: './smartsolutiontek/dashboard.html', ecosystem: true }
     ];
-    const products = this.productFallbackItems.slice(0, 8);
-    const sources = [departments, ecosystems, products];
+    // A different but balanced mix on every visit keeps the discovery rail fresh.
+    const shuffle = (items) => [...items].sort(() => Math.random() - 0.5);
+    const products = shuffle(this.productFallbackItems).slice(0, 8);
+    const sources = [shuffle(departments), shuffle(ecosystems), products];
     this.items = [];
     for (let index = 0; this.items.length < 12 && sources.some((items) => index < items.length); index += 1) {
       sources.forEach((items) => {
