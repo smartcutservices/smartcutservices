@@ -164,9 +164,11 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
       await entry.ref.set({ status: 'sent', metaMessageId: messageId, sentAt: isoNow(), updatedAt: isoNow() }, { merge: true });
       return { ...entry.data, status: 'sent', metaMessageId: messageId };
     } catch (error) {
-      await entry.ref.set({ status: 'failed', error: String(error?.message || error).slice(0, 500), failedAt: isoNow(), updatedAt: isoNow() }, { merge: true });
-      logger.warn('whatsapp-delivery-failed', { id, kind, code: error?.code || null });
-      return { ...entry.data, status: 'failed' };
+      const errorMessage = String(error?.message || error).slice(0, 500);
+      const errorCode = error?.code || null;
+      await entry.ref.set({ status: 'failed', error: errorMessage, errorCode, failedAt: isoNow(), updatedAt: isoNow() }, { merge: true });
+      logger.warn('whatsapp-delivery-failed', { id, kind, code: errorCode, error: errorMessage });
+      return { ...entry.data, status: 'failed', error: errorMessage, errorCode };
     }
   }
   async function queueProductCampaign(productId, product, source) {
@@ -259,7 +261,7 @@ module.exports = ({ admin, db, logger, REGION, verifyBearerUser, isAdminUser }) 
           values: [],
           metadata: { consentVersion: CONSENT_VERSION, source: requestConfirmation ? 'profile_confirmation_request' : 'profile' }
         });
-        confirmation = { status: delivery.status || 'queued' };
+        confirmation = { status: delivery.status || 'queued', error: delivery.error || '', errorCode: delivery.errorCode || null };
       }
     }
     return json(res, 200, { ok: true, subscription: { phone, serviceOptIn, marketingOptIn, marketingDepartments, status: active ? 'active' : 'unsubscribed', updatedAt: now }, confirmation });

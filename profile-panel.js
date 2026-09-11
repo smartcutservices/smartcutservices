@@ -187,7 +187,8 @@ class ProfilePanel {
         : confirmationStatus === 'sent' ? 'Confirmation WhatsApp envoyée.'
           : confirmationStatus === 'queued' ? 'Confirmation WhatsApp en cours d’envoi.'
             : confirmationStatus === 'template_not_configured' ? 'Préférences enregistrées. La confirmation nécessite un template Meta approuvé et configuré.'
-              : confirmationStatus === 'failed' ? 'Préférences enregistrées, mais la confirmation n’a pas pu être envoyée.'
+              : confirmationStatus === 'failed'
+                ? `Préférences enregistrées, mais la confirmation n’a pas pu être envoyée${result.confirmation?.errorCode ? ` (Meta ${result.confirmation.errorCode})` : ''}.`
                 : 'Préférences WhatsApp enregistrées.';
       this.authManager.showToast(message, 'success');
     this.render();

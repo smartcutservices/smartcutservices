@@ -201,48 +201,68 @@ class CategoriesSection {
     matchesSelectedCategory(product, selectedCategory) {
         if (selectedCategory === 'all') return true;
         if (!product) return false;
-        const normalize = (value) => String(value ?? '')
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-        const expected = normalize(selectedCategory);
+        const expected = this.normalizeLookup(selectedCategory);
         return [
             product.categoryName, product.categoryId,
             product.departmentName, product.departmentId,
             product.departementName, product.departement
-        ].some((value) => normalize(value) === expected);
+        ].some((value) => this.normalizeLookup(value) === expected);
     }
 
     matchesSelectedDepartment(product, selectedDepartment) {
         if (!selectedDepartment) return true;
-        const normalize = (value) => String(value ?? '')
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-        const expected = normalize(selectedDepartment);
+        const expected = this.normalizeLookup(selectedDepartment);
         const directMatch = [
             product.departmentId, product.departementId, product.department, product.departement,
             product.departmentName, product.departementName
-        ].some((value) => normalize(value) === expected);
+        ].some((value) => this.normalizeLookup(value) === expected);
         if (directMatch) return true;
         const categoryKeys = [product.categoryId, product.categoryName, product.category];
-        return categoryKeys.some((value) => this.state.departmentByCategory[normalize(value)] === expected);
+        return categoryKeys.some((value) => this.state.departmentByCategory[this.normalizeLookup(value)] === expected);
     }
 
     matchesSelectedSubcategory(product, selectedSubcategory) {
         if (!selectedSubcategory) return true;
-        const normalize = (value) => String(value ?? '')
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-        const expected = normalize(selectedSubcategory);
+        const expected = this.normalizeLookup(selectedSubcategory);
         const selections = Array.isArray(product.categorySelections) ? product.categorySelections : [];
         return [
             product.subcategoryId, product.subCategoryId, product.subcategory, product.subCategory,
             product.subcategoryName, product.subCategoryName,
             ...selections.map((item) => item?.id || item?.name || item?.label)
-        ].some((value) => normalize(value) === expected);
+        ].some((value) => this.normalizeLookup(value) === expected);
+    }
+
+    normalizeLookup(value) {
+        return String(value ?? '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+    }
+
+    getDepartmentScopedProducts() {
+        if (!this.state.selectedDepartment) return [...this.state.allProducts];
+        return this.state.allProducts.filter((product) =>
+            this.matchesSelectedDepartment(product, this.state.selectedDepartment)
+        );
+    }
+
+    getFilterOptionProducts({ includeCategory = false } = {}) {
+        let products = this.getDepartmentScopedProducts();
+        if (includeCategory && this.state.selectedCategory !== 'all') {
+            products = products.filter((product) =>
+                this.matchesSelectedCategory(product, this.state.selectedCategory)
+            );
+        }
+        return products;
     }
 
     getSelectedCategoryId() {
         if (this.state.selectedCategory === 'all') return null;
-        const directById = this.state.allProducts.find(p => p.categoryId === this.state.selectedCategory)?.categoryId;
+        const products = this.getFilterOptionProducts();
+        const directById = products.find(p => p.categoryId === this.state.selectedCategory)?.categoryId;
         if (directById) return directById;
-        const byName = this.state.allProducts.find(p => p.categoryName === this.state.selectedCategory)?.categoryId;
+        const byName = products.find(p => p.categoryName === this.state.selectedCategory)?.categoryId;
         return byName || null;
     }
 
@@ -426,7 +446,12 @@ class CategoriesSection {
                 }));
             }
             this.state.departmentByCategory = index;
-            if (this.state.allProducts.length) this.applyFilters();
+            if (this.state.allProducts.length) {
+                this.extractCategories();
+                this.extractColors();
+                this.extractVariants();
+                this.applyFilters();
+            }
         } catch (error) {
             console.warn('Taxonomie des départements indisponible :', error);
         }
@@ -1659,7 +1684,7 @@ class CategoriesSection {
 
     extractCategories() {
         const categoriesSet = new Set();
-        this.state.allProducts.forEach(product => {
+        this.getDepartmentScopedProducts().forEach(product => {
             if (product.categoryName && product.categoryName !== 'non-catégorisé') {
                 categoriesSet.add(product.categoryName);
             }
@@ -1671,7 +1696,7 @@ class CategoriesSection {
 
     extractColors() {
         const colorsSet = new Set();
-        this.state.allProducts.forEach(product => {
+        this.getFilterOptionProducts({ includeCategory: true }).forEach(product => {
             if (Array.isArray(product.colorNames)) {
                 product.colorNames.forEach(colorName => {
                     if (colorName) colorsSet.add(colorName);
@@ -1776,7 +1801,8 @@ class CategoriesSection {
     renderCategories() {
         if (!this.elements.categoriesList) return;
         
-        const allCount = this.state.allProducts.length;
+        const scopedProducts = this.getDepartmentScopedProducts();
+        const allCount = scopedProducts.length;
         
         let html = `
             <label style="
@@ -1804,7 +1830,7 @@ class CategoriesSection {
         `;
         
         this.state.categories.forEach(category => {
-            const count = this.state.allProducts.filter(p => this.matchesSelectedCategory(p, category)).length;
+            const count = scopedProducts.filter(p => this.matchesSelectedCategory(p, category)).length;
             html += `
                 <label style="
                     display: flex;
@@ -1846,6 +1872,7 @@ class CategoriesSection {
                 this.state.currentPage = 1;
                 this.state.selectedVariants = [];
                 this.extractVariants();
+                this.extractColors();
                 this.applyFilters();
                 this.updateActiveFiltersCount();
                 this.closeDrawer();
@@ -1860,6 +1887,7 @@ class CategoriesSection {
                     this.state.currentPage = 1;
                     this.state.selectedVariants = [];
                     this.extractVariants();
+                    this.extractColors();
                     this.applyFilters();
                     this.updateActiveFiltersCount();
                 });
